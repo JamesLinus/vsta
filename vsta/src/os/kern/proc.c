@@ -302,22 +302,20 @@ fork_thread(voidfun f)
 	extern void *alloc_zfod();
 
 	/*
+	 * Do an unlocked increment of the thread count.  The limit
+	 * is thus approximate; worth it for a faster thread launch?
+	 */
+	if (nthread >= NPROC) {
+		return(err(ENOMEM));
+	}
+
+	/*
 	 * Get a user stack first
 	 */
 	ustack = alloc_zfod(p->p_vas, btop(UMINSTACK));
 	if (!ustack) {
 		return(err(ENOMEM));
 	}
-
-	/*
-	 * Do an unlocked increment of the thread count.  The limit
-	 * is thus approximate; worth it for a faster thread launch?
-	 */
-	if (nthread >= NPROC) {
-		remove_pview(p->p_vas, ustack);
-		return(err(ENOMEM));
-	}
-	ATOMIC_INC(&nthread);
 
 	/*
 	 * Allocate thread structure, set up its fields
@@ -366,6 +364,11 @@ fork_thread(voidfun f)
 	v_sema(&p->p_sema);
 
 	/*
+	 * He's for real now
+	 */
+	ATOMIC_INC(&nthread);
+
+	/*
 	 * Set him running
 	 */
 	setrun(t);
@@ -405,6 +408,8 @@ fork(void)
 	pid_t npid;
 	extern struct vas *fork_vas();
 
+	/*
+	 * Check thread limit here
 	/*
 	 * Allocate new structures
 	 */
@@ -468,6 +473,11 @@ fork(void)
 	hash_insert(pid_hash, npid, pnew);
 	add_proclist(pnew);
 	v_sema(&pid_sema);
+
+	/*
+	 * Now he's real
+	 */
+	ATOMIC_INC(&nthread);
 
 	/*
 	 * Leave him runnable
