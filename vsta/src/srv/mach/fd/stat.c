@@ -2,6 +2,8 @@
  * stat.c
  *	Do the stat function
  */
+#include <stdio.h>
+#include <string.h>
 #include <sys/param.h>
 #include <sys/perm.h>
 #include <sys/fs.h>

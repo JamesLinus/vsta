@@ -12,10 +12,14 @@
  * This driver does not support 360K drives, nor 360K floppies in
  * a 1.2M drive.
  */
+#include <mach/io.h>
 #include <sys/fs.h>
 #include <sys/assert.h>
 #include <sys/param.h>
+#include <sys/syscall.h>
+#include <syslog.h>
 #include <std.h>
+#include <stdio.h>
 #include "fd.h"
 
 static void unit_spinup(), unit_recal(), unit_seek(), unit_spindown(),
@@ -104,7 +108,7 @@ cur_tran()
  * fdc_in()
  *	Read a byte from the FDC
  */
-static
+static int
 fdc_in(void)
 {
 	int i, j;
@@ -115,12 +119,12 @@ fdc_in(void)
 			break;
 		}
 		if (j == F_MASTER) {
-			printf("fdc_in failed\n");
+			syslog(LOG_ERR, "fd: fdc_in failed\n");
 			return(-1);
 		}
 	}
 	if (i < 1) {
-		printf("fdc_in failed2\n");
+		syslog(LOG_ERR, "fd: fdc_in failed2\n");
 		return(-1);
 	}
 	return(inportb(FD_DATA));
@@ -130,7 +134,7 @@ fdc_in(void)
  * fdc_out()
  *	Write a byte to the FDC
  */
-static
+static int
 fdc_out(uchar c)
 {
 	int i, j;
@@ -142,7 +146,7 @@ fdc_out(uchar c)
 		}
 	}
 	if (i < 1) {
-		printf("fdc_out failed\n");
+		syslog(LOG_ERR, "fd: fdc_out failed\n");
 		return(-1);
 	}
 	outportb(FD_DATA, c);
@@ -156,7 +160,7 @@ fdc_out(uchar c)
 struct floppy *
 unit(int u)
 {
-	ASSERT_DEBUG((u >= 0) && (u < NFD), "fd: bad unit");
+	ASSERT_DEBUG((u >= 0) && (u < NFD), "fd unit: bad unit");
 	return (&floppies[u]);
 }
 
@@ -179,7 +183,7 @@ calc_cyl(struct file *f, struct fdparms *fp)
  * queue_io()
  *	Record parameters of I/O, queue to unit
  */
-static
+static int
 queue_io(struct floppy *fl, struct msg *m, struct file *f)
 {
 	struct fdparms *fp = &fdparms[fl->f_density];
@@ -194,7 +198,7 @@ queue_io(struct floppy *fl, struct msg *m, struct file *f)
 		f->f_buf = malloc(m->m_arg);
 		if (f->f_buf == 0) {
 			msg_err(m->m_sender, ENOMEM);
-			return;
+			return(1);
 		}
 		f->f_local = 1;
 	} else {
@@ -300,7 +304,7 @@ timeout(int msecs)
  * motor_mask()
  *	Return mask of bits for motor register
  */
-static
+static int
 motor_mask(void)
 {
 	uchar motmask;
@@ -506,10 +510,10 @@ failed(void)
 	/*
 	 * Detach requestor and return error
 	 */
-	ASSERT_DEBUG(f, "fd failed(): not busy");
-	msg_err(f->f_sender, EIO);
+	ASSERT_DEBUG(f, "fd failed: not busy");
 	ll_delete(f->f_list);
 	f->f_list = 0;
+	msg_err(f->f_sender, EIO);
 
 	/*
 	 * Perhaps kick off some more work
@@ -556,7 +560,7 @@ setup_dma(struct file *f)
 	 * Try for straight map-down of memory.  Use bounce buffer
 	 * if we can't get the memory directly.
 	 */
-	map_handle = page_wire(f->f_buf + f->f_off, &pa);
+	map_handle = page_wire(f->f_buf + f->f_off, (void **)&pa);
 	if (map_handle < 0) {
 		pa = (ulong)bouncepa;
 	}
@@ -730,6 +734,8 @@ state_machine(int event)
 	printf("state_machine(%d) cur state ", event);
 	if (busy) {
 		printf("%d\n", busy->f_state);
+		printf("  dens = %d, unit = %d, spin = %d, f_cyl = %d, open = %d\n",
+		       busy->f_density, busy->f_unit, busy->f_spinning, busy->f_cyl, busy->f_opencnt);
 	} else {
 		printf("<none>\n");
 	}
@@ -855,6 +861,11 @@ fd_init(void)
 	ll_init(&waiters);
 
 	/*
+	 * Ensure that we start with motors turned off
+	 */
+	outportb(FD_MOTOR, 0);
+
+	/*
 	 * Probe floppy presences
 	 */
 	outportb(RTCSEL, NV_FDPORT);
@@ -869,18 +880,18 @@ fd_init(void)
 			continue;
 		}
 		if ((types & TYMASK) == FD12) {
-			printf("fd%d 1.2M\n", x);
+			syslog(LOG_INFO, "fd%d: 1.2M\n", x);
 			fl->f_state = F_CLOSED;
 			fl->f_density = 0;
 			continue;
 		}
 		if ((types & TYMASK) == FD144) {
-			printf("fd%d 1.44M\n", x);
+			syslog(LOG_INFO, "fd%d: 1.44M\n", x);
 			fl->f_state = F_CLOSED;
 			fl->f_density = 1;
 			continue;
 		}
-		printf("fd%d unknown type\n", x);
+		syslog(LOG_INFO, "fd%d: unknown type\n", x);
 		fl->f_state = F_NXIO;
 	}
 
@@ -889,7 +900,7 @@ fd_init(void)
 	 */
 	bounceva = malloc(NBPG);
 	if (page_wire(bounceva, &bouncepa) < 0) {
-		printf("Can't get bounce buffer\n");
+		syslog(LOG_ERR, "Can't get bounce buffer\n");
 		exit(1);
 	}
 }
@@ -954,6 +965,13 @@ fd_time(void)
 static void
 unit_reset(int old, int new)
 {
+	if (old == F_IO) {
+		/*
+		 * We're reseting after a failed I/O operation
+		 */
+		errors++;
+	}
+
 	outportb(FD_MOTOR, motor_mask());
 	outportb(FD_MOTOR, motor_mask()|FD_INTR);
 	timeout(2000);
@@ -978,7 +996,7 @@ unit_failed(int old, int new)
 {
 	if (!busy)
 		return;
-	printf("fd%d won't reset--deconfiguring\n", busy->f_unit);
+	syslog(LOG_ERR, "fd%d: won't reset--deconfiguring\n", busy->f_unit);
 	busy->f_state = F_NXIO;
 	busy->f_spinning = 0;
 	motors();
@@ -1015,7 +1033,7 @@ fd_close(struct msg *m, struct file *f)
 	fl = unit(f->f_unit);
 	if ((fl->f_opencnt -= 1) > 0)
 		return;
-	ASSERT_DEBUG(busy != fl, "fd_close: closed but busy");
+	ASSERT_DEBUG(busy != fl, "fd fd_close: closed but busy");
 	fl->f_state = F_CLOSED;
 	fl->f_spinning = 0;
 	motors();

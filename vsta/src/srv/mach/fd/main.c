@@ -6,16 +6,17 @@
 #include <sys/perm.h>
 #include <sys/fs.h>
 #include <sys/namer.h>
+#include <alloc.h>
 #include <hash.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <syslog.h>
 #include <sys/assert.h>
+#include <sys/syscall.h>
 #include "fd.h"
 
 #define MAXBUF (32*1024)
-
-extern void fd_rw(), abort_io(), *malloc(), fd_init(), fd_isr(),
-	fd_stat(), fd_wstat(), fd_readdir(), fd_open(), fd_close();
-extern char *strerror();
 
 static struct hash *filehash;	/* Map session->context structure */
 
@@ -107,7 +108,7 @@ dup_client(struct msg *m, struct file *fold)
 	/*
 	 * Fill in fields.  Simply duplicate old file.
 	 */
-	ASSERT(fold->f_list == 0, "dup_client: busy");
+	ASSERT(fold->f_list == 0, "fd dup_client: busy");
 	*f = *fold;
 	f->f_sender = m->m_arg;
 
@@ -157,7 +158,7 @@ loop:
 	 */
 	x = msg_receive(fdport, &msg);
 	if (x < 0) {
-		perror("fd: msg_receive");
+		syslog(LOG_ERR, "fd: msg_receive");
 		goto loop;
 	}
 
@@ -200,7 +201,7 @@ loop:
 		fd_isr();
 		break;
 	case M_TIME:		/* Time event */
-		fd_time(msg.m_arg);
+		fd_time();
 		break;
 
 	case FS_SEEK:		/* Set position */
@@ -257,7 +258,8 @@ loop:
  * main()
  *	Startup of the floppy server
  */
-main()
+void
+main(void)
 {
 	/*
 	 * Allocate handle->file hash table.  8 is just a guess
@@ -265,7 +267,7 @@ main()
 	 */
         filehash = hash_alloc(8);
 	if (filehash == 0) {
-		perror("file hash");
+		syslog(LOG_ERR, "fd: file hash");
 		exit(1);
         }
 
@@ -276,7 +278,15 @@ main()
 	 * two floppy tasks.
 	 */
 	if (enable_dma(FD_DRQ) < 0) {
-		perror("Floppy DMA");
+		syslog(LOG_ERR, "fd: DMA");
+		exit(1);
+	}
+
+	/*
+	 * Enable I/O for the needed range
+	 */
+	if (enable_io(FD_LOW, FD_HIGH) < 0) {
+		syslog(LOG_ERR, "fd: I/O");
 		exit(1);
 	}
 
@@ -288,14 +298,6 @@ main()
 	fd_init();
 
 	/*
-	 * Enable I/O for the needed range
-	 */
-	if (enable_io(FD_LOW, FD_HIGH) < 0) {
-		perror("Floppy I/O");
-		exit(1);
-	}
-
-	/*
 	 * Get a port for the floppy task
 	 */
 	fdport = msg_port((port_name)0, &fdname);
@@ -304,7 +306,7 @@ main()
 	 * Register as floppy drives
 	 */
 	if (namer_register("disk/fd", fdname) < 0) {
-		fprintf(stderr, "FD: can't register name\n");
+		syslog(LOG_ERR, "fd: can't register name\n");
 		exit(1);
 	}
 
@@ -312,7 +314,7 @@ main()
 	 * Tell system about our I/O vector
 	 */
 	if (enable_isr(fdport, FD_IRQ)) {
-		perror("Floppy IRQ");
+		syslog(LOG_ERR, "fd: IRQ");
 		exit(1);
 	}
 

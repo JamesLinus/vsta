@@ -192,4 +192,27 @@ struct file {
 #define FD12 0x20
 #define FD144 0x40
 
+/*
+ * Function prototypes - dir.c
+ */
+void fd_readdir(struct msg *m, struct file *f);
+void fd_open(struct msg *m, struct file *f);
+
+/*
+ * Function prototypes - rw.c
+ */
+void fd_close(struct msg *m, struct file *f);
+void fd_rw(struct msg *m, struct file *f);
+void fd_init(void);
+void fd_isr(void);
+void abort_io(struct file *f);
+void fd_time(void);
+
+/*
+ * Function prototypes - stat.c
+ */
+void fd_stat(struct msg *m, struct file *f);
+void fd_wstat(struct msg *m, struct file *f);
+
+
 #endif /* _FD_H */

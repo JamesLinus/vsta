@@ -2,10 +2,11 @@
  * dir.c
  *	Do readdir() operation
  */
+#include <alloc.h>
+#include <stdio.h>
+#include <string.h>
 #include <sys/fs.h>
 #include "fd.h"
-
-extern void *malloc();
 
 extern struct floppy floppies[];
 
