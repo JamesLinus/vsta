@@ -56,8 +56,8 @@ struct perpage {
 struct psetops {
 	intfun psop_fillslot,		/* Fill slot with contents */
 		psop_writeslot,		/* Write slot to destination */
-		psop_init,		/* Called once on setup */
-		psop_deinit;		/*  ...on close */
+		psop_init;		/* Called once on setup */
+	voidfun psop_free;		/*  ...on close, to clean up */
 };
 
 /*
@@ -110,6 +110,7 @@ extern void lock_slot(struct pset *, struct perpage *),
 	unlock_slot(struct pset *, struct perpage *);
 extern int clock_slot(struct pset *, struct perpage *);
 extern void deref_pset(struct pset *), ref_pset(struct pset *);
+extern struct pset *alloc_pset(uint);
 extern struct pset *alloc_pset_zfod(uint);
 extern struct pview *alloc_pview(struct pset *);
 extern struct pset *copy_pset(struct pset *);
