@@ -218,7 +218,7 @@ loop:
 		fd_isr();
 		break;
 
-	case M_TIME:		/* Time event */
+	case FD_TIME:		/* Time event */
 		fd_time();
 		break;
 

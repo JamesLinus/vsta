@@ -21,6 +21,10 @@
  */
 #define MAXIO 65536
 
+/*
+ * Magic message type to flag time interval
+ */
+#define FD_TIME (301)
 
 /*
  * Read-ahead buffer size

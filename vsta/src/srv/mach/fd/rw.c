@@ -384,9 +384,9 @@ childproc(ulong child_msecs)
 	time_sleep(&t);
 
 	/*
-	 * Send an M_TIME message
+	 * Send an FD_TIME message
 	 */
-	m.m_op = M_TIME;
+	m.m_op = FD_TIME;
 	m.m_nseg = m.m_arg = m.m_arg1 = 0;
 	(void)msg_send(selfport, &m);
 	_exit(0);
@@ -395,7 +395,7 @@ childproc(ulong child_msecs)
 
 /*
  * timeout()
- *	Ask for M_TIME message in requested number of milliseconds
+ *	Ask for FD_TIME message in requested number of milliseconds
  */
 static void
 timeout(int msecs)
