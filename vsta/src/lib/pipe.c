@@ -2,6 +2,7 @@
  * pipe.c
  *	Set up pipe using pipe manager
  */
+#include <sys/fs.h>
 #include <fcntl.h>
 
 /*
@@ -10,6 +11,7 @@
  */
 pipe(int *fds)
 {
+	port_t portw, portr;
 	int fdw, fdr;
 	char *p, buf[80];
 	extern char *rstat();
@@ -18,15 +20,16 @@ pipe(int *fds)
 	 * Create a new node, for reading/writing.  Reading, so we
 	 * can do the rstat() and get its inode number.
 	 */
-	fdw = open("/pipe/#", O_RDWR|O_CREAT);
-	if (fdw < 0) {
+	portw = path_open("fs/pipe:#", ACC_READ | ACC_WRITE | ACC_CREATE);
+	if (portw < 0) {
 		return(-1);
 	}
+	fdw = __fd_alloc(portw);
 
 	/*
 	 * Get its "inode number"
 	 */
-	p = rstat(__fd_port(fdw), "inode");
+	p = rstat(portw, "inode");
 	if (p == 0) {
 		close(fdw);
 		return(-1);
@@ -35,11 +38,13 @@ pipe(int *fds)
 	/*
 	 * Open a distinct file descriptor for reading
 	 */
-	sprintf(buf, "/pipe/%s", p);
-	if ((fdr = open(buf, O_READ)) < 0) {
+	sprintf(buf, "fs/pipe:%s", p);
+	portr = path_open(buf, ACC_READ);
+	if (portr < 0) {
 		close(fdw);
 		return(-1);
 	}
+	fdr = __fd_alloc(portr);
 
 	/*
 	 * Fill in pair of fd's
