@@ -1,12 +1,13 @@
 OUT=test args cat id ls swapd rm cp sleep mkdir pwd kill mv stat \
 	dumpsect man fstab rmdir touch strings xargs echo du \
 	tput basename uname fmt purge printf ps rcsdo changed \
-	which
+	which true false whoami
 OBJS= args.o basename.o cat.o changed.o chmod.o cp.o du.o dumpsect.o \
 	echo.o fmt.o fstab.o id.o kill.o ls.o man.o mkdir.o \
 	mv.o printf.o ps.o purge.o pwd.o rcsdo.o rm.o rmdir.o \
 	sleep.o stat.o strings.o swapd.o test.o touch.o tput.o \
-	uname.o wc.o which.o xargs.o dump.o operator.o
+	uname.o wc.o which.o xargs.o dump.o operator.o true.o \
+	false.o whoami.o
 
 include ../../makefile.all
 
@@ -117,6 +118,15 @@ ps: ps.o
 
 which: which.o
 	$(LD) $(LDFLAGS) -o which $(CRT0) which.o -lc
+
+true: true.o
+	$(LD) $(LDFLAGS) -o true $(CRT0) true.o -lc
+
+false: false.o
+	$(LD) $(LDFLAGS) -o false $(CRT0) false.o -lc
+
+whoami: whoami.o
+	$(LD) $(LDFLAGS) -o whoami $(CRT0) whoami.o -lc
 
 install: all
 	strip $(OUT)
