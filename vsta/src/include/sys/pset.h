@@ -121,6 +121,7 @@ extern void free_swap(ulong, uint);
 extern struct pset *alloc_pset_fod(struct portref *, uint);
 extern void pset_lastref(struct pset *, struct perpage *, uint);
 extern int valid_pset_slots(struct pset *);
+extern void iodone_unlock(struct qio *), iodone_free(struct qio *);
 #endif /* KERNEL */
 
 #endif /* _PSET_H */
