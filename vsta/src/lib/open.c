@@ -210,7 +210,7 @@ open(char *file, int mode, ...)
 	 * Before first mount, can't open anything!
 	 */
 	if (__mnttab == 0) {
-		return(-1);
+		return(__seterr(ESRCH));
 	}
 
 	/*
@@ -308,8 +308,8 @@ open(char *file, int mode, ...)
 	/*
 	 * No matches--no hope of an open() succeeding
 	 */
-	if (match == 0) {
-		return(-1);
+	if ((match == 0) || (match->m_entries == 0)) {
+		return(__seterr(ESRCH));
 	}
 
 	/*
@@ -321,12 +321,17 @@ open(char *file, int mode, ...)
 			x = __fd_alloc(newfile);
 			if (x < 0) {
 				msg_disconnect(newfile);
-				return(-1);
+				return(__seterr(ENOMEM));
 			}
 			return(x);
 		}
 		msg_disconnect(newfile);
 	}
+
+	/*
+	 * The interaction with the port server will have set
+	 * the error string already.
+	 */
 	return(-1);
 }
 
@@ -377,7 +382,7 @@ chdir(char *newdir)
 	 */
 	p = strdup(buf);
 	if (!p) {
-		return(-1);
+		return(__seterr(ENOMEM));
 	}
 	if (__cwd != default_wd) {
 		free(__cwd);
