@@ -152,10 +152,11 @@ bootproc(struct boot_task *b)
 	join_pgrp(p->p_pgrp, p->p_pid);
 
 	/*
-	 * Add process to list of all processes
+	 * Add process to list of all processes and hash
 	 */
 	p->p_allnext = allprocs;
 	allprocs = p;
+	hash_insert(pid_hash, p->p_pid, p);
 
 	/*
 	 * Leave him hanging around ready to run
