@@ -7,6 +7,25 @@
 #include <lib/alloc.h>
 
 /*
+ * parent_exitgrp()
+ *	Tell PID of parent of exit group, or -1
+ */
+pid_t
+parent_exitgrp(struct exitgrp *e)
+{
+	pid_t pid;
+
+	(void)p_lock(&e->e_lock, SPL0);
+	if (e->e_parent) {
+		pid = e->e_parent->p_pid;
+	} else {
+		pid = -1;
+	}
+	v_lock(&e->e_lock, SPL0);
+	return(pid);
+}
+
+/*
  * alloc_exitgrp()
  *	Allocate an exitgrp, perhaps with a parent
  */
