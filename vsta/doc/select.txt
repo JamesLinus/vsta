@@ -1,0 +1,50 @@
+How to support select() in your server:
+
+1. Initialize
+
+Each select() client is going to need some state, which is defined
+in the "struct selclient" from <selfs.h>.  Use sc_init on this
+struct (usually a part of your per-client state) to set it up.
+
+2. FS_WSTAT support
+
+select() support is enabled by the client do a wstat() of certain
+entries in the open file.  The precise names are not important; what
+is important is that the server in its handling of the FS_WSTAT
+message calls sc_wstat() (implemented in src/lib/selfs.c in libusr.a)
+to let the select support code decode the operation.
+
+If sc_wstat() returns an error, then it didn't recognize the wstat()
+fields, and you can go on to check them for your own purposes (or
+return an EINVAL if you don't recognize them in your code, either).
+
+If sc_wstat() returns success, then it took care of accepting the
+message, so your client has already received a msg_reply() indicating
+success.  What's left is for you to record that this client is using
+select().  Generally, this will entail adding your per-client struct
+to a linked list associated with whatever file/object they have open
+on this connection.
+
+3. Check select status
+
+You will usually have a routine which takes an open file, and then
+checks the list of select() users under that file.  For any user which
+is selecting for something which is available (i.e., they've selected
+for reading and there's data ready to be read), a call to sc_event()
+is made with a pointer to the "struct selclient" state set up by
+sc_wstat(), and also a mask of the event bits active (ACC_READ,
+ACC_WRITE, and so forth).  sc_event will tell the select server about
+this change, and the select server will take care of waking up any
+appropriate clients.
+
+This routine should be called whenever a new select() client is added.
+It can also be called on event changes on the file (first readable
+data arrives, so you need to see if anybody's selecting for readable
+data).  For the latter, you might find the general routine sub-optimal,
+but sufficient.
+
+4. Finish
+
+Use sc_done() on any client who's been activated by a successful
+sc_wstat().  This will clean up the library's behind-the-scenes
+state.
