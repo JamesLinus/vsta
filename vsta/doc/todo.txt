@@ -188,3 +188,8 @@ VM can't reclaim cached pages which have no current attach list entry.
 
 There are a couple more pset operations which should be vectors instead
 	of special cases in a switch statement.
+
+System call interruption via t_qsav is screwed.  *Any* semaphore op--for
+	page fault, system call, whatever--can longjmp back out through
+	this.  Need to set it up so only system calls can have this
+	happen.
