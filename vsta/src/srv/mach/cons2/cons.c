@@ -8,6 +8,7 @@
 #include <std.h>
 #include <ctype.h>
 #include <mach/io.h>
+#include <sys/assert.h>
 
 /*
  * Parameters for screen, filled in by init_screen()
@@ -22,8 +23,8 @@ char *hw_screen;
 void
 load_screen(struct screen *s)
 {
-	bcopy(s->s_img, top, SCREENMEM);
-	cur = top + s->s_pos;
+	bcopy(s->s_img, hw_screen, SCREENMEM);
+	set_screen(hw_screen, s->s_pos);
 	cursor();
 }
 
@@ -34,7 +35,7 @@ load_screen(struct screen *s)
 void
 save_screen(struct screen *s)
 {
-	bcopy(top, s->s_img, SCREENMEM);
+	bcopy(hw_screen, s->s_img, SCREENMEM);
 	s->s_pos = cur-top;
 }
 
@@ -59,6 +60,7 @@ set_screen(char *p, uint cursor)
 	bottom = p + SCREENMEM;
 	lastl = p + ((ROWS-1)*COLS*CELLSZ);
 	cur = p + cursor;
+	ASSERT_DEBUG((cur >= top) && (cur < bottom), "set_screen: bad cursor");
 }
 
 /*
@@ -77,18 +79,29 @@ cursor(void)
 }
 
 /*
+ * clear_screen()
+ *	Apply unenhanced blanks to all of a screen
+ */
+void
+clear_screen(char *p)
+{
+	ulong bl, *u, *bot;
+
+	bl = BLANK;
+	bot = (ulong *)(p+SCREENMEM);
+	for (u = (ulong *)p; u < bot; ++u) {
+		*u = bl;
+	}
+}
+
+/*
  * cls()
  *	Clear screen, home cursor
  */
 static void
 cls(void)
 {
-	ulong bl, *u;
-
-	bl = BLANK;
-	for (u = (ulong *)top; u < (ulong *)bottom; ++u) {
-		*u = bl;
-	}
+	clear_screen(top);
 	cur = top;
 }
 
