@@ -93,25 +93,3 @@ write_sec(daddr_t d, void *p)
 	do_lseek(stob(d));
 	do_write(p, SECSZ);
 }
-
-/*
- * read_secs()
- *	Read sectors
- */
-void
-read_secs(daddr_t d, void *p, uint nsec)
-{
-	do_lseek(stob(d));
-	do_read(p, stob(nsec));
-}
-
-/*
- * write_secs()
- *	Write sectors
- */
-void
-write_secs(daddr_t d, void *p, uint nsec)
-{
-	do_lseek(stob(d));
-	do_write(p, stob(nsec));
-}
