@@ -401,3 +401,46 @@ mkdir(char *dir)
 	}
 	return(-1);
 }
+
+/*
+ * __cwd_size()
+ *	Tell how many bytes to save cwd state
+ */
+long
+__cwd_size(void)
+{
+	/*
+	 * Length of string, null byte, and a leading one-byte count.
+	 * If cwd is ever > 255, this would have to change.
+	 */
+	return(strlen(__cwd)+2);
+}
+
+/*
+ * __cwd_save()
+ *	Save cwd into byte stream
+ */
+void
+__cwd_save(char *p)
+{
+	*p++ = strlen(__cwd)+1;
+	strcpy(p, __cwd);
+}
+
+/*
+ * __cwd_restore()
+ *	Restore cwd from byte stream, return pointer to next data
+ */
+char *
+__cwd_restore(char *p)
+{
+	int len;
+
+	len = ((*p++) & 0xFF);
+	__cwd = malloc(len);
+	if (__cwd == 0) {
+		abort();
+	}
+	bcopy(p, __cwd, len);
+	return(p+len);
+}

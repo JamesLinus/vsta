@@ -66,5 +66,10 @@ noargs:
 	/*
 	 * Restore mount table
 	 */
-	__mount_restore(a);
+	a = __mount_restore(a);
+
+	/*
+	 * Restore current working directory
+	 */
+	__cwd_restore(a);
 }

@@ -18,7 +18,7 @@
 execv(char *file, char **argv)
 {
 	int fd, x;
-	uint plen, fdl_len, mnt_len;
+	uint plen, fdl_len, mnt_len, cwd_len;
 	ulong narg;
 	struct aout a;
 	struct mapfile mf;
@@ -84,6 +84,8 @@ execv(char *file, char **argv)
 	plen += fdl_len;
 	mnt_len = __mount_size();
 	plen += mnt_len;
+	cwd_len = __cwd_size();
+	plen += cwd_len;
 
 	/*
 	 * Create a shared mmap() area
@@ -118,6 +120,12 @@ execv(char *file, char **argv)
 	 */
 	__mount_save(p);
 	p += mnt_len;
+
+	/*
+	 * And our CWD
+	 */
+	__cwd_save(p);
+	p += cwd_len;
 
 	/*
 	 * Here we go!
