@@ -102,7 +102,9 @@ struct fs_file {
 	uint fs_nblk;		/* # extents 36 */
 	struct alloc		/* ...<start,off> tuples of extents */
 		fs_blks[MAXEXT];	/* 288 */
-	char fs_pad[24];	/* Pad to 32-byte boundary */
+	time_t fs_ctime,	/* Create/mod timestamps */
+		fs_mtime;
+	char fs_pad[16];	/* Pad to 32-byte boundary */
 				/*  ...this keeps fs_dirent's aligned */
 	char fs_data[0];	/* Data starts here */
 };
