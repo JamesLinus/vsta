@@ -19,7 +19,10 @@ typedef unsigned long ulong;
 typedef unsigned long ulong_t;
 typedef unsigned long u_long;
 typedef unsigned long off_t;
+#ifndef _SIZE_T
+#define _SIZE_T
 typedef unsigned long size_t;
+#endif
 typedef long time_t;
 typedef ulong_t mode_t;
 typedef ulong_t nlink_t;
