@@ -26,6 +26,10 @@ setjmp.o: mach/setjmp.s
 	$(CPP) mach/setjmp.s /tmp/setjmp.st
 	$(AS) -o setjmp.o /tmp/setjmp.st
 	rm -f /tmp/setjmp.st
+lock.o:	mach/lock.s
+	$(CPP) mach/lock.s /tmp/lock.st
+	$(AS) -o lock.o /tmp/lock.st
+	rm -f /tmp/lock.st
 
 # crt0, standard version and one with boot server support
 crt0.o: mach/crt0.s
