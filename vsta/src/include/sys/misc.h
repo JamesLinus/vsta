@@ -4,6 +4,8 @@
  * misc.h
  *	Miscellaneous kernel function declarations
  */
+#ifdef KERNEL
+
 #include <sys/types.h>
 
 extern int get_ustr(char *, int, void *, int);
@@ -22,5 +24,8 @@ extern int perm_ctl(int, struct perm *, struct perm *);
 extern int set_cmd(char *);
 extern pid_t getid(int);
 extern void assfail(const char *, const char *, int);
+extern void interval_sleep(int);
+
+#endif /* KERNEL */
 
 #endif /* _MISC_H */
