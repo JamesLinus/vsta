@@ -21,7 +21,7 @@
  * This lets us know when we're a new process with a need for new handles
  */
 extern uint fork_tally;
-static uint old_fork_tally;
+static uint old_fork_tally = (uint)-1;
 static pid_t old_pid;
 
 /*
@@ -172,7 +172,9 @@ retry:	sprintf(buf, "select=%u,%ld,%d,%lu,%s\n",
 static void
 clear_cache(void)
 {
-	bzero(cache, sizeof(struct cache) * cache_nfd);
+	if (cache_nfd) {
+		bzero(cache, sizeof(struct cache) * cache_nfd);
+	}
 }
 
 /*
