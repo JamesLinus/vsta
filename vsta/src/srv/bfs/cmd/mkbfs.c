@@ -10,7 +10,7 @@
  * experience.
  */
 #include <stdio.h>
-#include <bfs/bfs.h>
+#include "../bfs.h"
 
 main(argc, argv)
 	int argc;
