@@ -50,3 +50,4 @@ clean:
 	del rm
 	del cp
 	del mkdir
+	del sleep
