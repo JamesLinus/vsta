@@ -9,25 +9,37 @@
  * hashval()
  *	Convert key into hash value
  */
-static uint
-hashidx(ulong key, uint size)
+static inline uint
+hashidx(ulong key, uint mask)
 {
-	return((key ^ (key >> 2)) % size);
+	return((key ^ (key >> 2) ^ (key >> 6)) & mask);
 }
 
 /*
  * hash_alloc()
  *	Allocate a hash data structure of the given hash size
+ *
+ * For speed we always round the hash table size to the nearest power
+ * of 2 above the requested size.
  */
 struct hash *
 hash_alloc(int hashsize)
 {
 	struct hash *h;
+	int i = 3, hashlim = 8;
 
-	h = malloc(sizeof(struct hash) + hashsize*sizeof(struct hash *));
+	/*
+	 * Adjust hash size to the next power of 2
+	 */
+	while(hashsize > hashlim) {
+		i++;
+		hashlim <<= 1;
+	}
+	h = malloc(sizeof(struct hash) + hashlim * sizeof(struct hash *));
 	if (h) {
-		h->h_hashsize = hashsize;
-		bzero(&h->h_hash, hashsize*sizeof(struct hash *));
+		h->h_hashsize = hashlim;
+		h->h_hashmask = hashlim - 1;
+		bzero(&h->h_hash, hashlim * sizeof(struct hash *));
 	}
 	return(h);
 }
@@ -46,7 +58,7 @@ hash_insert(struct hash *h, long key, void *val)
 	if (!h) {
 		return(1);
 	}
-	idx = hashidx(key, h->h_hashsize);
+	idx = hashidx(key, h->h_hashmask);
 	hn = malloc(sizeof(struct hash_node));
 	if (!hn) {
 		return(1);
@@ -79,7 +91,7 @@ hash_delete(struct hash *h, long key)
 	 * we find the node, patch out the current node and
 	 * free it.
 	 */
-	idx = hashidx(key, h->h_hashsize);
+	idx = hashidx(key, h->h_hashmask);
 	hnp = &h->h_hash[idx];
 	hn = *hnp;
 	while (hn) {
@@ -126,7 +138,7 @@ hash_lookup(struct hash *h, long key)
 	if (!h) {
 		return(0);
 	}
-	idx = hashidx(key, h->h_hashsize);
+	idx = hashidx(key, h->h_hashmask);
 	for (hn = h->h_hash[idx]; hn; hn = hn->h_next) {
 		if (hn->h_key == key) {
 			return(hn->h_data);
