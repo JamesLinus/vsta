@@ -19,6 +19,10 @@
 #include <sys/assert.h>
 #include "locore.h"
 
+#ifdef DEBUG
+extern char msg_deadlock[], msg_notheld[];
+#endif
+
 /*
  * ATOMIC_INCL()
  *	Increment an integer atomically
@@ -110,7 +114,7 @@ ATOMIC_DECL_CPU_LOCKS(void)
 inline static spl_t
 p_lock(lock_t *l, spl_t s)
 {
-	ASSERT_DEBUG(l->l_lock == 0, "p_lock: deadlock");
+	ASSERT_DEBUG(l->l_lock == 0, msg_deadlock);
 
 	if (s == SPLHI) {
 		spl_t x;
@@ -134,7 +138,7 @@ p_lock(lock_t *l, spl_t s)
 inline static void
 p_lock_void(lock_t *l, spl_t s)
 {
-	ASSERT_DEBUG(l->l_lock == 0, "p_lock: deadlock");
+	ASSERT_DEBUG(l->l_lock == 0, msg_deadlock);
 
 	if (s == SPLHI) {
 		cli();
@@ -180,7 +184,7 @@ cp_lock(lock_t *l, spl_t s)
 inline static void
 v_lock(lock_t *l, spl_t s)
 {
-	ASSERT_DEBUG(l->l_lock, "v_lock: not held");
+	ASSERT_DEBUG(l->l_lock, msg_notheld);
 	l->l_lock = 0;
 	if (s == SPL0) {
 		sti();

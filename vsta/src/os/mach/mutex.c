@@ -13,6 +13,9 @@
 
 extern lock_t runq_lock;
 extern void lsetrun(), swtch();
+#ifdef DEBUG
+char msg_deadlock[] = "deadlock", msg_notheld[] = "not held";
+#endif
 
 /*
  * q_sema()
