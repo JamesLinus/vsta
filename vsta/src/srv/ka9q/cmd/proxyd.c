@@ -148,7 +148,8 @@ rxmsg(void)
 {
 	struct msg *mp;
 	struct cmsg *cm;
-	uint x, msgleft, bodyleft;
+	int x;
+	uint msgleft, bodyleft;
 	char *bufp, *clmsgp, *body = 0, *bodyp;
 	char clbuf[1024];
 	static char *pushback;
@@ -178,7 +179,6 @@ rxmsg(void)
 				free(pushback);
 				pushback = 0;
 			} else {
-				printf("resid of %d bytes\n", pushlen);
 				bufp = pushback;
 				x = pushlen;
 				pushlen = 0;
@@ -201,12 +201,6 @@ rxmsg(void)
 				goto out;
 			}
 			bufp = clbuf;
-			{ uint y;
-			printf("Got %d bytes:", x);
-			for (y = 0; y < x; ++y) printf(" %02x",
-				bufp[y] & 0xFF);
-			printf("\n");
-			}
 		}
 
 		/*
@@ -363,6 +357,7 @@ serve_slave(struct client *cl)
 	struct cmsg *cm;
 	struct msg *mp;
 	int x;
+	uint size;
 	char *rxbuf;
 	struct msg m;
 
@@ -421,22 +416,58 @@ serve_slave(struct client *cl)
 		 * header into the scatter/gather.  If it won't fit,
 		 * send it in its own message.
 		 */
-		rxbuf = (mp->m_nseg ? mp->m_buf : 0);
+		rxbuf = 0;
+		size = mp->m_arg;
+
+		/*
+		 * For read, we need a buffer into which the server
+		 * will place the data.
+		 */
+		if (mp->m_op & M_READ) {
+			if (size > MAXMSG) {
+				__seterr(E2BIG);
+				send_err(cl->c_sender);
+			}
+			rxbuf = malloc(size);
+			mp->m_buf = rxbuf;
+			mp->m_buflen = size;
+			mp->m_nseg = 1;
+		}
+
+		/*
+		 * Send the message itself.
+		 */
 		cl->c_sender = cl->c_msg.m_sender;
 		x = msg_send(cl->c_local, mp);
 		if (x < 0) {
 			send_err(cl->c_sender);
 		} else {
+			/*
+			 * Success.  Tell him the result size in m_arg
+			 */
+			mp->m_arg = x;
+			mp->m_nseg = rxbuf ? 1 : 0;
+
+			/*
+			 * Send back the header.  If it
+			 * was a read request, send back the
+			 * requested data too.
+			 */
 			m.m_op = FS_WRITE;
 			m.m_sender = cl->c_sender;
 			m.m_buf = mp;
 			m.m_arg = m.m_buflen = sizeof(struct msg);
-			m.m_nseg = 1;
-			(void)msg_send(txport, &m);
-			if (mp->m_nseg) {
-				mp->m_op = FS_WRITE;
-				(void)msg_send(txport, mp);
+			m.m_arg1 = 0;
+			if (rxbuf && x) {
+				m.m_op = FS_WRITE;
+				m.m_seg[1].s_buf = rxbuf;
+				m.m_seg[1].s_buflen = x;
+				m.m_arg += x;
+				m.m_nseg = 2;
+			} else {
+				m.m_nseg = 1;
 			}
+			(void)msg_send(txport, &m);
 		}
 
 		/*
@@ -666,7 +697,6 @@ serve_client(port_t clport)
 	/*
 	 * Tell them we're happy
 	 */
-	printf("Reply to 0x%lx\n", mp->m_sender);
 	do_reply(mp->m_sender, 0);
 
 	/*

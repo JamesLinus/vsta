@@ -1278,7 +1278,7 @@ static void
 do_proxy(struct msg *mp, struct client *cl)
 {
 	struct msg m;
-	uint x, wait_reply;
+	uint x;
 
 	/*
 	 * If a previous transaction is still pending, defer processing
@@ -1294,8 +1294,7 @@ do_proxy(struct msg *mp, struct client *cl)
 	switch (mp->m_op & MSG_MASK) {
 	case M_DISCONNECT:
 		dead_client(mp, cl);
-		cl->c_wait_reply = 0;
-		break;
+		return;
 	case M_DUP:
 		dup_client(mp, cl);
 		cl->c_wait_reply = 0;
@@ -1312,7 +1311,7 @@ do_proxy(struct msg *mp, struct client *cl)
 	 * complete a user action.
 	 */
 	if (mp->m_nseg == MSGSEGS) {
-		if (wait_reply) {
+		if (cl->c_wait_reply) {
 			msg_err(mp->m_sender, E2BIG);
 		}
 		return;
@@ -1560,6 +1559,7 @@ assemble_bytes(void *ptrp, uint *countp, uint count, struct tcp_conn *c)
 static void
 send_proxy_data(struct tcp_conn *c, struct client *cl)
 {
+	int x;
 	uint len;
 	struct msg *mp;
 
@@ -1581,9 +1581,18 @@ send_proxy_data(struct tcp_conn *c, struct client *cl)
 	mp = &cl->c_msg;
 
 	/*
+	 * Assemble length from m_nseg and the buffers.  We can't
+	 * use m_arg, because if we sent an FS_WRITE (no M_READ),
+	 * there's no data to assemble back in this direction, and
+	 * m_arg is the actual I/O result from the remote.
+	 */
+	for (x = 0, len = 0; x < mp->m_nseg; ++x) {
+		len += mp->m_seg[x].s_buflen;
+	}
+
+	/*
 	 * Handle too-large I/O responses
 	 */
-	len = mp->m_arg;
 	if (len > MAXIO) {
 		ll_delete(cl->c_entry); cl->c_entry = 0;
 		cl->c_msg_bytes = 0;
@@ -1595,10 +1604,15 @@ send_proxy_data(struct tcp_conn *c, struct client *cl)
 	}
 
 	/*
-	 * No I/O buffer to contain it yet; allocate
+	 * No I/O buffer to contain it yet; allocate.  Note
+	 * that m_buf was explicitly set to 0 as we assembled
+	 * the header, so it is a local flag of whether we've
+	 * allocated the buffer yet.
 	 */
 	if (len && (mp->m_buf == 0)) {
 		mp->m_buf = malloc(len);
+		mp->m_buflen = len;
+		mp->m_nseg = 1;
 	}
 
 	/*
