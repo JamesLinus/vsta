@@ -636,11 +636,8 @@ do_multichar(int state, char c)
 		sequence(x, y, c);
 		return(0);
 
-	case 5:		/* Seen Esc-([<digits>] */
-		/* We just ignore the extended character set for now */
-		if (isdigit(c)) {
-			return(5);
-		}
+	case 5:		/* Seen Esc-(, consume char set selection */
+		/* We don't care which one they indicate */
 		return(0);
 
 	default:
