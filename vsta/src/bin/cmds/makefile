@@ -14,7 +14,7 @@ OBJS= args.o basename.o cat.o changed.o chmod.o cp.o du.o dumpsect.o \
 
 include ../../makefile.all
 
-SHPROGS=hostname man more mt reboot shutdown
+SHPROGS=hostname man more mt reboot shutdown stty
 
 rcsdo: rcsdo.o
 	$(LD) $(LDFLAGS) -o rcsdo $(CRT0) rcsdo.o -lc
