@@ -77,8 +77,10 @@ cvt_time(uint date, uint time)
 {
 	ulong sec;
 	uint leap, t, yd;
+#ifdef XXX
 	const uint dayst = 119,		/* Daylight savings, sort of */
 		dayen = 303;
+#endif
 
 	sec = (date >> 9) + 1980;
 	leap = !(sec % 4); sec = ytos(sec);			/* year */
@@ -89,11 +91,13 @@ cvt_time(uint date, uint time)
 	sec += ((time >> 5) & 0x3F) * 60;			/* minutes */
 	sec += ((time & 0x1F) << 1);				/* seconds */
 
+#ifdef XXX
 	/* Convert to daylight saving */
 	yd = yd / (24*60*60);
 	if ((yd >= dayst) && ( yd <= dayen)) {
 		sec -= 60*60;
 	}
+#endif
 	return(sec);
 }
 
