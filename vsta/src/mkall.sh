@@ -108,8 +108,6 @@ cd ../testsh
 make $*
 cd ../time
 make $*
-cd ../roff
-make $*
 cd ../adb
 make $*
 cd ../ash
