@@ -34,9 +34,10 @@ static void
 dump_bufpool(void)
 {
 	struct llist *l;
-	struct buf *b;
 
-	for (l = allbufs.l_back; l != &allbufs; l = l->l_back) {
+	for (l = LL_NEXT(&allbufs); l != &allbufs; l = LL_NEXT(l)) {
+		struct buf *b;
+
 		b = l->l_data;
 		printf(" Start %ld len %d locks %d flags 0x%x\n",
 			b->b_start, b->b_nsec, b->b_locks, b->b_flags);
@@ -183,7 +184,7 @@ find_buf(daddr_t d, uint nsec)
 	}
 
 	/*
-	 * Add us to pool
+	 * Add us to pool, and mark us very new
 	 */
 	b->b_list = ll_insert(&allbufs, b);
 	if (b->b_list == 0) {
