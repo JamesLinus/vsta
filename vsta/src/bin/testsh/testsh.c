@@ -18,7 +18,7 @@ extern char *__cwd;	/* Current working dir */
 static void cd(), md(), quit(), ls(), pwd(), mount(), cat(), sleep(),
 	sec(), null(), run(), do_wstat(), do_fork(), get(), set(),
 	do_umount();
-
+extern void run(), path();
 static char *buf;	/* Utility page buffer */
 
 /*
@@ -40,6 +40,7 @@ struct {
 	"mkdir", md,
 	"mount", mount,
 	"null", null,
+	"path", path,
 	"pwd", pwd,
 	"quit", quit,
 	"run", run,
@@ -164,54 +165,6 @@ do_wstat(char *p)
 		perror(q);
 	}
 	close(fd);
-}
-
-/*
- * run()
- *	Fire up an executable
- */
-static void
-run(char *p)
-{
-	char *q, **argv;
-	int x = 1, bg = 0;
-	int pid;
-
-	if (!p || !p[0]) {
-		printf("Usage: run <file>\n");
-		return;
-	}
-	if (q = strchr(p, ' ')) {
-		*q++ = '\0';
-	}
-	argv = malloc((x+1) * sizeof(char **));
-	argv[0] = p;
-	while (q) {
-		x += 1;
-		argv = realloc(argv, (x+1) * sizeof(char **));
-		argv[x-1] = q;
-		if (q = strchr(q, ' ')) {
-			*q++ = '\0';
-		}
-	}
-	if (!strcmp(argv[x-1], "&")) {
-		bg = 1;
-		x -= 1;
-	}
-	argv[x] = 0;
-	pid = fork();
-	if (pid == 0) {
-		x = execv(p, argv);
-		perror(p);
-		printf("Error code: %d\n", x);
-	}
-	if (bg) {
-		printf("%d &\n", pid);
-	} else {
-		x = waits((void *)0);
-		printf("pid %d leaves status of %d\n", pid, x);
-	}
-	free(argv);
 }
 
 /*
