@@ -1064,7 +1064,7 @@ vfs_remove(struct msg *m, struct file *f)
 	 */
 	bdir = bdirent = bfile = 0;
 	err = 0;
-	o = 0;
+	odirent = o = 0;
 	nm = 0;
 	rev = 0;
 
@@ -1134,7 +1134,7 @@ vfs_remove(struct msg *m, struct file *f)
 	da = odirent->o_file;
 	revp = &de->fs_clstart;
 	brevp = bdirent;
-	deref_node(odirent);
+	deref_node(odirent); odirent = 0;
 	while (da) {
 		/*
 		 * Access file under this name, prepare for next
@@ -1240,6 +1240,9 @@ out:
 	}
 	if (o) {
 		deref_node(o);
+	}
+	if (odirent) {
+		deref_node(odirent);
 	}
 	if (nm && rev) {
 		free(nm);
