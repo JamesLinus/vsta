@@ -36,6 +36,7 @@ void
 free_pview(struct pview *pv)
 {
 	deref_pset(pv->p_set);
+	ASSERT_DEBUG(pv->p_valid == 0, "free_pview: p_valid not cleared");
 	FREE(pv, MT_PVIEW);
 }
 
@@ -53,6 +54,7 @@ dup_pview(struct pview *opv)
 	ref_pset(pv->p_set);
 	pv->p_next = 0;
 	pv->p_vas = 0;
+	pv->p_valid = 0;
 	return(pv);
 }
 
@@ -87,8 +89,7 @@ remove_pview(struct vas *vas, void *vaddr)
 	extern struct pview *detach_pview();
 
 	pv = detach_pview(vas, vaddr);
-	deref_pset(pv->p_set);
-	FREE(pv, MT_PVIEW);
+	free_pview(pv);
 }
 
 /*
@@ -112,6 +113,7 @@ attach_valid_slots(struct pview *pv)
 				pp->pp_pfn, pv->p_prot |
 				((pp->pp_flags & PP_COW) ? PROT_RO : 0));
 			ref_slot(ps, pp, idx);
+			pv->p_valid[x] = 1;
 		}
 	}
 }

@@ -140,6 +140,11 @@ vm_unvirt(struct perpage *pp)
 				ptob(a->a_idx), pp->pp_pfn);
 			flags |= hat_getbits(pv,
 				(char *)pv->p_vaddr + ptob(a->a_idx));
+
+			/*
+			 * Virtual map under this pview not valid any more
+			 */
+			pv->p_valid[a->a_idx] = 0;
 		}
 
 		/*

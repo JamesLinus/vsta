@@ -29,31 +29,12 @@ struct bucket buckets[PGSHIFT];
  * things out nicely
  */
 char *n_allocname[MALLOCTYPES] = {
-	"MT_RMAP",
-	"MT_EVENT",
-	"MT_EXITGRP",
-	"MT_EXITST",
-	"MT_MSG",
-	"MT_SYSMSG",
-	"MT_PORT",
-	"MT_PORTREF",
-	"MT_PVIEW",
-	"MT_PSET",
-	"MT_PROC",
-	"MT_THREAD",
-	"MT_KSTACK",
-	"MT_VAS",
-	"MT_PERPAGE",
-	"MT_QIO",
-	"MT_SCHED",
-	"MT_SEG",
-	"MT_EVENTQ",
-	"MT_L1PT",
-	"MT_L2PT",
-	"MT_PGRP",
-	"MT_ATL",
-	"MT_FPU",
-	"MT_OPENPORT",
+	"MT_RMAP", "MT_EVENT", "MT_EXITGRP", "MT_EXITST", "MT_MSG",
+	"MT_SYSMSG", "MT_PORT", "MT_PORTREF", "MT_PVIEW", "MT_PSET",
+	"MT_PROC", "MT_THREAD", "MT_KSTACK", "MT_VAS", "MT_PERPAGE",
+	"MT_QIO", "MT_SCHED", "MT_SEG", "MT_EVENTQ", "MT_L1PT",
+	"MT_L2PT", "MT_PGRP", "MT_ATL", "MT_FPU", "MT_OPENPORT",
+	"MT_PVIEW_VALID",
 };
 #endif /* DEBUG */
 

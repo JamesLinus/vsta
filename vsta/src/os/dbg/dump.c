@@ -297,8 +297,8 @@ do_dump_pview(struct pview *pv)
 {
 	printf(" pview @ 0x%x vaddr 0x%x len 0x%x off 0x%x hat 0x%x\n",
 		pv, pv->p_vaddr, pv->p_len, pv->p_off, &pv->p_hat);
-	printf("  vas 0x%x next 0x%x prot 0x%x pset 0x%x\n",
-		pv->p_vas, pv->p_next, pv->p_prot, pv->p_set);
+	printf("  vas 0x%x next 0x%x prot 0x%x pset 0x%x valid 0x%x\n",
+		pv->p_vas, pv->p_next, pv->p_prot, pv->p_set, pv->p_valid);
 }
 
 /*

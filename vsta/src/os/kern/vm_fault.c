@@ -67,7 +67,7 @@ vas_fault(void *vas, void *vaddr, int write)
 	struct pview *pv;
 	struct pset *ps;
 	struct perpage *pp;
-	uint idx;
+	uint idx, pvidx;
 	int error = 0;
 	int wasvalid;
 
@@ -77,6 +77,7 @@ vas_fault(void *vas, void *vaddr, int write)
 	if ((pv = find_pview(vas, vaddr)) == 0) {
 		return(1);
 	}
+	ASSERT_DEBUG(pv->p_valid, "vas_fault: pview !p_valid");
 	ps = pv->p_set;
 
 	/*
@@ -90,7 +91,8 @@ vas_fault(void *vas, void *vaddr, int write)
 	/*
 	 * Transfer from pset lock to page slot lock
 	 */
-	idx = btop(((char *)vaddr - (char *)pv->p_vaddr)) + pv->p_off;
+	pvidx = btop((char *)vaddr - (char *)pv->p_vaddr);
+	idx = pvidx + pv->p_off;
 	pp = find_pp(ps, idx);
 	lock_slot(ps, pp);
 
@@ -122,29 +124,40 @@ vas_fault(void *vas, void *vaddr, int write)
 	 * Break COW association when we write it
 	 */
 	if ((pp->pp_flags & PP_COW) && write) {
+		/*
+		 * May or may not be there.  If it is, remove
+		 * its reference from the per-page struct.
+		 */
 		if (wasvalid) {
-			uint pvidx;
-
-			/*
-			 * May or may not be there.  If it is, remove
-			 * its reference from the per-page struct.
-			 */
-			pvidx = btop((ulong)vaddr - (ulong)pv->p_vaddr);
-			if (delete_atl(pp, pv, pvidx) == 0) {
-				deref_slot(ps, pp, idx);
+			if (pv->p_valid[pvidx]) {
+				ASSERT(delete_atl(pp, pv, pvidx) == 0,
+					"vas_fault: p_valid no atl");
+				pv->p_valid[pvidx] = 0;
 			}
+			deref_slot(ps, pp, idx);
 		}
 		cow_write(ps, pp, idx);
 		ASSERT(pp->pp_flags & PP_V, "vm_fault: lost the page 2");
+
+	/*
+	 * If not writing to a COW association, then inhibit adding
+	 * the translation if it's already present (another thread
+	 * ran and brought it in for us, probably)
+	 */
+	} else if (pv->p_valid[pvidx]) {
+		deref_slot(ps, pp, idx);
+		goto out;
 	}
 
 	/*
 	 * With a valid slot, add a hat translation and tabulate
 	 * the entry with an atl.
 	 */
-	add_atl(pp, pv, btop((ulong)vaddr - (ulong)(pv->p_vaddr)), 0);
+	add_atl(pp, pv, pvidx, 0);
 	hat_addtrans(pv, vaddr, pp->pp_pfn, pv->p_prot |
 		((pp->pp_flags & PP_COW) ? PROT_RO : 0));
+	ASSERT_DEBUG(pv->p_valid[pvidx] == 0, "vas_fault: p_valid went on");
+	pv->p_valid[pvidx] = 1;
 
 	/*
 	 * Free the various things we hold and return

@@ -60,6 +60,7 @@ detach_pview(struct vas *vas, void *vaddr)
 	struct perpage *pp;
 	int x;
 	struct pview *pv, **pvp;
+	char *va;
 
 	/*
 	 * Remove our pview from the vas.  It's singly linked, so we
@@ -77,6 +78,7 @@ detach_pview(struct vas *vas, void *vaddr)
 	}
 	ASSERT(pv, "detach_pview: lost a pview");
 	v_lock(&vas->v_lock, SPL0_SAME);
+	ASSERT_DEBUG(pv->p_valid, "detach_pview: !p_valid");
 	ps = pv->p_set;
 
 	/*
@@ -86,15 +88,20 @@ detach_pview(struct vas *vas, void *vaddr)
 	for (x = 0; x < pv->p_len; ++x) {
 		uint pfn, idx;
 
-		idx = pv->p_off + x;
-		pp = find_pp(ps, idx);
-
 		/*
-		 * Can't be a translation if not a valid page
+		 * Skip all but those with active mappings
 		 */
-		if (!(pp->pp_flags & PP_V)) {
+		if (!pv->p_valid[x]) {
 			continue;
 		}
+
+		/*
+		 * Point to the mapping
+		 */
+		idx = pv->p_off + x;
+		pp = find_pp(ps, idx);
+		ASSERT_DEBUG(pp->pp_flags & PP_V,
+			"detach_pview: p_valid !PP_V");
 		pfn = pp->pp_pfn;
 
 		/*
@@ -102,23 +109,22 @@ detach_pview(struct vas *vas, void *vaddr)
 		 * translation, and deref our use of the slot.
 		 */
 		lock_slot(ps, pp);
-		if (delete_atl(pp, pv, x) == 0) {
-			char *va;
+		ASSERT(delete_atl(pp, pv, x) == 0,
+			"detach_pview: p_valid but not ATL");
 
-			/*
-			 * Valid in our view; delete HAT translation.  Record
-			 * ref/mod bits for final time.
-			 */
-			va = pv->p_vaddr;
-			va += ptob(x);
-			hat_deletetrans(pv, va, pfn);
-			pp->pp_flags |= hat_getbits(pv, va);
+		/*
+		 * Valid in our view; delete HAT translation.  Record
+		 * ref/mod bits for final time.
+		 */
+		va = pv->p_vaddr;
+		va += ptob(x);
+		hat_deletetrans(pv, va, pfn);
+		pp->pp_flags |= hat_getbits(pv, va);
 
-			/*
-			 * Release our reference to the slot
-			 */
-			deref_slot(ps, pp, idx);
-		}
+		/*
+		 * Release our reference to the slot
+		 */
+		deref_slot(ps, pp, idx);
 		unlock_slot(ps, pp);
 
 		/*
@@ -136,6 +142,12 @@ detach_pview(struct vas *vas, void *vaddr)
 	 * Let hat hear about detach
 	 */
 	hat_detach(pv);
+
+	/*
+	 * Free valid map memory
+	 */
+	FREE(pv->p_valid, MT_PVIEW_VALID);
+	pv->p_valid = 0;
 
 	return(pv);
 }
@@ -175,6 +187,12 @@ attach_pview(struct vas *vas, struct pview *pv)
 		return(0);
 	}
 	vaddr = pv->p_vaddr;
+
+	/*
+	 * Get the memory for the valid map
+	 */
+	pv->p_valid = MALLOC(pv->p_len, MT_PVIEW_VALID);
+	bzero(pv->p_valid, pv->p_len);
 
 	/*
 	 * Now that we're committed, link it onto the vas
