@@ -289,6 +289,7 @@ bfs_rename(struct msg *m, struct file *f)
 {
 	struct file *f2;
 	char *errstr;
+	extern int valid_fname(char *, int);
 
 	/*
 	 * Sanity

@@ -46,12 +46,12 @@ static char *cur_vaddr;	/* VA to stuff bytes into */
 static int cur_op;	/* Current op (FS_READ/FS_WRITE) */
 
 /*
- * swab()
+ * swab2()
  *	Swap bytes in a range
  */
-#define SWAB(field) swab(&(field), sizeof(field))
+#define SWAB(field) swab2(&(field), sizeof(field))
 static void
-swab(void *ptr, uint cnt)
+swab2(void *ptr, uint cnt)
 {
 	char *p, c;
 	int x;

@@ -339,7 +339,8 @@ rw_readpartitions(int unit)
 static int
 update_partition_list(int unit, int initiating)
 {
-	static int sector_num, next_part;
+	static uint sector_num;
+	static int next_part;
 
 	/*
 	 * Are we initiating a partition read?
@@ -360,7 +361,7 @@ update_partition_list(int unit, int initiating)
 		 * We must bein the middle of an update so sort out the
 		 * table manipulations and start any further reads
 		 */
-		if (dpart_init("wd", unit, secbuf, &sector_num,
+		if (dpart_init("wd", (uint)unit, secbuf, &sector_num,
 			       disks[unit].d_parts, &next_part) == 0) {
 			sector_num = 0;
 		}

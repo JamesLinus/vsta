@@ -184,10 +184,10 @@ void js_read(struct msg *m, struct file *f)
   pio_reset_buffer(buffer);
   pio_u_char(buffer, &js_id);
   pio_u_char(buffer, &jsd_btns);
-  pio_short(buffer, &jsd_ch_a);
-  pio_short(buffer, &jsd_ch_b);
-  pio_short(buffer, &jsd_ch_c);
-  pio_short(buffer, &jsd_ch_d);
+  pio_short(buffer, (short *)&jsd_ch_a);
+  pio_short(buffer, (short *)&jsd_ch_b);
+  pio_short(buffer, (short *)&jsd_ch_c);
+  pio_short(buffer, (short *)&jsd_ch_d);
 
   /*
    * Then blat the data out :-)

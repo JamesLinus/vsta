@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <std.h>
 #include "libjoystick.h"
 
 void main(void)
