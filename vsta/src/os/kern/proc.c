@@ -432,6 +432,7 @@ fork(void)
 	fork_ports(pold->p_open, pnew->p_open, PROCOPENS);
 	pnew->p_prefs = 0;
 	pnew->p_nopen = pold->p_nopen;
+	pnew->p_handler = pold->p_handler;
 	pnew->p_pgrp = pold->p_pgrp; join_pgrp(pold->p_pgrp, pnew->p_pid);
 	pnew->p_parent = pold->p_children; ref_exitgrp(pnew->p_parent);
 	bcopy(pold->p_cmd, pnew->p_cmd, sizeof(pnew->p_cmd));

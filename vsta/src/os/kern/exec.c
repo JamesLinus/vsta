@@ -326,9 +326,11 @@ exec(uint arg_port, struct mapfile *arg_map, void *arg)
 	add_views(p->p_vas, pr, &m);
 
 	/*
-	 * We don't really have a name for this any more
+	 * We don't really have a name for this any more, and our
+	 * handler probably isn't meaningful.
 	 */
 	p->p_cmd[0] = '\0';
+	p->p_handler = 0;
 
 	/*
 	 * Pass the argument back in a machine-dependent way
