@@ -10,7 +10,8 @@ static int shift = 0,	/* Count # shift keys down */
 	alt = 0,	/*  ...alt keys */
 	ctl = 0,	/*  ...ctl keys */
 	capstoggle = 0,	/* For toggling effect of CAPS */
-	numtoggle = 0;	/*  ...NUM lock */
+	numtoggle = 0,	/*  ...NUM lock */
+	isE0 = 0;	/* Prefix for extended keys (FN1, etc.) */
 
 /* Map scan codes to ASCII, one table for normal, one for shifted */
 static char normal[] = {
@@ -40,7 +41,7 @@ static char shifted[] = {
  * it sends it off for use in read events
  */
 static void
-key_event(uchar c)
+key_event(struct screen *s, uchar c)
 {
 	uchar ch;
 
@@ -55,8 +56,13 @@ key_event(uchar c)
 	/*
 	 * Look up in right table for current state
 	 */
-	if ((c > 70) && numtoggle) {
-		ch = shifted[c];
+ 	if (capstoggle) {
+ 		ch = normal[c];
+ 		if ((ch >= 'a') && (ch <= 'z')) {
+ 			ch = shift ? normal[c] : shifted[c];
+ 		} else {
+ 			ch = shift ? shifted[c] : normal[c];
+ 		}
 	} else {
 		ch = shift ? shifted[c] : normal[c];
 	}
@@ -88,7 +94,132 @@ key_event(uchar c)
 	 * data for the virtual screen currently being displayed
 	 * on the hardware screen.
 	 */
-	kbd_enqueue(&screens[hwscreen], (uint)ch);
+	kbd_enqueue(s, ch);
+}
+
+/*
+ * enqueue_string()
+ *	Feed a string into the keyboard queue
+ */
+static void
+enqueue_string(struct screen *s, char *p)
+{
+	char c;
+
+	while ((c = *p++)) {
+		kbd_enqueue(s, c);
+	}
+}
+
+/*
+ * cursor_key()
+ *	Process cursor keys
+ *
+ * Enqueue VT100-compatible Escape sequences
+ * Returns 1 if it *was* a cursor key, 0 otherwise.
+ */
+static int
+cursor_key(struct screen *s, uchar c)
+{
+	char *cp;
+
+	switch (c) {
+	case 72:	/* up */
+		cp = "\033OA";
+		break;
+	case 80:	/* down */
+		cp = "\033OB";
+		break;
+	case 77:	/* right */
+		cp = "\033OC";
+		break;
+	case 75:	/* left */
+		cp = "\033OD";
+		break;
+	case 73:	/* pg up */
+		cp = "\033[5~";
+		break;
+	case 81:	/* pg down */
+		cp = "\033[6~";
+		break;
+	case 82:	/* insert */
+		cp = "\033[2~";
+		break;
+	case 83:	/* delete */
+		cp = "\033[3~";
+		break;
+	case 71:	/* home */
+	case 76:	/* 5 on numpad */
+	case 79:	/* end */
+		if ((!isE0) && ((numtoggle && !shift) ||
+				(!numtoggle && shift))) {
+			kbd_enqueue(s, (uint)shifted[c]);
+		}
+		return 1;
+	default:
+		return 0;
+	}
+
+	if ((!isE0) && ((numtoggle && !shift) ||
+			(!numtoggle && shift))) {
+		kbd_enqueue(s, shifted[c]);
+	} else {
+		enqueue_string(s, cp);
+	}
+	return 1;
+}
+		
+/*
+ * function_key()
+ *	Process function keys
+ *
+ * Returns 1 if it *was* a function key, 0 otherwise.
+ */
+static int
+function_key(struct screen *s, uchar c)
+{
+	char *p;
+
+	switch (c) {
+	case 59:	/* F1 */
+		p = "\033OP";
+		break;
+	case 60:	/* F2 */
+		p = "\033OQ";
+		break;
+	case 61:	/* F3 */
+		p = "\033OR";
+		break;
+	case 62:	/* F4 */
+		p = "\033OS";
+		break;
+	case 63:	/* F5 */
+		p = "\033OT";
+		break;
+	case 64:	/* F6 */
+		p = "\033OU";
+		break;
+	case 65:	/* F7 */
+		p = "\033OV";
+		break;
+	case 66:	/* F8 */
+		p = "\033OW";
+		break;
+	case 67:	/* F9 */
+		p = "\033OX";
+		break;
+	case 68:	/* F10 */
+	case 87:	/* F11 */
+	case 88:	/* F12 */
+		p = 0;
+		break;
+	default:
+		return 0;
+	}
+	if (p) {
+		enqueue_string(s, p);
+	}
+	return(1);
 }
 
 /*
@@ -110,6 +241,7 @@ shift_key(uchar c)
 		shift = 0;
 		break;
 	case 0xe0:		/* Prefix for "left side" */
+ 		isE0 = 1;
 		break;
 	case 0x1d:		/* Control key down */
 		ctl = 1;
@@ -149,6 +281,7 @@ void
 kbd_isr(struct msg *m)
 {
 	uchar data, strobe;
+	struct screen *s = &screens[hwscreen];
 
 	ASSERT_DEBUG(m->m_arg == KEYBD_IRQ, "kbd_isr: bad IRQ");
 
@@ -160,13 +293,22 @@ kbd_isr(struct msg *m)
 	outportb(KEYBD_CTL, strobe|KEYBD_ENABLE);
 	outportb(KEYBD_CTL, strobe);
 
+  	/*
+ 	 * Winnow out various special keys.  The routines will fiddle
+	 * state and queue bytes as appropriate.  Plain old data is
+	 * then queued here.
+  	 */
+ 	if (!shift_key(data) &&
+			!(data >= 0x80) &&
+			!cursor_key(s, data) &&
+			!function_key(s, data)) {
+		key_event(s, data);
+ 	}
+
 	/*
-	 * Try data as a shift key.  If not, filter key release
-	 * events (sorry, X) and process the data.
+	 * Clear our prefix flag unless we've seen it now
 	 */
-	if (!shift_key(data)) {
-		if (data <= 0x80) {
-			key_event(data);
-		}
-	}
+ 	if (data != 0xE0) {
+ 		isE0 = 0;
+  	}
 }
