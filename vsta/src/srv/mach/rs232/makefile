@@ -1,14 +1,11 @@
-CC= gcc
-LD= ld
-INCS= -I../../../../include
-CFLAGS= -DDEBUG $(INCS) -O
-LDFLAGS= -L../../../lib
-OBJS= fifo.o main.o rw.o isr.o stat.o control.o
-LIBS= -lusr -lc
-CRT0= ../../../lib/crt0.o
-
-.c.o:
-	$(CC) $(CFLAGS) -c $*.c
+CC=gcc
+LD=ld
+INCS=-I../../../../include
+CFLAGS=-DKDB $(INCS) -O
+LDFLAGS=-L../../../lib
+OBJS=fifo.o main.o rw.o isr.o stat.o control.o
+LIBS=-lusr -lc
+CRT0=../../../lib/crt0.o
 
 rs232: $(OBJS)
 	$(LD) $(LDFLAGS) -e start -o rs232 $(CRT0) $(OBJS) $(LIBS)
