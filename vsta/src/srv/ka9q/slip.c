@@ -22,14 +22,16 @@
 
 extern unsigned restricted_dev;
 int asy_ioctl();
+int16 asy_recv();
 int kiss_ioctl();
 int slip_send();
-void doslip();
+int doslip();
 int asy_output();
 
 /* Slip level control structure */
 struct slip slip[ASY_MAX];
-void slip_recv(), asy_start();
+void slip_recv();
+static void asy_start();
 static struct mbuf *slip_encode();
 static int slipq();
 
@@ -82,7 +84,6 @@ struct mbuf *data;	/* Buffer to be sent */
 {
 	register struct slip *sp;
 	struct mbuf *slip_encode(),*bp;
-	void asy_start();
 
 	if((bp = slip_encode(data)) == NULLBUF)
 		return -1;	
@@ -90,9 +91,10 @@ struct mbuf *data;	/* Buffer to be sent */
 	sp = &slip[dev];
 	enqueue(&sp->sndq,bp);
 	sp->sndcnt++;
-	if(sp->tbp == NULLBUF)
+	if(sp->tbp == NULLBUF) {
 		asy_start(dev);
-	return 0;
+	}
+	return(0);
 }
 /* Start output, if possible, on asynch device dev */
 static void
@@ -225,23 +227,23 @@ char c;		/* Incoming character */
 	sp->rcnt++;
 	return NULLBUF;
 }
+
 /* Process SLIP line I/O */
-void
-doslip(interface)
-struct interface *interface;
+int
+doslip(struct interface *interface)
 {
 	char c;
 	struct mbuf *bp;
-	int16 dev;
-	int16 asy_recv();
+	int16 dev, didstuff;
 	struct slip *sp;
 
 	dev = interface->dev;
-	if(dev == restricted_dev) return;
+	if(dev == restricted_dev) return(0);
 	sp = &slip[dev];
 
 	/* Process any pending input */
-	while(asy_recv(dev,&c,1) != 0) {
+	didstuff = 0;
+	while (asy_recv(dev,&c,1) != 0) {
 		if((bp = slip_decode(dev,c)) == NULLBUF)
 			continue;
 
@@ -249,6 +251,7 @@ struct interface *interface;
 		if (sp->iface->trace & IF_TRACE_RAW)
 			raw_dump(sp->iface,IF_TRACE_IN,bp);
 */
+		didstuff = 1;
 		if (sp->vjcomp) {
 			if ((c = bp->data[0]) & SL_TYPE_COMPRESSED_TCP) {
 				if ( slhc_uncompress((struct slcompress *)sp->slcomp, &bp) <= 0 ) {
@@ -267,10 +270,14 @@ struct interface *interface;
 		}
 		(*slip[dev].recv)(interface,bp);
 	}
+
 	/* Kick the transmitter if it's idle */
 	if(stxrdy(dev))
 		asy_start(dev);
+
+	return(didstuff);
 }
+
 /* Unwrap incoming SLIP packets -- trivial operation since there's no
  * link level header
  */
@@ -451,7 +458,6 @@ char **argv;
 doslipstat()
 {
 	int16 dev;
-	int16 asy_recv();
 	struct slip *sp;
 	register struct interface *ifp;
 

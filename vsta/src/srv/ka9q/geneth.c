@@ -155,8 +155,9 @@ eth_stop(int dev)
  *
  * The actual receipt of packets is done in a thread context.
  * They are then queued and made available to this routine.
+ * Returns non-zero if any packets were processed, otherwise 0.
  */
-void
+int
 eth_recv(struct interface *i)
 {
 	struct mbuf *bp, *bpn;
@@ -166,7 +167,7 @@ eth_recv(struct interface *i)
 	 */
 	bp = rxqueue;
 	if (bp == 0) {
-		return;
+		return(0);
 	}
 	rxqueue = 0;
 
@@ -180,6 +181,7 @@ eth_recv(struct interface *i)
 		eproc(i, bp);
 		bp = bpn;
 	}
+	return(1);
 }
 
 /*

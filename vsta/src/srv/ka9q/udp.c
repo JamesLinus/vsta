@@ -298,8 +298,9 @@ struct pseudo_header *ph;
 	 * the spec requires us to change zeros into ones to distinguish an
  	 * all-zero checksum from no checksum at all
 	 */
-	if((checksum = cksum(ph,bp,ph->length)) == 0)
-		checksum = 0xffffffff;
+	if ((checksum = cksum(ph,bp,ph->length)) == 0) {
+		checksum = 0xFFFF;
+	}
 	put16(cp,checksum);
 	return bp;
 }

@@ -216,27 +216,30 @@ char c;		/* Incoming character */
 }
 
 /* Process net/rom serial line I/O */
-void
-nrs_recv(interface)
-struct interface *interface;
+int
+nrs_recv(struct interface *interface)
 {
 	char c;
 	struct mbuf *bp;
-	int16 dev;
+	int16 dev, didstuff = 0;
 	int16 asy_recv();
 	int ax_recv() ;
 
 	dev = interface->dev;
 	/* Process any pending input */
-	while(asy_recv(dev,&c,1) != 0)
+	while(asy_recv(dev,&c,1) != 0) {
 		if((bp = nrs_decode(dev,c)) != NULLBUF) {
+			didstuff = 1;
 			dump(interface,IF_TRACE_IN,TRACE_AX25,bp) ;
 			ax_recv(interface,bp);
 		}
+	}
 
 	/* Kick the transmitter if it's idle */
-	if(stxrdy(dev))
+	if (stxrdy(dev)) {
 		nrasy_start(dev);
+	}
+	return(didstuff);
 }
 
 /* donrstat:  display status of active net/rom serial interfaces */

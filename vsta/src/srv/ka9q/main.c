@@ -272,10 +272,9 @@ keep_things_going(void)
 		didstuff = 1;
 	}
 	/* Service the interfaces */
-	for(ifp = ifaces; ifp != NULLIF; ifp = ifp->next){
-		if (ifp->recv != NULLVFP) {
-			(*ifp->recv)(ifp);
-			didstuff = 1;
+	for (ifp = ifaces; ifp != NULLIF; ifp = ifp->next){
+		if (ifp->recv != NULLFP) {
+			didstuff |= (*ifp->recv)(ifp);
 		}
 	}
 
@@ -750,7 +749,7 @@ char *argv[];
 	int asy_init();
 	int asy_send();
 	int asy_ioctl();
-	void doslip();
+	int doslip();
 	int asy_stop();
 	int ax_send();
 	int ax_output();
@@ -773,7 +772,7 @@ char *argv[];
 	struct ax25_addr addr ;
 #endif
 	int ax_send(),ax_output(),nrs_raw(),asy_ioctl();
-	void nrs_recv();
+	int nrs_recv();
 
 	if(nasy >= ASY_MAX){
 		printf("Too many asynch controllers\n");

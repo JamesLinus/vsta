@@ -171,7 +171,7 @@ struct mbuf *htontcp();
 /* TCP primitives */
 struct tcb *open_tcp();
 int send_tcp(),recv_tcp(),close_tcp(),del_tcp();
-void state_tcp(),tcp_dump();
+void tcp_dump();
 
 extern int16 tcp_mss;
 extern int16 tcp_window;

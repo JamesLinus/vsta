@@ -422,22 +422,26 @@ struct interface *interface;
 {
 	char c;
 	struct mbuf *bp, *cp=NULLBUF;
-	int16 dev;
+	int16 dev, didstuff = 0;
 	int16 asy_recv();
 
 	dev = interface->dev;
 	/* Process any pending input */
-	while(asy_recv(dev,&c,1) != 0) {
+	while (asy_recv(dev,&c,1) != 0) {
 		if((bp = slfp_decode(dev,c)) != NULLBUF) {
+			didstuff = 1;
 			(*slfp[dev].recv)(interface,bp);
 		}
 	}
-	if (cp != NULLBUF)
+	if (cp != NULLBUF) {
 		(*slfp[dev].recv)(interface,cp);
+	}
 	
 	/* Kick the transmitter if it's idle */
-	if(stxrdy(dev))
+	if (stxrdy(dev)) {
 		slfp_asy_start(dev);
+	}
+	return(didstuff);
 }
 
 /* Handle Address Reply packets

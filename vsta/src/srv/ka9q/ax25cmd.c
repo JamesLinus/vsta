@@ -29,9 +29,9 @@ char *ax25states[] = {
 	"Frame Reject",
 };
 
-int domycall(),dodigipeat(),doaxstat(),dot1(),dot2(),dot3(),domaxframe(),
-	doaxwindow(),dopaclen(),don2(),doaxreset(),dopthresh(),doheard();
-static dumpstat();
+static int domycall(), dodigipeat(), doaxstat(), dot1(), dot2(), dot3(),
+	domaxframe(), doaxwindow(), dopaclen(), don2(), doaxreset(),
+	dopthresh(), doheard(), dumpstat();
 #ifdef SID2
 int dobbscall();
 extern struct ax25_addr bbscall;
@@ -72,7 +72,7 @@ char *argv[];
 }
 
 /*ARGSUSED*/
-static
+static int
 doaxreset(argc,argv)
 int argc;
 char *argv[];
@@ -90,7 +90,7 @@ char *argv[];
 }
 
 /* Display AX.25 link level control blocks */
-static
+static int
 doaxstat(argc,argv)
 int argc;
 char *argv[];
@@ -122,7 +122,7 @@ char *argv[];
 	return 0;
 }
 /* Dump one control block */
-static
+static int
 dumpstat(axp)
 register struct ax25_cb *axp;
 {
@@ -173,7 +173,7 @@ register struct ax25_cb *axp;
 }
 
 /* Display or change our AX.25 address */
-static
+static int
 domycall(argc,argv)
 int argc;
 char *argv[];
@@ -213,7 +213,7 @@ char *argv[];
 #endif
 
 /* Control AX.25 digipeating */
-static
+static int
 dodigipeat(argc,argv)
 int argc;
 char *argv[];
@@ -231,7 +231,7 @@ char *argv[];
 }
 
 /* Set retransmission timer */
-static
+static int
 dot1(argc,argv)
 int argc;
 char *argv[];
@@ -247,7 +247,7 @@ char *argv[];
 }
 
 /* Set acknowledgement delay timer */
-static
+static int
 dot2(argc,argv)
 int argc;
 char *argv[];
@@ -263,7 +263,7 @@ char *argv[];
 }
 
 /* Set idle timer */
-static
+static int
 dot3(argc,argv)
 int argc;
 char *argv[];
@@ -279,7 +279,7 @@ char *argv[];
 }
 
 /* Set retry limit count */
-static
+static int
 don2(argc,argv)
 int argc;
 char *argv[];
@@ -294,7 +294,7 @@ char *argv[];
 }
 
 /* Set maximum number of frames that will be allowed in flight */
-static
+static int
 domaxframe(argc,argv)
 int argc;
 char *argv[];
@@ -309,7 +309,7 @@ char *argv[];
 }
 
 /* Set maximum length of I-frame data field */
-static
+static int
 dopaclen(argc,argv)
 int argc;
 char *argv[];
@@ -323,7 +323,7 @@ char *argv[];
 	}
 }
 /* Set size of I-frame above which polls will be sent after a timeout */
-static
+static int
 dopthresh(argc,argv)
 int argc;
 char *argv[];
@@ -338,7 +338,7 @@ char *argv[];
 }
 
 /* Set high water mark on receive queue that triggers RNR */
-static
+static int
 doaxwindow(argc,argv)
 int argc;
 char *argv[];
@@ -634,7 +634,7 @@ int16 cnt;
 /* heard stuff */
 struct ax25_heard heard = {0,0};
 /* Display AX.25 heard list */
-static
+static int
 doheard(argc,argv)
 int argc;
 char *argv[];

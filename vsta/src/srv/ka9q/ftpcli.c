@@ -29,8 +29,8 @@ static char cantread[] = "Can't read %s\n";
 static int sndftpmsg(), ftpsetup();
 static void ftpcds(), ftpccs(), doreply();
 
-int donothing(),doftpcd(),dolist(),doget(),dols(),doput(),dotype(),
-	doabort(), domkdir(),dormdir(), domget(), domput();
+static int donothing(), doftpcd(), dolist(), doget(), dols(), doput(),
+	dotype(), doabort(), domkdir(), dormdir(), domget(), domput();
 
 struct cmds ftpabort[] = {
 	"",		donothing,	0,	NULLCHAR,		NULLCHAR,

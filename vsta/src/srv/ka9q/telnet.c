@@ -33,6 +33,7 @@ int debug_options = 0;
 extern FILE *trfp;            /* file pointer used for tracing */
 void suboption();
 struct telnet *dotelnet_subr();
+void t_state(struct tcb *tcb, char old, char new);
 
 /*
  * Two separate I/O packages are being used here.
@@ -174,7 +175,7 @@ int argc;
 char *argv[];
 char *tty;
 {
-	void t_state(),rcv_char(),tn_tx();
+	void rcv_char(),tn_tx();
 	char *inet_ntoa();
 	int32 resolve();
 	int send_tel();

@@ -12,13 +12,14 @@
 #include "finger.h"
 #include "lapb.h"
 
+extern void lapbstate();
+
 /* Called whenever timer T1 expires */
 void
 recover(n)
 int *n;
 {
 	register struct ax25_cb *axp;
-	void lapbstate();
 
 	axp = (struct ax25_cb *)n;
 
@@ -107,7 +108,7 @@ int *n;
 	case CONNECTED:
 		axp->retries = 0;
 		tx_enq(axp);
-		lapbstate(axp,RECOVERY);
+		lapbstate(axp, RECOVERY);
 		break;
 	}
 }

@@ -7,7 +7,7 @@ struct interface {
 	int (*send)();		/* Routine to send an IP datagram */
 	int (*output)();	/* Routine to send link packet */
 	int (*raw)();		/* Routine to call to send raw packet */
-	void (*recv)();		/* Routine to kick to process input */
+	int (*recv)();		/* Routine to kick to process input */
 	int (*stop)();		/* Routine to call before detaching */
 	int16 dev;		/* Subdevice number to pass to send */
 	int16 flags;		/* Configuration flags */

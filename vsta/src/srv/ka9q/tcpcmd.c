@@ -8,6 +8,7 @@
 #include "cmdparse.h"
 
 static int tstat();
+static void state_tcp();
 
 /* TCP connection states */
 char *tcpstates[] = {
@@ -32,7 +33,8 @@ char *reasons[] = {
 	"ICMP"
 };
 /* TCP subcommand table */
-int domss(),doirtt(),dortt(),dotcpstat(),dowindow(),dotcpkick(),dotcpreset();
+static int domss(), doirtt(), dortt(), dotcpstat(), dowindow(),
+	dotcpkick(), dotcpreset();
 struct cmds tcpcmds[] = {
 	"irtt",		doirtt,		0,	NULLCHAR,	NULLCHAR,
 	"kick",		dotcpkick,	2,	"tcp kick <tcb>",
@@ -167,10 +169,11 @@ char *argv[];
 		tstat();
 	} else {
 		tcb = (struct tcb *)htol(argv[1]);
-		if(tcpval(tcb))
+		if(tcpval(tcb)) {
 			state_tcp(tcb);
-		else
+		} else {
 			printf(notval);
+		}
 	}
 	return 0;
 }

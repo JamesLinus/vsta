@@ -32,8 +32,8 @@ int32 gateway;
 static void smtp_cts(), smtp_cts();
 
 #ifdef SMTPTRACE
-int16	smtptrace = 0;			/* used for trace level */
-int dosmtptrace();
+static int16	smtptrace = 0;		/* used for trace level */
+static int dosmtptrace();
 #endif
 
 int16	smtpmaxcli  = MAXSESSIONS;	/* the max client connections allowed */
@@ -46,11 +46,13 @@ static struct smtp_cb *cli_session[MAXSESSIONS]; /* queue of client sessions  */
 static char quitcmd[] = "QUIT\r\n";
 static char eom[] = "\r\n.\r\n";
 
-int smtptick(),dogateway(),dosmtpmaxcli(),mlock(),dotimer(),nextjob();
-int setsmtpmode(),sendwindow();
-void quit(),abort_trans(),retmail(),sendit(),del_session(),del_job();
-void execjobs(),smtp_transaction(),logerr();
-struct smtp_cb *newcb(),*lookup();
+int mlock();
+static int smtptick(), dogateway(), dosmtpmaxcli(), dotimer(),
+	nextjob(), setsmtpmode(), sendwindow();
+static void quit(), abort_trans(), retmail(), sendit(),
+	del_session(), del_job();
+static void execjobs(), smtp_transaction(), logerr();
+static struct smtp_cb *newcb(), *lookup();
 struct smtp_job *setupjob();
 
 struct cmds smtpcmds[] = {

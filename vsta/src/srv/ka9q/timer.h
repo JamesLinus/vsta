@@ -6,6 +6,8 @@
  * Stopping a timer or letting it expire causes it to be removed
  * from the list; starting a timer puts it on the list.
  */
+#include <limits.h>
+
 struct timer {
 	struct timer *next;	/* Doubly-linked-list pointers */
 	struct timer *prev;
@@ -19,7 +21,7 @@ struct timer {
 #define	TIMER_EXPIRE	2
 };
 #define	NULLTIMER	(struct timer *)0
-#define	MAX_TIME	(int32)4294967295	/* Max long integer */
+#define	MAX_TIME	(int32)INT_MAX	/* Max long integer */
 #ifndef MSPTICK
 #if	ATARI_ST && (!MWC)
 #define	MSPTICK		100		/* Milliseconds per tick */

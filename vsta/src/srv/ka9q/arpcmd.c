@@ -13,7 +13,7 @@ extern char badhost[];
 extern char nospace[];
 static dumparp();
 
-int doarpadd(),doarpdrop();
+static int doarpadd(),doarpdrop();
 struct cmds arpcmds[] = {
 	"add", doarpadd, 4,
 	"arp add <hostid> ether|ax25|netrom <ether addr|callsign>",
