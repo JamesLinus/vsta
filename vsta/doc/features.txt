@@ -397,3 +397,13 @@ Port of teco(1) to VSTa.
 A sample RAM disk server is available in the new vsta_contrib archive.
 vsta/etc and vsta/lib text files put under source control (duh,
 	should have happened a long time ago).
+Port of old rolodex(1) utility.
+"offset" field of mmap() for MAP_PHYS now lets you specify an attached
+	virtual address.
+Quietly cap memory at 768 megs, to avoid limits in our 1:1 mapping
+	area in kernel virtual address space.
+Port of ARC 5.2.1 (old PC/DOS archive format).
+File preallocation in FAT-32 (see wstat contig= command).
+Add dirname(1).
+Fix segv in usage message of purge(1).
+Support scanf family %n format for # chars read.
