@@ -469,7 +469,7 @@ getcwd(char *buf, int len)
  */
 unlink(char *path)
 {
-	int fd, x;
+	int fd, x, tries;
 	char *dir, *file, buf[MAXPATH];
 	struct msg m;
 
@@ -497,14 +497,21 @@ unlink(char *path)
 	}
 
 	/*
-	 * Ask to remove the filename within this dir
+	 * Ask to remove the filename within this dir.  EAGAIN can
+	 * come back it we race with the a.out caching.
 	 */
-	m.m_op = FS_REMOVE;
-	m.m_buf = file;
-	m.m_buflen = strlen(file)+1;
-	m.m_nseg = 1;
-	m.m_arg = m.m_arg1 = 0;
-	x = msg_send(__fd_port(fd), &m);
+	for (tries = 0; tries < 3; ++tries) {
+		m.m_op = FS_REMOVE;
+		m.m_buf = file;
+		m.m_buflen = strlen(file)+1;
+		m.m_nseg = 1;
+		m.m_arg = m.m_arg1 = 0;
+		x = msg_send(__fd_port(fd), &m);
+		if ((x >= 0) || strcmp(strerror(), EAGAIN)) {
+			break;
+		}
+		__msleep(100);
+	}
 
 	/*
 	 * Clean up and return results
