@@ -42,6 +42,8 @@ deref_node(struct openfile *o)
 	ASSERT_DEBUG(o->o_refs > 0, "deref_node: zero");
 	o->o_refs -= 1;
 	if (o->o_refs == 0) {
+		ASSERT(hash_delete(node_hash, o->o_file) == 0,
+			"deref_node: hash mismatch");
 		free(o);
 	}
 }
@@ -113,8 +115,7 @@ get_node(daddr_t d)
 		/*
 		 * Yes--add a reference, and return
 		 */
-		o->o_refs += 1;
-		ASSERT(o->o_refs > 1, "get_node: bad o_refs");
+		ref_node(o);
 		return(o);
 	}
 
