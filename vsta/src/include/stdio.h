@@ -56,7 +56,7 @@ extern int fclose(FILE *),
 	feof(FILE *), ferror(FILE *),
 	getc(FILE *), putc(int, FILE *),
 	fgetc(FILE *), fputc(int, FILE *),
-	fileno(FILE *);
+	fileno(FILE *), ungetc(int, FILE *);
 extern off_t fseek(FILE *, off_t, int), ftell(FILE *);
 extern char *gets(char *), *fgets(char *, int, FILE *);
 extern int puts(char *), fputs(char *, FILE *);
