@@ -36,6 +36,7 @@ _setjmp:
 	movl	%edx,R_EDX(%edi)
 	movl	%ecx,R_ECX(%edi)
 /*	movl	%eax,R_EAX(%edi) Why bother? */
+	movl	R_EDI(%edi),%edi	/* Restore old edi value */
 	xorl	%eax,%eax
 	ret
 
