@@ -146,7 +146,7 @@ rename(char *src, char *dest)
 	 * Launch a thread to start the request.  We will do the
 	 * matching rename.
 	 */
-	if (tfork(request) < 0) {
+	if (tfork(request, 0) < 0) {
 		return(-1);
 	} else {
 		__msleep(10);	/* Let'em get set */
