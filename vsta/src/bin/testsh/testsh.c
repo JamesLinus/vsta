@@ -170,19 +170,92 @@ pwd(void)
 }
 
 /*
+ * ls_l()
+ *	Do long listing of an entry
+ */
+static void
+ls_l(char *p)
+{
+	int fd, first;
+	char buf[MAXSTAT];
+	struct msg m;
+	char *cp;
+
+	fd = open(p, O_READ);
+	if (fd < 0) {
+		perror(p);
+		return;
+	}
+	m.m_op = FS_STAT|M_READ;
+	m.m_buf = buf;
+	m.m_arg = m.m_buflen = MAXSTAT;
+	m.m_nseg = 1;
+	m.m_arg1 = 0;
+	if (msg_send(__fd_port(fd), &m) <= 0) {
+		printf("%s: stat failed\n", p);
+		close(fd);
+		return;
+	}
+	close(fd);
+	printf("%s: ", p);
+	cp = buf;
+	first = 1;
+	while (p = strchr(cp, '\n')) {
+		*p++ = '\0';
+		if (first) {
+			first = 0;
+		} else {
+			printf(", ");
+		}
+		printf("%s", cp);
+		cp = p;
+	}
+	printf("\n");
+}
+
+/*
  * ls()
  *	Print contents of current directory
  */
 static void
-ls(void)
+ls(char *p)
 {
-	int fd, x;
+	int fd, x, l = 0;
 	char buf[256];
 
+	/*
+	 * Only -l supported
+	 */
+	if (p && p[0]) {
+		if (strcmp(p, "-l")) {
+			printf("Usage: ls [-l]\n");
+			return;
+		}
+		l = 1;
+	}
+
+	/*
+	 * Open current dir
+	 */
 	fd = open(__cwd, O_READ);
+	if (fd < 0) {
+		perror(__cwd);
+		return;
+	}
 	while ((x = read(fd, buf, sizeof(buf)-1)) > 0) {
+		char *cp;
+
 		buf[x] = '\0';
-		printf("%s", buf);
+		if (!l) {
+			printf("%s", buf);
+			continue;
+		}
+		cp = buf;
+		while (p = strchr(cp, '\n')) {
+			*p++ = '\0';
+			ls_l(cp);
+			cp = p;
+		}
 	}
 	close(fd);
 }
