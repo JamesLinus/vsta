@@ -354,17 +354,6 @@ queue_data(struct tnserv *tn, uchar *buf, uint cnt)
 	uint x;
 
 	/*
-	 * If we're involved in telnet protocol handling, call out
-	 * to our special routine
-	 */
-	if ((telstate != TS_DATA) ||
-			memchr(buf, IAC, cnt) ||
-			memchr(buf, '\r', cnt)) {
-		telproto(tn, buf, cnt);
-		return;
-	}
-
-	/*
 	 * Send it directly on its way if possible
 	 */
 	while (!LL_EMPTY(&readq) && cnt) {
@@ -566,7 +555,20 @@ inet_reader(struct tnserv *tn)
 		 * Queue data, with interlock
 		 */
 		p_lock(&readq_lock);
-		queue_data(tn, buf, x);
+
+		/*
+		 * If we're involved in telnet protocol handling, call out
+		 * to our special routine, otherwise just queue as
+		 * straight data.
+		 */
+		if ((telstate != TS_DATA) ||
+				memchr(buf, IAC, x) ||
+				memchr(buf, '\r', x)) {
+			telproto(tn, buf, x);
+		} else {
+			queue_data(tn, buf, x);
+		}
+
 		v_lock(&readq_lock);
 	}
 }
