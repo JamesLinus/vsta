@@ -13,6 +13,7 @@
 #include <mach/vm.h>
 #include <mach/icu.h>
 #include <mach/isr.h>
+#include <mach/pit.h>
 #include <sys/assert.h>
 
 extern void selfsig();
@@ -277,6 +278,25 @@ init_icu(void)
 }
 
 /*
+ * init_pit()
+ *	Set the main interval timer to tick at HZ times per second
+ */
+static void
+init_pit(void)
+{
+	/*
+	 * initialise 8254 (or 8253) channel 0.  We set the timer to
+	 * generate an interrupt every time we have done enough ticks.
+	 * The output format is command, LSByte, MSByte.  Note that the
+	 * lowest the value of HZ can be is 19 - otherwise the
+	 * calculations get screwed up,
+	 */
+	outportb(PIT_CTRL, CMD_SQR_WAVE);
+	outportb(PIT_CH0, (PIT_TICK / HZ) & 0x00ff);
+	outportb(PIT_CH0, ((PIT_TICK / HZ) & 0xff00) >> 8);
+}
+
+/*
  * setup_gdt()
  *	Switch from boot GDT to our hand-crafted one
  */
@@ -428,6 +448,11 @@ init_trap(void)
 	 * Set ICUs to known state
 	 */
 	init_icu();
+
+	/*
+	 * Set the interval timer to the correct tick speed
+	 */
+	init_pit();
 
 	/*
 	 * Carve out an IDT table for all possible 256 sources
