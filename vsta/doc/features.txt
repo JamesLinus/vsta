@@ -75,3 +75,23 @@ Shadow password file
 A couple more man pages
 VSTa VM page stealing rework.  Actually seems to work! (YMMV :->)
 SCSI Tape & autosense support from Mike Larson
+
+1.5:
+Fix case where "swapd -n" was still trying to push dirty pages
+Add "core" kdb command
+Performance: shaved a cycle off the shlib call path, deleted t_qsav
+	and reaped a whole setjmp() of writes on each syscall
+Kernel preemption
+More man pages
+Permit I/O interruption w/o server ack for still-queued messages
+Add setsid(), and have login move each session to its own signal group
+Permit client disconnects w/o server ack; along with I/O interruption,
+	this should permit a client to interrupt out and disconnect
+	from a moribund server.  It also solves an interesting deadly
+	embrace in the exit of a server where a cache MMAP reference
+	still exists.
+Protect against buggy server operating against non-requesting client
+Fix bug in explicit server port closing
+Fix bug in fseek() from relative position
+Revamp mouse handler
+Add port of MGR windowing system
