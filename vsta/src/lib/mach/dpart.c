@@ -50,14 +50,15 @@ alloc_part_slot(struct part **p)
  * We're basically writing the details of the full drive away into part of
  * the disk partition list as this makes for more simple handling elsewhere
  *
- * We expect the unit number, root device name and the size of the drive
- * in sectors.  We also want a pointer to the partition list
+ * We expect the unit number, root device name, the size of the drive
+ * in sectors and the protection structure associated with the disk.  We also
+ * want a pointer to the partition list
  *
  * We return 1 for sucessful registrations and 0 for failures
  */
 int
 dpart_init_whole(char *name, uint unit, uint sec_size,
-		 struct part *partition[])
+		 struct prot *protection, struct part *partition[])
 {
 	struct part *p;
 
@@ -67,6 +68,7 @@ dpart_init_whole(char *name, uint unit, uint sec_size,
 	p->p_val = 1;
 	p->p_off = 0;
 	p->p_len = sec_size;
+	p->p_prot = *protection;
 	sprintf(p->p_name, "%s%d", name, unit);
 	return(1);
 }
@@ -80,9 +82,10 @@ dpart_init_whole(char *name, uint unit, uint sec_size,
  * therein).
  *
  * dpart_init() expects to be passed the root device name (eg wd) and the
- * drive unit number (eg 0).  It expects a pointer to a sector buffer
+ * drive unit number (eg 0).  It then expects a pointer to a sector buffer
  * containing partition table information, and a pointer to the sector number
- * that this buffer corresponds to.  Finally It expects a pointer to an array
+ * that this buffer corresponds to.  A pointer to protection data to be used
+ * for the partition is specified.  Finally it is given a pointer to an array
  * of partition details, and a pointer to the number of the next slot to be
  * filled in this array (this and the sector number will be updated so that
  * any extended data can be filled in).
@@ -98,7 +101,8 @@ dpart_init_whole(char *name, uint unit, uint sec_size,
  */
 int
 dpart_init(char *name, uint unit, char *secbuf,
-	   uint *sec_num, struct part *partition[], int *next_part)
+	   uint *sec_num, struct prot *protection,
+	   struct part *partition[], int *next_part)
 {
 	struct part *p;
 	struct part_slot *s;
@@ -183,6 +187,11 @@ dpart_init(char *name, uint unit, char *secbuf,
 			 */
 			p->p_off += ext_base_sec + ext_cur_offs;
 		}
+
+		/*
+		 * Fill in protection details
+		 */
+		p->p_prot = *protection;
 
 		/*
 		 * Look up type

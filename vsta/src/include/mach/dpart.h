@@ -75,9 +75,11 @@ struct part_slot {
  * Library functions to access these data structures
  */
 extern int dpart_init_whole(char *name, uint unit, uint sec_size,
+			    struct prot *protection,
 			    struct part *partition[]);
 extern int dpart_init(char *name, uint unit, char *secbuf,
-		      uint *sec_num, struct part *partition[], int *next_part);
+		      uint *sec_num, struct prot *protection,
+		      struct part *partition[], int *next_part);
 extern int dpart_get_offset(struct part *partition[], int part_slot, ulong off,
 			    ulong *offp, uint *cntp);
 
