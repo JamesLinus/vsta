@@ -1,13 +1,16 @@
 CC= gcc
 LD= ld
-CFLAGS= -I../../include -I../..
+CFLAGS= -O -I../../include -I../..
 LDFLAGS= -L../../libc
 LIBS= -lc
 
 .c.o:
 	$(CC) $(CFLAGS) -c $*.c
 
-all: test args cat id ls
+all: test args cat id ls swapd
+
+swapd: swapd.o
+	$(LD) $(LDFLAGS) -e start -o swapd ../../libc/crt0.o swapd.o -lc
 
 ls: ls.o
 	$(LD) $(LDFLAGS) -e start -o ls ../../libc/crt0.o ls.o -lc
