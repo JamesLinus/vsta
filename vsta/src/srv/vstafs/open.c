@@ -282,7 +282,8 @@ dir_newfile(struct file *f, char *name, int type)
 {
 	struct buf *b, *b2;
 	struct fs_file *fs;
-	uint off, extent;
+	uint extent;
+	ulong off;
 	struct openfile *o;
 	struct fs_dirent *d;
 	int err = 0;
@@ -304,6 +305,7 @@ dir_newfile(struct file *f, char *name, int type)
 	/*
 	 * Walk the directory entries one extent at a time
 	 */
+	off = sizeof(struct fs_file);
 	for (extent = 0; extent < fs->fs_nblk; ++extent) {
 		uint x, len;
 		struct alloc *a = &fs->fs_blks[extent];
@@ -312,6 +314,8 @@ dir_newfile(struct file *f, char *name, int type)
 		 * Walk through an extent one buffer-full at a time
 		 */
 		for (x = 0; x < a->a_len; x += EXTSIZ) {
+			struct fs_dirent *dstart;
+
 			/*
 			 * Figure out size of next buffer-full
 			 */
@@ -342,10 +346,13 @@ dir_newfile(struct file *f, char *name, int type)
 			/*
 			 * Look for our filename
 			 */
-			d = findfree(d, len/sizeof(struct fs_dirent));
+			dstart = d =
+				findfree(d, len/sizeof(struct fs_dirent));
 			if (d) {
+				off += ((char *)d - (char *)dstart);
 				goto out;
 			}
+			off += len;
 
 		}
 	}
@@ -354,8 +361,12 @@ dir_newfile(struct file *f, char *name, int type)
 	 * No luck with existing blocks.  Use bmap() to map in some
 	 * more storage.
 	 */
-	b2 = bmap(fs, fs->fs_len, sizeof(struct fs_dirent),
-		(char **)&d, &off);
+	{
+		uint dummy;
+
+		b2 = bmap(fs, fs->fs_len, sizeof(struct fs_dirent),
+			(char **)&d, &dummy);
+	}
 	if (b2 == 0) {
 		err = 1;
 		goto out;
@@ -373,12 +384,25 @@ out:
 	}
 
 	/*
+	 * Update dir file's length
+	 */
+	off += sizeof(struct fs_dirent);
+	if (off > fs->fs_len) {
+		fs->fs_len = off;
+		dirty_buf(b);
+	}
+
+	/*
 	 * We have a slot, so fill it in & return success
 	 */
 	strcpy(d->fs_name, name);
 	d->fs_clstart = o->o_file;
 	dirty_buf(b2);
 	sync_buf(b2);
+	if (b != b2) {
+		sync_buf(b);
+	}
+	unlock_buf(b);
 	return(o);
 }
 
@@ -494,9 +518,11 @@ vfs_close(struct file *f)
 	struct openfile *o;
 
 	o = f->f_file;
-	if (o) {
-		deref_node(o);
+	ASSERT_DEBUG(o, "vfs_close: no openfile");
+	if (o->o_refs == 1) {
+		sync();
 	}
+	deref_node(o);
 }
 
 /*
