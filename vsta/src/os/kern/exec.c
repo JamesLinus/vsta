@@ -137,6 +137,16 @@ get_exec_pset(struct portref *pr, uint hi)
 	}
 
 	/*
+	 * If the file's changed size, invalidate the old executable
+	 * cache so we can set up the new one.
+	 */
+	if (ps && (ps->p_len != args[1])) {
+		(void)hash_delete(port->p_maps, args[0]);
+		deref_pset(ps);
+		ps = 0;
+	}
+
+	/*
 	 * If no pset, create one and insert it.  The mapping in
 	 * the hash counts as a reference.
 	 */
