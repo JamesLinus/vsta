@@ -302,9 +302,12 @@ swtch(void)
 	}
 
 	/*
-	 * If we've picked the same guy, don't need to do anything fancy
+	 * If we've picked the same guy, don't need to do anything fancy.
+	 * Since he paid full dues to be here, give him another CPU
+	 * quanta.
 	 */
 	if (s->s_thread == curthread) {
+		curthread->t_runticks = RUN_TICKS;
 		v_lock(&runq_lock, SPL0);
 		return;
 	}
