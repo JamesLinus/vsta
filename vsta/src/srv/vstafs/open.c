@@ -590,6 +590,7 @@ vfs_open(struct msg *m, struct file *f)
 	/*
 	 * Move to this file
 	 */
+	deref_node(f->f_file);
 	f->f_file = o;
 	f->f_perm = m->m_arg | (x & ACC_CHMOD);
 	m->m_nseg = m->m_arg = m->m_arg1 = 0;
