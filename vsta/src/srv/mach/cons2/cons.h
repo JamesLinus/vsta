@@ -7,6 +7,7 @@
 #include <sys/fs.h>
 #include <sys/perm.h>
 #include <llist.h>
+#include <mach/kbd.h>
 
 /*
  * An open file
@@ -17,6 +18,7 @@ struct file {
 	ushort f_pos;		/* For walking virtual dir */
 	ushort f_screen;	/* Which virtual screen they're on */
 	uint f_readcnt;		/* # bytes requested for current op */
+	long f_sender;		/*  ...return addr for current op */
 };
 
 /*
@@ -29,10 +31,9 @@ struct screen {
 	char *s_curimg;		/* Current display--s_img, or the HW */
 	struct llist		/* Queue of reads pending */
 		s_readers;
-	static char		/* Typeahead */
+	char			/* Typeahead */
 		s_buf[KEYBD_MAXBUF];
-	static ushort s_hd,	/*  ...circularly buffered */
-		s_tl;
+	ushort s_hd, s_tl;	/*  ...circularly buffered */
 	uint s_nbuf;		/*  ...amount buffered */
 };
 
@@ -92,6 +93,9 @@ extern void cons_stat(struct msg *, struct file *),
 extern void kbd_isr(struct msg *);
 extern void kbd_enqueue(struct screen *, uint);
 extern void kbd_read(struct msg *, struct file *);
+extern void abort_read(struct file *);
+extern void do_dbg_enter(void);
+extern void clear_screen(char *);
 
 /*
  * Shared data
