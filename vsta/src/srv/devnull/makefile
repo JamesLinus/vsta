@@ -2,7 +2,7 @@ CC= gcc
 LD= ld
 INCS= -I../../include
 CFLAGS= -DDEBUG $(INCS) -O
-LDFLAGS= -L../../libc -L../../lib
+LDFLAGS= -L../../libc
 OBJS= main.o
 LIBS= -lusr -lc
 

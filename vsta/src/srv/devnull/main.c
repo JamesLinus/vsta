@@ -3,6 +3,7 @@
  *	Main processing loop for /dev/null
  */
 #include <sys/fs.h>
+#include <syslog.h>
 
 /*
  * devnull_main()
@@ -92,9 +93,12 @@ main()
 	rootport = msg_port((port_name)0, &fsname);
 	x = namer_register("null", fsname);
 	if (x < 0) {
-		perror("null");
+		syslog(LOG_ERR,
+		       "null (null): unable to register with namer");
 		exit(1);
 	}
+
+	syslog(LOG_INFO, "null (null): null device started");
 
 	/*
 	 * Start serving requests for the filesystem
