@@ -159,7 +159,7 @@ alloc_chunk(struct free *f, uint nblk)
 
 /*
  * alloc_block()
- *	Allocate the requested number of continguous blocks
+ *	Allocate the requested number of contiguous blocks
  */
 daddr_t
 alloc_block(uint nblk)
