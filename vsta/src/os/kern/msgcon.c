@@ -18,8 +18,6 @@
 #define START_ROTOR (1024)	/* Where we start searching for an open # */
 
 extern void disable_isr();
-extern struct portref *delete_portref();
-extern struct port *delete_port();
 
 static sema_t name_sema;	/* Mutex for portnames and rotor */
 static struct hash		/* Map port names->addresses */
@@ -159,6 +157,7 @@ msg_port(port_name arg_port, port_name *arg_portp)
 	 */
 	hash_insert(portnames, arg_port, port);
 	v_sema(&name_sema);
+	port->p_name = arg_port;
 
 	/*
 	 * Fill in our proc entry, return success
@@ -590,14 +589,25 @@ msg_disconnect(port_t arg_port)
 	if (arg_port >= PROCOPENS) {
 		/*
 		 * Get port, and delete from proc list.  After this we are
-		 * the last server thread to access the port.
+		 * the last server thread to access the port as a server.
 		 */
 		port = delete_port(p, arg_port-PROCOPENS);
 		if (!port) {
 			return(-1);
 		}
-		return(shut_server(port));
 
+		/*
+		 * Remove the port's name from the system table.  No
+		 * new clients after this.
+		 */
+		p_sema(&name_sema, PRIHI);
+		hash_delete(portnames, port->p_name);
+		v_sema(&name_sema);
+
+		/*
+		 * Delete all current clients
+		 */
+		return(shut_server(port));
 	} else {
 		/*
 		 * Get the portref, or error.  The slot is now deleted from
@@ -719,4 +729,46 @@ init_msg(void)
 {
 	init_sema(&name_sema);
 	portnames = hash_alloc(64);
+}
+
+/*
+ * msg_portname()
+ *	Tell server port name associated with portref
+ */
+port_name
+msg_portname(port_t arg_port)
+{
+	struct portref *pr;
+	port_name pn;
+
+	/*
+	 * Access our open port reference.
+	 */
+	pr = find_portref(curthread->t_proc, arg_port);
+	if (pr) {
+		struct port *port;
+
+		/*
+		 * It looked good.  Take the portref spinlock so we
+		 * don't race with the server trying to exit.  If we're
+		 * still connected to a server, get his port_name.
+		 */
+		port = pr->p_port;
+		if (port) {
+			pn = port->p_name;
+		} else {
+			/*
+			 * He bombed
+			 */
+			pn = err(EIO);
+		}
+		v_lock(&pr->p_lock, SPL0);
+		v_sema(&pr->p_sema);
+	} else {
+		/*
+		 * Bad port requested.  find_portref() sets err().
+		 */
+		pn = -1;
+	}
+	return(pn);
 }
