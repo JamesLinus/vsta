@@ -3,6 +3,7 @@
  *	Group file functions
  */
 #include <sys/perm.h>
+#include <sys/fs.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <hash.h>
@@ -356,4 +357,33 @@ gid_t
 getegid(void)
 {
 	return(getgid());
+}
+
+/*
+ * Error out non-existent concepts
+ */
+int
+setuid(uid_t uid)
+{
+	return(__seterr(ENOTSUP));
+}
+int
+seteuid(uid_t uid)
+{
+	return(__seterr(ENOTSUP));
+}
+int
+setreuid(uid_t uid)
+{
+	return(__seterr(ENOTSUP));
+}
+int
+setgid(gid_t gid)
+{
+	return(__seterr(ENOTSUP));
+}
+int
+setegid(gid_t uid)
+{
+	return(__seterr(ENOTSUP));
 }
