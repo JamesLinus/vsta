@@ -8,6 +8,7 @@
 #include <sys/pset.h>
 #include <sys/port.h>
 #include <sys/fs.h>
+#include <sys/core.h>
 
 extern char *strchr();
 extern void *maploc();
@@ -527,5 +528,50 @@ dump_sysmsg(char *p)
 	}
 	printf(" sender 0x%x next 0x%x err '%s'\n",
 		sm->sm_sender, sm->sm_next, sm->sm_err);
+}
+
+/*
+ * dump_core()
+ *	Dump out status of a core slot
+ */
+void
+dump_core(char *p)
+{
+	uint idx;
+	struct core *c;
+	extern uint totalmem;
+	extern struct core *core, *coreNCORE;
+
+	if (!p || !*p) {
+		uint nbad = 0, nsys = 0, nalloc = 0, nwired = 0;
+
+		for (c = core; c < coreNCORE; ++c) {
+			if (c->c_flags & C_BAD) nbad += 1;
+			if (c->c_flags & C_SYS) nsys += 1;
+			if (c->c_flags & C_WIRED) nwired += 1;
+			if (c->c_flags & C_ALLOC) nalloc += 1;
+		}
+		printf("nalloc %d, nwired %d, nsys %d, nbad %d\n",
+			nalloc, nwired, nsys, nbad);
+		return;
+	}
+	idx = get_num(p);
+	c = &core[idx];
+	if (c >= coreNCORE) {
+		c = (struct core *)idx;
+	}
+	printf("Core @ 0x%x, ", c);
+	if (c->c_flags & C_SYS) {
+		printf("tag %d", c->c_word);
+	} else if (c->c_flags & C_ALLOC) {
+		printf("pset 0x%x+%d", c->c_pset, c->c_psidx);
+	} else {
+		printf("freelink 0x%x", c->c_free);
+	}
+	printf(":%s%s%s%s\n",
+		(c->c_flags & C_BAD) ? " bad" : "",
+		(c->c_flags & C_SYS) ? " sys" : "",
+		(c->c_flags & C_WIRED) ? " wired" : "",
+		(c->c_flags & C_ALLOC) ? " alloc" : "");
 }
 #endif /* KDB */
