@@ -464,11 +464,13 @@ pforw:
 			/*
 			 * finally, adjust cnt
 			 */
-			cnt += width > realsz ? width : realsz;
+			cnt += ((width > realsz) ? width : realsz);
 			break;
+
 		case '\0':	/* "%?" prints ?, unless ? is NULL */
 			*obuf++ = '\0';
 			return (cnt);
+
 		default:
 			*obuf++ = (char)*fmt;
 			cnt++;
