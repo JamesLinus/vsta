@@ -15,6 +15,8 @@
 #define SYSMOUNT "/vsta/etc/fstab"	/* Global mounts */
 #define MOUNTRC "mount.rc"		/* Per-user mounts */
 
+static struct termios torig;	/* Initial TTY mode */
+
 /*
  * cat()
  *	Cat file if it exists
@@ -214,8 +216,9 @@ login(struct uinfo *u)
 	}
 
 	/*
-	 * Create our own signal group.  Tell our TTY.
+	 * Scrub TTY.  Create our own signal group and tell our TTY.
 	 */
+	(void)tcsetattr(1, TCSANOW, &torig);
 	(void)setsid();
 	(void)sprintf(buf, "pgrp=%lu\n", getpid());
 	(void)wstat(__fd_port(1), buf);
@@ -282,7 +285,8 @@ init_tty(void)
 {
 	struct termios t;
 
-	tcgetattr(1, &t);
+	tcgetattr(1, &torig);
+	bcopy(&torig, &t, sizeof(t));
 	t.c_lflag &= ~(ICANON|ECHO);
 	t.c_cc[VMIN] = 1;
 	t.c_cc[VTIME] = 0;
