@@ -22,6 +22,7 @@
  * Some of these techniques would work for multiprocessor i386; I
  * have not added any locking, so it still wouldn't be trivial.
  */
+#include <sys/proc.h>
 #include <sys/param.h>
 #include <sys/pview.h>
 #include <sys/vas.h>
@@ -29,7 +30,6 @@
 #include <mach/pte.h>
 #include <sys/pset.h>
 #include <sys/thread.h>
-#include <sys/proc.h>
 #include <sys/percpu.h>
 #include <alloc.h>
 

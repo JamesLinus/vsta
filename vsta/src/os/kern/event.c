@@ -271,14 +271,18 @@ check_events(void)
 		strcpy(event, t->t_evsys);
 		t->t_evsys[0] = '\0';
 		v_lock(&runq_lock, s);
-		sendev(t, event);
+		PTRACE_PENDING(t->t_proc, PD_EVENT, event);
+		if (event[0])
+			sendev(t, event);
 		return;
 	}
 	if (t->t_evproc[0]) {
 		strcpy(event, t->t_evproc);
 		t->t_evproc[0] = '\0';
 		v_lock(&runq_lock, s);
-		sendev(t, event);
+		PTRACE_PENDING(t->t_proc, PD_EVENT, event);
+		if (event[0])
+			sendev(t, event);
 		v_sema(&t->t_evq);
 		return;
 	}

@@ -11,13 +11,13 @@
  * process->process memory copying without the need for the kernel
  * to make an intermediate copy or fault in the pages.
  */
-#include <sys/msg.h>
 #include <sys/types.h>
+#include <sys/proc.h>
+#include <sys/msg.h>
 #include <sys/fs.h>
 #include <sys/percpu.h>
 #include <sys/port.h>
 #include <sys/thread.h>
-#include <sys/proc.h>
 #include <sys/assert.h>
 #include <hash.h>
 

@@ -2,12 +2,11 @@
  * trap.c
  *	Trap handling for i386 uP
  */
+#include <sys/proc.h>
 #include <sys/percpu.h>
 #include <sys/thread.h>
-#include <sys/proc.h>
 #include <sys/wait.h>
 #include <sys/fs.h>
-#include <mach/machreg.h>
 #include <mach/trap.h>
 #include <mach/gdt.h>
 #include <mach/tss.h>
@@ -201,6 +200,11 @@ trap(ulong place_holder)
 #endif
 	case T_DEBUG:
 	case T_BPT:
+#ifdef PROC_DEBUG
+		ASSERT_DEBUG(curthread, "trap: user debug !curthread");
+		PTRACE_PENDING(curthread->t_proc, PD_BPOINT, 0);
+		break;
+#endif
 	case T_INSTR:
 		selfsig(EILL);
 		break;
@@ -243,6 +247,7 @@ trap(ulong place_holder)
 	 * Clear uregs if nesting back to user
 	 */
 	if (!kern_mode) {
+		PTRACE_PENDING(curthread->t_proc, PD_ALWAYS, 0);
 		curthread->t_uregs = 0;
 	}
 }

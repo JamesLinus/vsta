@@ -439,6 +439,10 @@ fork(void)
 	v_sema(&pold->p_sema);
 	pnew->p_children = alloc_exitgrp(pnew);
 	pnew->p_event[0] = '\0';
+#ifdef PROC_DEBUG
+	bzero(&pnew->p_dbg, sizeof(struct pdbg));
+	bzero(&pnew->p_dbgr, sizeof(struct dbg_regs));
+#endif
 
 	/*
 	 * Duplicate stack now that we have a viable thread/proc
