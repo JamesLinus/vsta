@@ -22,7 +22,7 @@
  * If one is pending we add an additional HZ value's worth of ticks into
  * the result from here to compensate
  */
-inline static ulong
+inline extern ulong
 get_itime(void)
 {
 	extern ulong latch_ticks;

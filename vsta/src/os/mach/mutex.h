@@ -27,7 +27,7 @@ extern char msg_deadlock[], msg_notheld[];
  * ATOMIC_INCL()
  *	Increment an integer atomically
  */
-inline static void
+inline extern void
 ATOMIC_INC(void *val)
 {
 	__asm__ __volatile__(
@@ -41,7 +41,7 @@ ATOMIC_INC(void *val)
  * ATOMIC_DEC()
  *	Decrement an integer atomically
  */
-inline static void
+inline extern void
 ATOMIC_DEC(void *val)
 {
 	__asm__ __volatile__(
@@ -55,7 +55,7 @@ ATOMIC_DEC(void *val)
  * ATOMIC_INCL()
  *	Increment a long integer atomically
  */
-inline static void
+inline extern void
 ATOMIC_INCL(void *val)
 {
 	__asm__ __volatile__(
@@ -69,7 +69,7 @@ ATOMIC_INCL(void *val)
  * ATOMIC_DECL()
  *	Decrement a long integer atomically
  */
-inline static void
+inline extern void
 ATOMIC_DECL(void *val)
 {
 	__asm__ __volatile__(
@@ -83,7 +83,7 @@ ATOMIC_DECL(void *val)
  * ATOMIC_INCL_CPU_LOCKS()
  *	Increment the number of locks held atomically
  */
-inline static void
+inline extern void
 ATOMIC_INCL_CPU_LOCKS(void)
 {
 	__asm__ __volatile__(
@@ -97,7 +97,7 @@ ATOMIC_INCL_CPU_LOCKS(void)
  * ATOMIC_DECL_CPU_LOCKS()
  *	Decrement the number of locks held atomically
  */
-inline static void
+inline extern void
 ATOMIC_DECL_CPU_LOCKS(void)
 {
 	__asm__ __volatile__(
@@ -111,7 +111,7 @@ ATOMIC_DECL_CPU_LOCKS(void)
  * p_lock()
  *	Take spinlock
  */
-inline static spl_t
+inline extern spl_t
 p_lock(lock_t *l, spl_t s)
 {
 	ASSERT_DEBUG(l->l_lock == 0, msg_deadlock);
@@ -135,7 +135,7 @@ p_lock(lock_t *l, spl_t s)
  * p_lock_void()
  *	Take a spinlock, but don't return anything
  */
-inline static void
+inline extern void
 p_lock_void(lock_t *l, spl_t s)
 {
 	ASSERT_DEBUG(l->l_lock == 0, msg_deadlock);
@@ -151,7 +151,7 @@ p_lock_void(lock_t *l, spl_t s)
  * cp_lock()
  *	Conditional take of spinlock
  */
-inline static spl_t
+inline extern spl_t
 cp_lock(lock_t *l, spl_t s)
 {
 	if (s == SPLHI) {
@@ -181,7 +181,7 @@ cp_lock(lock_t *l, spl_t s)
  * v_lock()
  *	Release spinlock
  */
-inline static void
+inline extern void
 v_lock(lock_t *l, spl_t s)
 {
 	ASSERT_DEBUG(l->l_lock, msg_notheld);
@@ -196,7 +196,7 @@ v_lock(lock_t *l, spl_t s)
  * init_lock()
  *	Initialize lock to "not held"
  */
-inline static void
+inline extern void
 init_lock(lock_t *l)
 {
 	l->l_lock = 0;
@@ -206,7 +206,7 @@ init_lock(lock_t *l)
  * blocked_sema()
  *	Tell if anyone's sleeping on the semaphore
  */
-inline static int
+inline extern int
 blocked_sema(sema_t *s)
 {
 	return (s->s_count < 0);
@@ -218,7 +218,7 @@ blocked_sema(sema_t *s)
  *
  * The s_count starts at 1.
  */
-inline static void
+inline extern void
 init_sema(sema_t *s)
 {
 	s->s_count = 1;
@@ -233,7 +233,7 @@ init_sema(sema_t *s)
  * Use with care; if you strand someone on the queue your system
  * will start to act funny.  If DEBUG is on, it'll probably panic.
  */
-inline static void
+inline extern void
 set_sema(sema_t *s, int cnt)
 {
 	s->s_count = cnt;
@@ -243,7 +243,7 @@ set_sema(sema_t *s, int cnt)
  * adj_sema()
  *	Manually adjust the value for the semaphore count
  */
-inline static void
+inline extern void
 adj_sema(sema_t *s, int cnt)
 {
 	s->s_count += cnt;
@@ -253,7 +253,7 @@ adj_sema(sema_t *s, int cnt)
  * splx()
  *	Adjust interrupt handling without changing a spinlock
  */
-inline static void
+inline extern void
 splx(spl_t s)
 {
 	if (s == SPL0) {

@@ -22,7 +22,7 @@ extern unsigned char id_stack[];
  * set_cr0()
  *	Set the value of the processor config register cr0
  */
-inline static void
+inline extern void
 set_cr0(ulong addr)
 {
 	__asm__ __volatile__(
@@ -36,7 +36,7 @@ set_cr0(ulong addr)
  *	Set the value of the processor config register cr3 - the L1 page
  *	table pointer
  */
-inline static void
+inline extern void
 set_cr3(ulong addr)
 {
 	__asm__ __volatile__(
@@ -49,7 +49,7 @@ set_cr3(ulong addr)
  * get_cr3()
  *	Return the value of the processor config register cr0
  */
-inline static ulong
+inline extern ulong
 get_cr0(void)
 {
 	register ulong res;
@@ -66,7 +66,7 @@ get_cr0(void)
  *	Get the value of the processor config register cr2 - the fault
  *	address register
  */
-inline static ulong
+inline extern ulong
 get_cr2(void)
 {
 	register ulong res;
@@ -83,7 +83,7 @@ get_cr2(void)
  *	Get the value of the processor config register cr3 - the L1 page
  *	table pointer
  */
-inline static ulong
+inline extern ulong
 get_cr3(void)
 {
 	register ulong res;
@@ -102,7 +102,7 @@ get_cr3(void)
  * Shoot the whole thing on the i386; invalidate individual entries
  * on the i486 and later.
  */
-inline static void
+inline extern void
 flush_tlb(void *va)
 {
 #ifndef __i486__
@@ -124,7 +124,7 @@ flush_tlb(void *va)
  * lgdt()
  *	Load the global descriptor table register
  */
-inline static void
+inline extern void
 lgdt(void *gdt_base)
 {
 	__asm__ __volatile__(
@@ -139,7 +139,7 @@ lgdt(void *gdt_base)
  * lidt()
  *	Load the interrupt descriptor table register
  */
-inline static void
+inline extern void
 lidt(void *idt_base)
 {
 	__asm__ __volatile__(
@@ -154,7 +154,7 @@ lidt(void *idt_base)
  * ltr()
  *	Load the task register
  */
-inline static void
+inline extern void
 ltr(uint tr_base)
 {
 	__asm__ __volatile__(
@@ -169,7 +169,7 @@ ltr(uint tr_base)
  * cli()
  *	Disable the maskable processor interrupts.
  */
-inline static void
+inline extern void
 cli(void)
 {
 	__asm__ __volatile__(
@@ -182,7 +182,7 @@ cli(void)
  * sti()
  *	Enable maskable interrupts
  */
-inline static void
+inline extern void
 sti(void)
 {
 	__asm__ __volatile__(
@@ -197,7 +197,7 @@ sti(void)
  *
  * We return the result directly in the form required for a spinlock op
  */
-inline static uint
+inline extern uint
 geti(void)
 {
 	register uint res;
@@ -217,7 +217,7 @@ geti(void)
  * inportb()
  *	Get a byte from an I/O port
  */
-inline static uchar
+inline extern uchar
 inportb(int port)
 {
 	register uchar res;
@@ -233,7 +233,7 @@ inportb(int port)
  * outportb()
  *	Write a byte to an I/O port
  */
-inline static void
+inline extern void
 outportb(int port, uchar data)
 {
 	__asm__ __volatile__(
@@ -246,7 +246,7 @@ outportb(int port, uchar data)
  * idle_stack()
  *	Switch to using the idle stack
  */
-inline static void
+inline extern void
 idle_stack(void)
 {
 	__asm__ __volatile__ (
@@ -260,7 +260,7 @@ idle_stack(void)
  * on_idle_stack()
  *	Tell if we're running on the idle stack
  */
-inline static int
+inline extern int
 on_idle_stack(void)
 {
 	extern void *id_top;
@@ -285,7 +285,7 @@ on_idle_stack(void)
  * enable interrupts and halt the CPU--this saves a fair amount of power
  * and heat.
  */
-inline static void
+inline extern void
 idle(void)
 {
 	__asm__ __volatile__ (
@@ -310,7 +310,7 @@ idle(void)
  * We don't bother to save registers whose value we know at the end of
  * a matching longjmp (eax and edi)
  */
-inline static int
+inline extern int
 setjmp(jmp_buf regs)
 {
 	register int retcode;
@@ -336,7 +336,7 @@ setjmp(jmp_buf regs)
  * longjmp()
  *	Restore context, returning a specified result
  */
-inline static void
+inline extern void
 longjmp(jmp_buf regs, int retval)
 {
 	__asm__ __volatile__ (
@@ -360,7 +360,7 @@ longjmp(jmp_buf regs, int retval)
  * This is really just a frontend to the real copy function, but
  * using this we pass the parameters in registers so it's a little quicker
  */
-inline static int
+inline extern int
 copyin(void *uaddr, void *sysaddr, uint nbyte)
 {
 	register int retval;
@@ -384,7 +384,7 @@ copyin(void *uaddr, void *sysaddr, uint nbyte)
  * This is really just a frontend to the real copy function, but
  * using this we pass the parameters in registers so it's a little quicker
  */
-inline static int
+inline extern int
 copyout(void *uaddr, void *sysaddr, uint nbyte)
 {
 	register int retval;
@@ -412,7 +412,7 @@ copyout(void *uaddr, void *sysaddr, uint nbyte)
  * do all the work.  This means we trust "from", but since it's a
  * system-generated address, this should be OK.
  */
-inline static int
+inline extern int
 uucopy(void *uaddr, void *sysaddr, uint count)
 {
 	return(copyout(uaddr, (void *)((ulong)sysaddr | UOFF), count));

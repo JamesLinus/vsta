@@ -22,7 +22,7 @@ extern void outportw(int port, ushort data);
  * inportb()
  *	Get a byte from an I/O port
  */
-inline static uchar
+inline extern uchar
 inportb(int port)
 {
 	register uchar res;
@@ -38,7 +38,7 @@ inportb(int port)
  * outportb()
  *	Write a byte to an I/O port
  */
-inline static void
+inline extern void
 outportb(int port, uchar data)
 {
 	__asm__ __volatile__(
@@ -51,7 +51,7 @@ outportb(int port, uchar data)
  * inportw()
  *	Get a word from an I/O port
  */
-inline static ushort
+inline extern ushort
 inportw(int port)
 {
 	register ushort res;
@@ -67,7 +67,7 @@ inportw(int port)
  * outportw()
  *	Write a word to an I/O port
  */
-inline static void
+inline extern void
 outportw(int port, ushort data)
 {
 	__asm__ __volatile__(

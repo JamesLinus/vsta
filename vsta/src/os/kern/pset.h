@@ -10,7 +10,7 @@
  * find_pp()
  *	Given pset and index, return perpage information
  */
-inline static struct perpage *
+inline extern struct perpage *
 find_pp(struct pset *ps, uint idx)
 {
 	ASSERT_DEBUG(idx < ps->p_len, "find_pp: bad index");
@@ -22,7 +22,7 @@ find_pp(struct pset *ps, uint idx)
  * ref_pset()
  *	Add a reference to a pset
  */
-inline static void
+inline extern void
 ref_pset(struct pset *ps)
 {
 	ATOMIC_INC(&ps->p_refs);
@@ -36,7 +36,7 @@ ref_pset(struct pset *ps)
  * last reference, we let the pset layer know, then clear PP_V and free
  * the page.
  */
-inline static void
+inline extern void
 deref_slot(struct pset *ps, struct perpage *pp, uint idx)
 {
 	ASSERT_DEBUG(pp->pp_refs > 0, "deref_slot: zero");
@@ -52,7 +52,7 @@ deref_slot(struct pset *ps, struct perpage *pp, uint idx)
  *
  * Assumes caller holds the page slot locked.
  */
-inline static void
+inline extern void
 ref_slot(struct pset *ps, struct perpage *pp, uint idx)
 {
 	pp->pp_refs += 1;

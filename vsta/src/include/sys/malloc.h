@@ -94,7 +94,7 @@ extern void *_malloc(uint, uint), _free(void *, uint);
 
 #else /* !DEBUG */
 
-inline static void *
+inline extern void *
 MALLOC(uint size, uint type)
 {
 	struct bucket *b;
@@ -116,7 +116,7 @@ MALLOC(uint size, uint type)
 	return(malloc(size));
 }
 
-inline static void
+inline extern void
 FREE(void *ptr, uint type)
 {
 	struct bucket *b;

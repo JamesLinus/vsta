@@ -12,7 +12,7 @@
  * inline_lqueue_msg()
  *	Queue a message when port is already locked, inline version
  */
-inline static void
+inline extern void
 inline_lqueue_msg(struct port *port, struct sysmsg *sm)
 {
 	sm->sm_next = 0;
@@ -43,7 +43,7 @@ inline_lqueue_msg(struct port *port, struct sysmsg *sm)
  * reduce most of the options down as exit_state will be passed as a
  * constant and thus give simple matching characteristics.
  */
-inline static void
+inline extern void
 inline_queue_msg(struct port *port, struct sysmsg *sm, spl_t exit_state)
 {
 	spl_t s;

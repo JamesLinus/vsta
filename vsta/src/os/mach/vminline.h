@@ -33,7 +33,7 @@ extern pte_t *cr3;
  * Only works for kernel addresses, since it uses information from
  * a root page table which only uses the L2PTEs for root mappings.
  */
-inline static void *
+inline extern void *
 vtop(void *vaddr)
 {
 	pte_t *pt;
@@ -66,7 +66,7 @@ vtop(void *vaddr)
  * kern_addtrans()
  *	Add a kernel translation
  */
-inline static void
+inline extern void
 kern_addtrans(void *vaddr, uint pfn)
 {
 	pte_t *pt;
@@ -81,7 +81,7 @@ kern_addtrans(void *vaddr, uint pfn)
  * kern_deletetrans()
  *	Delete a kernel translation
  */
-inline static void
+inline extern void
 kern_deletetrans(void *vaddr, uint pfn)
 {
 	pte_t *pt;
