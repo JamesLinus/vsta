@@ -1,0 +1,206 @@
+/*
+ * qio.c
+ *	Routines for providing a asynch queued-I/O service
+ */
+#include <sys/param.h>
+#include <sys/qio.h>
+#include <sys/malloc.h>
+#include <sys/mutex.h>
+#include <sys/msg.h>
+#include <sys/seg.h>
+#include <sys/vm.h>
+#include <sys/fs.h>
+#include <sys/port.h>
+
+extern void *malloc();
+
+static sema_t qio_sema;		/* Counting semaphore for # elements */
+static struct qio *qios = 0;	/* Free elements */
+static sema_t qio_gate;		/* For waking a process to run the qio */
+static struct qio		/* Elements waiting to be run */
+	*qio_hd, *qio_tl;
+static lock_t qio_lock;		/* Spinlock for run list */
+
+/*
+ * qio()
+ *	Queue an I/O
+ */
+void
+qio(struct qio *q)
+{
+	p_lock(&qio_lock, SPL0);
+	q->q_next = 0;
+	if (qio_hd == 0) {
+		qio_hd = q;
+	} else {
+		qio_tl->q_next = q;
+	}
+	qio_tl = q;
+	v_lock(&qio_lock, SPL0);
+	v_sema(&qio_gate);
+}
+
+/*
+ * qio_msg_send()
+ *	Do a msg_send()'ish operation based on a QIO structure
+ */
+static void
+qio_msg_send(struct qio *q)
+{
+	struct seg *s = 0;
+	struct sysmsg *sm = 0;
+	struct portref *pr;
+	int error = 0;
+	extern struct seg *kern_mem();
+
+	/*
+	 * Get our temp buffers
+	 */
+	ASSERT_DEBUG(q->q_cnt == NBPG, "qio: not a page");
+	s = kern_mem(ptov(ptob(q->q_pp->pp_pfn)), NBPG);
+	sm = malloc(sizeof(struct sysmsg));
+
+	/*
+	 * Become sole I/O through port
+	 */
+	p_sema(&pr->p_sema, PRIHI);
+	p_lock(&pr->p_lock, SPL0);
+
+	/*
+	 * We lose if the server for the port has left
+	 */
+	if (!pr->p_port) {
+		error = 1;
+		goto out;
+	}
+
+	/*
+	 * Send a seek.  XXX should we add read+seek and write+seek?
+	 */
+	sm->m_op = FS_SEEK;
+	sm->m_arg = q->q_off;
+	sm->m_nseg = 0;
+	queue_msg(pr->p_port, sm);
+	pr->p_state = PS_IOWAIT;
+	p_sema_v_lock(&pr->p_iowait, PRIHI, &pr->p_lock);
+	p_lock(&pr->p_lock, SPL0);
+	if ((pr->p_port == 0) || (sm->m_arg < 0)) {
+		error = 1;
+		goto out;
+	}
+	ASSERT_DEBUG(sm->m_nseg == 0, "qio: seek got msg seg");
+
+	/*
+	 * Send the block of memory
+	 */
+	sm->m_op = q->q_op;
+	sm->m_arg = 0;
+	sm->m_nseg = 1;
+	sm->m_seg[0] = s;
+	s = 0;			/* Freed by receiver */
+	queue_msg(pr->p_port, sm);
+	pr->p_state = PS_IOWAIT;
+	p_sema_v_lock(&pr->p_iowait, PRIHI, &pr->p_lock);
+	p_lock(&pr->p_lock, SPL0);
+
+	/*
+	 * XXX for non-raw-I/O we have received back a segment.
+	 * Do we need to support this?
+	 */
+	if ((pr->p_port == 0) || (sm->m_arg < 0)) {
+		error = 1;
+		goto out;
+	}
+	ASSERT(sm->m_nseg == 0, "qio_msg_send: got back seg");
+
+	/*
+	 * Clean up and handle any iodone portion
+	 */
+out:
+	v_lock(&pr->p_lock, SPL0);
+	v_sema(&pr->p_sema);
+	if (sm) {
+		free(sm);
+	}
+	if (s) {
+		free_seg(s);
+	}
+
+	/*
+	 * If q_iodone isn't null, put result in q_cnt and call
+	 * the function.
+	 */
+	if (q->q_iodone) {
+		q->q_cnt = error;
+		(*(q->q_iodone))(q);
+	}
+}
+
+/*
+ * run_qio()
+ *	Syscall which the dedicated QIO threads remain within
+ */
+run_qio(void)
+{
+	struct qio *q;
+
+	if (!isroot()) {
+		return(-1);
+	}
+	for (;;) {
+		p_sema(&qio_gate, PRIHI);
+		p_lock(&qio_lock, SPL0);
+		q = qio_hd;
+		ASSERT_DEBUG(q, "run_qio: gate mismatch with run");
+		qio_hd = q->q_next;
+#ifdef DEBUG
+		if (qio_hd == 0) {
+			qio_tl = 0;
+		}
+#endif
+		v_lock(&qio_lock, SPL0);
+		qio_msg_send(q);
+	}
+}
+
+/*
+ * alloc_qio()
+ *	Allocate a queued I/O structure
+ *
+ * We throttle the number of queued operations with this routine.  It
+ * may sleep, so it may not be called with locks held.
+ */
+struct qio *
+alloc_qio(void)
+{
+	struct qio *q;
+
+	p_sema(&qio_sema, PRIHI);
+	q = qios;
+	ASSERT_DEBUG(q, "qio_alloc: bad sema count");
+	qios = q->q_next;
+	return(q);
+}
+
+/*
+ * init_qio()
+ *	Called once to initialize the queued I/O system
+ */
+void
+init_qio(void)
+{
+	struct qio *q;
+	int x;
+
+	init_sema(&qio_sema);
+	set_sema(&qio_sema, MAXQIO);
+	for (x = 0, qios = 0; x < MAXQIO; ++x) {
+		q = malloc(sizeof(struct qio));
+		q->q_next = qios;
+		qios = q;
+	}
+	init_sema(&qio_gate);
+	set_sema(&qio_gate, MAXQIO);
+	qio_hd = qio_tl = 0;
+	init_lock(&qio_lock);
+}
