@@ -241,9 +241,15 @@ swtch(void)
 	struct sched *s;
 	ushort pri;
 
+	/*
+	 * Now that we're going to reschedule, clear any pending preempt
+	 * request.  If we're leaving a thread, mark him as asleep.
+	 */
+	do_preempt = 0;
 	if (curthread) {
 		curthread->t_state = TS_SLEEP;
 	}
+
 	for (;;) {
 		/*
 		 * See if we can find something to run
