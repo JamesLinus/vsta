@@ -21,6 +21,7 @@ extern ulong random();
 lock_t runq_lock;		/* Mutex for scheduling */
 struct sched
 	sched_rt,		/* Real-time queue */
+	sched_cheated,		/* Low-CPU processes given preference */
 	sched_bg,		/* Background (lowest priority) queue */
 	sched_root;		/* "main" queue */
 
@@ -37,7 +38,6 @@ queue(struct sched *sup, struct sched *s)
 		sup->s_down = s;
 		s->s_hd = s->s_tl = s;
 	} else {
-
 		s->s_tl = hd->s_tl;
 		s->s_hd = hd;
 		hd->s_tl = s;
@@ -50,15 +50,12 @@ queue(struct sched *sup, struct sched *s)
  *	Remove element from its queue
  */
 static void
-dequeue(struct sched *s)
+dequeue(struct sched *up, struct sched *s)
 {
-	struct sched *up = s->s_up;
-
 	if (s->s_hd == s) {
 		/*
 		 * Only guy in queue--clear parent's down pointer
 		 */
-		ASSERT_DEBUG(up->s_nrun == 1, "dequeue: short list");
 		up->s_down = 0;
 	} else {
 		/*
@@ -130,9 +127,10 @@ idle(void)
 		/*
 		 * Check each run queue
 		 */
-		if ((sched_rt.s_down) ||
+		if (sched_rt.s_down ||
+				sched_cheated.s_down ||
 				(sched_root.s_nrun > 0) ||
-				(sched_bg.s_down)) {
+				sched_bg.s_down) {
 			break;
 		}
 	}
@@ -148,8 +146,6 @@ static struct sched *
 pick_run(struct sched *root)
 {
 	struct sched *s = root, *s2;
-
-	ASSERT_DEBUG(s->s_nrun > 0, "pick_run: no runners");
 
 	/*
 	 * Walk our way down the tree
@@ -175,7 +171,7 @@ pick_run(struct sched *root)
 			}
 			s2 = s2->s_hd;
 		} while (s2 != s);
-		ASSERT_DEBUG(nrun > 0, "pick_run: !sum");
+		ASSERT_DEBUG(nrun > 0, "pick_run: !nrun");
 
 		/*
 		 * If there was only one choice, run with it.  Otherwise,
@@ -214,7 +210,7 @@ pick_run(struct sched *root)
 	 * nrun counts.
 	 */
 	ASSERT_DEBUG(s->s_leaf, "pick_run: !leaf");
-	dequeue(s);
+	dequeue(s->s_up, s);
 	for (s2 = s; s2; s2 = s2->s_up) {
 		s2->s_nrun -= 1;
 	}
@@ -256,15 +252,19 @@ swtch(void)
 		 */
 		if (sched_rt.s_down) {
 			s = sched_rt.s_down;
-			dequeue(s);
+			dequeue(&sched_rt, s);
 			pri = PRI_RT;
 			ASSERT_DEBUG(s->s_leaf, "swtch: rt not leaf");
+		} else if (sched_cheated.s_down) {
+			s = sched_cheated.s_down;
+			dequeue(&sched_cheated, s);
+			pri = PRI_CHEATED;
 		} else if (sched_root.s_nrun > 0) {
 			s = pick_run(&sched_root);
 			pri = PRI_TIMESHARE;
 		} else if (sched_bg.s_down) {
 			s = sched_bg.s_down;
-			dequeue(s);
+			dequeue(&sched_bg, s);
 			pri = PRI_BG;
 			ASSERT_DEBUG(s->s_leaf, "swtch: bg not leaf");
 		} else {
@@ -317,9 +317,17 @@ swtch(void)
 			return;
 		}
 	}
+
+	/*
+	 * Assign priority.  Do not replenish CPU quanta if they
+	 * are here because they are getting preference to continue
+	 * their previous allocation.
+	 */
 	cpu.pc_pri = pri;
 	curthread = s->s_thread;
-	curthread->t_runticks = RUN_TICKS;
+	if (pri != PRI_CHEATED) {
+		curthread->t_runticks = RUN_TICKS;
+	}
 	curthread->t_state = TS_ONPROC;
 	curthread->t_eng = &cpu;
 	idle_stack();
@@ -353,6 +361,17 @@ lsetrun(struct thread *t)
 		 * Similarly for background
 		 */
 		queue(&sched_bg, s);
+	} else if (t->t_runticks > CHEAT_TICKS) {
+
+		/*
+		 * A timeshare process which used little of its
+		 * CPU quanta queues preferentially.  Preempt
+		 * if the current guy's lower than this.
+		 */
+		queue(&sched_cheated, s);
+		if (cpu.pc_pri < PRI_CHEATED) {
+			preempt();
+		}
 	} else {
 
 		/*
@@ -442,6 +461,7 @@ init_sched(void)
 	init_sched2(&sched_rt);
 	init_sched2(&sched_bg);
 	init_sched2(&sched_root);
+	init_sched2(&sched_cheated);
 }
 
 /*
