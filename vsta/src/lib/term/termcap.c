@@ -36,8 +36,9 @@
 #define	PVECSIZ		32	/* max number of names in path */
 
 #include <fcntl.h>
-#include <ctype.h>
 #include <paths.h>
+
+extern int isdigit(char);
 
 /*
  * termcap - routines for dealing with the terminal capability data base

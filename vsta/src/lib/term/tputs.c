@@ -10,7 +10,7 @@
  * old garbage for estimating delays doesn't seem worth the memory
  * and CPU time.  This version merely ignores such things.
  */
-#include <ctype.h>
+extern int isdigit(char);
 
 /*
  * Put the character string cp out, with padding.
