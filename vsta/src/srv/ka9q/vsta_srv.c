@@ -658,13 +658,10 @@ cleario(struct llist *l, char *err)
 {
 	struct client *cl;
 
-	printf("cleario 0x%x\n", l);
 	while (!LL_EMPTY(l)) {
 		struct msg *m;
 
-		printf(" - about to touch LL_NEXT\n");
 		cl = LL_NEXT(l)->l_data;
-		printf(" - client 0x%x\n", cl);
 		ll_delete(cl->c_entry); cl->c_entry = 0;
 		m = &cl->c_msg;
 		if (err) {
@@ -674,7 +671,6 @@ cleario(struct llist *l, char *err)
 			msg_reply(m->m_sender, m);
 		}
 	}
-	printf("done cleario\n");
 }
 /*
  * inetfs_state()
