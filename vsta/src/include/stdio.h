@@ -118,6 +118,7 @@ extern int vscanf(const char *, va_list),
 extern FILE *tmpfile(void);
 extern FILE *popen(const char *, const char *);
 extern int pclose(FILE *);
+extern int rename(const char *, const char *);
 
 /*
  * Pseudo-FDL at the FILE * layer
