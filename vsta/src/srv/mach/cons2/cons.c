@@ -168,7 +168,44 @@ sequence(int x, int y, char c)
 {
 	char *p;
 
+	/*
+	 * Cap/sanity
+	 */
+	if (x > COLS) {
+		x = COLS;
+	}
+
+	/*
+	 * Dispatch command
+	 */
 	switch (c) {
+	case 'A':	/* Cursor up */
+		while (x-- > 0) {
+			cur -= (COLS*CELLSZ);
+			if (cur < top) {
+				cur += (COLS*CELLSZ);
+				x = 0;
+			}
+		}
+		return;
+	case 'B':	/* Cursor down a line */
+		while (x-- > 0) {
+			cur += (COLS*CELLSZ);
+			if (cur >= bottom) {
+				cur -= (COLS*CELLSZ);
+				x = 0;
+			}
+		}
+		return;
+	case 'C':	/* Cursor right */
+		while (x-- > 0) {
+			cur += CELLSZ;
+			if (cur >= bottom) {
+				cur -= CELLSZ;
+				x = 0;
+			}
+		}
+		return;
 	case 'L':		/* Insert line */
 		while (x-- > 0) {
 			p = cur - ((cur-top) % (COLS*CELLSZ));
@@ -256,6 +293,10 @@ do_multichar(int state, char c)
 	case 1:		/* Escape has arrived */
 		switch (c) {
 		case 'P':	/* Cursor down a line */
+			cur += (COLS*CELLSZ);
+			if (cur >= bottom) {
+				cur -= (COLS*CELLSZ);
+			}
 			return(0);
 		case 'K':	/* Cursor left */
 			cur -= CELLSZ;
@@ -290,6 +331,7 @@ do_multichar(int state, char c)
 			return(3);
 		}
 		sequence(1, 1, c);
+		return(0);
 
 	case 3:		/* Seen Esc-[<digit> */
 		if (isdigit(c)) {
@@ -315,11 +357,7 @@ do_multichar(int state, char c)
 		sequence(x, y, c);
 		return(0);
 	default:
-#ifdef DEBUG
-		abort();
-#else
 		return(0);
-#endif
 	}
 }
 
