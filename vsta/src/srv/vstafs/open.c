@@ -433,6 +433,9 @@ dir_newfile(struct file *f, char *name, int type)
 	 * Get the openfile first
 	 */
 	o = create_file(f, type);
+	if (o == 0) {
+		return(0);
+	}
 
 	/*
 	 * Walk the directory entries one extent at a time
@@ -523,8 +526,11 @@ out:
 	if (off > fs->fs_len) {
 		fs->fs_len = off;
 		dirty_buf(b);
-	} else if (fs->fs_len > off) {
-		file_shrink(f->f_file, off);
+	} else {
+		off = MAX(off, f->f_file->o_hiwrite);
+		if (fs->fs_len > off) {
+			file_shrink(f->f_file, off);
+		}
 	}
 
 	/*
@@ -532,6 +538,9 @@ out:
 	 */
 	strcpy(d->fs_name, name);
 	d->fs_clstart = o->o_file;
+	if (off > f->f_file->o_hiwrite) {
+		f->f_file->o_hiwrite = off;
+	}
 	dirty_buf(b2);
 	sync_buf(b2);
 	if (b != b2) {
