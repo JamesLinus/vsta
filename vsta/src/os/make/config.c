@@ -75,7 +75,7 @@ main()
 		} else if (buf[l-1] == 's') {
 			buf[l-2] = '\0';
 			fprintf(fpmk,
-"%s.o: ../%s/%s.s\n\t$(CPP) $(INCS) $(DEFS) ../%s/%s.s > %s.s\n\
+"%s.o: ../%s/%s.s\n\t$(CPP) $(INCS) $(DEFS) ../%s/%s.s %s.s\n\
 \t$(AS) -o %s.o %s.s\n\n",
 				buf, dir, buf, dir, buf, buf, buf, buf);
 		} else {
