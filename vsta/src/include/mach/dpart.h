@@ -29,6 +29,7 @@ struct part {
 	uint p_extoffs;		/*  ...from base ext partition */
 	int p_val;		/* Valid slot? */
 	struct prot p_prot;	/* Protection for partition */
+	uint p_type;		/* Record of ps_type below */
 };
 
 /*
