@@ -9,6 +9,7 @@
  */
 #include <sys/fs.h>
 #include <std.h>
+#include <fcntl.h>
 
 /*
  * Not reentrant XXX
@@ -54,7 +55,7 @@ getpath(char *path, int *fdp, port_name *namep, char **name)
 	/*
 	 * Open access to the directory
 	 */
-	*fdp = open(d, ACC_READ|ACC_WRITE);
+	*fdp = open(d, O_RDWR);
 	if (*fdp < 0) {
 		return(1);
 	}
