@@ -123,8 +123,8 @@ syscall(ulong place_holder)
 	struct trapframe *f = (struct trapframe *)&place_holder;
 	int callnum;
 	struct syscall *s;
-	ulong *parms;
 	struct thread *t = curthread;
+	ulong parms[MAXARGS];
 
 	/*
 	 * Sanity check system call number
@@ -157,68 +157,40 @@ syscall(ulong place_holder)
 	f->eflags &= ~F_CF;
 
 	/*
+	 * Get args off stack, don't assume that some luser hasn't
+	 * hosed his stack pointer.
+	 */
+	if (s->s_narg && copyin((void *)(f->esp + sizeof(ulong)), parms,
+			s->s_narg * sizeof(ulong))) {
+		f->eax = err(EFAULT);
+	/*
 	 * Call function with needed number of arguments
 	 */
+	} else
 	switch (s->s_narg) {
 	case 0:
 		f->eax = (*(s->s_fun))();
 		break;
 	case 1:
-		parms = (ulong *)(f->esp + sizeof(ulong) + UOFF);
-		if ((ulong)parms < 0xFFFFFFFCL) {
-			f->eax = (*(s->s_fun))(parms[0]);
-		} else {
-			ASSERT_DEBUG(0, "short syscall args");
-			f->eax = err(EFAULT);
-		}
+		f->eax = (*(s->s_fun))(parms[0]);
 		break;
 	case 2:
-		parms = (ulong *)(f->esp + sizeof(ulong) + UOFF);
-		if ((ulong)parms < 0xFFFFFFF8L) {
-			f->eax = (*(s->s_fun))(parms[0], parms[1]);
-		} else {
-			ASSERT_DEBUG(0, "short syscall args");
-			f->eax = err(EFAULT);
-		}
+		f->eax = (*(s->s_fun))(parms[0], parms[1]);
 		break;
 	case 3:
-		parms = (ulong *)(f->esp + sizeof(ulong) + UOFF);
-		if ((ulong)parms < 0xFFFFFFF4L) {
-			f->eax = (*(s->s_fun))(parms[0], parms[1], parms[2]);
-		} else {
-			ASSERT_DEBUG(0, "short syscall args");
-			f->eax = err(EFAULT);
-		}
+		f->eax = (*(s->s_fun))(parms[0], parms[1], parms[2]);
 		break;
 	case 4:
-		parms = (ulong *)(f->esp + sizeof(ulong) + UOFF);
-		if ((ulong)parms < 0xFFFFFFF0L) {
-			f->eax = (*(s->s_fun))(parms[0], parms[1],
-					       parms[2], parms[3]);
-		} else {
-			ASSERT_DEBUG(0, "short syscall args");
-			f->eax = err(EFAULT);
-		}
+		f->eax = (*(s->s_fun))(parms[0], parms[1], parms[2],
+			parms[3]);
 		break;
 	case 5:
-		parms = (ulong *)(f->esp + sizeof(ulong) + UOFF);
-		if ((ulong)parms < 0xFFFFFFECL) {
-			f->eax = (*(s->s_fun))(parms[0], parms[1], parms[2],
-					       parms[3], parms[4]);
-		} else {
-			ASSERT_DEBUG(0, "short syscall args");
-			f->eax = err(EFAULT);
-		}
+		f->eax = (*(s->s_fun))(parms[0], parms[1], parms[2],
+			parms[3], parms[4]);
 		break;
 	case 6:
-		parms = (ulong *)(f->esp + sizeof(ulong) + UOFF);
-		if ((ulong)parms < 0xFFFFFFECL) {
-			f->eax = (*(s->s_fun))(parms[0], parms[1], parms[2],
-					       parms[3], parms[4], parms[5]);
-		} else {
-			ASSERT_DEBUG(0, "short syscall args");
-			f->eax = err(EFAULT);
-		}
+		f->eax = (*(s->s_fun))(parms[0], parms[1], parms[2],
+			parms[3], parms[4], parms[5]);
 		break;
 	default:
 		ASSERT(0, "syscall: bad s_narg");
