@@ -16,11 +16,13 @@ seg_copyin(seg_t *seg, uint nseg, void *buf, uint buflen)
 	uint step, count = 0;
 
 	for (x = 0; x < nseg; ++x,++seg) {
-		if (count == buflen)
+		if (count == buflen) {
 			break;
+		}
 		step = seg->s_buflen;
-		if ((count+step) > buflen)
-			step = buflen-count;
+		if ((count+step) > buflen) {
+			step = buflen - count;
+		}
 		bcopy(seg->s_buf, (char *)buf + count, step);
 		count += step;
 	}
@@ -39,11 +41,13 @@ seg_copyout(seg_t *seg, uint nseg, void *buf, uint buflen)
 	uint step, count = 0;
 
 	for (x = 0; x < nseg; ++x,++seg) {
-		if (count == buflen)
+		if (count == buflen) {
 			break;
+		}
 		step = seg->s_buflen;
-		if ((count+step) > buflen)
-			step = buflen-count;
+		if ((count+step) > buflen) {
+			step = buflen - count;
+		}
 		bcopy((char *)buf + count, seg->s_buf, step);
 		count += step;
 	}
