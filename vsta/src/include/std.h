@@ -13,7 +13,7 @@
  * Routine templates
  */
 extern void *malloc(unsigned int), *realloc(void *, unsigned int);
-extern void *calloc(unsigned int, unsigned int);
+extern void *calloc(unsigned int _nelem, unsigned int _elemsize);
 extern void free(void *);
 extern char *strerror( /* ... */ );
 extern int fork(void), vfork(void), tfork(voidfun, ulong);
