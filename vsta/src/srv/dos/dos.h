@@ -17,6 +17,7 @@
 #include <time.h>
 
 #define SECSZ (512)		/* Bytes in a sector */
+#define MSDOS_FAT12 (4085)	/* Max sectors in a FAT-12 filesystem */
 
 /*
  * This represents the cluster allocation for a directory or file.

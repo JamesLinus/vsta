@@ -74,7 +74,7 @@ fat_init(void)
 		/*
 		 * Below this threshold, it's FAT12.  Otherwise FAT16
 		 */
-		if (nclust < 4086) {
+		if (nclust < MSDOS_FAT12) {
 			extern struct fatops fat12ops;
 
 			fat_size = 12;
