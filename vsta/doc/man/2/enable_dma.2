@@ -15,7 +15,7 @@ SYNOPSIS
 .li 3
 #include <sys/syscall.h>
 
-int enable_dma(void);
+int enable_dma(int channel);
 .sp 1
 .in -6
 .bd 1
@@ -49,3 +49,8 @@ NOTES
 This call is generally useful only to DMA-based I/O servers,
 although certain transaction-oriented direct I/O filesystems
 might benefit.
+.sp
+The argument is the DMA channel to be used by a hardware
+DMA server.  On architectures where there is no concept of
+DMA channels, it may be passed as 0.  On the x86, this argument
+is currently unused.
