@@ -189,9 +189,12 @@ trap(ulong place_holder)
 	}
 
 	/*
-	 * Pick action based on trap
+	 * Pick action based on trap.  System calls account for
+	 * most entries, so special case them first.
 	 */
-	switch (f->traptype) {
+	if (f->traptype == T_SYSCALL) {
+		syscall(f);
+	} else switch (f->traptype) {
 	case T_PGFLT|T_KERNEL:
 	case T_PGFLT:
 		page_fault(f);
@@ -262,10 +265,6 @@ trap(ulong place_holder)
 	case T_GENPRO:
 	case T_CPSOVER:
 		selfsig(EFAULT);
-		break;
-
-	case T_SYSCALL:
-		syscall(f);
 		break;
 
 	default:
