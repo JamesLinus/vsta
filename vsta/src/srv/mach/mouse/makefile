@@ -1,20 +1,19 @@
-CC        = gcc
-LD        = ld
-INCLUDES  = -I../../../../include
-CFLAGS    = -DDEBUG $(INCLUDES) -O
+CC=gcc
+LD=ld
+INCLUDES=-I../../../../include
+CFLAGS=-DDEBUG $(INCLUDES) -O
+LDFLAGS=-L../../../lib
+LIBS=-lusr -lc
+CRT0=../../../lib/crt0.o
 
-LDFLAGS   = -L../../../lib
-LIBS      = -lpio -lusr -lc
-CRT0	  = ../../../lib/crt0.o
-
-OBJS      = main.o ibmrs232.o nec_bus.o ms_bus.o logi_bus.o ps2aux.o \
+OBJS=main.o ibmrs232.o nec_bus.o ms_bus.o logi_bus.o ps2aux.o \
 	mouse.o stat.o
-TOBJS     = test.o libmouse.o
+TOBJS=test.o
 
 .c.o:
 	$(CC) $(CFLAGS) -c $*.c
 
-all: mouse test
+all: mouse
 
 test: $(TOBJS) 
 	$(LD) $(LDFLAGS) -e start -o test $(CRT0) $(TOBJS) $(LIBS)
