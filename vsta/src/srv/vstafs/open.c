@@ -689,6 +689,21 @@ vfs_close(struct file *f)
 }
 
 /*
+ * do_unhash()
+ *	Function to do the unhash() call from a child thread
+ */
+static ulong unhash_fid;
+static void
+do_unhash(void)
+{
+	extern port_t rootport;
+	extern void unhash();
+
+	unhash(rootport, unhash_fid);
+	_exit(0);
+}
+
+/*
  * vfs_remove()
  *	Remove an entry in the current directory
  */
@@ -735,6 +750,26 @@ vfs_remove(struct msg *m, struct file *f)
 	x = perm_calc(f->f_perms, f->f_nperm, &fs->fs_prot);
 	if ((x & (ACC_WRITE|ACC_CHMOD)) == 0) {
 		msg_err(m->m_sender, EPERM);
+		return;
+	}
+
+	/*
+	 * Try unhashing if it might be the only other reference
+	 */
+	if (o->o_refs == 2) {
+		/*
+		 * Since a closing portref needs to handshake
+		 * with the server, use a child thread to do
+		 * the dirty work.
+		 */
+		unhash_fid = o->o_file;
+		(void)tfork(do_unhash);
+
+		/*
+		 * Release our ref and tell the requestor he
+		 * might want to try again.
+		 */
+		msg_err(m->m_sender, EAGAIN);
 		return;
 	}
 
