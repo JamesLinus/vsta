@@ -12,17 +12,6 @@
 #include "pset.h"
 
 /*
- * Map generic pset data to FOD use.  We have a struct containing
- * the open port, as well as a pview used to leave cache references
- * to pset slots
- */
-#define DATA(ps) ((struct open_port *)(ps->p_data))
-struct open_port {
-	struct portref *o_pr;
-	struct pview o_pview;
-};
-
-/*
  * Our pset ops
  */
 static int fod_fillslot(), fod_writeslot(), fod_init();
@@ -48,7 +37,6 @@ static void
 fod_free(struct pset *ps)
 {
 	uint x;
-	struct open_port *o = DATA(ps);
 
 	/*
 	 * Clean up pset.  There can still be cache pview references
@@ -74,8 +62,10 @@ fod_free(struct pset *ps)
 			 * Sanity.  Lots of sanity.
 			 */
 			ASSERT_DEBUG(a, "fod_free: v !atl");
-			ASSERT_DEBUG(a->a_pview == &o->o_pview,
-				"fod_free: non-cache pview");
+			ASSERT_DEBUG(a->a_flags & ATL_CACHE,
+				"fod_free: non-cache ref");
+			ASSERT_DEBUG(a->a_ptr == ps,
+				"fod_free: pset mismatch");
 			ASSERT_DEBUG(a->a_next == 0,
 				"fod_free: other refs");
 			ASSERT_DEBUG(pp->pp_refs == 1,
@@ -93,12 +83,7 @@ fod_free(struct pset *ps)
 	/*
 	 * Close file connection
 	 */
-	(void)shut_client(DATA(ps)->o_pr);
-
-	/*
-	 * Free our dynamic memory
-	 */
-	FREE(DATA(ps), MT_OPENPORT);
+	(void)shut_client(ps->p_data);
 }
 
 /*
@@ -109,13 +94,12 @@ static int
 fod_fillslot(struct pset *ps, struct perpage *pp, uint idx)
 {
 	uint pg;
-	struct open_port *o = DATA(ps);
 
 	ASSERT_DEBUG(!(pp->pp_flags & (PP_V|PP_BAD)),
 		"fod_fillslot: valid");
 	pg = alloc_page();
 	set_core(pg, ps, idx);
-	if (pageio(pg, o->o_pr, ptob(idx+ps->p_off),
+	if (pageio(pg, ps->p_data, ptob(idx+ps->p_off),
 			NBPG, FS_ABSREAD)) {
 		free_page(pg);
 		return(1);
@@ -133,7 +117,7 @@ fod_fillslot(struct pset *ps, struct perpage *pp, uint idx)
 	/*
 	 * Add the cache reference
 	 */
-	add_atl(pp, &o->o_pview, idx);
+	add_atl(pp, ps, idx, ATL_CACHE);
 
 	return(0);
 }
@@ -169,16 +153,7 @@ alloc_pset_fod(struct portref *pr, uint pages)
 	ps = alloc_pset(pages);
 	ps->p_type = PT_FILE;
 	ps->p_ops = &psop_fod;
-	ps->p_data = MALLOC(sizeof(struct open_port), MT_OPENPORT);
-	DATA(ps)->o_pr = pr;
-
-	/*
-	 * Set up the cache view
-	 */
-	pv = &DATA(ps)->o_pview;
-	bzero(pv, sizeof(struct pview));
-	pv->p_set = ps;
-	pv->p_len = pages;
+	ps->p_data = pr;
 
 	return(ps);
 }
@@ -194,5 +169,5 @@ fod_dup(struct pset *ops, struct pset *ps)
 	 * We are a new reference into the file.  Ask
 	 * the server for duplication.
 	 */
-	DATA(ps)->o_pr = dup_port(DATA(ops)->o_pr);
+	ps->p_data = dup_port(ops->p_data);
 }

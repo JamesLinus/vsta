@@ -26,15 +26,15 @@
  * Assumes slot for perpage is already locked.
  */
 void
-add_atl(struct perpage *pp, struct pview *pv, uint off)
+add_atl(struct perpage *pp, void *ptr, uint off, uint flags)
 {
 	struct atl *a;
 
-	ASSERT_DEBUG(off < pv->p_len, "add_atl: out of bounds");
 	a = MALLOC(sizeof(struct atl), MT_ATL);
-	a->a_pview = pv;
+	a->a_ptr = ptr;
 	a->a_idx = off;
 	a->a_next = pp->pp_atl;
+	a->a_flags = flags;
 	pp->pp_atl = a;
 }
 
@@ -45,7 +45,7 @@ add_atl(struct perpage *pp, struct pview *pv, uint off)
  * Return value is 0 if the entry could be found; 1 if not.
  * Page slot is assumed to be held locked.
  */
-delete_atl(struct perpage *pp, struct pview *pv, uint off)
+delete_atl(struct perpage *pp, void *ptr, uint off)
 {
 	struct atl *a, **ap;
 
@@ -54,7 +54,7 @@ delete_atl(struct perpage *pp, struct pview *pv, uint off)
 	 */
 	ap = &pp->pp_atl;
 	for (a = pp->pp_atl; a; a = a->a_next) {
-		if ((a->a_pview == pv) && (a->a_idx == off)) {
+		if ((a->a_ptr == ptr) && (a->a_idx == off)) {
 			*ap = a->a_next;
 			break;
 		}

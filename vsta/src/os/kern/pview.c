@@ -107,7 +107,7 @@ attach_valid_slots(struct pview *pv)
 
 		pp = find_pp(ps, idx);
 		if (pp->pp_flags & PP_V) {
-			add_atl(pp, pv, x);
+			add_atl(pp, pv, x, 0);
 			hat_addtrans(pv, (char *)pv->p_vaddr + ptob(x),
 				pp->pp_pfn, pv->p_prot |
 				((pp->pp_flags & PP_COW) ? PROT_RO : 0));

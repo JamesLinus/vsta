@@ -81,13 +81,13 @@ getbits(struct perpage *pp)
 	for (a = pp->pp_atl; a; a = a->a_next) {
 
 		/*
-		 * No VAS == cached view, ignore
+		 * Cached view, ignore
 		 */
-		pv = a->a_pview;
-		vas = pv->p_vas;
-		if (!vas) {
+		if (a->a_flags & ATL_CACHE) {
 			continue;
 		}
+		pv = a->a_ptr;
+		vas = pv->p_vas;
 
 		/*
 		 * Reap ref/mod bits from HAT, which clears them
@@ -117,16 +117,16 @@ unvirt(struct perpage *pp)
 		struct vas *vas;
 
 		an = a->a_next;
-		pv = a->a_pview;
-		vas = pv->p_vas;
 
 		/*
 		 * Don't steal locked memory
 		 */
-		if (vas) {
+		if (!(a->a_flags & ATL_CACHE)) {
 			/*
 			 * Leave entry be if memory locked
 			 */
+			pv = a->a_ptr;
+			vas = pv->p_vas;
 			if (vas->v_flags & VF_MEMLOCK) {
 				ap = &a->a_next;
 				continue;

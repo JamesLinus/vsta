@@ -15,10 +15,17 @@
  * For enumerating current mappings of a physical page
  */
 struct atl {
-	struct pview *a_pview;
-	uint a_idx;
+	void *a_ptr;
+	ushort a_idx;
+	uchar a_flags;
+	uchar a_pad;
 	struct atl *a_next;
 };
+
+/*
+ * Flags for atl
+ */
+#define ATL_CACHE (0x01)	/* a_ptr is a pset cache reference */
 
 /*
  * Per-page-slot information.  The per-physical-page information is
@@ -111,8 +118,8 @@ extern struct pset *alloc_pset_zfod(uint);
 extern struct pview *alloc_pview(struct pset *);
 extern struct pset *copy_pset(struct pset *, uint, uint);
 extern struct pset *physmem_pset(uint, int);
-extern void add_atl(struct perpage *, struct pview *, uint);
-extern int delete_atl(struct perpage *, struct pview *, uint);
+extern void add_atl(struct perpage *, void *, uint, uint);
+extern int delete_atl(struct perpage *, void *, uint);
 extern void cow_write(struct pset *, struct perpage *, uint);
 extern void set_core(uint, struct pset *, uint);
 extern struct pset *alloc_pset_cow(struct pset *, uint, uint);

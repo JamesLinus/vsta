@@ -142,7 +142,7 @@ vas_fault(void *vas, void *vaddr, int write)
 	 * With a valid slot, add a hat translation and tabulate
 	 * the entry with an atl.
 	 */
-	add_atl(pp, pv, btop((ulong)vaddr - (ulong)(pv->p_vaddr)));
+	add_atl(pp, pv, btop((ulong)vaddr - (ulong)(pv->p_vaddr)), 0);
 	hat_addtrans(pv, vaddr, pp->pp_pfn, pv->p_prot |
 		((pp->pp_flags & PP_COW) ? PROT_RO : 0));
 
