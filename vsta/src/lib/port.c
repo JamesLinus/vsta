@@ -16,7 +16,6 @@ static struct map {
 	port_name m_addr;
 } names[] = {
 	{"NAMER", PORT_NAMER},
-	{"TIMER", PORT_TIMER},
 	{"ENV", PORT_ENV},
 	{"CONS", PORT_CONS},
 	{"SWAP", PORT_SWAP},
