@@ -9,7 +9,7 @@
  *	Called from ASSERT-type macros on failure
  */
 void
-assfail(msg, file, line)
+assfail(const char *msg, const char *file, int line)
 {
 	fprintf(stderr, "Assertion failed in file %s, line %d\n",
 		file, line);
