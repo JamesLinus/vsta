@@ -346,15 +346,17 @@ cat(char *p)
 static void
 mount(char *p)
 {
-	int port, x;
+	port_t port;
+	port_name pn;
+	int x;
 
 	while (isspace(*p)) {
 		++p;
 	}
-	port = atoi(p);
-	port = msg_connect(port, ACC_READ);
+	pn = atoi(p);
+	port = msg_connect(pn, ACC_READ);
 	if (port < 0) {
-		printf("Bad port.\n");
+		perror(p);
 		return;
 	}
 	p = strchr(p, ' ');
