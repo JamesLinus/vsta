@@ -6,7 +6,6 @@
 #include <sys/port.h>
 #include <sys/malloc.h>
 #include <sys/assert.h>
-#include "msg.h"
 
 /*
  * kernmsg_send()

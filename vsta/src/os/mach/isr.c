@@ -13,6 +13,8 @@
 #include <mach/icu.h>
 #include <sys/assert.h>
 #include <sys/misc.h>
+#include "locore.h"
+#include "mutex.h"
 #include "../kern/msg.h"
 
 
@@ -241,7 +243,7 @@ deliver_isr(int isr)
 		sm->sm_op = M_ISR;
 		sm->sm_arg = isr;
 		sm->sm_arg1 = 1;
-		queue_msg(handler[isr].i_port, sm, SPLHI);
+		inline_queue_msg(handler[isr].i_port, sm, SPLHI);
 		return(1);
 	}
 

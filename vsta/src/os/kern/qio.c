@@ -12,7 +12,6 @@
 #include <sys/port.h>
 #include <alloc.h>
 #include <sys/assert.h>
-#include "msg.h"
 
 static sema_t qio_sema;		/* Counting semaphore for # elements */
 static struct qio *qios = 0;	/* Free elements */

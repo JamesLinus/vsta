@@ -14,7 +14,6 @@
 #include <sys/thread.h>
 #include <sys/malloc.h>
 #include <alloc.h>
-#include "msg.h"
 
 #define START_ROTOR (1024)	/* Where we start searching for an open # */
 

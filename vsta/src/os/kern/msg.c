@@ -24,9 +24,25 @@
 #include <hash.h>
 #include "msg.h"
 
-extern void ref_port(), deref_port();
-extern struct portref *find_portref();
-extern struct port *find_port();
+/*
+ * queue_msg()
+ *	Queue a message, external version
+ */
+void
+queue_msg(struct port *port, struct sysmsg *sm, spl_t exit_state)
+{
+	inline_queue_msg(port, sm, exit_state);
+}
+
+/*
+ * lqueue_msg()
+ *	Locked version, external
+ */
+void
+lqueue_msg(struct port *port, struct sysmsg *sm)
+{
+	inline_lqueue_msg(port, sm);
+}
 
 /*
  * freesegs()
@@ -256,7 +272,7 @@ msg_send(port_t arg_port, struct msg *arg_msg)
 	/*
 	 * Put message on queue
 	 */
-	queue_msg(pr->p_port, &sm, SPL0);
+	inline_queue_msg(pr->p_port, &sm, SPL0);
 
 	/*
 	 * Now wait for the I/O to finish or be interrupted

@@ -1,18 +1,19 @@
-#ifndef _KERN_MSG_H
-#define _KERN_MSG_H
+#ifndef SYS_MSG_H
+#define SYS_MSG_H
 /*
- * msg.h
- *	Inlined message manipulation routines
+ * sys/msg.h
+ *	Inline functions for message queue manipulation
  */
-
+#include <sys/types.h>
+#include <sys/port.h>
 #include "../mach/mutex.h"
 
 /*
- * lqueue_msg()
- *	Queue a message when port is already locked
+ * inline_lqueue_msg()
+ *	Queue a message when port is already locked, inline version
  */
 inline static void
-lqueue_msg(struct port *port, struct sysmsg *sm)
+inline_lqueue_msg(struct port *port, struct sysmsg *sm)
 {
 	sm->sm_next = 0;
 	if (port->p_tl) {
@@ -35,7 +36,7 @@ lqueue_msg(struct port *port, struct sysmsg *sm)
 
 /*
  * queue_msg()
- *	Queue a message to the given port's queue
+ *	Queue a message to the given port's queue, inline version
  *
  * This routine handles all locking of the given port.
  *
@@ -44,7 +45,7 @@ lqueue_msg(struct port *port, struct sysmsg *sm)
  * constant and thus give simple matching characteristics.
  */
 inline static void
-queue_msg(struct port *port, struct sysmsg *sm, spl_t exit_state)
+inline_queue_msg(struct port *port, struct sysmsg *sm, spl_t exit_state)
 {
 	spl_t s;
 
@@ -57,7 +58,7 @@ queue_msg(struct port *port, struct sysmsg *sm, spl_t exit_state)
 	} else {
 		p_lock_fast(&port->p_lock, SPLHI);
 	}
-	lqueue_msg(port, sm);
+	inline_lqueue_msg(port, sm);
 	if ((exit_state == SPLHI) || (exit_state == SPLHI_SAME)) {
 		v_lock(&port->p_lock, SPLHI_SAME);
 	} else {
@@ -65,4 +66,4 @@ queue_msg(struct port *port, struct sysmsg *sm, spl_t exit_state)
 	}
 }
 
-#endif /* _KERN_MSG_H */
+#endif /* SYS_MSG_H */

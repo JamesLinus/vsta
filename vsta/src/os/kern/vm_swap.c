@@ -25,7 +25,6 @@
 #include <sys/malloc.h>
 #include <sys/assert.h>
 #include <alloc.h>
-#include "msg.h"
 
 extern struct seg *kern_mem();
 extern void freesegs();
