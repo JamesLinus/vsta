@@ -15,19 +15,17 @@
 #include <sys/param.h>
 #include <sys/perm.h>
 
-#define PASSWD "/vsta/etc/passwd"	/* Password file */
-#define GROUP "/vsta/etc/group"		/* Group file */
-#define STRLEN (32)			/* Max string length */
+#define UI_STRLEN (32)			/* Max string length */
 
 /*
  * All the dope on a user
  */
 struct uinfo {
-	char u_acct[STRLEN];		/* Account name */
-	char u_passwd[STRLEN];		/* Password */
-	char u_home[STRLEN];		/* Home dir */
-	char u_shell[STRLEN];		/* Shell */
-	char u_env[STRLEN];		/* Environment path */
+	char u_acct[UI_STRLEN];		/* Account name */
+	char u_passwd[UI_STRLEN];	/* Password */
+	char u_home[UI_STRLEN];		/* Home dir */
+	char u_shell[UI_STRLEN];	/* Shell */
+	char u_env[UI_STRLEN];		/* Environment path */
 	struct perm			/* Permissions holding */
 		u_perms[PROCPERMS];
 	ulong u_uid;			/* UID associated with account */
