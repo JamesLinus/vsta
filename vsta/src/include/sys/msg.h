@@ -84,7 +84,7 @@ extern void lqueue_msg(struct port *, struct sysmsg *),
 #endif /* KERNEL */
 
 port_t msg_port(port_name, port_name *); /* Create new port */
-port_t msg_connect(port_name, int);	/* Connect to port */
+port_t msg_connect(port_name, uint);	/* Connect to port */
 int msg_accept(long);			/* Accept M_CONNECT */
 int msg_send(port_t, msg_t *);		/* Send message to port */
 int msg_receive(port_t, msg_t *);	/* Receive message on port */
@@ -153,5 +153,10 @@ int msg_portname(port_t);		/* Get port_name for port */
 #define M_RESVD 99		/* This and below reserved */
 
 #define M_READ 0x80000000	/* Buffer is destination, not source */
+
+/*
+ * The only bit of the access mode interpreted by the kernel
+ */
+#define ACC_NOCLONE (0x80000000) /* Not duplicated on fork() */
 
 #endif /* _MSG_H */
