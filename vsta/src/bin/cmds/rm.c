@@ -13,6 +13,9 @@ static int rflag, fflag;
 static int cleardir(void);
 static void do_remove(char *);
 
+/* Error count */
+static int errs = 0;
+
 /*
  * cleardir()
  *	Remove all entries in current directory
@@ -56,8 +59,10 @@ do_remove(char *n)
 	 * Figure out what it is
 	 */
 	if (stat(n, &sb) < 0) {
-		if (!fflag)
+		if (!fflag) {
 			perror(n);
+			errs = 1;
+		}
 		return;
 	}
 
@@ -65,8 +70,10 @@ do_remove(char *n)
 	 * Things other than directories, give up now.
 	 */
 	if ((sb.st_mode & S_IFMT) != S_IFDIR) {
-		if (!fflag)
+		if (!fflag) {
 			perror(n);
+			errs = 1;
+		}
 		return;
 	}
 
@@ -74,8 +81,10 @@ do_remove(char *n)
 	 * If not -r, complain & bail
 	 */
 	if (!rflag) {
-		if (!fflag)
+		if (!fflag) {
 			fprintf(stderr, "%s: is a directory\n", n);
+			errs = 1;
+		}
 		return;
 	}
 
@@ -83,13 +92,16 @@ do_remove(char *n)
 	 * Descend, remove
 	 */
 	if (chdir(n) < 0) {
-		if (!fflag)
+		if (!fflag) {
 			perror(n);
+			errs = 1;
+		}
 		return;
 	}
 	if (cleardir()) {
 		if (!fflag) {
 			perror(n);
+			errs = 1;
 		}
 	}
 	if (chdir("..") < 0) {
@@ -101,8 +113,10 @@ do_remove(char *n)
 	 * Now try to clear the dir one more time
 	 */
 	if (unlink(n) < 0) {
-		if (!fflag)
+		if (!fflag) {
 			perror(n);
+			errs = 1;
+		}
 		return;
 	}
 }
@@ -135,4 +149,5 @@ main(int argc, char **argv)
 	for ( ; x < argc; ++x) {
 		do_remove(argv[x]);
 	}
+	return(errs);
 }
