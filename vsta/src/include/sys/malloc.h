@@ -5,27 +5,14 @@
  *	Function defs for a malloc()/free() kernel interface
  */
 #include <sys/types.h>
-#include <sys/assert.h>
+#include <sys/param.h>
+#include "../mach/mutex.h"
 
 /*
  * Basic functions
  */
 extern void *malloc(uint size);
 extern void free(void *);
-
-/*
- * MALLOC/FREE interface.  Maps directly to malloc()/free() unless
- * DEBUG, in which case we tally use of memory types
- */
-#ifdef DEBUG
-extern void *_malloc(uint, uint), _free(void *, uint);
-
-#define MALLOC(size, type) _malloc(size, type)
-#define FREE(ptr, type) _free(ptr, type)
-#else
-#define MALLOC(size, type) malloc(size)
-#define FREE(ptr, type) free(ptr)
-#endif
 
 /*
  * malloc() types, their values as handed to MALLOC()
@@ -58,47 +45,97 @@ extern void *_malloc(uint, uint), _free(void *, uint);
 #define MALLOCTYPES (24)	/* UPDATE when you add values above */
 				/* ALSO check n_allocname[] */
 
-#ifdef MALLOC_INTERNAL
-/*
- * per-page information.  We overlay this on the existing "struct core"
- * storage already available per-page.
- */
-struct page {
-	ushort p_bucket;	/* Bucket # */
-	ushort p_out;		/* # elems not free in this page */
-};
-
-/*
- * Structure of a chunk of storage while on the free list
- * in a bucket
- */
-struct freehead {
-	struct freehead
-		*f_forw,	/* A doubly-linked list */
-		*f_back;
-};
-#define EMPTY(bucket) ((bucket)->b_mem.f_forw == &(bucket)->b_mem)
+extern void *_malloc(uint, uint), _free(void *, uint);
 
 /*
  * Our per-storage-size information
  */
 struct bucket {
-	struct freehead		/* List of chunks of memory */
-		b_mem;
-	uint b_elems;		/* # chunks available in this bucket */
-	uint b_pages;		/* # pages used for this bucket size */
-	uint b_size;		/* Size of this kind of chunk */
-	lock_t b_lock;		/* Lock for manipulating this bucket */
-} buckets[PGSHIFT];
-#define MIN_BUCKET 4		/* At least 16 bytes allocated */
+	void *b_mem;	/* List of chunks of memory */
+	uint b_elems;	/* # chunks available in this bucket */
+	uint b_pages;	/* # pages used for this bucket size */
+	uint b_size;	/* Size of this kind of chunk */
+	lock_t b_lock;	/* Lock for manipulating this bucket */
+};
+extern struct bucket buckets[];
+#define MIN_BUCKET 4	/* At least 16 bytes allocated */
+
+/*
+ * BUCKET()
+ *	Convert size to a bucket index
+ *
+ * Works for constants (the compiler flattens the expression out to
+ * a bucket index constant) and dynamic values (it's an O(log(n))
+ * search).
+ */
+#define BUCKET(x) \
+  ((x <= 1024) ? \
+    ((x <= 128) ? \
+      ((x <= 32) ?  ((x <= 16) ? 4 : 5) : ((x <= 64) ? 6 : 7)) \
+    : \
+      ((x <= 256) ? 8 : ((x <= 512) ? 9 : 10))) \
+  : \
+    ((x <= 8192) ? \
+      ((x <= 2048) ? 11 : ((x <= 4096) ? 12 : 13)) \
+    : \
+      ((x <= 16384) ? 14 : 15)))
+
+/*
+ * MALLOC/FREE interface.  For DEBUG, always call the procedure which
+ * tallies memory type usage.  Otherwise grab blocks inline.
+ */
+#ifdef DEBUG
+
+#define MALLOC(size, type) _malloc(size, type);
+#define FREE(ptr, type) _free(ptr, type);
+
+#else /* !DEBUG */
+
+inline static void *
+MALLOC(uint size, uint type)
+{
+	struct bucket *b;
+	void *v;
+
+	if (size > (NBPG/2)) {
+		return(_malloc(size, type));
+	}
+	b = &buckets[BUCKET(size)];
+	p_lock_fast(&b->b_lock, SPL0_SAME);
+	v = b->b_mem;
+	if (v) {
+		b->b_mem = *(void **)v;
+	}
+	v_lock(&b->b_lock, SPL0_SAME);
+	if (v) {
+		return(v);
+	}
+	return(_malloc(size, type));
+}
+
+inline static void
+FREE(void *ptr, uint type)
+{
+	struct bucket *b;
+	uint size;
+
+	size = PAGE_GETVAL(btop(vtop(ptr)));
+	if (size >= PGSHIFT) {
+		_free(ptr, type);
+		return;
+	}
+	b = &buckets[size];
+	_free(ptr, type);
+}
+
+#endif /* !DEBUG */
+
 
 #ifdef DEBUG
 /*
  * Our per-storage-type tabulation
  */
 extern ulong n_alloc[MALLOCTYPES];
-#endif
-
-#endif /* MALLOC_INTERNAL */
+#endif /* DEBUG */
 
 #endif /* _MALLOC_H */
