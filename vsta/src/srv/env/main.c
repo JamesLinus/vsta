@@ -129,15 +129,6 @@ new_client(struct msg *m)
 /*
  * dup_client()
  *	Duplicate current file access onto new session
- *
- * This is more of a Plan9 clone operation.  The intent is
- * to not share a struct file, so that when you walk it down
- * a level or seek it, you don't affect the thing you cloned
- * off from.
- *
- * This is a kernel-generated message; the m_sender is the
- * current user; m_arg specifies a handle which will be used
- * if we complete the operation with success.
  */
 static void
 dup_client(struct msg *m, struct file *fold)
@@ -155,7 +146,7 @@ dup_client(struct msg *m, struct file *fold)
 	/*
 	 * Bulk copy
 	 */
-	*f = *fold;
+	bcopy(fold, f, sizeof(*f));
 	ref_node(f->f_node);
 	ref_node(f->f_home);
 
