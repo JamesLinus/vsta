@@ -376,6 +376,15 @@ msg_send(port_t arg_port, struct msg *arg_msg)
 			 * it for next time.
 			 */
 			set_sema(&pr->p_iowait, 0);
+
+			/*
+			 * If the server's waiting for us to copy out
+			 * segments he's provided, tell him to just
+			 * get on with his life.
+			 */
+			if (blocked_sema(&pr->p_svwait)) {
+				v_sema(&pr->p_svwait);
+			}
 			v_lock(&pr->p_lock, SPL0_SAME);
 			break;
 		default:
