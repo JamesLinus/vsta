@@ -10,3 +10,7 @@ LIBS=-L../libc -L../lib -lusr -lc
 
 vstafs: $(OBJS)
 	$(LD) -o vstafs ../libc/crt0.o $(OBJS) $(LIBS)
+
+clean:
+	del *.o
+	del vstafs

@@ -14,3 +14,8 @@ mkfs: mkfs.o
 
 fsdb: fsdb.o
 	$(LD) -o fsdb ../../libc/crt0.o fsdb.o $(LIBS)
+
+clean:
+	del *.o
+	del mkfs
+	del fsdb
