@@ -1,0 +1,16 @@
+(Notes to Andy on each release)
+
+Things to do per release:
+
+1. Make sure /vsta/doc/features.txt is up to date
+2. Check copyright year in /vsta/readme
+3. Edit /vsta/etc/banner
+4. "changed", followed by "changed -r | grep -vw '[oa]'"
+5. "cd /vsta/src" and "sh mkall", followed (if OK) by "sh mkall install"
+6. Reboot and verify things still work
+7. "cd /vsta", mount something on /dist, and "make -f mkdist.mk"
+8. Put the install packages on my test machine and do a scratch install
+9. Push it out to the FTP server
+10. See if there are any new packages, and put links in the WWW page
+11. "cd /vsta", and "rcsdo rcs -N<rel>:"
+	<rel> is formatted as V1_6_4 (for 1.6.4, duh)
