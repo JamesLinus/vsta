@@ -635,6 +635,20 @@ lseek(int fd, off_t off, int whence)
 }
 
 /*
+ * _fdclose()
+ *	Close just the FDL data structure
+ */
+void
+_fdclose(int fd)
+{
+	if (fd < NFD) {
+		fdmap[fd] = 0;
+	} else {
+		(void)hash_delete(fdhash, (ulong)fd);
+	}
+}
+
+/*
  * close()
  *	Close an open FD
  */
@@ -654,11 +668,7 @@ close(int fd)
 	/*
 	 * Delete from whatever slot it occupies
 	 */
-	if (fd < NFD) {
-		fdmap[fd] = 0;
-	} else {
-		(void)hash_delete(fdhash, (ulong)fd);
-	}
+	_fdclose(fd);
 
 	/*
 	 * Decrement refs, return if there are more
