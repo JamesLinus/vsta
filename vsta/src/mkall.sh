@@ -7,6 +7,9 @@ then
 	make libusr.a
 	cd ..
 fi
+cd include
+make $*
+cd ..
 cd os/make
 make $*
 cd ../..
@@ -105,6 +108,8 @@ make $*
 cd ../roff
 make $*
 cd ../adb
+make $*
+cd ../ash
 make $*
 cd ../..
 exit 0

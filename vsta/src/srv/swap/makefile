@@ -1,22 +1,12 @@
-CC= gcc
-LD= ld
-INCS= -I../../../include
-CFLAGS= -DDEBUG $(INCS)
-OBJS= main.o rw.o swap.o stat.o
-LIBS= -L../../lib -lusr -lsrv
+COPTS=-DDEBUG
+OBJS=main.o rw.o swap.o stat.o
+OUT=swap
 
-.c.o:
-	$(CC) $(CFLAGS) -c $*.c
+include ../../makefile.all
 
 swap: $(OBJS)
-	$(LD) -o swap ../../lib/crt0srv.o $(OBJS) $(LIBS)
-
-clean:
-	rm -f *.o
-
-clobber: clean
-	rm -f swap
+	$(LD) -o swap $(CRT0SRV) $(OBJS) -lusr -lsrv
 
 install: swap
 	strip swap
-	cp swap ../../../boot
+	cp swap $(ROOT)/boot

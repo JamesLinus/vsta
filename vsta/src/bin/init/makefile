@@ -1,25 +1,10 @@
-CC= gcc
-LD= ld
-CFLAGS= -O -I../../../include
-LDFLAGS= -L../../lib
-LIBS= -lusr -lc_s
-OBJS= init.o
-CRT0= ../../lib/crt0srv.o
-
-.c.o:
-	$(CC) $(CFLAGS) -c $*.c
-
-all: init
+OBJS=init.o
+OUT=init
+include ../../makefile.all
 
 init: $(OBJS)
-	$(LD) $(LDFLAGS) -e start -o init $(CRT0) $(OBJS) $(LIBS)
+	$(LD) $(LDFLAGS) -o init $(CRT0) $(OBJS) -lusr -lc_s
 
-clean:
-	rm -f *.o
-
-clobber: clean
-	rm -f init
-
-install: all
+install: init
 	strip init
-	cp init ../../../boot
+	cp init $(ROOT)/boot

@@ -1,15 +1,10 @@
-CC=gcc
-LD=ld
-INCS=-I../../../include
-CFLAGS=-Wall -O $(INCS)
-LDFLAGS= -L../../lib
+COPTS=-Wall
 OBJS=main.o open.o rw.o stat.o
-LIBS=-lusr -lc
-CRT0=../../lib/crt0.o
+OUT=selfs
 
-all: selfs
-.c.o:
-	$(CC) $(CFLAGS) -c $*.c
+include ../../makefile.all
+
+LIBS=-lusr -lc
 
 selfs: $(OBJS)
 	rm -f selfs
@@ -19,12 +14,6 @@ tst: tst.o
 	rm -f tst
 	$(LD) $(LDFLAGS) -o tst $(CRT0) tst.o $(LIBS)
 
-clean:
-	rm -f *.o
-
-clobber: clean
-	rm -f selfs tst
-
 install: all
 	strip selfs
-	cp selfs ../../../boot
+	cp selfs $(ROOT)/boot

@@ -1,25 +1,12 @@
-CC= gcc
-LD= ld
-INCS= -I../../../include
-CFLAGS= -DDEBUG $(INCS) -Wall -O
-LDFLAGS= -L../../lib
-OBJS= main.o proc.o pstat.o root.o
-LIBS= -lusr -lc
+COPTS=-DDEBUG -Wall
+OBJS=main.o proc.o pstat.o root.o
+OUT=proc
 
-all: proc
-
-.c.o:
-	$(CC) $(CFLAGS) -c $*.c
+include ../../makefile.all
 
 proc: $(OBJS)
-	$(LD) $(LDFLAGS) -o proc ../../lib/crt0.o $(OBJS) $(LIBS)
-
-clean:
-	rm -f *.o
-
-clobber: clean
-	rm -f proc
+	$(LD) $(LDFLAGS) -o proc ../../lib/crt0.o $(OBJS) -lusr -lc
 
 install: all
 	strip proc
-	cp proc ../../../boot
+	cp proc $(ROOT)/boot

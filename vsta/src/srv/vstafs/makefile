@@ -1,24 +1,13 @@
-CC=gcc
-LD=ld
-INCS=-I../../../include
-CFLAGS=-O -DDEBUG -Wall $(INCS)
+COPTS=-DDEBUG -Wall
 OBJS=main.o alloc.o secio.o node.o rw.o open.o stat.o
-LIBS=-L../../lib -lusr -lsrv
-CRT0=../../lib/crt0srv.o
+OUT=vstafs
 
-.c.o:
-	$(CC) $(CFLAGS) -c $*.c
+include ../../makefile.all
 
 vstafs: $(OBJS)
 	rm -f vstafs
-	$(LD) -o vstafs $(CRT0) $(OBJS) $(LIBS)
-
-clean:
-	rm -f *.o
-
-clobber: clean
-	rm -f vstafs
+	$(LD) $(LDFLAGS) -o vstafs $(CRT0SRV) $(OBJS) -lusr -lsrv
 
 install: vstafs
 	strip vstafs
-	cp vstafs ../../../boot
+	cp vstafs $(ROOT)/boot

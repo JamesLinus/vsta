@@ -1,19 +1,13 @@
-CC= gcc
-LD= ld
-CFLAGS= -O -I../../../include
-LDFLAGS= -L../../lib
-LIBS= -lc
-CRT0=../../lib/crt0.o
-
-.c.o:
-	$(CC) $(CFLAGS) -c $*.c
-
-PROGS=test args cat id ls swapd rm cp sleep mkdir pwd kill mv stat \
+OUT=test args cat id ls swapd rm cp sleep mkdir pwd kill mv stat \
 	dumpsect man fstab rmdir touch strings xargs echo du \
 	tput basename uname fmt purge printf ps rcsdo changed \
 	which
-
-all: $(PROGS)
+OBJS= args.o basename.o cat.o changed.o chmod.o cp.o du.o dumpsect.o \
+	echo.o fmt.o fstab.o id.o kill.o ls.o man.o mkdir.o \
+	mv.o printf.o ps.o purge.o pwd.o rcsdo.o rm.o rmdir.o \
+	sleep.o stat.o strings.o swapd.o test.o touch.o tput.o \
+	uname.o wc.o which.o xargs.o
+include ../../makefile.all
 
 rcsdo: rcsdo.o
 	$(LD) $(LDFLAGS) -o rcsdo $(CRT0) rcsdo.o -lc
@@ -123,12 +117,6 @@ ps: ps.o
 which: which.o
 	$(LD) $(LDFLAGS) -o which $(CRT0) which.o -lc
 
-clean:
-	rm -f *.o
-
-clobber: clean
-	rm -f $(PROGS)
-
 install: all
-	strip $(PROGS)
-	cp $(PROGS) ../../../bin
+	strip $(OUT)
+	cp $(OUT) $(ROOT)/bin

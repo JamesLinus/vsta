@@ -1,10 +1,8 @@
 #
 #	Makefile for KA9Q TCP/IP package for Berkeley UNIX
 #
-CC=gcc
-CFLAGS=-g -O -DUNIX -DBSD -DSLOWCHECK -DMSPTICK=20 -DASY
-LIBS=-lusr
-
+COPTS=-DUNIX -DBSD -DSLOWCHECK -DMSPTICK=20 -DASY
+OUT=net
 OBJS =	main.o arp.o arpcmd.o arpdump.o ax25.o ax25cmd.o \
 	ax25dump.o ax25subr.o ax25user.o ax_mbx.o cmdparse.o \
 	domain.o slhc.o bootp.o \
@@ -19,16 +17,12 @@ OBJS =	main.o arp.o arpcmd.o arpdump.o ax25.o ax25cmd.o \
 	udpdump.o version.o wildmat.o vsta.o vsta_io.o geneth.o enet.o \
 	enetdump.o vsta_srv.o
 
-net:	$(OBJS)
+include ../../makefile.all
+
+net: $(OBJS)
 	rm -f net
-	$(CC) $(CFLAGS) -o net $(OBJS) $(LIBS)
-
-clean:
-	rm -f *.o
-
-clobber: clean
-	rm -f net net.debug
+	$(LD) $(LDFLAGS) -o net $(CRT0) $(OBJS) -lusr -lc
 
 install: net
 	strip net
-	cp net ../../bin/net
+	cp net $(ROOT)/bin

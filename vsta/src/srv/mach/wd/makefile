@@ -1,25 +1,12 @@
-CC= gcc
-LD= ld
-INCS= -I../../../../include
-CFLAGS= -Wall -DDEBUG $(INCS) -O
-LDFLAGS= -L../../../lib
-OBJS= main.o rw.o wd.o dir.o stat.o
-LIBS= -ldpart -lsrv
+COPTS=-Wall -DDEBUG
+OBJS=main.o rw.o wd.o dir.o stat.o
+OUT=wd
 
-all: wd
-
-.c.o:
-	$(CC) $(CFLAGS) -c $*.c
+include ../../../makefile.all
 
 wd: $(OBJS)
-	$(LD) $(LDFLAGS) -o wd ../../../lib/crt0srv.o $(OBJS) $(LIBS)
-
-clean:
-	rm -f *.o
-
-clobber: clean
-	rm -f wd
+	$(LD) $(LDFLAGS) -o wd $(CRT0SRV) $(OBJS) -ldpart -lsrv
 
 install: all
 	strip wd
-	cp wd ../../../../boot
+	cp wd $(ROOT)/boot

@@ -1,24 +1,12 @@
-CC= gcc
-LD= ld
-INCS= -I../../../include
-CFLAGS= -DDEBUG $(INCS) -O
-LDFLAGS= -L../../lib
+COPTS=-DDEBUG
 OBJS= main.o open.o rw.o stat.o
-LIBS= -lusr -lc
+OUT=pipe
 
-all: pipe
-.c.o:
-	$(CC) $(CFLAGS) -c $*.c
+include ../../makefile.all
 
 pipe: $(OBJS)
-	$(LD) $(LDFLAGS) -o pipe ../../lib/crt0.o $(OBJS) $(LIBS)
-
-clean:
-	rm -f *.o
-
-clobber: clean
-	rm -f pipe
+	$(LD) $(LDFLAGS) -o pipe $(CRT0) $(OBJS) -lusr -lc
 
 install: all
 	strip pipe
-	cp pipe ../../../boot
+	cp pipe $(ROOT)/boot

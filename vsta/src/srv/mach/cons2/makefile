@@ -1,21 +1,12 @@
-CC=gcc
-LD=ld
-INCS=-I../../../../include
-CFLAGS=-Wall -DKDB -DDEBUG $(INCS) -O
-LDFLAGS=-L../../../lib
+COPTS=-Wall -DKDB -DDEBUG
 OBJS=main.o cons.o stat.o isr.o kbd.o
-LIBS=-lsrv -lusr
-CRT0=../../../lib/crt0srv.o
+OUT=cons
+
+include ../../../makefile.all
 
 cons: $(OBJS)
-	$(LD) $(LDFLAGS) -e start -o cons $(CRT0) $(OBJS) $(LIBS)
-
-clean:
-	rm -f *.o
-
-clobber: clean
-	rm -f cons
+	$(LD) $(LDFLAGS) -o cons $(CRT0SRV) $(OBJS) -lsrv -lusr
 
 install: cons
 	strip cons
-	cp cons ../../../../boot
+	cp cons $(ROOT)/boot

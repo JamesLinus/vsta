@@ -1,22 +1,11 @@
-CC=gcc
-LD=ld
-CFLAGS=-Wall -I../../../include -O
+COPTS=-Wall
 OBJS=adb.o disasm.o expr.o lex.o sym.o map.o proc.o i386.o
-LIBS=-L../../lib -lc
-CRT0=../../lib/crt0.o
-
-.c.o:
-	$(CC) $(CFLAGS) -c $*.c
+OUT=adb
+include ../../makefile.all
 
 adb: $(OBJS)
-	$(LD) -o adb $(CRT0) $(OBJS) $(LIBS)
+	$(LD) $(LDFLAGS) -o adb $(CRT0) $(OBJS) -lc
 
-clean:
-	rm -f *.o
-
-clobber: clean
-	rm -f adb
-
-install:
+install: adb
 	strip adb
-	cp adb ../../../bin
+	cp adb $(ROOT)/bin

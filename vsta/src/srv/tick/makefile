@@ -1,15 +1,10 @@
-CC=gcc
-LD=ld
-INCS=-I../../../include
-CFLAGS=-g -Wall $(INCS)
-LDFLAGS= -L../../lib
+COPTS=-Wall
 OBJS=main.o rw.o stat.o
-LIBS=-lusr -lc
-CRT0=../../lib/crt0.o
+OUT=tick
 
-all: tick
-.c.o:
-	$(CC) $(CFLAGS) -c $*.c
+include ../../makefile.all
+
+LIBS=-lusr -lc
 
 tick: $(OBJS)
 	rm -f tick
@@ -19,8 +14,5 @@ tst: tst.o
 	rm -f tst
 	$(LD) $(LDFLAGS) -o tst $(CRT0) tst.o $(LIBS)
 
-clean:
-	rm -f *.o
-
-clobber: clean
-	rm -f tick tst
+install:
+	: # Nothing; this is a demo/test filesystem

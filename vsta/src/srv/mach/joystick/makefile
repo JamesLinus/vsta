@@ -1,31 +1,19 @@
-CC	= gcc
-LD	= ld
-INCS	= -I../../../../include
-CFLAGS	= -DDEBUG -Wall $(INCS) -O
-LDFLAGS	= -L../../../lib
-OBJS	= main.o rw.o stat.o pio.o
-TOBJS	= libjoystick.o jstest.o pio.o
-LIBS	= -lusr -lc
-CRT0	= ../../../lib/crt0.o
+COPTS=-DDEBUG -Wall
+JOBJS=main.o rw.o stat.o pio.o
+TOBJS=libjoystick.o jstest.o pio.o
+OBJS=$(JOBJS) $(TOBJS)
+OUT=joystick
 
-.c.o:
-	$(CC) $(CFLAGS) -c $*.c
+include ../../../makefile.all
 
-PROGS=joystick jstest
-all: $(PROGS)
+LIBS=-lusr -lc
 
-joystick: $(OBJS)
-	$(LD) $(LDFLAGS) -o joystick $(CRT0) $(OBJS) $(LIBS)
+joystick: $(JOBJS)
+	$(LD) $(LDFLAGS) -o joystick $(CRT0) $(JOBJS) $(LIBS)
 
 jstest: $(TOBJS)
 	$(LD) $(LDFLAGS) -o jstest $(CRT0) $(TOBJS) $(LIBS)
 
-clean:
-	rm -f *.o
-
-clobber: clean
-	rm -f $(PROGS)
-
 install: all
 	strip joystick
-	cp joystick ../../../../boot
+	cp joystick $(ROOT)/boot

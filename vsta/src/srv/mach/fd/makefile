@@ -1,24 +1,12 @@
-CC=gcc
-LD=ld
-INCS=-I../../../../include
-CFLAGS=-DDEBUG $(INCS) -g
-LDFLAGS=-L../../../lib
+COPTS=-DDEBUG
 OBJS=main.o rw.o stat.o dir.o
-LIBS=-lusr -lc
+OUT=fd
 
-all: fd
-.c.o:
-	$(CC) $(CFLAGS) -c $*.c
+include ../../../makefile.all
 
 fd: $(OBJS)
-	$(LD) $(LDFLAGS) -o fd ../../../lib/crt0.o $(OBJS) $(LIBS)
-
-clean:
-	rm -f *.o
-
-clobber: clean
-	rm -f fd
+	$(LD) $(LDFLAGS) -o fd $(CRT0) $(OBJS) -lusr -lc
 
 install: all
 	strip fd
-	cp fd ../../../../boot
+	cp fd $(ROOT)/boot

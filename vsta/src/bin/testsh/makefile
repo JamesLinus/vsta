@@ -1,31 +1,17 @@
-CC= gcc
-LD= ld
-INCS=-nostdinc -I../../../include
 # Add -DSTAND for a more standalone-oriented flavor of shell
-CFLAGS= -DSTAND -O $(INCS)
-# CFLAGS= -O $(INCS)
-LDFLAGS= -L../../lib
-LIBS= -lusr -lc_s
+COPTS=-DSTAND
+OBJS=testsh.o dump.o run.o
+OUT=testsh
+
+include ../../makefile.all
+
 # LIBS= -lc
-CRT0=../../lib/crt0srv.o
-# CRT0=../../lib/crt0.o
-OBJS= testsh.o dump.o run.o
-
-.c.o:
-	$(CC) $(CFLAGS) -c $*.c
-
-all: testsh
+LIBS=-lusr -lc_s
 
 testsh: $(OBJS)
 	$(LD) $(LDFLAGS) -o testsh $(CRT0) $(OBJS) $(LIBS)
 
-clean:
-	rm -f *.o
-
-clobber: clean
-	rm -f testsh
-
 # Copy to ../../../bin if not STAND, but we don't seem to use that much
 install: all
 	strip testsh
-	cp testsh ../../../boot
+	cp testsh $(ROOT)/boot

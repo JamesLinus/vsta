@@ -1,21 +1,12 @@
-CC=gcc
-LD=ld
-INCS=-I../../../../include
-CFLAGS=-DKDB $(INCS) -O
-LDFLAGS=-L../../../lib
+COPTS=-DKDB
 OBJS=fifo.o main.o rw.o isr.o stat.o control.o
-LIBS=-lusr -lc
-CRT0=../../../lib/crt0.o
+OUT=rs232
+
+include ../../../makefile.all
 
 rs232: $(OBJS)
-	$(LD) $(LDFLAGS) -e start -o rs232 $(CRT0) $(OBJS) $(LIBS)
-
-clean:
-	rm -f *.o
-
-clobber: clean
-	rm -f rs232
+	$(LD) $(LDFLAGS) -o rs232 $(CRT0) $(OBJS) -lusr -lc
 
 install: rs232
 	strip rs232
-	cp rs232 ../../../../boot
+	cp rs232 $(ROOT)/boot

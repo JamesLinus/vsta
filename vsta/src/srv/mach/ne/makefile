@@ -1,26 +1,13 @@
-CC=gcc
-LD=ld
-INCS=-I../../../../include
-CFLAGS=-Wall -DDEBUG $(INCS) -O
-LDFLAGS=-L../../../lib
+COPTS=-Wall -DDEBUG
 OBJS=main.o ne.o rw.o dir.o stat.o netlib.o
-LIBS=-lusr -lc
+OUT=ne
 
-all: ne
-
-.c.o:
-	$(CC) $(CFLAGS) -c $*.c
+include ../../../makefile.all
 
 ne: $(OBJS)
 	rm -f ne
-	$(LD) $(LDFLAGS) -o ne ../../../lib/crt0.o $(OBJS) $(LIBS)
-
-clean:
-	rm -f *.o
-
-clobber: clean
-	rm -f ne
+	$(LD) $(LDFLAGS) -o ne $(CRT0) $(OBJS) -lusr -lc
 
 install: ne
 	strip ne
-	cp ne ../../../../boot/ne
+	cp ne $(ROOT)/boot

@@ -1,25 +1,14 @@
-CC=gcc
-LD=ld
-CFLAGS=-O -I../../../include
-LDFLAGS=-L../../lib
 LIBS=-lusr -lc
-OBJS=login.o
-CRT0=../../lib/crt0.o
-
-all: login runrc
+OBJS=login.o runrc.o
+OUT=runrc login
+include ../../makefile.all
 
 runrc: runrc.o
 	$(LD) $(LDFLAGS) -o runrc $(CRT0) runrc.o $(LIBS)
 
 login: $(OBJS)
-	$(LD) $(LDFLAGS) -o login $(CRT0) $(OBJS) $(LIBS)
-
-clean:
-	rm -f *.o
-
-clobber: clean
-	rm -f login runrc
+	$(LD) $(LDFLAGS) -o login $(CRT0) login.o $(LIBS)
 
 install: all
 	strip login runrc
-	cp login runrc ../../../bin
+	cp login runrc $(ROOT)/bin
