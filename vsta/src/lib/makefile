@@ -14,8 +14,8 @@ OBJS= syscall.o malloc.o \
 	mount.o open.o stat.o fdl.o hash.o time.o getopt.o \
 	shell.o qsort.o float.o signal.o env.o fdmem.o \
 	perm.o random.o namer.o dir.o wait.o mktemp.o grp.o pwd.o \
-	pipe.o fdnull.o errno.o port.o syslog.o rename.o strsep.o \
-	bsearch.o strtol.o strtoul.o swab.o utime.o getline.o \
+	pipe.o fdnull.o errno.o port.o syslog.o rename.o fnmatch.o \
+	bsearch.o strtol.o utime.o getline.o strftime.o mstring.o \
 	$(MACHOBJS)
 
 .c.o:
@@ -59,10 +59,10 @@ ld.a: mklibs
 # mapped standalone program, includes a minimal set of system calls
 libc.tmp: start.o $(OBJS)
 	rm -f libc.tmp
-	ld -r -o libc.tmp start.o $(OBJS)
+	$(LD) -r -o libc.tmp start.o $(OBJS)
 
 ld.tmp: ld.o shcalls.o
-	ld -r -o ld.tmp ld.o shcalls.o
+	$(LD) -r -o ld.tmp ld.o shcalls.o
 
 # Special version for boot servers
 startsrv.o: start.c
@@ -101,7 +101,7 @@ libpio.a: pio.o
 	ar rsv libpio.a pio.o
 
 clean:
-	rm -f *.o *.tmp
+	rm -f *.o *.tmp *.st
 
 clobber: clean
 	rm -f mklibs *.a *.shl
