@@ -173,6 +173,200 @@ pack_name(char *name, char *ext, char *file)
 }
 
 /*
+ * unicode_char_copy()
+ *	Copy a single run of chars
+ *
+ * Returns 0 if all characters were copied, 1 if end of string was seen
+ */
+static int
+unicode_char_copy(char *buf, char *name, int len)
+{
+	int x;
+
+	for (x = 0; x < len; ++x) {
+		if (name[1] != '\0') {
+			*buf++ = '_';
+		} else {
+			if ((*buf++ = name[0]) == '\0') {
+				return(1);
+			}
+		}
+		name += 2;
+	}
+	return(0);
+}
+
+/*
+ * unicode_copy()
+ *	Copy the (unicode encoded) name in a VSE into a buffer
+ *
+ * The offset into "buf" is deduced from the dirVSE "id" value
+ */
+static void
+unicode_copy(struct dirVSE *dv, char *buf)
+{
+	uchar id = dv->dv_id & VSE_ID_MASK;
+
+	/*
+	 * Index to appropriate location
+	 */
+	ASSERT_DEBUG(id < VSE_ID_MAX, "unicode_copy: bad ID");
+	buf += (id - 1) * VSE_NAME_SIZE;
+
+	/*
+	 * Assemble parts of name
+	 */
+	if (unicode_char_copy(buf, dv->dv_name1, VSE_1SIZE) == 0) {
+		if (unicode_char_copy(buf+VSE_1SIZE,
+				dv->dv_name2, VSE_2SIZE) == 0) {
+			(void)unicode_char_copy(buf+(VSE_1SIZE+VSE_2SIZE),
+				dv->dv_name3, VSE_3SIZE);
+		}
+	}
+}
+
+/*
+ * short_checksum()
+ *	Calculate the checksum value for a short FAT filename
+ */
+static uchar
+short_checksum(struct directory *d)
+{
+	int x;
+	uchar sum = 0;
+
+	for (x = 0; x < 8; ++x) {
+		sum = ((sum & 1) ? 0x80 : 0) + (sum >> 1) + d->name[x];
+	}
+	for (x = 0; x < 3; ++x) {
+		sum = ((sum & 1) ? 0x80 : 0) + (sum >> 1) + d->ext[x];
+	}
+	return(sum);
+}
+
+/*
+ * assemble_vfat_name()
+ *	Extract the necessary number of VFAT sub-entries, convert to name
+ *
+ * Returns 1 if the name was extracted OK, 0 otherwise
+ * Extracts the VSE's in any order, and expects a short name to follow.
+ * Uses the checksum to verify that the VSE's match the actual dir
+ * entry.
+ * The initial dirVSE is supplied, since pretty much any caller has to
+ * have seen it as a regular directory entry first, at which point they
+ * call into here.
+ */
+int
+assemble_vfat_name(char *name, struct directory *d, intfun nextd, void *statep)
+{
+	struct dirVSE *dv = (struct dirVSE *)d;
+	uint endid = 0, mask = 0, last, id;
+	uchar sum = dv->dv_sum;
+	struct directory dirtmp;
+
+	/*
+	 * Assemble VSE's until we run into the short name.  Leave if
+	 * we detect that our VSE's are not all present, or if we
+	 * detect that they don't correspond to the short name which
+	 * follows.
+	 */
+	for (;;) {
+		/*
+		 * Record ID of last VSE, mask to just offset part of ID
+		 */
+		id = dv->dv_id;
+		last = id & VSE_ID_LAST;
+		id &= VSE_ID_MASK;
+		if (last) {
+			endid = id;
+		}
+
+		/*
+		 * Record bit mask of ID's seen
+		 */
+		mask |= (1 << (id - 1));
+
+		/*
+		 * Copy name into place.  Place a null termination
+		 * after the last VSE.  If the VSE was not fully
+		 * populated with characters, the VSE would have
+		 * contained an embedded null, and this is redundant.
+		 * But not harm done.
+		 */
+		unicode_copy(dv, name);
+		if (last) {
+			name[id * VSE_NAME_SIZE] = '\0';
+		}
+
+		/*
+		 * Get next dir entry, leave when we stop assembling
+		 * VSE's.  Stop using supplied buffer, since we're
+		 * now going to modify it.
+		 */
+		d = &dirtmp;
+		dv = (struct dirVSE *)d;
+		if ((*nextd)(d, statep)) {
+			return(1);
+		}
+		if (d->attr != DA_VFAT) {
+			break;
+		}
+
+		/*
+		 * If the checksum mismatched, then we've been
+		 * assembling some old, moldy VSE's.  Leave.
+		 */
+		if (dv->dv_sum != sum) {
+			return(1);
+		}
+	}
+
+	/*
+	 * Checksum of short entry must match
+	 */
+	if (short_checksum(d) != sum) {
+		return(1);
+	}
+
+	/*
+	 * We must see all the VSE's present, too
+	 */
+	if (mask != ((1 << endid) - 1)) {
+		return(1);
+	}
+
+	/*
+	 * Advance past short entry, too, and return successful assembly
+	 * of name.
+	 */
+	return(0);
+}
+
+/*
+ * State for iterating across directory entries in a file
+ */
+struct dirstate {
+	struct node *ds_node;	/* File node */
+	ulong *ds_posp;		/*  ...(pointer to) position within */
+};
+
+/*
+ * next_dir()
+ *	Get next dir entry out of file
+ */
+static int
+next_dir(struct directory *d, void *statep)
+{
+	struct dirstate *state = statep;
+
+	if (dir_copy(state->ds_node, *state->ds_posp, d)) {
+		return(1);
+	}
+	*state->ds_posp += 1;
+	return(0);
+}
+
+/*
  * dos_readdir()
  *	Do reads on directory entries
  */
@@ -183,15 +377,15 @@ dos_readdir(struct msg *m, struct file *f)
 	uint len, x;
 	struct directory d;
 	struct node *n = f->f_node;
-	char file[14];
+	char file[VSE_MAX_NAME+2];
 
 	/*
 	 * Get a buffer of the requested size, but put a sanity
 	 * cap on it.
 	 */
 	len = m->m_arg;
-	if (len > 256) {
-		len = 256;
+	if (len > 4096) {
+		len = 4096;
 	}
 	if ((buf = malloc(len+1)) == 0) {
 		msg_err(m->m_sender, strerror());
@@ -222,21 +416,50 @@ dos_readdir(struct msg *m, struct file *f)
 		}
 
 		/*
-		 * Leave after last entry, skip deleted and vFAT entries
+		 * Leave after last entry, skip deleted entries
 		 */
 		c = (d.name[0] & 0xFF);
 		if (!c) {
 			break;
 		}
-		if ((c == 0xe5) || (d.attr == DA_VFAT)) {
+		if (c == DN_DEL) {
 			continue;
+		}
+
+		/*
+		 * For VFAT, assemble the long name and skip the
+		 * short one.
+		 */
+		if (d.attr == DA_VFAT) {
+			struct dirstate state;
+			ulong opos = f->f_pos;
+
+			state.ds_node = n;
+			state.ds_posp = &f->f_pos;
+			if (assemble_vfat_name(file, &d, next_dir, &state)) {
+				/*
+				 * On failure to assemble, we need to make
+				 * sure we don't skip elements which wouldn't
+				 * assemble with our original starting point,
+				 * but are valid after skipping that (invalid)
+				 * starting point.  Stepping one back from
+				 * the end might be as safe, and a bit more
+				 * efficient for this edge case?
+				 */
+				f->f_pos = opos+1;
+				continue;
+			}
+		} else {
+			/*
+			 * Otherwise just convert the short name
+			 */
+			pack_name(d.name, d.ext, file);
 		}
 
 		/*
 		 * If the next entry won't fit, back up the file
 		 * position and return what we have.
 		 */
-		pack_name(d.name, d.ext, file);
 		if ((x + strlen(file) + 1) >= len) {
 			f->f_pos -= 1;
 			break;

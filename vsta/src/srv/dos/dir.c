@@ -26,6 +26,8 @@ static struct hash
 	*rename_pending;	/* Tabulate pending renames */
 claddr_t root_cluster;		/* Root cluster #, if FAT32 */
 
+static int mystrcasecmp(const char *s1, const char *s2);
+
 /*
  * ddirty()
  *	Mark a directory handle dirty
@@ -138,13 +140,32 @@ dir_init(void)
 /*
  * map_filename()
  *	Convert between a UNIX-ish filename and its DOS counterpart
+ *
+ * We map an all-uppercase 8.3 name to lower case.  Others we leave
+ * alone, and use VFAT support to handle it.
+ *
+ * Returns 0 on valid short filename, 1 on valid long filename,
+ * 2 for an invalid filename.
  */
 static int
 map_filename(char *file, char *f1, char *f2)
 {
 	char *p, c;
 	int len;
+	static const char illegal[] = ";+=[]',\"*\\<>/?:|";
 
+	/*
+	 * Scan filename for illegal characters.
+	 */
+	for (p = file; (c = (*p & 0x7F)); ++p) {
+		if ((c < ' ') || strchr(illegal, c)) {
+			return(2);
+		}
+	}
+
+	/*
+	 * Assemble 8.3 filename
+	 */
 	p = f1;
 	len = 0;
 	strcpy(f1, "        ");
@@ -166,8 +187,13 @@ map_filename(char *file, char *f1, char *f2)
 		if (c == '.') {
 			break;
 		}
+		if (isupper(c)) {
+			return(1);
+		}
 		if (len++ < 8) {
 			*p++ = toupper(c);
+		} else {
+			return(1);
 		}
 	}
 
@@ -180,11 +206,13 @@ map_filename(char *file, char *f1, char *f2)
 		len = 0;
 		while ((c = *file++)) {
 			c &= 0x7F;
-			if (c == '.') {
+			if (isupper(c)) {
 				return(1);
 			}
 			if (len++ < 3) {
 				*p++ = toupper(c);
+			} else {
+				return(1);
 			}
 		}
 	}
@@ -209,30 +237,217 @@ my_bcmp(const void *s1, const void *s2, unsigned int n)
 }
 
 /*
- * search_dir()
- *	Search an array of "struct directory"s for a filename
+ * This is the state kept for our callback to iterate VSE entries
+ */
+struct dirstate {
+	struct directory *st_dir1;	/* Directory to search */
+	struct directory *st_dir2;	/*  ...overflow */
+	int st_pos;			/* Current position */
+	int st_ndir;			/* # entries available */
+};
+
+/*
+ * next_dir()
+ *	Callback function to provide next directory entry in VSE assembly
  */
 static int
-search_dir(struct directory *d, uint ndir, char *f1, char *f2)
+next_dir(struct directory *dp, void *statep)
 {
-	struct directory *dirend;
-	int x = 0;
+	struct dirstate *state = statep;
 
-	dirend = d+ndir;
-	for ( ; d < dirend; ++d,++x) {
+	/*
+	 * We've walked off the end of the first directory buffer;
+	 * if there's a second, use those.  Otherwise return failure.
+	 */
+	if (state->st_pos >= state->st_ndir) {
+		if (state->st_dir2 == NULL) {
+			return(1);
+		}
+		bcopy(state->st_dir2 + (state->st_pos - state->st_ndir),
+			dp, sizeof(struct directory));
+	} else {
 		/*
-		 * If we reach a "never used" entry, there are
-		 * guaranteed to be no more beyond.
+		 * Provide next dir entry
 		 */
-		if (d->name[0] == 0) {
+		bcopy(state->st_dir1 + state->st_pos,
+			dp, sizeof(struct directory));
+	}
+
+	/*
+	 * Advance state and return success
+	 */
+	state->st_pos += 1;
+	return(0);
+}
+
+/*
+ * mystrcasecmp()
+ *	Case independent string compare
+ *
+ * Implemented locally due to its absence from the boot server
+ * support library.
+ */
+static int
+mystrcasecmp(const char *s1, const char *s2)
+{
+	char c1, c2;
+
+	for (;;) {
+		/*
+		 * Get next pair of chars
+		 */
+		c1 = *s1++;
+		c2 = *s2++;
+
+		/*
+		 * If match, return successful match on null termination
+		 */
+		if (c1 == c2) {
+			if (c1 == '\0') {
+				return(0);
+			}
+			continue;
+		}
+
+		/*
+		 * Map both from lower to upper case
+		 */
+		if ((c1 >= 'a') && (c1 <= 'z')) {
+			c1 = (c1 - 'a') + 'A';
+		}
+		if ((c2 >= 'a') && (c2 <= 'z')) {
+			c2 = (c2 - 'a') + 'A';
+		}
+
+		/*
+		 * If they still don't match, return a mismatch
+		 */
+		if (c1 != c2) {
+			return(1);
+		}
+
+		/*
+		 * Otherwise just continue the loop
+		 */
+	}
+}
+
+/*
+ * search_vfat()
+ *	Scan VSE entries to try and match the filename
+ */
+static int
+search_vfat(char *name, struct directory *d, int ndir, struct directory *d2)
+{
+	int x;
+	uint c;
+	struct dirstate state;
+	char buf[VSE_MAX_NAME+2];
+
+	for (x = 0; x < ndir; ++x, ++d) {
+		/*
+		 * Null char in filename means no entries
+		 * beyond this point; search failed.
+		 */
+		c = d->name[0] & 0xFF;
+		if (c == 0) {
 			return(-1);
 		}
 
 		/*
-		 * Compare both filename parts
+		 * Deleted file; ignore
 		 */
-		if (!my_bcmp(f1, d->name, 8) && !my_bcmp(f2, d->ext, 3)) {
+		if (c == DN_DEL) {
+			continue;
+		}
+
+		/*
+		 * If not a VSE, ignore
+		 */
+		if (d->attr != DA_VFAT) {
+			continue;
+		}
+
+		/*
+		 * Assemble VSE's to build up filename
+		 */
+		state.st_dir1 = d+1;
+		state.st_dir2 = d2;
+		state.st_pos = 0;
+		state.st_ndir = (ndir-x)-1;
+		if (assemble_vfat_name(buf, d, next_dir, &state)) {
+			continue;
+		}
+
+		/*
+		 * Get position after building from VSE's
+		 */
+		x += state.st_pos;
+		d += state.st_pos;
+
+		/*
+		 * Return if matched
+		 */
+		if (!mystrcasecmp(name, buf)) {
 			return(x);
+		}
+	}
+	return(-1);
+}
+
+/*
+ * search_dir()
+ *	Search an array of "struct directory"s for a filename
+ *
+ * If "f2" is NULL, this is a search of long-filename VFAT entries.
+ * Otherwise it's a search of the 8.3 upper case names.
+ *
+ * Return value is an offset into the directory to the entry.  If
+ * "d2" is non-NULL, this offset may be beyond the end of "d",
+ * indicating an offset in "d2" instead.  On failure, -1 is returned.
+ */
+static int
+search_dir(int ndir, struct directory *d, struct directory *d2,
+	char *f1, char *f2)
+{
+	/*
+	 * If we have f2 as well as f1 (filename f1.f2), we
+	 * search for traditional entries, otherwise long
+	 * filename ones
+	 */
+	if (f2) {
+		int x;
+		struct directory *dirend = d + ndir;
+
+		for (x = 0; d < dirend; ++d,++x) {
+			/*
+			 * If we reach a "never used" entry, there are
+			 * guaranteed to be no more beyond.
+			 */
+			if (d->name[0] == 0) {
+				return(-1);
+			}
+
+			/*
+			 * Compare both filename parts
+			 */
+			if (!my_bcmp(f1, d->name, 8) &&
+					!my_bcmp(f2, d->ext, 3)) {
+				return(x);
+			}
+		}
+	} else {
+		int off;
+
+		/*
+		 * Search VSE entries.  The offset to the "real"
+		 * entry must always be beyond the starting point,
+		 * since at a minimum there must be the VSE,
+		 * followed by the short name "real" entry.
+		 */
+		off = search_vfat(f1, d, ndir, d2);
+		if (off > 0) {
+			return (off);
 		}
 	}
 	return(-1);
@@ -249,8 +464,10 @@ root_search(char *f1, char *f2, struct directory *dp)
 {
 	int x;
 
-	x = search_dir(rootdirents, dirents, f1, f2);
-	*dp = rootdirents[x];
+	x = search_dir(dirents, rootdirents, NULL, f1, f2);
+	if (x >= 0) {
+		*dp = rootdirents[x];
+	}
 	return(x);
 }
 
@@ -261,11 +478,11 @@ root_search(char *f1, char *f2, struct directory *dp)
 static int
 dir_search(struct node *n, char *f1, char *f2, struct directory *dp)
 {
-	void *handle;
+	void *handle, *handle2 = NULL;
 	struct clust *c;
 	int x;
 	uint cluster;
-	struct directory *d;
+	struct directory *d, *d2 = NULL;
 
 	/*
 	 * Walk each cluster, searching for this name
@@ -273,29 +490,78 @@ dir_search(struct node *n, char *f1, char *f2, struct directory *dp)
 	c = n->n_clust;
 	for (cluster = 0; cluster < c->c_nclust; ++cluster) {
 		/*
-		 * Get next block
+		 * Get next block.  If we already grabbed it
+		 * on the previous pass through, just use that
+		 * value.
 		 */
-		handle = find_buf(BOFF(c->c_clust[cluster]),
-			CLSIZE, ABC_FILL);
-		if (!handle) {
-			/* I/O error? */
-			return(-1);
+		if (d2) {
+			d = d2;
+			handle = handle2;
+			d2 = NULL;
+		} else {
+			handle = find_buf(BOFF(c->c_clust[cluster]),
+				CLSIZE, ABC_FILL);
+			if (!handle) {
+				/* I/O error? */
+				return(-1);
+			}
+			lock_buf(handle);
+			d = index_buf(handle, 0, CLSIZE);
 		}
-		lock_buf(handle);
-		d = index_buf(handle, 0, CLSIZE);
+
+		/*
+		 * If there's a following block, get it, too.
+		 * This is needed for long filename searches, where
+		 * the VSE's may straddle clusters.
+		 */
+		if (!f2 && (cluster < c->c_nclust-1)) {
+			handle2 = find_buf(BOFF(c->c_clust[cluster]),
+				CLSIZE, ABC_FILL);
+			if (handle2) {
+				lock_buf(handle2);
+				d2 = index_buf(handle2, 0, CLSIZE);
+			} else {
+				d2 = NULL;
+			}
+		} else {
+			d2 = NULL;
+		}
 
 		/*
 		 * Search directory block
 		 */
-		x = search_dir(d, cldirs, f1, f2);
+		x = search_dir(cldirs, d, d2, f1, f2);
 		if (x >= 0) {
-			*dp = d[x];
+			if (x >= cldirs) {
+				*dp = d2[x-cldirs];
+			} else {
+				*dp = d[x];
+			}
 		}
 		unlock_buf(handle);
 		if (x >= 0) {
+			/*
+			 * If we have a lock on the following block
+			 * (and we're not going to use it because the
+			 * loop has terminated), release it now.
+			 */
+			if (d2) {
+				unlock_buf(handle2);
+			}
+
+			/*
+			 * This returns the correct value even when
+			 * x > cldirs (i.e., the entry was found
+			 * in handle2's cluster).  x has "+cldirs"
+			 * implicit in it, and "cluster" is one
+			 * short.
+			 */
 			return(x + (cldirs * cluster));
 		}
 	}
+	ASSERT_DEBUG(d2 == NULL, "dir_search: d2 != NULL");
+
+
 	return(-1);
 }
 
@@ -366,7 +632,7 @@ get_inum(struct node *dir, int idx)
 struct node *
 dir_look(struct node *n, char *file)
 {
-	char f1[9], f2[4];
+	char *fname, *fname2, f1[9], f2[4];
 	struct directory d;
 	int x;
 	struct node *n2;
@@ -374,24 +640,33 @@ dir_look(struct node *n, char *file)
 	/*
 	 * Get a DOS-ish version
 	 */
-	if (map_filename(file, f1, f2)) {
-		return(0);
+	switch (map_filename(file, f1, f2)) {
+	case 0:
+		fname = f1;
+		fname2 = f2;
+		break;
+	case 1:
+		fname = file;
+		fname2 = NULL;
+		break;
+	default:
+		return(NULL);
 	}
 
 	/*
 	 * Search dir; special case for root
 	 */
 	if (n == rootdir) {
-		x = root_search(f1, f2, &d);
+		x = root_search(fname, fname2, &d);
 	} else {
-		x = dir_search(n, f1, f2, &d);
+		x = dir_search(n, fname, fname2, &d);
 	}
 
 	/*
 	 * If not present, return failure
 	 */
 	if (x < 0) {
-		return(0);
+		return(NULL);
 	}
 
 	/*
@@ -529,7 +804,7 @@ dir_empty(struct node *n)
 			/*
 			 * "." and ".." are ignored, as are deleted files
 			 */
-			if ((c == '.') || (c == 0xe5)) {
+			if ((c == '.') || (c == DN_DEL)) {
 				continue;
 			}
 
@@ -609,7 +884,7 @@ dir_remove(struct node *n)
 	 * Flag name as being deleted, mark the directory block
 	 * dirty.  Special case (of course) for root.
 	 */
-	d->name[0] = 0xe5;
+	d->name[0] = DN_DEL;
 	ddirty(handle);
 	dfree(handle);
 
@@ -648,7 +923,7 @@ dir_findslot(struct node *n, void **handlep)
 		endd = rootdirents+dirents;
 		for (d = rootdirents; d < endd; ++d) {
 			ch = (d->name[0] & 0xFF);
-			if ((ch == 0) || (ch == 0xe5)) {
+			if ((ch == 0) || (ch == DN_DEL)) {
 				return(d);
 			}
 		}
@@ -675,7 +950,7 @@ dir_findslot(struct node *n, void **handlep)
 		endd = d+cldirs;
 		for ( ; d < endd; ++d) {
 			ch = (d->name[0] & 0xFF);
-			if ((ch == 0) || (ch == 0xe5)) {
+			if ((ch == 0) || (ch == DN_DEL)) {
 				*handlep = handle;
 				return(d);
 			}
@@ -1103,7 +1378,7 @@ do_rename(struct file *fsrc, char *src, struct file *fdest, char *dest)
 	}
 
 	/*
-	 * Make sure we're the only one's using this file
+	 * Make sure we're the only ones using this file
 	 */
 	 if ((p = check_busy(nsrc))) {
 	 	return(p);

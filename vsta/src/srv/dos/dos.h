@@ -104,7 +104,12 @@ struct directory {
 #define DA_VOLUME 0x08		/* Volume label */
 #define DA_DIR 0x10		/* Subdirectory */
 #define DA_ARCHIVE 0x20		/* Needs archiving */
-#define DA_VFAT (0x0f)		/* Illegal combe == vFAT */
+#define DA_VFAT (0x0f)		/* Illegal combo == vFAT */
+
+/*
+ * Special char for name, indicating deleted
+ */
+#define DN_DEL (0xE5)
 
 /*
  * The start/startHi fields need to be handled differently
@@ -117,6 +122,29 @@ extern uint fat_size;
 #define SETSTART(d, v) if (fat_size == 32) { \
 		(d)->startHi = ((v) >> 16); (d)->start = (v);} \
 	else { (d)->start = (v); }
+
+/*
+ * VFAT sub-entry
+ */
+#define VSE_1SIZE (5)
+#define VSE_2SIZE (6)
+#define VSE_3SIZE (2)
+#define VSE_NAME_SIZE (VSE_1SIZE + VSE_2SIZE + VSE_3SIZE)
+struct dirVSE {
+	uchar dv_id;			/* See flags below */
+	uchar dv_name1[VSE_1SIZE*2];
+	uchar dv_attr;			/* Fixed value, below */
+	uchar dv_hash;			/* Always 0 */
+	uchar dv_sum;			/* Checksum of short name */
+	uchar dv_name2[VSE_2SIZE*2];
+	ushort dv_sector;		/* Always 0 */
+	uchar dv_name3[VSE_3SIZE*2];
+};
+#define VSE_ID_LAST (0x40)		/* Last VSE segment */
+#define VSE_ID_MASK (0x1F)		/*  ...low bits are ID index */
+#define VSE_ID_MAX (20)			/* 20 VSE's permits 256 char name */
+#define VSE_ATTR_VFAT DA_VFAT		/* Map struct directory -> dirVSE */
+#define VSE_MAX_NAME (256)		/* Max filename length */
 
 /*
  * Shape of bytes at offset 36 in boot block for FAT 12/16
@@ -244,6 +272,8 @@ extern int dir_set_type(struct file *, char *);
 extern void dir_readonly(struct file *f, int);
 extern ulong inum(struct node *);
 extern void do_unhash(ulong);
+extern int assemble_vfat_name(char *name, struct directory *d,
+	intfun nextd, void *statep);
 
 /*
  * Global data
