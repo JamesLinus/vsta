@@ -65,6 +65,19 @@ extern char *gets(char *), *fgets(char *, int, FILE *);
 extern int puts(char *), fputs(char *, FILE *);
 extern void clearerr(FILE *), setbuf(FILE *, char *),
 	setbuffer(FILE *, char *, uint);
+#ifndef __PRINTF_INTERNAL
+/*
+ * These prototypes are guarded by an #ifdef so that our actual
+ * implementation can add an extra parameter, so that it can take
+ * the address of the first arg from the stack.
+ *
+ * We *should* use varargs/stdargs, but these interfaces are
+ * unpleasant.
+ */
+extern int printf(const char *, ...),
+	fprintf(FILE *, const char *, ...),
+	sprintf(char *, const char *, ...);
+#endif
 
 /*
  * Miscellany
