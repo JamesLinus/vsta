@@ -6,6 +6,7 @@
 #include <vstafs/alloc.h>
 #include <vstafs/buf.h>
 #include <std.h>
+#include <sys/assert.h>
 
 /*
  * findent()
@@ -205,7 +206,7 @@ create_file(struct file *f, uint type)
 static void
 uncreate_file(struct openfile *o)
 {
-	uint x;
+	int x;
 	struct buf *b;
 	struct fs_file *fs;
 
@@ -215,12 +216,15 @@ uncreate_file(struct openfile *o)
 	 * Access file structure info
 	 */
 	b = find_buf(o->o_file, o->o_len);
+	ASSERT(b, "uncreate_file: lost buf");
 	fs = index_buf(b, 0, 1);
 
 	/*
-	 * Free all allocated blocks, then free openfile itself
+	 * Free all allocated blocks, then free openfile itself.  Note we
+	 * work our way from the top down, so we hit the buffer containing
+	 * the file structure itself last.
 	 */
-	for (x = 0; x < fs->fs_nblk; ++x) {
+	for (x = fs->fs_nblk-1; x >= 0; --x) {
 		struct alloc *a = &fs->fs_blks[x];
 		uint y;
 
@@ -438,7 +442,15 @@ vfs_open(struct msg *m, struct file *f)
 	 * If they wanted it truncated, do it now
 	 */
 	if (m->m_arg & ACC_CREATE) {
-		blk_trunc(o);
+		struct openfile *o2;
+
+		/*
+		 * Much easier to just allocate a new initial file, and
+		 * slam it onto the existintg open file description.
+		 */
+		o2 = create_file(f, (m->m_arg & ACC_DIR) ? FT_DIR : FT_FILE);
+		uncreate_file(o);
+		*o = *o2;
 	}
 
 	/*
@@ -477,9 +489,19 @@ vfs_remove(struct msg *m, struct file *f)
 	uint x;
 
 	/*
+	 * Look at file structure
+	 */
+	b = find_buf(o->o_file, o->o_len);
+	if (b == 0) {
+		msg_err(m->m_sender, strerror());
+		return;
+	}
+	fs = index_buf(b, 0, 1);
+
+	/*
 	 * Have to be in a dir
 	 */
-	if (f->f_file) {
+	if (fs->fs_type != FT_DIR) {
 		msg_err(m->m_sender, ENOTDIR);
 		return;
 	}
@@ -487,7 +509,9 @@ vfs_remove(struct msg *m, struct file *f)
 	/*
 	 * Look up entry.  Bail if no such file.
 	 */
-	o = dir_lookup(m->m_buf);
+	lock_buf(b);
+	o = dir_lookup(b, fs, m->m_buf);
+	unlock_buf(b);
 	if (o == 0) {
 		msg_err(m->m_sender, ESRCH);
 		return;
@@ -496,7 +520,7 @@ vfs_remove(struct msg *m, struct file *f)
 	/*
 	 * Check permission
 	 */
-	x = perm_calc(f->f_perms, f->f_nperm, &o->o_prot);
+	x = perm_calc(f->f_perms, f->f_nperm, &fs->fs_prot);
 	if ((x & (ACC_WRITE|ACC_CHMOD)) == 0) {
 		msg_err(m->m_sender, EPERM);
 		return;
