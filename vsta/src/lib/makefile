@@ -99,4 +99,3 @@ clobber: clean
 
 install: all
 	cp $(LIBS) crt0.o crt0srv.o ../lib
-
