@@ -21,7 +21,7 @@
 #include "../mach/locore.h"
 
 extern void selfsig(), check_events();
-extern int deliver_isr(), vm_fault();
+extern int deliver_isr();
 
 extern char *heap;
 
