@@ -3,7 +3,6 @@
  *	Main loop for message processing
  */
 #include <vstafs/vstafs.h>
-#include <vstafs/buf.h>
 #include <sys/fs.h>
 #include <sys/perm.h>
 #include <namer/namer.h>
@@ -54,13 +53,15 @@ new_client(struct msg *m)
 	struct perm *perms;
 	int uperms, nperms;
 	struct fs_file *fs;
-	struct buf *b;
 
 	/*
-	 * See if they're OK to access
+	 * Access dope on root dir
 	 */
-	perms = (struct perm *)m->m_buf;
-	nperms = (m->m_buflen)/sizeof(struct perm);
+	fs = getfs(rootdir, 0);
+	if (!fs) {
+		msg_err(m->m_sender, ENOMEM);
+		return;
+	}
 
 	/*
 	 * Get data structure
@@ -73,6 +74,8 @@ new_client(struct msg *m)
 	/*
 	 * Fill in fields.
 	 */
+	perms = (struct perm *)m->m_buf;
+	nperms = (m->m_buflen)/sizeof(struct perm);
 	f->f_file = rootdir;
 	ref_node(rootdir);
 	f->f_pos = OFF_DATA;
@@ -82,9 +85,6 @@ new_client(struct msg *m)
 	/*
 	 * Calculate perms on root dir
 	 */
-	b = find_buf(rootdir->o_file, rootdir->o_len);
-	ASSERT(b, "new_client: lost root");
-	fs = index_buf(b, 0, 1);
 	f->f_perm = perm_calc(f->f_perms, f->f_nperm, &fs->fs_prot);
 
 	/*

@@ -17,7 +17,7 @@ static struct hash *node_hash;
 void
 init_node(void)
 {
-	node_hash = alloc_hash(NCACHE);
+	node_hash = hash_alloc(NCACHE);
 	ASSERT(node_hash, "init_node: out of memory");
 }
 
@@ -100,6 +100,7 @@ alloc_node(daddr_t d)
  * get_node()
  *	Return node, either from hash or created from scratch
  */
+struct openfile *
 get_node(daddr_t d)
 {
 	struct openfile *o;

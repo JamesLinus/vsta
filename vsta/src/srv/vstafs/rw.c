@@ -121,7 +121,7 @@ file_grow(struct fs_file *fs, ulong newsize)
  * spot within the buffer, and *stepp holds the number of bytes available
  * at this location.
  */
-static struct buf *
+struct buf *
 bmap(struct fs_file *fs, ulong pos, uint cnt, char **blkp, uint *stepp)
 {
 	struct alloc *a;
@@ -141,7 +141,7 @@ bmap(struct fs_file *fs, ulong pos, uint cnt, char **blkp, uint *stepp)
 		osize = btors(fs->fs_len);
 		nsize = btors(pos + cnt);
 		if (nsize > osize) {
-			if (file_setsize(fs, nsize)) {
+			if (file_grow(fs, nsize)) {
 				return(0);
 			}
 		} else {
@@ -214,9 +214,11 @@ do_write(struct openfile *o, ulong pos, char *buf, uint cnt)
 	 * Get access to file structure information, which resides in the
 	 * first sector of the file.
 	 */
-	b = find_buf(o->o_file, o->o_len);
+	fs = getfs(o, &b);
+	if (!fs) {
+		return(1);
+	}
 	lock_buf(b);
-	fs = index_buf(b, 0, 1);
 
 	/*
 	 * Loop across each block, putting our data into place
@@ -367,9 +369,12 @@ vfs_readdir(struct msg *m, struct file *f)
 	/*
 	 * Map in the directory's structure
 	 */
-	b = find_buf(f->f_file->o_file, f->f_file->o_len);
+	fs = getfs(f->f_file, &b);
+	if (!fs) {
+		msg_err(m->m_sender, EIO);
+		return;
+	}
 	lock_buf(b);
-	fs = index_buf(b, 0, 1);
 
 	/*
 	 * Assemble as many names as will fit, starting at
@@ -445,8 +450,11 @@ vfs_read(struct msg *m, struct file *f)
 	/*
 	 * Map in file structure info
 	 */
-	b = find_buf(f->f_file->o_file, f->f_file->o_len);
-	fs = index_buf(b, 0, 1);
+	fs = getfs(f->f_file, &b);
+	if (!fs) {
+		msg_err(m->m_sender, EIO);
+		return;
+	}
 
 	/*
 	 * Directory--only one is the root

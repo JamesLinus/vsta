@@ -151,5 +151,6 @@ extern void ref_node(struct openfile *), deref_node(struct openfile *);
 extern struct openfile *get_node(daddr_t);
 extern uint fs_perms(struct perm *, uint, struct openfile *);
 extern struct buf *bmap(struct fs_file *, ulong, uint, char **, uint *);
+extern struct fs_file *getfs(struct openfile *, struct buf **);
 
 #endif /* VSTAFS_H */

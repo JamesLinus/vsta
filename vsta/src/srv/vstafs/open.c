@@ -9,6 +9,33 @@
 #include <sys/assert.h>
 
 /*
+ * getfs()
+ *	Given openfile, return pointer to its fs_file
+ *
+ * The returned value is in the buffer pool, and can only be
+ * used until the next request is made against the buffer pool.
+ *
+ * If bp is non-zero, the associated buffer header is filled
+ * into this pointer.
+ */
+struct fs_file *
+getfs(struct openfile *o, struct buf **bp)
+{
+	struct fs_file *fs;
+	struct buf *b;
+
+	b = find_buf(o->o_file, o->o_len);
+	if (!b) {
+		return(0);
+	}
+	fs = index_buf(b, 0, 1);
+	if (bp) {
+		*bp = b;
+	}
+	return(fs);
+}
+
+/*
  * findent()
  *	Given a buffer-full of fs_dirent's, look up a filename
  *
@@ -207,25 +234,24 @@ static void
 uncreate_file(struct openfile *o)
 {
 	int x;
-	struct buf *b;
-	struct fs_file *fs;
+	struct fs_file *fs, fshold;
 
 	ASSERT(o->o_refs == 1, "uncreate_file: refs");
 
 	/*
 	 * Access file structure info
 	 */
-	b = find_buf(o->o_file, o->o_len);
-	ASSERT(b, "uncreate_file: lost buf");
-	fs = index_buf(b, 0, 1);
+	fs = getfs(o, 0);
+	ASSERT(fs, "uncreate_file: buffer access failed");
+	fshold = *fs;
 
 	/*
 	 * Free all allocated blocks, then free openfile itself.  Note we
 	 * work our way from the top down, so we hit the buffer containing
 	 * the file structure itself last.
 	 */
-	for (x = fs->fs_nblk-1; x >= 0; --x) {
-		struct alloc *a = &fs->fs_blks[x];
+	for (x = fshold.fs_nblk-1; x >= 0; --x) {
+		struct alloc *a = &fshold.fs_blks[x];
 		uint y;
 
 		/*
@@ -266,12 +292,11 @@ dir_newfile(struct file *f, char *name, int type)
 	/*
 	 * Access file structure of enclosing dir
 	 */
-	b = find_buf(f->f_file->o_file, f->f_file->o_len);
-	if (b == 0) {
+	fs = getfs(f->f_file, &b);
+	if (fs == 0) {
 		return(0);
 	}
 	lock_buf(b);
-	fs = index_buf(b, 0, 1);
 
 	/*
 	 * Get the openfile first
@@ -374,9 +399,8 @@ vfs_open(struct msg *m, struct file *f)
 	/*
 	 * Get file header, but don't wire down
 	 */
-	o = f->f_file;
-	b = find_buf(o->o_file, o->o_len);
-	if (!b || !(fs = index_buf(b, 0, 1))) {
+	fs = getfs(f->f_file, &b);
+	if (!fs) {
 		msg_err(m->m_sender, strerror());
 		return;
 	}
@@ -491,12 +515,11 @@ vfs_remove(struct msg *m, struct file *f)
 	/*
 	 * Look at file structure
 	 */
-	b = find_buf(o->o_file, o->o_len);
-	if (b == 0) {
+	fs = getfs(o, &b);
+	if (fs == 0) {
 		msg_err(m->m_sender, strerror());
 		return;
 	}
-	fs = index_buf(b, 0, 1);
 
 	/*
 	 * Have to be in a dir
