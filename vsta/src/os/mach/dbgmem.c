@@ -115,7 +115,19 @@ maploc(ulong off, uint size, int phys)
 	pgidx = 0;
 	for (a = off; a < off+size; a += len) {
  		ulong o;
+		void *kaddr = dbg_utl + ptob(pgidx);
 
+		/*
+		 * Clear out any preceding mapping from the TLB.
+		 * Note that we encode here our knowledge that an x86
+		 * deletetrans doesn't care about the current PFN.
+		 */
+		ASSERT_DEBUG(pgidx < DBG_PAGES, "maploc: too many pages");
+		kern_deletetrans(kaddr, 0);
+
+		/*
+		 * Calculate what to map
+		 */
  		len = NBPG - (a & VOFF);
  		if (len > ((off + size) - a)) {
  			len = (off + size) - a;
@@ -125,9 +137,11 @@ maploc(ulong off, uint size, int phys)
 		} else {
 			o = dbg_vtop(a);
 		}
-		ASSERT_DEBUG(pgidx < DBG_PAGES,
-			"maploc: too many pages");
-		kern_addtrans(dbg_utl + ptob(pgidx), btop(o));
+
+		/*
+		 * Add in the current mapping
+		 */
+		kern_addtrans(kaddr, btop(o));
 		pgidx += 1;
 	}
 	return(dbg_utl + (off & VOFF));
