@@ -8,15 +8,15 @@
 
 struct percpu {
 	struct thread *pc_thread;	/* Thread CPU's running */
+	uint pc_locks;			/* # locks held by CPU */
+	uint pc_pri;			/* Priority running on CPU */
+	uchar pc_flags;			/* See below */
 	uchar pc_num;			/* Sequential CPU ID */
-	uchar pc_pri;			/* Priority running on CPU */
-	ushort pc_locks;		/* # locks held by CPU */
-	struct percpu *pc_next;		/* Next in list--circular */
-	ulong pc_flags;			/* See below */
-	ulong pc_ticks;			/* Ticks queued for clock */
+	uchar pc_preempt;		/* Flag that preemption needed */
+	uchar pc_nopreempt;		/* > 0, preempt held off */
 	ulong pc_time[2];		/* HZ and seconds counting */
-	int pc_preempt;			/* Flag that preemption needed */
-	ulong pc_nopreempt;		/* > 0, preempt held off */
+	ulong pc_ticks;			/* Ticks queued for clock */
+	struct percpu *pc_next;		/* Next in list--circular */
 };
 
 /*
@@ -35,8 +35,8 @@ extern struct percpu cpu;		/* Maps to percpu struct on each CPU */
 extern uint ncpu;			/* # CPUs on system */
 extern struct percpu *nextcpu;		/* Rotor for preemption scans */
 
-#define NO_PREEMPT() (cpu.pc_nopreempt += 1)
-#define PREEMPT_OK() (cpu.pc_nopreempt -= 1)
+#define NO_PREEMPT() (cpu.pc_nopreempt++)
+#define PREEMPT_OK() (cpu.pc_nopreempt--)
 #endif
 
 #endif /* _PERCPU_H */

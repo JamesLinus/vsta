@@ -38,21 +38,36 @@ struct msg {
  */
 #include <sys/mutex.h>
 
+/*
+ * The sysmsg_seg and sysmsg_err structures are only used to let
+ * the compiler generate efficient assignment code
+ */
+struct sysmsg_seg {
+	struct seg *sm_seg[MSGSEGS];
+};
+
+struct sysmsg_err {
+	char sm_err[ERRLEN];
+};
+
 struct sysmsg {
-	int m_op;			/* Copied from struct msg */
-	long m_arg, m_arg1;
-	int m_nseg;
-	struct portref *m_sender;	/* The sender's stuff is here */
-	struct seg
-		*m_seg[MSGSEGS+1];	/* The segments */
-	struct sysmsg *m_next;		/* For building a queue of msgs */
-	char m_err[ERRLEN];		/* Error returned for op */
+	msg_t sm_msg;
+#define sm_op sm_msg.m_op
+#define sm_arg sm_msg.m_arg
+#define sm_arg1 sm_msg.m_arg1
+	struct portref *sm_sender;	/* Client associated with msg */
+	int sm_nseg;			/* Segments: count & base/len */
+	struct sysmsg_seg sm_segs;
+#define sm_seg sm_segs.sm_seg
+	struct sysmsg *sm_next;		/* For building a queue of msgs */
+	struct sysmsg_err sm_errs;	/* Error returned for op */
+#define sm_err sm_errs.sm_err
 };
 
 /*
  * This is in seg.c, but its arguments are defined here
  */
-extern int copyoutsegs(struct sysmsg *, struct msg *);
+extern int copyoutsegs(struct sysmsg *);
 
 #endif /* KERNEL */
 

@@ -18,19 +18,29 @@
 #include <sys/types.h>
 #include <llist.h>
 
-/* Number of ticks allowed to run before having to go back into scheduler */
-#define RUN_TICKS (6)
+/*
+ * Number of ticks allowed to run before having to go back into scheduler
+ */
+#define RUN_TICKS (HZ / 4)
 
-/* "cheated" if relinquish with more than this */
-#define CHEAT_TICKS (RUN_TICKS / 2)
+/*
+ * "cheated" if relinquish with more than this
+ */
+#define CHEAT_TICKS ((RUN_TICKS + 1) / 2)
 
-/* Mask of bits for prio */
+/*
+ * Mask of bits for prio
+ */
 #define PRIO_MASK (0x7F)
 
-/* Default numeric priority for a node */
+/*
+ * Default numeric priority for a node
+ */
 #define PRIO_DEFAULT (50)
 
-/* Values for "priority"; it only differentiates among classes */
+/*
+ * Values for "priority"; it only differentiates among classes
+ */
 #define PRI_IDLE 0
 #define PRI_BG 1
 #define PRI_TIMESHARE 2
@@ -44,24 +54,24 @@
 #define SCHEDOP_GETPRIO 1
 
 /*
- * Scheduler node structure
+ * Scheduler node structure.
  */
 struct sched {
-	struct sched *s_up;	/* Our parent node */
-	struct sched		/* For internal node, first node below us */
-		*s_hd, *s_tl;	/*  ...for leaf, forward and back pointers */
 	union {
-		struct thread		/* For leaf, the thread */
-			*_s_thread;
-		struct sched		/* For nodes, nodes below */
+		struct sched	/* For nodes, nodes below */
 			*_s_down;
+		struct thread	/* For leaf, the thread */
+			*_s_thread;
 	} s_u;
 #define s_thread s_u._s_thread
 #define s_down s_u._s_down
+	struct sched *s_up;	/* Our parent node */
+	struct sched		/* For internal node, first node below us */
+		*s_hd, *s_tl;	/*  ...for leaf, forward and back pointers */
+	uint s_prio;		/* This node's priority */
+		uint s_nrun;		/* # processes runnable below this node */
+	uint s_leaf;		/* Internal node or leaf? */
 	uint s_refs;		/* # references to this node */
-	uchar s_prio;		/* This node's priority */
-	uchar s_leaf;		/* Internal node or leaf? */
-	ushort s_nrun;		/* # processes runnable below this node */
 };
 
 #ifdef KERNEL
@@ -70,7 +80,7 @@ extern struct sched *sched_thread(struct sched *, struct thread *),
 extern void setrun( /* struct thread * */ ), swtch(void);
 extern void free_sched_node(struct sched *);
 
-extern volatile uint num_run;
+extern uint num_run;
 #endif
 
 extern int sched_op(int, int);

@@ -93,18 +93,11 @@ extern void ptrace_slave(char *, uint);
  */
 struct proc {
 	pid_t p_pid;		/* Our process ID */
-	struct perm		/* Permissions granted process */
-		p_ids[PROCPERMS];
 	sema_t p_sema;		/* Semaphore on proc structure */
-	struct prot p_prot;	/* Protections of this process */
+	struct vas *p_vas;	/* Virtual address space of process */
 	struct thread		/* List of threads in this process */
 		*p_threads;
-	struct vas *p_vas;	/* Virtual address space of process */
 	struct sched *p_runq;	/* Scheduling node for all threads */
-	struct port		/* Ports this proc owns */
-		*p_ports[PROCPORTS];
-	struct portref		/* "files" open by this process */
-		*p_open[PROCOPENS];
 	struct hash		/* Portrefs attached to our ports */
 		*p_prefs;
 	ulong p_nopen;		/*  ...# currently open */
@@ -119,6 +112,13 @@ struct proc {
 		*p_parent;	/*  ...the one we're a child of */
 	char p_cmd[8];		/* Command name (untrusted) */
 	char p_event[ERRLEN];	/* Event which killed us */
+	struct prot p_prot;	/* Protections of this process */
+	struct perm		/* Permissions granted process */
+		p_ids[PROCPERMS];
+	struct port		/* Ports this proc owns */
+		*p_ports[PROCPORTS];
+	struct portref		/* "files" open by this process */
+		*p_open[PROCOPENS];
 #ifdef PROC_DEBUG
 	struct pdbg p_dbg;	/* Who's debugging us (if anybody) */
 	struct dbg_regs		/* Debug register state */

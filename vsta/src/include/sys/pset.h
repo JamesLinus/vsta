@@ -78,15 +78,15 @@ struct pset {
 	ulong p_swapblk;	/* Block # on swapdev */
 #define p_cow p_u._p_cow
 #define p_pr p_u._p_pr
-	struct pset		/* List of sets which COW from us */
-		*p_cowsets;
-	ushort p_refs;		/* # views using this set */
-	ushort p_flags;		/* Flag bits */
+	lock_t p_lock;		/* Mutex */
+	uint p_refs;		/* # views using this set */
 	struct perpage		/* Our array of per-page-slot data */
 		*p_perpage;
+	struct pset		/* List of sets which COW from us */
+		*p_cowsets;
 	struct psetops		/* Operations on pset */
 		*p_ops;
-	lock_t p_lock;		/* Mutex */
+	uint p_flags;		/* Flag bits */
 	sema_t p_lockwait;	/* Waiters for a PP_LOCK to go away */
 };
 

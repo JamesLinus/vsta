@@ -57,7 +57,14 @@ typedef struct sema {
  */
 typedef uint spl_t;
 #define SPL0 (0)		/* Spin with interrupts enabled */
-#define SPLHI (0xFF)		/* Spin with interrupts disabled */
+#define SPLHI (0x80)		/* Spin with interrupts disabled */
+#ifdef DEBUG
+#define SPL0_SAME SPL0		/* Spin with interrupts unchanged */
+#define SPLHI_SAME SPLHI	/* Spin with interrupts unchanged */
+#else
+#define SPL0_SAME (0x40)	/* Spin with interrupts unchanged */
+#define SPLHI_SAME (0x40)	/* Spin with interrupts unchanged */
+#endif
 typedef uint pri_t;
 #define PRILO (0)		/* Sleep interruptibly */
 #define PRICATCH (0x7F)		/* PRILO, but p_sema returns error code */
@@ -79,15 +86,5 @@ void init_sema(sema_t *);
 void set_sema(sema_t *, int);
 int p_sema_v_lock(sema_t *, pri_t, lock_t *);
 #define sema_count(s) ((s)->s_count)
-
-/*
- * Atomic increment/decrement.  Sometimes saves you a full lock operation.
- */
-extern void ATOMIC_INCW(volatile ushort *);
-extern void ATOMIC_DECW(volatile ushort *);
-extern void ATOMIC_INCL(volatile ulong *);
-extern void ATOMIC_DECL(volatile ulong *);
-extern void ATOMIC_INC(volatile uint *);
-extern void ATOMIC_DEC(volatile uint *);
 
 #endif /* _MUTEX_H */

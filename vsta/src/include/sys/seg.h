@@ -62,7 +62,7 @@ struct seg {
  */
 struct segref {
 	struct seg
-		*s_refs[MSGSEGS+2];
+		*s_refs[MSGSEGS];
 };
 
 /*

@@ -17,11 +17,6 @@ extern char *mem_map_base;
 #define ptov(paddr) ((void *)(((ulong)paddr) + mem_map_base))
 
 /*
- * V->P is a little harder.  Use a procedure.
- */
-extern void *vtop(void *);
-
-/*
  * Description of memory segments
  */
 struct memseg {

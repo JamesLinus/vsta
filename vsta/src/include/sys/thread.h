@@ -12,25 +12,25 @@
 #include <sys/mutex.h>
 
 struct thread {
-	pid_t t_pid;		/* ID of thread */
+	sema_t *t_wchan;	/* Semaphore we're asleep on */
 	jmp_buf t_kregs;	/* Saved thread kernel state */
+	struct proc *t_proc;	/* Our process */
+	pid_t t_pid;		/* ID of thread */
 	struct trapframe
 		*t_uregs;	/* User state on kernel stack */
-	struct proc *t_proc;	/* Our process */
 	char *t_kstack;		/* Base of our kernel stack */
 	char *t_ustack;		/*  ...user stack for this thread */
 	struct sched *t_runq;	/* Node in scheduling tree */
 	uchar t_runticks;	/* # ticks left for this proc to run */
 	uchar t_state;		/* State of process (see below) */
+	uchar t_intr;		/*  ...flag that we were interrupted */
+	uchar t_nointr;		/*  ...flag non-interruptable */
 	uchar t_flags;		/* Misc. flags */
 	uchar t_oink;		/* # times we ate our whole CPU quanta */
+	ushort t_dummy;		/* Dummy structure padding */
 	struct thread		/* Run queue list */
 		*t_hd, *t_tl,
 		*t_next;	/* List of threads under a process */
-	sema_t *t_wchan;	/* Semaphore we're asleep on */
-	ushort t_intr;		/*  ...flag that we were interrupted */
-	ushort t_nointr;	/*  ...flag non-interruptable */
-	sema_t t_msgwait;	/* Semaphore slept on waiting for I/O */
 	jmp_buf t_qsav;		/* Vector for interrupting p_sema */
 	voidfun t_probe;	/* When probing user memory */
 	char t_err[ERRLEN];	/* Error from last syscall */
@@ -66,7 +66,7 @@ struct thread {
 #define TS_DEAD (4)		/* Thread dead/dying */
 
 /*
- * Max value for t_oink.  This changes how much memory we will keep
+ * Max value of t_oink.  This changes how much memory we will keep
  * of high CPU usage.
  */
 #define T_MAX_OINK (32)
