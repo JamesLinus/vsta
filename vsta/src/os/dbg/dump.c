@@ -432,8 +432,7 @@ dump_port(char *p)
 	printf("hd 0x%x tl 0x%x p_sema 0x%x p_wait 0x%x flags 0x%x\n",
 		port->p_hd, port->p_tl, &port->p_sema, &port->p_wait,
 		port->p_flags);
-	printf("segs 0x%x refs 0x%x\n",
-		&port->p_segs, port->p_refs);
+	printf("refs %d\n", port->p_refs);
 }
 
 #endif
