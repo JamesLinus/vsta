@@ -49,10 +49,11 @@ cons_stat(struct msg *m, struct file *f)
 
 		sprintf(buf,
 "size=0\ntype=c\nowner=0\ninode=%d\nrows=%d\ncols=%d\ngen=%d\n"
-"quit=%d\nintr=%d\npgrp=%lu\nisig=%d\nxkeys=%d\ninbuf=%d\noutbuf=0\n",
+"quit=%d\nintr=%d\npgrp=%lu\nisig=%d\nxkeys=%d\ninbuf=%d\noutbuf=0\n"
+"onlcr=%d\n",
 			f->f_screen, ROWS, COLS, s->s_gen,
 			s->s_quit, s->s_intr, (ulong)(s->s_pgrp),
-			s->s_isig, s->s_xkeys, s->s_nbuf);
+			s->s_isig, s->s_xkeys, s->s_nbuf, s->s_onlcr);
 	}
 	strcat(buf, perm_print(&cons_prot));
 	m->m_buf = buf;
@@ -139,6 +140,17 @@ cons_wstat(struct msg *m, struct file *f)
 		s->s_isig = f->f_isig = (atoi(val) != 0);
 	} else if (!strcmp(field, "xkeys")) {
 		s->s_xkeys = atoi(val) != 0;
+	} else if (!strcmp(field, "onlcr")) {
+		s->s_onlcr = atoi(val);
+	} else if (!strcmp(field, "reset")) {
+		/*
+		 * Normal TTY output; no display enhancements,
+		 * no scroll regions.
+		 */
+		s->s_onlcr = 1;
+		s->s_attr = NORMAL;
+		free(s->s_scroll);
+		s->s_scroll = NULL;
 	} else {
 		/*
 		 * Not a field we support...

@@ -671,6 +671,7 @@ main(int argc, char **argv)
 		s->s_isig = 1;
 		s->s_xkeys = 1;
 		s->s_attr = NORMAL;
+		s->s_onlcr = 1;
 		ll_init(&s->s_readers);
 		ll_init(&s->s_selectors);
 	}

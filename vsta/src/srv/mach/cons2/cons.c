@@ -385,6 +385,16 @@ sequence(int x, int y, char c)
 		}
 		break;
 
+	case 'D':	/* Cursor left */
+		while (x-- > 0) {
+			cur -= CELLSZ;
+			if (cur < top) {
+				cur += CELLSZ;
+				break;
+			}
+		}
+		break;
+
 	case 'L':		/* Insert line */
 		while (x-- > 0) {
 			p = LINE(cur);
@@ -689,17 +699,24 @@ write_string(char *p, uint cnt)
 			/*
 			 * Last line--just scroll
 			 */
-			s->s_onlast = 0;
 			if ((cur+LINESZ) >= bottom) {
 				scrollup();
-				cur = lastl;
+				if (s->s_onlcr) {
+					s->s_onlast = 0;
+					cur = lastl;
+				}
 				continue;
 			}
 
 			/*
-			 * Calculate address of start of next line
+			 * Move to next line.  If ONLCR is active,
+			 * the implicit \r moves to the start of it.
 			 */
-			cur = LINE(cur + LINESZ);
+			cur = cur + LINESZ;
+			if (s->s_onlcr) {
+				cur = LINE(cur);
+				s->s_onlast = 0;
+			}
 			continue;
 		}
 

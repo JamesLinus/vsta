@@ -63,7 +63,7 @@ struct screen {
 	char s_state,		/* Escape sequence state machine */
 		s_onlast,	/* Column 80 handling */
 		s_attr,		/* Current display attribute */
-		s_pad0;		/* Pad to 32-bit boundary */
+		s_onlcr;	/* Convert nl -> \r\n */
 };
 
 /*
