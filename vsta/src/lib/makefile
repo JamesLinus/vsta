@@ -29,14 +29,14 @@ SRVOBJS= syscall.o malloc.o srvstr.o srvprnt.o srvopen.o srvfdl.o \
 	$(MACHOBJS)
 
 # Libraries to be build
-LIBS=libc.a libc_s.a ld.a libusr.a libtermc.a libregex.a \
+LIBS=libc.a libc_s.a ld.a libusr.a libtermcap.a libregex.a \
 	libm.a libsrv.a \
 	$(MACHTARGS)
 
 # Databases for shared libraries
-DBS=ld.db libc.db libm/libm.db
-SHLIBIN=ld.tmp libc.tmp libm.tmp
-SHLIBS=ld.shl libc.shl libm.shl
+DBS=ld.db libc.db libm/libm.db libregex.db libtermcap.db
+SHLIBIN=ld.tmp libc.tmp libm.tmp libregex.tmp libtermcap.tmp
+SHLIBS=ld.shl libc.shl libm.shl libregex.shl libtermcap.shl
 
 all: $(LIBS) crt0.o crt0srv.o mklibs
 
@@ -88,9 +88,11 @@ libusr.a: $(USROBJS)
 	rm -f libusr.a
 	ar rsv libusr.a $(USROBJS)
 
-libtermc.a: termcap.o tgoto.o tputs.o
-	rm -f libtermc.a
-	ar rsv libtermc.a termcap.o tgoto.o tputs.o
+libtermcap.a: mkshlib libtermcap.tmp libtermcap.db
+	./mkshlib -s libtermcap.db
+libtermcap.tmp: termcap.o tgoto.o tputs.o libc.a
+	$(LD) -r -o libtermcap.tmp termcap.o tgoto.o tputs.o libc.a
+
 termcap.o: term/termcap.c
 	$(CC) $(CFLAGS) -c term/termcap.c
 tgoto.o: term/tgoto.c
@@ -98,9 +100,10 @@ tgoto.o: term/tgoto.c
 tputs.o: term/tputs.c
 	$(CC) $(CFLAGS) -c term/tputs.c
 
-libregex.a: regexp.o regsub.o regerror.o
-	rm -f libregex.a
-	ar rsv libregex.a regexp.o regsub.o regerror.o
+libregex.a: mkshlib libregex.tmp libregex.db
+	./mkshlib -s libregex.db
+libregex.tmp: regexp.o regsub.o regerror.o libc.a
+	$(LD) -r -o libregex.tmp regexp.o regsub.o regerror.o libc.a
 
 regexp.o: regexp/regexp.c
 	$(CC) $(CFLAGS) -c regexp/regexp.c
