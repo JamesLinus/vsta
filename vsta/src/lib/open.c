@@ -295,8 +295,13 @@ open(char *file, int mode, ...)
 			 * Don't allow, say, /vsta to match against /v in
 			 * the mount table.  Require that the mount
 			 * table entry /xyz match against /xyz/...
+			 * Note special case for root mounts, where mount
+			 * name ends with /, all other mount points end
+			 * in non-/.
 			 */
-			if (q[0] == '/') {
+			if (((q[-1] == '/') && (r[-1] == '/')) ||
+				((q[-1] != '/') && (r[0] == '/')))
+			{
 				if ((q - mt->m_name) > len) {
 					len = q - mt->m_name;
 					match = mt;
