@@ -12,6 +12,7 @@ extern path_t path_open(char *, int);
 static char *inet = "net/inet";		/* Default port_name for TCP/IP */
 static int ip_port = 23;		/* Default TCP port to listen on */
 static char buf[128];			/* Utility buffer */
+static lock_t readq_lock;		/* Mutex for readq */
 
 /*
  * State shared between threads serving a TCP->telnet connection
@@ -234,7 +235,9 @@ io_server(struct tnserv *tn)
 		switch (m.m_op) {
 
 		case M_READ:
+			p_lock(&readq_lock);
 			tn_read(&m);
+			v_lock(&readq_lock);
 			break;
 
 		case M_WRITE:
@@ -291,6 +294,41 @@ io_server(struct tnserv *tn)
 }
 
 /*
+ * inet_reader()
+ *	Pull data in an endless loop from /inet, queue to dataq
+ */
+static void
+inet_reader(struct tnserv *tn)
+{
+	int x;
+	struct msg m;
+	char buf[1024];
+
+	for (;;) {
+		/*
+		 * Set up read, get data
+		 */
+		m.m_op = M_READ | FS_READ;
+		m.m_nseg = 1;
+		m.m_buf = buf;
+		m.m_buflen = sizeof(buf);
+		x = msg_send(tn->tn_read, &m);
+		if (x < 0) {
+			syslog(LOG_ERR, "/inet gone: %s", strerror());
+			notify(getpid(), 0, "kill");
+			_exit(1);
+		}
+
+		/*
+		 * Queue data, with interlock
+		 */
+		p_lock(&readq_lock);
+		queue_data(buf, x);
+		v_lock(&readq_lock);
+	}
+}
+
+/*
  * launch_client()
  *	Run a client on the given port
  *
@@ -335,30 +373,44 @@ launch_client(port_t tn_read)
 	 * Launch the login process
 	 */
 	pid = fork();
+
+	/*
+	 * Failure?
+	 */
 	if (pid < 0) {
 		syslog(LOG_ERR, "Can't fork: %s", strerror());
 		_exit(1);
 	}
+
+	/*
+	 * Child--run login
+	 */
 	if (pid == 0) {
 		port_t p;
 		int x;
+		char buf[16];
 
-		p = msg_connect(tn.tn_pn, ACC_READ | ACC_WRITE);
-		if (p < 0) {
-			_exit(1);
-		}
+		/*
+		 * Close down all other fd's and port_t's open
+		 */
 		for (x = getdtablesize(); x >= 0; --x) {
 			close(x);
 		}
-		x = __fd_open(p);
-		dup2(x, 0); dup2(x, 1); dup2(x, 2);
-		(void)execl("/vsta/bin/login", "login", (char *)0);
+		msg_disconnect(tn.tn_read);
+		msg_disconnect(tn.tn_write);
+
+		/*
+		 * Launch login with our port_name as his
+		 * stdin/out
+		 */
+		sprintf(buf, "%d", tn.tn_pn);
+		(void)execl("/vsta/bin/login", "login", buf, (char *)0);
 		syslog(LOG_ERR, "Can't login: %s", strerror());
 		_exit(1);
 	}
 
 	/*
-	 * Run a thread to serve this port
+	 * Run a thread to serve the child's port
 	 */
 	tn.tn_tcp_tid = gettid();
 	tn.tn_serv_tid = tfork(io_server, &tn);
@@ -366,6 +418,11 @@ launch_client(port_t tn_read)
 		syslog(LOG_WARNING, "Can't fork for IO: %s", strerror());
 		_exit(1);
 	}
+
+	/*
+	 * This thread then pulls data from /inet and queues it
+	 */
+	inet_reader(&tn);
 }
 
 /*
