@@ -7,15 +7,7 @@
 #include <syslog.h>
 #include <llist.h>
 #include <std.h>
-
-extern port_t path_open(char *, int);
-
-typedef unsigned char lock_t;		/* Our mutex type */
-
-static char *inet = "net/inet";		/* Default port_name for TCP/IP */
-static int ip_port = 23;		/* Default TCP port to listen on */
-static char buf[128];			/* Utility buffer */
-static lock_t readq_lock;		/* Mutex for readq */
+#include "../telnet.h"
 
 /*
  * State shared between threads serving a TCP->telnet connection
@@ -27,7 +19,21 @@ struct tnserv {
 	port_t tn_server,	/* Server side of stdin/out port */
 		tn_read,	/* Reading side of /inet port */
 		tn_write;	/*  ...writing side */
+	uchar			/* Local/remote negotiated options */
+		tn_local[NOPTIONS],
+		tn_remote[NOPTIONS];
 };
+
+extern port_t path_open(char *, int);
+static void queue_data(struct tnserv *, uchar *, uint);
+
+typedef unsigned char lock_t;		/* Our mutex type */
+
+static char *inet = "net/inet";		/* Default port_name for TCP/IP */
+static int ip_port = 23;		/* Default TCP port to listen on */
+static char buf[128];			/* Utility buffer */
+static lock_t readq_lock;		/* Mutex for readq */
+static int telstate = TS_DATA;		/* State machine for proto */
 
 struct pendio {
 	struct msg p_msg;	/* Message from sender */
@@ -57,6 +63,23 @@ inline static void
 v_lock(volatile lock_t *p)
 {
 	*p = 0;
+}
+
+/*
+ * mwrite()
+ *	Write buffer via a port_t
+ */
+static void
+mwrite(port_t p, uchar *buf, uint cnt)
+{
+	struct msg m;
+
+	m.m_op = FS_WRITE;
+	m.m_buf = buf;
+	m.m_arg = m.m_buflen = cnt;
+	m.m_nseg = 1;
+	m.m_arg1 = 0;
+	(void)msg_send(p, &m);
 }
 
 /*
@@ -160,6 +183,162 @@ tn_read(struct msg *m)
 }
 
 /*
+ * telproto()
+ *	Handle telnet protocol stuff in a buffer
+ */
+static void
+telproto(struct tnserv *tn, uchar *buf, uint cnt)
+{
+	uchar c, *p, *pend, *pdest;
+	uchar *dest = malloc(cnt);
+	static uchar vsta_ayt[] = "\r\n[VSTa telnetd here]\r\n",
+		dont[] = {IAC, DONT, 0},
+		will[] = {IAC, WILL, 0},
+		wont[] = {IAC, WONT, 0};
+
+	/*
+	 * We'll be building a buffer with the data minus telnet
+	 * noise.
+	 */
+	dest = malloc(cnt);
+	if (dest == 0) {
+		return;
+	}
+
+	/*
+	 * Walk buffer, running state machine
+	 */
+	p = buf;
+	pend = p + cnt;
+	pdest = dest;
+	while (p < pend) {
+		c = *p++;
+		switch (telstate) {
+		/*
+		 * Saw a CR (perhaps CR-LF)
+		 */
+		case TS_CR:
+			telstate = TS_DATA;
+			if ((c == '\0') && (c == '\n')) {
+				break;
+			}
+
+		/*
+		 * Unknown, fall into data
+		 */
+		default:
+			telstate = TS_DATA;
+			/* VVV fall into VVV */
+
+		/*
+		 * Add data to buffer
+		 */
+		case TS_DATA:
+			if (c == IAC) {
+				telstate = TS_DATA;
+				break;
+			}
+			*pdest++ = c;
+			if (c == '\r') {
+				telstate = TS_CR;
+			}
+			break;
+
+		/*
+		 * Telnet interpret-as-command
+		 */
+		case TS_IAC:
+			switch (c) {
+			case WILL:
+				telstate = TS_WILL;
+				break;
+			case WONT:
+				telstate = TS_WONT;
+				break;
+			case DO:
+				telstate = TS_DO;
+				break;
+			case DONT:
+				telstate = TS_DONT;
+				break;
+			case AYT:
+				mwrite(tn->tn_write,
+					vsta_ayt, sizeof(vsta_ayt)-1);
+				telstate = TS_DATA;
+				break;
+			case IAC:
+			default:
+				telstate = TS_DATA;
+				*pdest++ = c;
+				break;
+			}
+			break;
+		case TS_WILL:
+			dont[2] = c;
+			mwrite(tn->tn_write, dont, sizeof(dont));
+			telstate = TS_DATA;
+			break;
+		case TS_WONT:
+			if ((c < NOPTIONS) && tn->tn_remote[c]) {
+				tn->tn_remote[c] = 0;
+				dont[2] = c;
+				mwrite(tn->tn_write, dont, sizeof(dont));
+			}
+			telstate = TS_DATA;
+			break;
+		case TS_DO:
+			if ((c < NOPTIONS) && !tn->tn_local[c]) {
+				switch (c) {
+				case TN_ECHO:
+				case TN_SUPPRESS_GA:
+					tn->tn_local[c] = 1;
+					will[2] = c;
+					mwrite(tn->tn_write,
+						will, sizeof(will));
+					break;
+				default:
+					wont[2] = c;
+					mwrite(tn->tn_write,
+						wont, sizeof(wont));
+					break;
+				}
+			}
+			break;
+		case TS_DONT:
+			if ((c < NOPTIONS) && tn->tn_local[c]) {
+				tn->tn_local[c] = 0;
+				wont[2] = c;
+				mwrite(tn->tn_write, wont, sizeof(wont));
+			}
+			break;
+		}
+	}
+
+	/*
+	 * We've walked the whole buffer, and advanced our state
+	 * machine accordingly.  If there's any data left, feed it
+	 * back into queue_data()
+	 */
+	if (pdest > dest) {
+		int realstate;
+
+		/*
+		 * Have to suspend non-data state so queue_data()
+		 * will accept it.
+		 */
+		realstate = telstate;
+		telstate = TS_DATA;
+		queue_data(tn, dest, pdest - dest);
+		telstate = realstate;
+	}
+
+	/*
+	 * Free up temp buffer
+	 */
+	free(dest);
+}
+
+/*
  * queue_data()
  *	Make data available for consumption via the dataq
  *
@@ -168,11 +347,22 @@ tn_read(struct msg *m)
  * our caller can reuse his buffer.
  */
 static void
-queue_data(char *buf, uint cnt)
+queue_data(struct tnserv *tn, uchar *buf, uint cnt)
 {
 	struct llist *l;
 	struct pendio *p;
 	uint x;
+
+	/*
+	 * If we're involved in telnet protocol handling, call out
+	 * to our special routine
+	 */
+	if ((telstate != TS_DATA) ||
+			memchr(buf, IAC, cnt) ||
+			memchr(buf, '\r', cnt)) {
+		telproto(tn, buf, cnt);
+		return;
+	}
 
 	/*
 	 * Send it directly on its way if possible
@@ -189,24 +379,32 @@ queue_data(char *buf, uint cnt)
 		 */
 		p->p_msg.m_buf = buf;
 		p->p_msg.m_nseg = 1;
+		p->p_msg.m_arg1 = 0;
 
 		/*
 		 * If he can take it all, away it goes
 		 */
 		x = p->p_msg.m_arg;
 		if (x >= cnt) {
-			p->p_msg.m_buflen = p->p_msg.m_arg = cnt;
-			msg_reply(p->p_msg.m_sender, &p->p_msg);
+			x = cnt;
 			cnt = 0;
 		} else {
 			/*
 			 * Give him the requested amount
 			 */
-			p->p_msg.m_buflen = x;
-			cnt -= x;
 			buf += x;
+			cnt -= x;
 		}
+
+		/*
+		 * Fill in I/O length decided, reply to reader
+		 */
+		p->p_msg.m_buflen = p->p_msg.m_arg = x;
 		msg_reply(p->p_msg.m_sender, &p->p_msg);
+
+		/*
+		 * This pending I/O is complete
+		 */
 		ll_delete(p->p_entry);
 		free(p);
 	}
@@ -237,7 +435,8 @@ queue_data(char *buf, uint cnt)
 		return;
 	}
 	bcopy(buf, p->p_msg.m_buf, cnt);
-	p->p_msg.m_buflen = cnt;
+	p->p_msg.m_arg = p->p_msg.m_buflen = cnt;
+	p->p_msg.m_arg1 = 0;
 }
 
 /*
@@ -335,7 +534,17 @@ inet_reader(struct tnserv *tn)
 {
 	int x;
 	struct msg m;
-	char buf[1024];
+	uchar buf[1024];
+	static uchar defaults[] = {
+		IAC, WILL, TN_ECHO,
+		IAC, WILL, TN_SUPPRESS_GA,
+	};
+
+	/*
+	 * Kick off telnet negotiation by asking for something
+	 * which works well for cbreak-ish remote echo.
+	 */
+	mwrite(tn->tn_write, defaults, sizeof(defaults));
 
 	for (;;) {
 		/*
@@ -357,7 +566,7 @@ inet_reader(struct tnserv *tn)
 		 * Queue data, with interlock
 		 */
 		p_lock(&readq_lock);
-		queue_data(buf, x);
+		queue_data(tn, buf, x);
 		v_lock(&readq_lock);
 	}
 }
@@ -381,6 +590,7 @@ launch_client(port_t tn_read)
 	 * clone() the TCP port so we can do simultaneous reads
 	 * and writes
 	 */
+	bzero(&tn, sizeof(tn));
 	tn.tn_read = tn_read;
 	tn.tn_write = clone(tn_read);
 	if (tn.tn_write < 0) {
@@ -417,15 +627,6 @@ launch_client(port_t tn_read)
 		port_t p;
 		int x;
 		char buf[16];
-
-		/*
-		 * Close down all other fd's and port_t's open
-		 */
-		for (x = getdtablesize(); x >= 0; --x) {
-			close(x);
-		}
-		msg_disconnect(tn.tn_read);
-		msg_disconnect(tn.tn_write);
 
 		/*
 		 * Launch login with our port_name as his
