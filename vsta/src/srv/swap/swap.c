@@ -18,8 +18,9 @@
 #include <sys/msg.h>
 #include <sys/seg.h>
 #include <lib/alloc.h>
-
-extern char *strerror();
+#include <std.h>
+#include <mnttab.h>
+#include <fcntl.h>
 
 #define NMAPELEM (200)		/* # slots in resource map */
 
@@ -116,8 +117,10 @@ swapadd(port_t port, ulong len, ulong off)
 void
 swap_add(struct msg *m, struct file *f, uint len)
 {
-	struct swapadd sa;
+	struct swapadd *sa;
 	port_t p;
+	int fd;
+	ulong slen;
 
 	/*
 	 * Make sure they can modify swap
@@ -130,28 +133,59 @@ swap_add(struct msg *m, struct file *f, uint len)
 	/*
 	 * Get the swapadd description
 	 */
-	if (seg_copyin(m->m_seg, m->m_nseg, &sa, sizeof(sa)) !=
-			sizeof(sa)) {
+	if ((m->m_nseg != 1) || (len < sizeof(struct swapadd))) {
+		msg_err(m->m_sender, EINVAL);
+		return;
+	}
+	sa = (struct swapadd *)m->m_buf;
+
+	/*
+	 * Connect to the named server
+	 */
+	if ((p = msg_connect(sa->s_port, ACC_READ|ACC_WRITE)) < 0) {
 		msg_err(m->m_sender, EINVAL);
 		return;
 	}
 
 	/*
-	 * Connect to the named server
+	 * If there's a path, walk it and get the destination port
 	 */
-	if ((p = msg_connect(sa.s_port, ACC_READ|ACC_WRITE)) < 0) {
-		msg_err(m->m_sender, EINVAL);
-		return;
+	if (sa->s_path[0]) {
+		mountport("/xx", p);
+		chdir("/xx");
+		fd = open(sa->s_path, O_RDWR);
+		umount("/xx", -1);
+		if (fd < 0) {
+			msg_err(m->m_sender, strerror());
+			return;
+		}
+		p = __fd_port(fd);
 	}
-	if (sa.s_path[0] && (fd_walk(p, sa.s_path) < 0)) {
-		msg_err(m->m_sender, strerror());
-		return;
+
+	/*
+	 * If there's no size specified, use the whole thing
+	 */
+	if (sa->s_len == 0) {
+		slen = atoi(rstat(p, "size"));
+		slen -= sa->s_off;
+	} else {
+		slen = 0;
 	}
 
 	/*
 	 * Add the swap space
 	 */
-	swapadd(p, sa.s_len, sa.s_off);
+#ifdef DEBUG
+	printf("swap: add port %d path '%s' len %d off %d\n",
+		sa->s_port, sa->s_path, slen, sa->s_off);
+#endif
+	swapadd(p, slen, sa->s_off);
+
+	/*
+	 * Return success
+	 */
+	m->m_nseg = m->m_arg = m->m_arg1 = 0;
+	msg_reply(m->m_sender, m);
 }
 
 /*
@@ -176,15 +210,21 @@ swap_alloc(struct msg *m, struct file *f)
 	 */
 	blocks = m->m_arg;
 	if ((blkno = rmap_alloc(smap, blocks)) == 0) {
-		msg_err(m->m_sender, ENOMEM);
-		return;
+		/*
+		 * Failure
+		 */
+		m->m_arg = 0;
+	} else {
+		/*
+		 * Success--update count, return block #
+		 */
+		free_swap -= blocks;
+		m->m_arg = blkno;
 	}
-	free_swap -= blocks;
 
 	/*
-	 * Send back block # allocated
+	 * Send back block # allocated, or failure
 	 */
-	m->m_arg = blkno;
 	m->m_arg1 = m->m_buflen = m->m_nseg = 0;
 	msg_reply(m->m_sender, m);
 }
