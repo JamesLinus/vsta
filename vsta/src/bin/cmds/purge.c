@@ -233,7 +233,8 @@ main(int argc, char **argv)
 			break;
 		default:
 			fprintf(stderr,
-			 "Usage is: %s [-rn] [-k <revs>] <file> [<file>...]");
+			  "Usage is: %s [-rn] [-k <revs>] <file> "
+			  "[<file>...]\n", argv[0]);
 			exit(1);
 		}
 	}
