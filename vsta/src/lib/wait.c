@@ -177,7 +177,7 @@ waitpid(pid_t pid, int *ip, int opts)
 			}
 			if (e.e_pid == pid) {
 				if (ip) {
-					*ip = encode(ep);
+					*ip = encode(&e);
 				}
 				return(pid);
 			}
