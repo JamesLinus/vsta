@@ -167,15 +167,23 @@ find_buf(daddr_t d, uint nsec)
  * Returns 0 on success, 1 on error.
  */
 int
-extend_buf(struct buf *b, ulong newsize, int fill)
+extend_buf(daddr_t d, uint newsize, int fill)
 {
 	char *p;
+	struct buf *b;
 
 #ifdef DEBUG
 	/* This isn't fool-proof, but should catch most transgressions */
 	ASSERT(newsize <= MAXEXTSIZ, "extend_buf: too large");
 	hash_foreach(bufpool, check_span, (void *)(b->b_start + newsize - 1));
 #endif
+	/*
+	 * If it isn't currently buffered, we don't care yet
+	 */
+	if (!(b = hash_lookup(bufpool, d))) {
+		return(0);
+	}
+
 	/*
 	 * Get the buffer space
 	 */

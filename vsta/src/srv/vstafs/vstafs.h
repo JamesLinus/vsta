@@ -18,6 +18,7 @@
 #define MAXEXT (32)		/* Max # extents in a file */
 #define MAXNAMLEN (28)		/* Max chars in dir entry name */
 #define EXTSIZ (128)		/* File growth increment */
+				/*  ...must be power of 2! */
 #define NCACHE (64)		/* Crank up if you have lots of users */
 #define CORESEC (512)		/* Sectors to buffer in core at once */
 

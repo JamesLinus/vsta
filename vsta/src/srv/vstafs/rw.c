@@ -27,7 +27,7 @@ file_grow(struct fs_file *fs, ulong newsize)
 {
 	ulong incr, got;
 	struct alloc *a;
-	daddr_t from;
+	daddr_t from, newstart;
 
 	/*
 	 * Find extent containing this position
@@ -44,8 +44,30 @@ file_grow(struct fs_file *fs, ulong newsize)
 	if (incr < EXTSIZ) {
 		incr = EXTSIZ;
 	}
-	got = take_block(a->a_start + a->a_len, incr);
+	newstart = a->a_start + a->a_len;
+	got = take_block(newstart, incr);
 	if (got > 0) {
+		ulong buflen;
+
+		/*
+		 * Calculate new length of this buffer
+		 */
+		buflen = (a->a_len & (EXTSIZ-1)) + got;
+		if (buflen > EXTSIZ) {
+			buflen = EXTSIZ;
+		}
+
+		/*
+		 * Tell buffer management about this incremental space
+		 */
+		if (extend_buf(newstart & ~(EXTSIZ-1), buflen, 0)) {
+			free_block(newstart, got);
+			return(1);
+		}
+
+		/*
+		 * Update extent information
+		 */
 		a->a_len += got;
 		from += got;
 		fs->fs_len = stob(from);
@@ -146,7 +168,7 @@ bmap(struct fs_file *fs, ulong pos, uint cnt, char **blkp, uint *stepp)
 	 * Find the appropriate EXTSIZ part of the extent to use, since
 	 * our buffer pool operates on chunks of EXTSIZ in length.
 	 */
-	extstart = (extoff/EXTSIZ)*EXTSIZ;
+	extstart = (extoff & ~(EXTSIZ-1));
 	start = a->a_start + extstart;
 	len = a->a_len - extstart;
 	if (len > EXTSIZ) {
@@ -160,8 +182,8 @@ bmap(struct fs_file *fs, ulong pos, uint cnt, char **blkp, uint *stepp)
 	/*
 	 * Map in the part we need, fill in its location and length
 	 */
-	len = len - (extoff % EXTSIZ);
-	*blkp = index_buf(b, extoff % EXTSIZ, len);
+	len = len - (extoff & (EXTSIZ-1));
+	*blkp = index_buf(b, extoff & (EXTSIZ-1), len);
 	if (*blkp == 0) {
 		return(0);
 	}
@@ -207,7 +229,7 @@ do_write(struct openfile *o, ulong pos, char *buf, uint cnt)
 		/*
 		 * Find appropriate extent
 		 */
-		b2 = bmap(fs, pos+OFF_DATA, cnt, &blkp, &step);
+		b2 = bmap(fs, pos, cnt, &blkp, &step);
 		if (!b2) {
 			result = 1;
 			break;

@@ -61,7 +61,10 @@ alloc_node(daddr_t d)
 	 */
 	len = fs->fs_blks[0].a_len;
 	if (len > 1) {
-		if (extend_buf(b, len, 1)) {
+		if (len > EXTSIZ) {
+			len = EXTSIZ;
+		}
+		if (extend_buf(d, (uint)len, 1)) {
 			return(0);
 		}
 	}
