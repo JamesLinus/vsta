@@ -183,8 +183,6 @@ _lgdt:	movl	4(%esp),%eax
 	lgdt	(%eax)
 	jmp	1f
 1:	nop
-	movl	$GDT_KDATA,%ax	/* XXX test */
-	movw	%ax,%gs
 	ret
 _lidt:	movl	4(%esp),%eax
 	lidt	(%eax)
