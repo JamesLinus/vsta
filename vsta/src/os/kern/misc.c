@@ -334,6 +334,26 @@ perm_ctl(int arg_idx, struct perm *arg_perm, struct perm *arg_ret)
 					p->p_ids[x].perm_uid;
 			}
 		}
+		
+		/*
+		 * If we just changed our default ownership make our
+		 * protections match our new self
+		 */
+		if (arg_idx == 0) {
+			int i, plen;
+
+			plen = PERM_LEN(&perm);
+			p->p_prot.prot_bits[plen]
+				= p->p_prot.prot_bits[p->p_prot.prot_len];
+			p->p_prot.prot_len = plen;
+			p->p_prot.prot_id[plen - 1]
+				= p->p_ids[0].perm_id[plen - 1];
+			for (i = 0; i < plen - 1; i++) {
+				p->p_prot.prot_bits[i] = 0;
+				p->p_prot.prot_id[i] = p->p_ids[0].perm_id[i];
+			}
+		}
+		
 		v_sema(&p->p_sema);
 
 		/*
