@@ -113,7 +113,6 @@ notifypg(struct proc *p, char *event)
 			++lp;
 		l[x] = *lp++;
 	}
-	printf("sig pg %d members at 0x%x\n", nelem, l); dbg_enter();
 
 	/*
 	 * Release the semaphores, then go about trying to
