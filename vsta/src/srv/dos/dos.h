@@ -127,7 +127,7 @@ struct boot {
 /*
  * Parameters for block cache
  */
-#define NCACHE (40)
+#define NCACHE (80)
 extern uint clsize;
 #define BLOCKSIZE (clsize)
 
