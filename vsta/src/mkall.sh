@@ -1,4 +1,4 @@
-#!/vsta/bin/sh
+#!/bin/sh
 set -e
 set -x
 if test \( "$1" = "all" \) -o \( "$1" = "install" \) -o \( "$1" = "" \)
