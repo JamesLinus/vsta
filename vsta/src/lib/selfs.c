@@ -12,6 +12,34 @@
 static port_t selfs_port = -1;	/* Share a port across all clients */
 
 /*
+ * parse()
+ *	Explode select wstat message
+ *
+ * Returns 1 if there's a problem, 0 otherwise.
+ * TBD: Extract hostname
+ * Note that we mung data types here, so that we can use atoi/strchr
+ *  for extraction purposes.  sscanf() would have been better, but this
+ *  module is used by boot servers, who use a small subset of the full
+ *  C library in order to keep their image size modest.
+ */
+static int
+parse(char *buf, uint *maskp, long *clidp, int *fdp, ulong *keyp)
+{
+#define ADV() buf = strchr(buf, ','); \
+		if (!buf) { return(1); } else { ++buf; }
+	*maskp = atoi(buf);
+	ADV();
+	*clidp = atoi(buf);
+	ADV();
+	*fdp = atoi(buf);
+	ADV();
+	*keyp = atoi(buf);
+	ADV();
+	return(0);
+#undef ADV
+}
+
+/*
  * sc_wstat()
  *	Handle FS_WSTAT of "select" and "unselect" messages
  *
@@ -29,9 +57,8 @@ sc_wstat(struct msg *m, struct selclient *scp, char *field, char *val)
 			msg_err(m->m_sender, EBUSY);
 			return(0);
 		}
-		if ((sscanf(val, "%u,%ld,%d,%lu,%*s",
-				&scp->sc_mask, &scp->sc_clid,
-				&scp->sc_fd, &scp->sc_key) != 4) ||
+		if (parse(val, &scp->sc_mask, &scp->sc_clid,
+				&scp->sc_fd, &scp->sc_key) ||
 				 (!scp->sc_mask)) {
 			msg_err(m->m_sender, EINVAL);
 			return(0);
