@@ -26,7 +26,7 @@ extern int page_wire(), page_release(), enable_dma(), time_get(),
 	time_sleep(), exec(), waits(), perm_ctl(), set_swapdev(),
 	run_qio(), set_cmd(), pageout(), getid(), unhash(),
 	time_set(), ptrace(), nop(), msg_portname(), pstat();
-extern int notify_handler();
+extern int notify_handler(), sched_op();
 
 struct syscall {
 	intfun s_fun;
@@ -73,11 +73,12 @@ struct syscall {
 #endif
 	{msg_portname, 1},			/* 35 */
 #ifdef PSTAT
-	{pstat, 3},				/* 36 */
+	{pstat, 4},				/* 36 */
 #else
 	{nop, 1},
 #endif
 	{notify_handler, 1},			/* 37 */
+	{sched_op, 1},				/* 38 */
 };
 #define NSYSCALL (sizeof(syscalls) / sizeof(struct syscall))
 #define MAXARGS (6)
