@@ -8,7 +8,7 @@ struct (usually a part of your per-client state) to set it up.
 
 2. FS_WSTAT support
 
-select() support is enabled by the client do a wstat() of certain
+select() support is enabled by the client doing a wstat() of certain
 entries in the open file.  The precise names are not important; what
 is important is that the server in its handling of the FS_WSTAT
 message calls sc_wstat() (implemented in src/lib/selfs.c in libusr.a)
@@ -48,3 +48,43 @@ but sufficient.
 Use sc_done() on any client who's been activated by a successful
 sc_wstat().  This will clean up the library's behind-the-scenes
 state.
+
+5. More Stuff
+
+There are some fields of the selclient struct which you'll want to use.
+sc_iocount is used to synchronize between the client app, the server, and
+the selfs server.  The problem is that due to timing windows of the three
+independent processes, it's possible for the server to tell the selfs
+server about a select event, but the client in the meantime posts, say,
+a read to the server, and thus has consumed the data before the selfs
+server could tell the client about it.  Without any extra care, what would
+happen is that the selfs server would subsequently tell the client, the
+client would believe it, and post a read() for data which it already
+had read--unexpectedly blocking the client, possibly.
+
+To handle this, the sc_iocount field is used.  It is a monotonically
+increasing count of the number of client-server I/O operations which have
+happened.  Each select event is tagged with the current value of this
+field, and this lets a client realize that it's been told about a stale
+select state.  When the client gets such data from the selfs server, it
+compares the sc_iocount value to the I/O count of its own connection to
+the server (it's stored in the file descriptor layer state), and if they
+don't match, it ignores the select event.
+
+Thus, you need to bump sc_iocount each time an I/O completes from the
+server for a particular client.  The I/O count of both the client and
+the server thus goes up in lock step, and as select events stream between
+client and server by way of the selfs server, this stamp lets the client
+and server keep all the select events straight with respect to their
+I/O activities.
+
+sc_needsel
+
+Another flag is needed to tell if a particular client needs further
+sc_event notifications.  It's cleared when a client receives an
+sc_event notification, and re-set when the client is subsequently seen
+posting an I/O for the data.  Note that this assumes the client will
+always do I/O on each file descriptor which select()'ed true... which
+seems to match current practice.  If this doesn't work out, extra
+complexity will be needed to match up select event masks with particular
+iocount generations of access.
