@@ -26,6 +26,17 @@ struct hash_node {
 };
 
 /*
+ * Smoke and mirrors to avoid name space pollution
+ */
+#define hash_alloc __hash_alloc
+#define hash_insert __hash_insert
+#define hash_delete __hash_delete
+#define hash_lookup __hash_lookup
+#define hash_dealloc __hash_dealloc
+#define hash_foreach __hash_foreach
+#define hash_size __hash_size
+
+/*
  * Hash routines
  */
 struct hash *hash_alloc(int);
