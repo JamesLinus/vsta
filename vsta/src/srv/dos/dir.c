@@ -709,18 +709,12 @@ dir_copy(struct node *n, uint pos, struct directory *dp)
 	d = get_dirent(n, pos, &handle);
 
 	/*
-	 * If we got one, copy out its contents
+	 * If we got one, copy out its contents.  Free real buffer
+	 * once we have the copy.
 	 */
 	if (d) {
 		*dp = *d;
-	}
-
-	/*
-	 * If we hold a buffer, free it now that we have our
-	 * copy.
-	 */
-	if (d && handle) {
-		bfree(handle);
+		dfree(handle);
 	}
 
 	/*
@@ -791,6 +785,7 @@ dir_timestamp(struct file *f, time_t t)
 	 */
 	ddirty(handle);
 	dfree(handle);
+	f->f_node->n_flags |= N_DIRTY;
 }
 
 /*
@@ -823,16 +818,18 @@ dir_setlen(struct node *n)
 	/*
 	 * Update it, mark the block dirty, and return
 	 */
-	d->size = n->n_len;
-	timestamp(d, 0);
-	if (c->c_nclust) {
-		ASSERT_DEBUG(d->size, "dir_setlen: !len clust");
-		d->start = c->c_clust[0];
-	} else {
-		ASSERT_DEBUG(d->size == 0, "dir_setlen: len !clust");
-		d->start = 0;
+	if (d->size != n->n_len) {
+		d->size = n->n_len;
+		timestamp(d, 0);
+		if (c->c_nclust) {
+			ASSERT_DEBUG(d->size, "dir_setlen: !len clust");
+			d->start = c->c_clust[0];
+		} else {
+			ASSERT_DEBUG(d->size == 0, "dir_setlen: len !clust");
+			d->start = 0;
+		}
+		ddirty(handle);
 	}
-	ddirty(handle);
 	dfree(handle);
 }
 
