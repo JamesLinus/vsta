@@ -191,9 +191,17 @@ asm_handler:
 _notify_handler:
 	movl	4(%esp),%eax		/* Get func pointer */
 	movl	%eax,c_handler		/* Save in private space */
-	pushl	%ebx			/* Single arg via EBX register */
+	orl	%eax,%eax		/* Special handling for NULL */
+	jnz	1f
+	movl	%eax,%ebx		/* Deregister event handler */
+	movl	$(S_NOTIFY_HANDLER + 0x80),%eax
+	ENTCALL
+	jmp	2f
+
+1:	pushl	%ebx			/* Single arg via EBX register */
 	movl	$asm_handler,%ebx	/* Vector to assembly handler */
 	movl	$(S_NOTIFY_HANDLER + 0x80),%eax
 	ENTCALL
 	popl	%ebx
-	ENTTAIL
+
+2:	ENTTAIL
