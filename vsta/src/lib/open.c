@@ -346,7 +346,8 @@ open(char *file, int mode, ...)
  * chdir()
  *	Change current directory
  */
-chdir(char *newdir)
+int
+chdir(const char *newdir)
 {
 	char buf[MAXPATH], *p;
 	int fd;
