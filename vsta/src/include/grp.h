@@ -7,11 +7,7 @@
  * Much of the POSIX group concept is missing; we emulate
  * what we can.
  */
-
-/*
- * Numeric group ID
- */
-typedef unsigned long gid_t;
+#include <sys/types.h>
 
 /*
  * Group information
