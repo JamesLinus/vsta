@@ -315,6 +315,7 @@ setup_gdt(void)
 	s->seg_limit0 = 0xFFFF;
 	s->seg_base0 = 0;
 	s->seg_base1 = 0;
+	s->seg_base2 = 0;
 	s->seg_type = T_MEMRW;
 	s->seg_dpl = PRIV_KERN;
 	s->seg_p = 1;
@@ -335,14 +336,15 @@ setup_gdt(void)
 	 */
 	s = &g[GDTIDX(GDT_BOOT32)];
 	s->seg_limit0 = sizeof(struct tss)-1;
-	s->seg_base0 = (ulong)t & 0xFFFFFF;
+	s->seg_base0 = (ulong)t & 0xFFFF;
+	s->seg_base1 = ((ulong)t >> 16) & 0xFF;
 	s->seg_type = T_TSS;
 	s->seg_dpl = PRIV_KERN;
 	s->seg_p = 1;
 	s->seg_limit1 = 0;
 	s->seg_32 = 0;
 	s->seg_gran = 0;
-	s->seg_base1 = ((ulong)t >> 24) & 0xFF;
+	s->seg_base2 = ((ulong)t >> 24) & 0xFF;
 
 	/*
 	 * 32-bit user data.  User addresses are offset 2 GB.
@@ -350,7 +352,8 @@ setup_gdt(void)
 	s = &g[GDTIDX(GDT_UDATA)];
 	s->seg_limit0 = 0xFFFF;
 	s->seg_base0 = 0;
-	s->seg_base1 = 0x80;
+	s->seg_base1 = 0;
+	s->seg_base2 = 0x80;
 	s->seg_type = T_MEMRW;
 	s->seg_dpl = PRIV_USER;
 	s->seg_p = 1;

@@ -18,7 +18,8 @@
  */
 struct segment {
 	uint seg_limit0 : 16;	/* Size 0 */
-	uint seg_base0 : 24;	/* Base 0 */
+	uint seg_base0 : 16;	/* Base 0 */
+	uint seg_base1 : 8;	/* Base 1 */
 	uint seg_type : 5;	/* Type */
 	uint seg_dpl : 2;	/* Priv level */
 	uint seg_p : 1;		/* Present */
@@ -26,7 +27,7 @@ struct segment {
 	uint seg_pad0 : 2;	/* Pad */
 	uint seg_32 : 1;	/* 32-bit size? */
 	uint seg_gran : 1;	/* Granularity (pages if set) */
-	uint seg_base1 : 8;	/* Base 1 */
+	uint seg_base2 : 8;	/* Base 1 */
 };
 
 /*
