@@ -364,7 +364,7 @@ dir_newfile(struct file *f, char *name, int type)
 	{
 		uint dummy;
 
-		b2 = bmap(fs, fs->fs_len, sizeof(struct fs_dirent),
+		b2 = bmap(b, fs, fs->fs_len, sizeof(struct fs_dirent),
 			(char **)&d, &dummy);
 	}
 	if (b2 == 0) {
