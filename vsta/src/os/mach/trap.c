@@ -16,7 +16,7 @@
 #include <mach/pit.h>
 #include <sys/assert.h>
 
-extern void selfsig();
+extern void selfsig(), check_events(), syscall();
 extern int deliver_isr();
 
 extern char *heap;
@@ -150,7 +150,6 @@ trap(ulong place_holder)
 {
 	struct trapframe *f = (struct trapframe *)&place_holder;
 	int kern_mode;
-	extern void check_events(), syscall();
 
 #ifdef KDB
 	dbg_trap_frame = f;
@@ -611,13 +610,20 @@ interrupt(ulong place_holder)
 	ASSERT(0, "interrupt: stray");
 
 	/*
-	 * Check for preemption if we pushed in from user mode
-	 * XXX should allow preemption from kernel too.  "Should"
-	 * work, but I don't want to chase too many bugs at once!
+	 * Check for preemption and events if we pushed in from user mode.
+	 * When ready for kernel preemption, move check_preempt() to before
+	 * the "if" statement.
 	 */
 out:
 	if ((f->ecs & 0x3) == PRIV_USER) {
+		struct thread *t = curthread;
+
 		sti();
+		if (EVENT(t)) {
+			t->t_uregs = f;
+			check_events();
+			t->t_uregs = 0;
+		}
 		check_preempt();
 	}
 }
