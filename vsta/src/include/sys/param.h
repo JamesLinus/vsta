@@ -31,7 +31,7 @@
  * its current stack and get another UMAXSTACK size extension.
  */
 #define UMINSTACK (16*NBPG)
-#define UMAXSTACK (512*NBPG)
+#define UMAXSTACK (256*NBPG)
 
 #define roundup(val, units) \
 	((((unsigned long)(val) + ((units) - 1)) / (units)) * (units))
