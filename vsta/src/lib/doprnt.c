@@ -181,6 +181,9 @@ __doprnt(char *buf, char *fmt, int *args)
 			break;
 
 		case 's':
+			if (args[0] == 0) {
+				args[0] = (int)"(null)";
+			}
 			x = strlen((char *)(args[0]));
 			if (!adj) {
 				for ( ; x < width; ++x) {
