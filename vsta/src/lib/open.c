@@ -458,3 +458,53 @@ getcwd(char *buf, int len)
 	strcpy(buf, __cwd);
 	return(buf);
 }
+
+/*
+ * unlink()
+ *	Move down to dir containing entry, and try to remove it
+ */
+unlink(char *path)
+{
+	int fd, x;
+	char *dir, *file, buf[MAXPATH];
+	struct msg m;
+
+	/*
+	 * Get writable copy of string, flatten out ".."'s and
+	 * parse into a directory and filename.
+	 */
+	strcpy(buf, path);
+	dotdot(buf);
+	file = strrchr(buf, '/');
+	if (file) {
+		dir = buf;
+		*file++ = '\0';
+	} else {
+		dir = __cwd;
+		file = buf;
+	}
+
+	/*
+	 * Get access to the directory
+	 */
+	fd = open(dir, O_DIR|O_READ);
+	if (fd < 0) {
+		return(-1);
+	}
+
+	/*
+	 * Ask to remove the filename within this dir
+	 */
+	m.m_op = FS_REMOVE;
+	m.m_buf = file;
+	m.m_buflen = strlen(file)+1;
+	m.m_nseg = 1;
+	m.m_arg = m.m_arg1 = 0;
+	x = msg_send(__fd_port(fd), &m);
+
+	/*
+	 * Clean up and return results
+	 */
+	close(fd);
+	return(x);
+}
