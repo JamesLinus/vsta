@@ -362,6 +362,13 @@ free(void *mem)
 	ushort sz;
 
 	/*
+	 * Ignore NULL
+	 */
+	if (mem == 0) {
+		return;
+	}
+
+	/*
 	 * Get allocation information for this data element
 	 */
 	sz = get_size(mem);
