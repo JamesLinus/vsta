@@ -281,7 +281,7 @@ send_tel(buf,n)
 char *buf;
 int16 n;
 {
-	struct mbuf *bp,*qdata();
+	struct mbuf *bp;
 	if(current == NULLSESSION || current->cb.telnet == NULLTN
 	 || current->cb.telnet->tcb == NULLTCB)
 		return;
@@ -315,7 +315,7 @@ char *buf;
 int16 n;
 struct telnet *tn;
 {
-	struct mbuf *bp,*qdata();
+	struct mbuf *bp;
 
 	bp = qdata(buf,n);
 	send_tcp(tn->tcb,bp);
@@ -882,7 +882,7 @@ register struct telnet *tn;
 	    char *name;
 	    unsigned char temp[50];
 	    int len;
-	    struct mbuf *bp,*qdata();
+	    struct mbuf *bp;
 
 	    if (tn->client)
 	        name = tn->termtype;
@@ -892,7 +892,7 @@ register struct telnet *tn;
 	    if (len < sizeof(temp)) {
 		sprintf((char *)temp, "%c%c%c%c%s%c%c", IAC, SB, TN_TTYPE,
 				0, name, IAC, SE);
-		bp = qdata(temp,len);
+		bp = qdata((void *)temp, len);
 		send_tcp(tn->tcb,bp);
 		if (debug_options)
 		  fprintf(trfp, "[Send: term %s]\n", name);
@@ -911,7 +911,7 @@ answer(tn,r1,r2)
 struct telnet *tn;
 int r1,r2;
 {
-	struct mbuf *bp,*qdata();
+	struct mbuf *bp;
 	char s[3];
 
 	if (debug_options) {
