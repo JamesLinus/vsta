@@ -2,8 +2,8 @@
  * Filename:	stat.c
  * Author:	Dave Hudson <dave@humbug.demon.co.uk>
  * Started:	3rd February 1994
- * Last Update: 14th March 1994
- * Implemented:	GNU GCC version 2.5.7
+ * Last Update: 13th May 1994
+ * Implemented:	GNU GCC version 1.42 (VSTa 1.3.1)
  *
  * Description:	Utility to read the status fields of a file.
  */
@@ -12,8 +12,13 @@
 #include <fcntl.h>
 #include <fdl.h>
 #include <stat.h>
-#include <std.h>
+#include <stdlib.h>
 #include <stdio.h>
+#include <sys/fs.h>
+#include <sys/msg.h>
+
+
+extern port_t path_open(char *, int);
 
 
 /*
@@ -23,7 +28,7 @@
 static void usage(char *util_name)
 {
   fprintf(stderr,
-  	  "Usage: %s [-r] [-s] [-v] [-w] <file_name> <fields_names...>\n",
+  	  "Usage: %s [-r] [-s] [-v] [-w] [-p] <path_name> <fields_names...>\n",
           util_name);
   exit(1);
 }
@@ -36,23 +41,35 @@ static void usage(char *util_name)
  * If the specified field is NULL we pick up all of the details.  Returns 0
  * for success, non-zero otherwise.
  */
-static int read_stat(char *name, char *field, int verbose)
+static int read_stat(char *name, int use_port, char *field, int verbose)
 {
   int fd;
   int x = 0, y = 0;
   char *statstr;
   char fmtstr[512];
+  port_t pt;
 	
-  /*
-   * Open the named file, stat it and then close it!
-   */
-  fd = open(name, O_RDONLY);
-  if (fd < 0) {
-    perror(name);
-    return 1;
+  if (!use_port) {
+    /*
+     * Open the named file, stat it and then close it!
+     */
+    fd = open(name, O_RDONLY);
+    if (fd < 0) {
+      perror(name);
+      return 1;
+    }
+    statstr = rstat(__fd_port(fd), field);
+    close(fd);
+  } else {
+    pt = path_open(name, ACC_CHMOD);
+    if (pt < 0) {
+      perror(name);
+      return 1;
+    }
+    statstr = rstat(pt, field);
+    msg_disconnect(pt);
   }
-  statstr = rstat(__fd_port(fd), field);
-  close(fd);
+
   if (statstr == NULL) {
     perror(name);
     return 0;
@@ -97,11 +114,12 @@ static int read_stat(char *name, char *field, int verbose)
  * write_stat()
  *	Write a stat field to the specified file.
  */
-static int write_stat(char *name, char *field, int verbose)
+static int write_stat(char *name, int use_port, char *field, int verbose)
 {
   int fd;
   int rcode;
   char statstr[128];
+  port_t pt;
 	
   strcpy(statstr, field);
   strcat(statstr, "\n");
@@ -109,16 +127,26 @@ static int write_stat(char *name, char *field, int verbose)
     printf("\t%s", statstr);
   }
 	
-  /*
-   * Open the named file, stat it and then close it!
-   */
-  fd = open(name, O_WRONLY);
-  if (fd < 0) {
-    perror(name);
-    return 1;
+  if (!use_port) {
+    /*
+     * Open the named file, stat it and then close it!
+     */
+    fd = open(name, O_WRONLY);
+    if (fd < 0) {
+      perror(name);
+      return 1;
+    }
+    rcode = wstat(__fd_port(fd), statstr);
+    close(fd);
+  } else {
+    pt = path_open(name, ACC_CHMOD);
+    if (pt < 0) {
+      perror(name);
+      return 1;
+    }
+    rcode = wstat(pt, statstr);
+    msg_disconnect(pt);
   }
-  rcode = wstat(__fd_port(fd), statstr);
-  close(fd);
 
   return rcode;
 }
@@ -133,8 +161,9 @@ int main(int argc, char **argv)
   int exit_code = 0;
   int x;
   char c;
-  int doing_wstat = 0, verbose = 0;
+  int doing_wstat = 0, verbose = 0, using_port = 0;
   extern int optind;
+  port_t pt;
 
   /*
    * Do we have anything that looks vaguely reasonable
@@ -146,8 +175,12 @@ int main(int argc, char **argv)
   /*
    * Scan for command line options
    */
-  while ((c = getopt(argc, argv, "rsvw")) != EOF) {
+  while ((c = getopt(argc, argv, "prsvw")) != EOF) {
     switch(c) {
+    case 'p' :			/* Use port name instead of file name */
+      using_port = 1;
+      break;
+      
     case 'r' :			/* Read stat info */
       doing_wstat = 0;
       break;
@@ -185,7 +218,8 @@ int main(int argc, char **argv)
      * We're writing, so loop round writing stat codes
      */
     for (x = optind + 1; x < argc; x++) {
-      if ((exit_code = write_stat(argv[optind], argv[x], verbose))) {
+      if ((exit_code = write_stat(argv[optind], using_port,
+      				  argv[x], verbose))) {
         return exit_code;
       }
     }
@@ -207,7 +241,8 @@ int main(int argc, char **argv)
      * We're reading, so loop round displaying the specified stat codes
      */
     for (x = optind + 1; x < argc; x++) {
-      if ((exit_code = read_stat(argv[optind], argv[x], verbose))) {
+      if ((exit_code = read_stat(argv[optind], using_port,
+      				 argv[x], verbose))) {
         return exit_code;
       }
     }		
