@@ -13,12 +13,14 @@
 #include <std.h>
 #include <syslog.h>
 #include <fdl.h>
+#include <getopt.h>
 
 int blkdev;			/* Device this FS is mounted upon */
 port_t rootport;		/* Port we receive contacts through */
 char *secbuf;			/* A sector buffer */
 struct boot bootb;		/* Image of boot sector */
 static struct hash *filehash;	/* Handle->filehandle mapping */
+int ncache = NCACHE;		/* # sectors we hold in block cache */
 
 extern port_t path_open(char *, int);
 
@@ -323,14 +325,14 @@ usage(void)
  *	Startup of a DOS filesystem
  *
  * A DOS instance expects to start with a command line:
- *	$ dos <block class> <block instance> <filesystem name>
+ *	$ dos [-f <FS name>] [-b <block device>] [-n <sectors i ncache>]
  */
 int
 main(int argc, char *argv[])
 {
 	port_t port;
 	port_name fsname;
-	int x;
+	int x, retries, nuser;
 	char *namer_name = 0;
 
 	/*
@@ -339,50 +341,56 @@ main(int argc, char *argv[])
 	openlog("dos", LOG_PID, LOG_DAEMON);
 
 	/*
-	 * Check arguments
+	 * Walk arguments
 	 */
-	if (argc == 3) {
-		namer_name = argv[2];
-		blkdev = open(argv[1], O_RDWR);
-		if (blkdev < 0) {
-			syslog(LOG_ERR, "unable to open '%s'", argv[1]);
-			exit(1);
-		}
-	} else if (argc == 4) {
-		int retries;
+	while ((x = getopt(argc, argv, "f:b:n:")) > 0) {
+		switch (x) {
 
-		/*
-		 * Version of invocation where service is specified
-		 */
-		namer_name = argv[3];
-		if (strcmp(argv[1], "-p")) {
+		case 'f':	/* Set name filesystem registers under */
+			namer_name = optarg;
+			break;
+
+		case 'b':	/* Block device holding filesystem */
+			/*
+			 * Sleep and retry a bit if necessary.
+			 */
+			for (retries = 10; retries > 0; retries -= 1) {
+				blkdev = open(optarg, O_RDWR);
+				if (blkdev >= 0) {
+					break;
+				}
+				sleep(1);
+			}
+
+			/*
+			 * Nope, couldn't find it.
+			 */
+			if (blkdev < 0) {
+				syslog(LOG_ERR, "unable to open '%s'",
+					optarg);
+				exit(1);
+			}
+			break;
+
+		case 'n':	/* Set size of cache in sectors */
+			ncache = atoi(optarg);
+			if ((ncache < 16) || (ncache > 1024*1024)) {
+				ncache = NCACHE;
+				syslog(LOG_INFO, "cache size forced to %d",
+					ncache);
+			}
+			break;
+
+		default:
 			usage();
 		}
-		for (retries = 10; retries > 0; retries -= 1) {
-			port = path_open(argv[2], ACC_READ|ACC_WRITE);
-			if (port < 0) {
-				sleep(1);
-			} else {
-				break;
-			}
-		}
-		if (port < 0) {
-			syslog(LOG_ERR, "couldn't connect to block device");
-			exit(1);
-		}
-		blkdev = __fd_alloc(port);
-		if (blkdev < 0) {
-			perror(argv[2]);
-			exit(1);
-		}
-	} else {
-		usage();
 	}
 
 	/*
 	 * Allocate data structures we'll need
 	 */
-        filehash = hash_alloc(NCACHE/4);
+	nuser = ((ncache > 1024) ? 256 : (ncache/4));
+        filehash = hash_alloc(nuser);
 	if (filehash == 0) {
 		perror("file hash");
 		exit(1);
@@ -423,7 +431,7 @@ main(int argc, char *argv[])
 		perror("clone: blkdev");
 		exit(1);
 	}
-	init_buf(port, NCACHE);
+	init_buf(port, ncache);
 	dir_init();
 
 	/*
