@@ -24,6 +24,13 @@ extern struct portref *delete_portref();
 /*
  * discard_vas()
  *	Tear down the vas, leaving just shared objects
+ *
+ * TBD: fix me.  The shared flag is not the right one to flag that
+ * something should survive exec().  There are lots of shared objects
+ * which should go away!  But changing to a specific flag will be
+ * binary incompatible between the kernel and init, so leave it be
+ * for now.  To get ready for this change, init will start passing
+ * in a no-op flag.
  */
 static void
 discard_vas(struct vas *vas)
@@ -34,11 +41,17 @@ discard_vas(struct vas *vas)
 		pvn = pv->p_next;
 
 		/*
-		 * Only stuff we mmap()'ed as sharable will remain
+		 * Only stuff we mmap()'ed as sharable will remain.
+		 * Since this is only used for exec() arguments,
+		 * ignore sharable I/O physical mapped regions.
 		 */
-		if ((pv->p_prot & PROT_MMAP) &&
-				(pv->p_set->p_flags & PF_SHARED)) {
-			continue;
+		if (pv->p_prot & PROT_MMAP) {
+			struct pset *ps = pv->p_set;
+
+			if ((ps->p_flags & PF_SHARED) &&
+					(ps->p_type != PT_MEM)) {
+				continue;
+			}
 		}
 
 		/*
