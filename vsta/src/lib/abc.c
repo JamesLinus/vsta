@@ -8,12 +8,13 @@
  */
 #include <sys/fs.h>
 #include <sys/assert.h>
+#include <sys/syscall.h>
 #include <std.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <llist.h>
 #include <hash.h>
-#include <sema.h>
+#include <lock.h>
 #include <time.h>
 #include "abc.h"
 
@@ -28,13 +29,13 @@
  * Description of a particular buffer of data
  */
 struct buf {
+	lock_t b_lock;		/* Mutex for FG/BG data structures */
 	struct llist *b_list;	/* Linked under bufhead */
 	void *b_data;		/* Actual data */
 	daddr_t b_start;	/* Starting sector # */
 	uint b_nsec;		/*  ...# SECSZ units contained */
 	uint b_flags;		/* Flags */
 	uint b_locks;		/* Count of locks on buf */
-	uint b_busy;		/* Buffer busy in background thread */
 	void **b_handles;	/* Tags associated with B_DIRTY */
 	uint b_nhandle;		/*  ...# pointed to */
 };
@@ -45,21 +46,20 @@ struct buf {
 #define B_SEC0 0x1		/* 1st sector valid  */
 #define B_SECS 0x2		/*  ...rest of sectors valid too */
 #define B_DIRTY 0x4		/* Some sector in buffer is dirty */
+#define B_WANT 0x8		/* Wanted by FG when !B_BUSY */
+#define B_BUSY 0x10		/* Op in progress by BG */
 
 /*
- * Macro to access buffer, interlocking with BG
+ * Useful macro
  */
-#define GET(b) \
-	if ((b)->b_busy) { \
-		busywait(&(b)->b_busy); \
-	}
+#define BUSY(b) ((b)->b_flags & B_BUSY)
 
 /*
  * Description of an operation which the FG asks the BG to do.
- * b_busy will be cleared at completion of the operation, as will
+ * B_BUSY will be cleared at completion of the operation, as will
  * q_op.
  */
-#define NQIO (8)
+#define NQIO (16)
 struct qio {
 	struct buf *q_buf;	/* Buf to be used */
 	uint q_op;		/* Operation */
@@ -83,18 +83,27 @@ static struct llist allbufs;	/* Time-ordered list, for aging */
 static port_t ioport;		/* I/O device */
 static int can_dma;		/*  ...supports DMA? */
 static uint coresec;		/* # sectors allowed in core at once */
-static sema_t *bg_sema;		/* FG->BG semaphore */
+static pid_t fg_pid, bg_pid;	/* Thread ID's for FG/BG */
 
 /*
- * busywait()
- *	Wait for a busy buffer to complete
+ * get()
+ *	Access buffer, interlocking with BG
  */
 static void
-busywait(volatile uint *busyp)
+get(struct buf *b)
 {
-	while (*busyp) {
-		__msleep(10);
+	if (!(b->b_flags & B_BUSY)) {
+		return;
 	}
+	p_lock(&b->b_lock);
+	if (!(b->b_flags & B_BUSY)) {
+		v_lock(&b->b_lock);
+		return;
+	}
+	b->b_flags |= B_WANT;
+	v_lock(&b->b_lock);
+	mutex_thread(0);
+	ASSERT_DEBUG((b->b_flags & B_BUSY) == 0, "get: still busy");
 }
 
 /*
@@ -196,6 +205,18 @@ exec_qio(struct buf *b, int op)
 }
 
 /*
+ * busywait()
+ *	Wait and sleep for a location to return to zero
+ */
+static void
+busywait(volatile uint *ptr)
+{
+	while (*ptr) {
+		__msleep(10);
+	}
+}
+
+/*
  * qio()
  *	Queue an operation for the BG thread
  */
@@ -205,18 +226,10 @@ qio(struct buf *b, uint op)
 	struct qio *q;
 
 	/*
-	 * If no background thread yet, just do the action now
-	 */
-	if (!bg_sema) {
-		exec_qio(b, op);
-		return;
-	}
-
-	/*
 	 * This buffer is busy until op complete
 	 */
-	ASSERT_DEBUG(b->b_busy == 0, "qio: busy");
-	b->b_busy = 1;
+	ASSERT_DEBUG(!BUSY(b), "qio: busy");
+	b->b_flags |= B_BUSY;
 
 	/*
 	 * Get next ring element
@@ -240,7 +253,7 @@ qio(struct buf *b, uint op)
 	/*
 	 * Release BG to do its thing
 	 */
-	v_sema(bg_sema);
+	mutex_thread(bg_pid);
 }
 
 /*
@@ -264,7 +277,7 @@ age_buf(void)
 		 * Only skip if wired or active
 		 */
 		b = l->l_data;
-		if (b->b_locks || b->b_busy) {
+		if (b->b_locks || BUSY(b)) {
 			continue;
 		}
 
@@ -347,12 +360,12 @@ find_buf(daddr_t d, uint nsec, int flags)
 	/*
 	 * Fill in the rest & return
 	 */
+	init_lock(&b->b_lock);
 	b->b_start = d;
 	b->b_nsec = nsec;
 	b->b_locks = 0;
 	b->b_handles = 0;
 	b->b_nhandle = 0;
-	b->b_busy = 0;
 	if (flags & ABC_FILL) {
 		b->b_flags = 0;
 	} else {
@@ -410,7 +423,7 @@ resize_buf(daddr_t d, uint newsize, int fill)
 	/*
 	 * Ok, we're going to do it, interlock
 	 */
-	GET(b);
+	get(b);
 
 	/*
 	 * Get the buffer space
@@ -454,7 +467,7 @@ index_buf(struct buf *b, uint index, uint nsec)
 {
 	ASSERT_DEBUG((index+nsec) <= b->b_nsec, "index_buf: too far");
 
-	GET(b);
+	get(b);
 	ll_movehead(&allbufs, b->b_list);
 	if ((index == 0) && (nsec == 1)) {
 		/*
@@ -492,19 +505,9 @@ index_buf(struct buf *b, uint index, uint nsec)
 static void
 bg_thread(int dummy)
 {
-	uint next = 0;
+	uint next = 0, want;
 	struct qio *q;
 	struct buf *b;
-
-	/*
-	 * Wait for semaphore server to come on-line
-	 */
-	for (;;) {
-		if (bg_sema = alloc_sema(0)) {
-			break;
-		}
-		sleep(1);
-	}
 
 	/*
 	 * Endless loop, serving background requests
@@ -513,9 +516,7 @@ bg_thread(int dummy)
 		/*
 		 * Get next operation
 		 */
-		if (p_sema(bg_sema)) {
-			_exit(1);
-		}
+		mutex_thread(0);
 		q = &qios[next++];
 		if (next >= NQIO) {
 			next = 0;
@@ -530,7 +531,13 @@ bg_thread(int dummy)
 		 * Flag completion
 		 */
 		q->q_op = 0;
-		b->b_busy = 0;
+		p_lock(&b->b_lock);
+		want = b->b_flags & B_WANT;
+		b->b_flags &= ~(B_BUSY | B_WANT);
+		v_lock(&b->b_lock);
+		if (want) {
+			mutex_thread(fg_pid);
+		}
 	}
 }
 
@@ -556,6 +563,7 @@ init_buf(port_t arg_ioport, int arg_coresec)
 	bufpool = hash_alloc(coresec / 8);
 	bufsize = 0;
 	ASSERT_DEBUG(bufpool, "init_buf: bufpool");
+	fg_pid = gettid();
 
 	/*
 	 * Record whether DMA is supported
@@ -566,7 +574,7 @@ init_buf(port_t arg_ioport, int arg_coresec)
 	/*
 	 * Spin off background thread
 	 */
-	tfork(bg_thread, 0);
+	bg_pid = tfork(bg_thread, 0);
 }
 
 /*
@@ -584,7 +592,7 @@ dirty_buf(struct buf *b, void *handle)
 	/* 
 	 * Mark buffer dirty
 	 */
-	GET(b);
+	get(b);
 	b->b_flags |= B_DIRTY;
 
 	/*
@@ -707,7 +715,7 @@ inval_buf(daddr_t d, uint len)
 	for (;;) {
 		b = hash_lookup(bufpool, d);
 		if (b) {
-			GET(b);
+			get(b);
 			free_buf(b);
 		}
 		if (len <= EXTSIZ) {
@@ -736,6 +744,18 @@ sync_bufs(void *handle)
 
 		/*
 		 * Not dirty--easy
+		 */
+		if (!(b->b_flags & B_DIRTY)) {
+			continue;
+		}
+
+		/*
+		 * Interlock
+		 */
+		get(b);
+
+		/*
+		 * Not dirty after interlock--still easy
 		 */
 		if (!(b->b_flags & B_DIRTY)) {
 			continue;
