@@ -16,7 +16,8 @@
 
 extern char *__cwd;	/* Current working dir */
 static void cd(), md(), quit(), ls(), pwd(), mount(), cat(), sleep(),
-	sec(), null(), run(), do_wstat(), do_fork(), get(), set();
+	sec(), null(), run(), do_wstat(), do_fork(), get(), set(),
+	do_umount();
 
 static char *buf;	/* Utility page buffer */
 
@@ -45,9 +46,27 @@ struct {
 	"sector", sec,
 	"set", set,
 	"sleep", sleep,
+	"umount", do_umount,
 	"wstat", do_wstat,
 	0, 0
 };
+
+/*
+ * do_umount()
+ *	Unmount all stuff at a point
+ */
+static void
+do_umount(char *p)
+{
+	int x;
+
+	if (!p || !p[0]) {
+		printf("Usage: umount <point>\n");
+		return;
+	}
+	x = umount(p, -1);
+	printf("umount returns: %d\n", x);
+}
 
 /*
  * get()
