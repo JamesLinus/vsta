@@ -18,7 +18,9 @@
 static void
 usage(char *util_name)
 {
-	fprintf(stderr, "Usage: %s <file_name> <sector_number>\n", util_name);
+	fprintf(stderr,
+		"Usage: %s <file_name> <sector_number> [ <nsects> ]\n",
+		util_name);
 	exit(1);
 }
 
@@ -69,7 +71,7 @@ int
 main(int argc, char **argv)
 {
 	int exit_code = 0;
-	int x;
+	int x, nsec, loc;
 
 	/*
 	* Do we have anything that looks vaguely reasonable
@@ -79,11 +81,24 @@ main(int argc, char **argv)
 	}
 
 	if (!strncmp(argv[2], "0x", 2)) {
-		(void)sscanf(argv[2]+2, "%x", &x);
+		(void)sscanf(argv[2]+2, "%x", &loc);
 	} else {
-		(void)sscanf(argv[2], "%d", &x);
+		(void)sscanf(argv[2], "%d", &loc);
 	}
-	exit_code = print_sect(argv[1], x);
+	if (argc > 3) {
+		(void)sscanf(argv[3], "%d", &nsec);
+	} else {
+		nsec = 1;
+	}
+	for (x = 0; x < nsec; ++x,++loc) {
+		if (nsec > 1) {
+			if (x > 0) {
+				printf("\n");
+			}
+			printf("Sector %d(0x%x):\n", loc, loc);
+		}
+		exit_code = print_sect(argv[1], loc);
+	}
 
 	return(exit_code);
 }
