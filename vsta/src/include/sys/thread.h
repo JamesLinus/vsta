@@ -27,6 +27,7 @@ struct thread {
 		*t_hd, *t_tl,
 		*t_next;	/* List of threads under a process */
 	sema_t *t_wchan;	/* Semaphore we're asleep on */
+	int t_intr;		/*  ...flag that we were interrupted */
 	sema_t t_msgwait;	/* Semaphore slept on waiting for I/O */
 	jmp_buf t_qsav;		/* Vector for interrupting p_sema */
 	voidfun t_probe;	/* When probing user memory */
