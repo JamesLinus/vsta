@@ -350,6 +350,8 @@ iodone_unlock(struct qio *q)
 /*
  * alloc_pset()
  *	Common code for allocation of all types of psets
+ *
+ * Caller is responsible for any swap allocations.
  */
 static struct pset *
 alloc_pset(uint pages)
@@ -357,12 +359,8 @@ alloc_pset(uint pages)
 	struct pset *ps;
 
 	ps = malloc(sizeof(struct pset));
+	bzero(ps, sizeof(struct pset));
 	ps->p_len = pages;
-	ps->p_off = 0;
-	ps->p_locks = 0;
-	ps->p_refs = 0;
-	ps->p_cowsets = 0;
-	ps->p_swapblk = 0;	/* Caller has to allocate */
 	ps->p_perpage = malloc(sizeof(struct perpage) * pages);
 	bzero(ps->p_perpage, sizeof(struct perpage) * pages);
 	init_lock(&ps->p_lock);
@@ -517,17 +515,17 @@ dup_slots(struct pset *ops, struct pset *ps)
  *	Add a new pset to the list of COW sets under a master
  */
 static void
-add_cowset(struct pset *psold, struct pset *ps)
+add_cowset(struct pset *pscow, struct pset *ps)
 {
 	/*
 	 * Attach to the underlying pset
 	 */
-	ref_pset(psold);
-	p_lock(&psold->p_lock, SPL0);
-	ps->p_cowsets = psold->p_cowsets;
-	psold->p_cowsets = ps;
-	ps->p_cow = psold;
-	v_lock(&psold->p_lock, SPL0);
+	ref_pset(pscow);
+	p_lock(&pscow->p_lock, SPL0);
+	ps->p_cowsets = pscow->p_cowsets;
+	pscow->p_cowsets = ps;
+	ps->p_cow = pscow;
+	v_lock(&pscow->p_lock, SPL0);
 }
 
 /*
@@ -571,7 +569,7 @@ copy_pset(struct pset *ops)
 		/*
 		 * This is a new COW reference into the master pset
 		 */
-		add_cowset(ops, ps);
+		add_cowset(ops->p_cow, ps);
 		break;
 	case PT_MEM:
 		/*
