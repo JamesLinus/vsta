@@ -41,7 +41,7 @@ TXT=src/bin/ports/less src/bin/ports/grep src/bin/ports/rh \
 	src/bin/ports/sed src/bin/ports/tar src/bin/ports/awk \
 	src/bin/ports/fileutl src/bin/ports/textutil \
 	src/bin/ports/find src/bin/ports/patch \
-	src/bin/ports/ctags
+	src/bin/ports/ctags src/bin/ports/rcs5.11
 
 # Shells
 SH=src/bin/ports/ash src/bin/testsh src/bin/ports/rc
@@ -79,12 +79,15 @@ PYTHON=src/bin/ports/python lib/python15
 # Diff utilities
 DIFF=src/bin/ports/diffutl
 
+# Graphics
+GRAPHICS=src/bin/ports/svgalib src/bin/ports/jpeg6b
+
 # Sample accounts
 ACCOUNT=root guest
 
 # Default: make a distribution
 dist: bindist srcdist make txt sh ed fun bc gzip sc small gcc \
-	mgrdist lang net python diff account
+	mgrdist lang net python diff account graphics
 
 bindist:
 	tar -cvf - $(BIN) | gzip -9 > $(DEST)/vsta.tz
@@ -139,3 +142,6 @@ diff:
 
 account:
 	tar -cvf - $(ACCOUNT) | gzip -9 > $(DEST)/account.tz
+
+graphics:
+	tar -cvf - $(GRAPHICS) | gzip -9 > $(DEST)/graphics.tz
