@@ -37,3 +37,4 @@ Allow VM page stealing to be active before swap space is configured.
 	Only stealing of unmodified pages is possible, but this can
 	still be a help on smaller systems.
 Port of "rh" find(1)-like tool using C syntax.
+Add ~ and ~user processing for open()
