@@ -206,8 +206,12 @@ main(argc, argv)
 	 * Do ls on rest of file or dirnames
 	 */
 	ndir = argc-x;
-	for (; x < argc; ++x) {
-		ls(argv[x]);
+	if (ndir == 0) {
+		ls(".");
+	} else {
+		for (; x < argc; ++x) {
+			ls(argv[x]);
+		}
 	}
 
 	return(0);
