@@ -13,11 +13,20 @@
  * to terminals the fill/flush vectors will be set to routines which
  * do TTY-style processing.
  */
-FILE __iob[3] = {
+FILE __iob2[3] = {
 	{_F_READ, 0, 0, 0, 0, 0, 0, 0},
 	{_F_WRITE|_F_LINE, 1, 0, 0, 0, 0, 0, 0},
 	{_F_WRITE|_F_UNBUF, 2, 0, 0, 0, 0, 0, 0}
 };
+
+/*
+ * Return pointer to iob array
+ */
+FILE *
+__get_iob(void)
+{
+	return(__iob2);
+}
 
 /*
  * Used to enumerate all open files
@@ -598,7 +607,7 @@ fclose(FILE *fp)
 	if (fp->f_buf && !(fp->f_flags & _F_UBUF)) {
 		free(fp->f_buf);
 	}
-	if ((fp < &__iob[0]) || (fp >= &__iob[3])) {
+	if ((fp < &__iob2[0]) || (fp >= &__iob2[3])) {
 		free(fp);
 	}
 

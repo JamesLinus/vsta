@@ -10,7 +10,7 @@
  * symbolics but then the table is a LOT harder to get into this
  * neat columnar format.
  */
-unsigned char __ctab[] = {
+static const unsigned char __ctab[] = {
 32,	32,	32,	32,	32,	32,	32,	32,	/* 000 */
 32,	48,	48,	48,	48,	48,	32,	32,	/* 008 */
 32,	32,	32,	32,	32,	32,	32,	32,	/* 016 */
@@ -28,6 +28,12 @@ unsigned char __ctab[] = {
 4,	4,	4,	4,	4,	4,	4,	4,	/* 112 */
 4,	4,	4,	0,	0,	0,	0,	0	/* 120 */
 };
+
+const unsigned char *
+__get_ctab(void)
+{
+	return(__ctab);
+}
 
 #define __bits(c, b) (__ctab[(c) & 0x7F] & (b))
 

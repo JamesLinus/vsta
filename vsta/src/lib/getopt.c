@@ -10,13 +10,27 @@
 /*
  * get option letter from argument vector
  */
+static
 int	opterr = 1,		/* if error message should be printed */
 	optind = 1,		/* index into parent argv vector */
 	optopt;			/* character checked for validity */
+static
 char	*optarg;		/* argument associated with option */
 
 #define	BADCH	(int)'?'
 #define	EMSG	""
+
+void *
+__getopt_ptr(int idx)
+{
+	switch (idx) {
+	case 0: return(&opterr);
+	case 1: return(&optind);
+	case 2: return(&optopt);
+	case 3: return(&optarg);
+	default: return(0);
+	}
+}
 
 int
 getopt(nargc, nargv, ostr)

@@ -6,6 +6,14 @@
 #include <std.h>
 #include <fdl.h>
 #include <mnttab.h>
+#include <ctype.h>
+#include <stdio.h>
+
+/*
+ * We initialize these here and offer them to C library users
+ */
+unsigned char *__ctab;
+FILE (*__iob)[];
 
 /*
  * __start()
@@ -105,4 +113,10 @@ noargs:
 	 * Unmap the argument memory
 	 */
 	(void)munmap(basemem, a-basemem);
+
+	/*
+	 * Wire in <ctype.h> ctab pointer and <stdio.h> iob[]
+	 */
+	__ctab = __get_ctab();
+	__iob  = __get_iob();
 }

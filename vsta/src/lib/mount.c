@@ -13,6 +13,17 @@ struct mnttab *__mnttab;
 int __nmnttab = 0;
 
 /*
+ * __get_mntinfo()
+ *	Provide procedural interface to access mount data structures
+ */
+void
+__get_mntinfo(int *countp, struct mnttab **mntp)
+{
+	*countp = __nmnttab;
+	*mntp = __mnttab;
+}
+
+/*
  * mountport()
  *	Like mount(), but mount on given port
  */
