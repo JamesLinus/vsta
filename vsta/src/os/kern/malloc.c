@@ -53,6 +53,7 @@ char *n_allocname[MALLOCTYPES] = {
 	"MT_PGRP",
 	"MT_ATL",
 	"MT_FPU",
+	"MT_OPENPORT",
 };
 #endif /* DEBUG */
 
