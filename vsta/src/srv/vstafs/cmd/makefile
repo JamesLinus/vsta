@@ -1,6 +1,7 @@
 COPTS=-Wall
 OBJS=fsck.o
 OUT=fsck mkfs fsdb
+EXTRA_CLEAN=mkfs.o fsdb.o
 
 include ../../../makefile.all
 
