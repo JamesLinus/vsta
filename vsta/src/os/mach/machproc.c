@@ -167,7 +167,7 @@ boot_regs(struct thread *t, struct boot_task *b)
 	 * within the stack region.
 	 */
 	u->ebp =
-	u->esp = (USTACKADDR+UMINSTACK) - 2*sizeof(ulong);
+	u->esp = (USTACKADDR+UMAXSTACK) - 2*sizeof(ulong);
 	u->eflags = F_IF;
 
 	/*
@@ -208,7 +208,7 @@ reset_uregs(struct thread *t, ulong entry_addr)
 	struct trapframe *u = t->t_uregs;
 
 	u->ebp =
-	u->esp = (USTACKADDR+UMINSTACK) - sizeof(ulong);
+	u->esp = (USTACKADDR+UMAXSTACK) - sizeof(ulong);
 	u->eflags = F_IF;
 	u->eip = entry_addr;
 }

@@ -153,7 +153,7 @@ bootproc(struct boot_task *b)
 	/*
 	 * Stack is ZFOD
 	 */
-	ASSERT(alloc_zfod_vaddr(vas, btorp(UMINSTACK), (void *)USTACKADDR),
+	ASSERT(alloc_zfod_vaddr(vas, btorp(UMAXSTACK), (void *)USTACKADDR),
 		"bootproc: no stack");
 
 	/*
