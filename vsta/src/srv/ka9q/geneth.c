@@ -368,7 +368,7 @@ eth_attach(int argc, char **argv)
 	/*
 	 * Launch daemon
 	 */
-	vsta_daemon(eth_recv_daemon);
+	(void)vsta_daemon(eth_recv_daemon);
 
 	return 0;
 }

@@ -3,7 +3,7 @@
 #
 CC=gcc
 CFLAGS=-DUNIX -DBSD -DSLOWCHECK -DMSPTICK=20
-LIBS =
+LIBS=-lusr
 
 SRCS =	main.c arp.c arpcmd.c arpdump.c ax25.c ax25cmd.c \
 	ax25dump.c ax25subr.c ax25user.c ax_mbx.c cmdparse.c \

@@ -36,6 +36,7 @@
 #include <sys/fs.h>
 #include <sys/perm.h>
 #include <sys/assert.h>
+#include <sys/param.h>
 #include <hash.h>
 #include <llist.h>
 #include <std.h>
@@ -59,7 +60,9 @@ extern int32 ip_addr;		/* Our node's IP address */
 static struct hash *clients;	/* /inet filesystem clients */
 static struct hash *ports;	/* Port # -> tcp_port mapping */
 static port_t serv_port;	/* Our port */
+static port_name serv_name;	/*  ...its namer name */
 static uint nport;		/* # ports being served */
+static uint port_idx;		/* Thread index for port daemon */
 
 /*
  * Protection of privileged TCP port numbers
@@ -82,8 +85,6 @@ struct tcp_conn {
 	struct llist		/* Reader/writer queues */
 		t_readers,
 		t_writers;
-	struct socket		/* Foreign TCP socket */
-		t_fsock;
 	struct mbuf *t_readq;	/* Queue of mbufs of data to be consumed */
 };
 
@@ -95,7 +96,8 @@ struct tcp_port {
 	uint t_refs;		/* # clients attached */
 	struct prot t_prot;	/* Protection on this TCP port */
 	struct socket
-		t_lsock;	/* Local TCP socket */
+		t_lsock,	/* Local TCP socket */
+		t_fsock;	/*  ...proposed remote, for active connect */
 	struct tcp_conn
 		**t_conns;	/* Connected remote clients */
 	uint t_maxconn;		/* # of slots in t_conns */
@@ -119,6 +121,10 @@ struct client {
 		c_dir;		/* Current dir position */
 	uint c_pos;		/* Position, for dir reads */
 				/* Connection #, for TCP mode */
+	struct perm		/* Client abilities */
+		c_perms[PROCPERMS];
+	uint c_nperms;
+	uint c_perm;		/*  ...as applied to current node */
 };
 
 /*
@@ -199,12 +205,14 @@ inetfs_seek(struct msg *m, struct client *c)
 static void
 new_client(struct msg *m)
 {
-	struct client *c;
+	struct client *cl;
+	struct perm *perms;
+	int nperms;
 
 	/*
 	 * Get data structure
 	 */
-	if ((c = malloc(sizeof(struct client))) == 0) {
+	if ((cl = malloc(sizeof(struct client))) == 0) {
 		msg_err(m->m_sender, strerror());
 		return;
 	}
@@ -212,16 +220,24 @@ new_client(struct msg *m)
 	/*
 	 * Initialize fields
 	 */
-	bzero(c, sizeof(struct client));
+	bzero(cl, sizeof(struct client));
 
 	/*
 	 * Hash under the sender's handle
 	 */
-        if (hash_insert(clients, m->m_sender, c)) {
-		free(c);
+        if (hash_insert(clients, m->m_sender, cl)) {
+		free(cl);
 		msg_err(m->m_sender, ENOMEM);
 		return;
 	}
+
+	/*
+	 * Record abilities
+	 */
+	perms = (struct perm *)m->m_buf;
+	nperms = (m->m_buflen) / sizeof(struct perm);
+	bcopy(perms, &cl->c_perms, nperms * sizeof(struct perm));
+	cl->c_nperms = nperms;
 
 	/*
 	 * Return acceptance
@@ -402,7 +418,7 @@ cleanup(void)
 		hash_dealloc(ports);
 		ports = 0;
 	}
-	vsta_daemon_done(port_daemon);
+	vsta_daemon_done(port_idx);
 }
 
 /*
@@ -505,7 +521,28 @@ create_port(int16 portnum)
 	t->t_lsock.address = ip_addr;
 	t->t_lsock.port = portnum;
 	ll_init(&t->t_any);
+
 	return(t);
+}
+
+/*
+ * default_prot()
+ *	Set default protection for a port based on client's ID
+ */
+static void
+default_prot(struct tcp_port *t, struct client *cl)
+{
+	struct prot *p;
+
+	/*
+	 * Assign default protection
+	 */
+	p = &t->t_prot;
+	bzero(p, sizeof(*p));
+	p->prot_len = PERM_LEN(&cl->c_perms[0]);
+	bcopy(cl->c_perms[0].perm_id, p->prot_id, PERMLEN);
+	cl->c_perm = p->prot_bits[p->prot_len-1] =
+		ACC_READ|ACC_WRITE|ACC_CHMOD;
 }
 
 /*
@@ -528,6 +565,7 @@ inetfs_open(struct msg *m, struct client *cl)
 			return;
 		}
 		cl->c_dir = DIR_TCP;
+		cl->c_perm = ACC_READ | ACC_WRITE | ACC_CHMOD;
 		break;
 	case DIR_TCP:
 		/*
@@ -555,11 +593,29 @@ inetfs_open(struct msg *m, struct client *cl)
 		 */
 		t = find_port(portnum);
 		if (t == 0) {
+			/*
+			 * Create a new one; initialize its protection
+			 */
 			t = create_port(portnum);
 			if (t == 0) {
 				msg_err(m->m_sender, strerror());
 				return;
 			}
+			default_prot(t, cl);
+		} else {
+			uint x, want;
+
+			/*
+			 * See if we're allowed to access this port
+			 */
+			x = perm_calc(cl->c_perms, cl->c_nperms,
+				&t->t_prot);
+			want = m->m_arg & (ACC_READ|ACC_WRITE|ACC_CHMOD);
+			if ((want & x) != want) {
+				msg_err(m->m_sender, EPERM);
+				return;
+			}
+			cl->c_perm = x;
 		}
 
 		/*
@@ -602,10 +658,13 @@ cleario(struct llist *l, char *err)
 {
 	struct client *cl;
 
+	printf("cleario 0x%x\n", l);
 	while (!LL_EMPTY(l)) {
 		struct msg *m;
 
+		printf(" - about to touch LL_NEXT\n");
 		cl = LL_NEXT(l)->l_data;
+		printf(" - client 0x%x\n", cl);
 		ll_delete(cl->c_entry); cl->c_entry = 0;
 		m = &cl->c_msg;
 		if (err) {
@@ -615,6 +674,7 @@ cleario(struct llist *l, char *err)
 			msg_reply(m->m_sender, m);
 		}
 	}
+	printf("done cleario\n");
 }
 /*
  * inetfs_state()
@@ -683,98 +743,6 @@ inetfs_state(struct tcb *tcb, char old, char new)
 }
 
 /*
- * inetfs_conn()
- *	Try to change connection mode for this TCP port
- */
-static void
-inetfs_conn(struct msg *m, struct client *cl, char *val)
-{
-	struct tcp_port *t = cl->c_port;
-	struct tcp_conn *c;
-	uint mode;
-
-	/*
-	 * Disconnection--shut TCP if open, return success
-	 */
-	if (!strcmp(val, "disconnect")) {
-		if (c->t_tcb) {
-			close_tcp(c->t_tcb);
-			c->t_tcb->user = 0;
-			c->t_tcb = 0;
-		}
-		(void)msg_reply(m->m_sender, m);
-		return;
-	}
-
-	/*
-	 * Decode mode of connection
-	 */
-	if (!strcmp(val, "server")) {
-		mode = TCP_SERVER;
-	} else if (!strcmp(val, "passive")) {
-		mode = TCP_PASSIVE;
-	} else if (!strcmp(val, "active")) {
-		/*
-		 * Require a destination ip/port pair
-		 */
-		if (!c->t_fsock.address || !c->t_fsock.port) {
-			msg_err(m->m_sender, "ip/no addr");
-			return;
-		}
-		mode = TCP_ACTIVE;
-	} else {
-		msg_err(m->m_sender, EINVAL);
-		return;
-	}
-
-	/*
-	 * Don't permit if connection already initiated
-	 */
-	if (c->t_tcb) {
-		msg_err(m->m_sender, EBUSY);
-		return;
-	}
-
-	/*
-	 * Get tcp_conn first
-	 */
-	c = create_conn(t);
-	c->t_conn = cl->c_pos;
-
-	/*
-	 * Request connection, with upcall connections
-	 */
-	c->t_tcb = open_tcp(&t->t_lsock, NULLSOCK, mode, 0,
-		inetfs_rcv, inetfs_xmt, inetfs_state, 0, t);
-	if (c->t_tcb == NULLTCB) {
-		msg_err(m->m_sender, err2str(net_error));
-		uncreate_conn(t, c);
-		return;
-	}
-
-	/*
-	 * Queue as a "writer" for kicking off the connection
-	 */
-	cl->c_entry = ll_insert(&c->t_writers, cl);
-	if (cl->c_entry == 0) {
-		msg_err(m->m_sender, strerror());
-		close_tcp(c->t_tcb); c->t_tcb = 0;
-		uncreate_conn(t, c);
-		return;
-	}
-
-	/*
-	 * Update port tally
-	 */
-	nport += 1;
-
-	/*
-	 * Record client message, wait for connection
-	 */
-	cl->c_msg = *m;
-}
-
-/*
  * get_conn()
  *	Given client, return tcp_conn currently selected, or 0
  */
@@ -795,6 +763,102 @@ get_conn(struct client *cl)
 }
 
 /*
+ * inetfs_conn()
+ *	Try to change connection mode for this TCP port
+ */
+static void
+inetfs_conn(struct msg *m, struct client *cl, char *val)
+{
+	struct tcp_port *t = cl->c_port;
+	struct tcp_conn *c;
+	uint mode;
+
+	/*
+	 * Disconnection--shut TCP if open, return success
+	 */
+	if (!strcmp(val, "disconnect")) {
+		c = get_conn(cl);
+		if (c->t_tcb) {
+			close_tcp(c->t_tcb);
+			c->t_tcb->user = 0;
+			c->t_tcb = 0;
+		}
+		(void)msg_reply(m->m_sender, m);
+		return;
+	}
+
+	/*
+	 * Decode mode of connection
+	 */
+	if (!strcmp(val, "server")) {
+		mode = TCP_SERVER;
+	} else if (!strcmp(val, "passive")) {
+		mode = TCP_PASSIVE;
+	} else if (!strcmp(val, "active")) {
+		/*
+		 * Require a destination ip/port pair
+		 */
+		if (!t->t_fsock.address || !t->t_fsock.port) {
+			msg_err(m->m_sender, "ip/no addr");
+			return;
+		}
+		mode = TCP_ACTIVE;
+	} else {
+		msg_err(m->m_sender, EINVAL);
+		return;
+	}
+
+	/*
+	 * Don't permit if connection already initiated
+	 */
+	if (t->t_maxconn > 0) {
+		msg_err(m->m_sender, EBUSY);
+		return;
+	}
+
+	/*
+	 * Get tcp_conn first
+	 */
+	c = create_conn(t);
+	c->t_conn = cl->c_pos;
+
+	/*
+	 * Request connection, with upcall connections
+	 */
+	c->t_tcb = open_tcp(&t->t_lsock,
+		((t->t_fsock.address && t->t_fsock.port) ?
+			(&t->t_fsock) : (NULLSOCK)),
+		mode, 0,
+		inetfs_rcv, inetfs_xmt, inetfs_state, 0, c);
+	if (c->t_tcb == NULLTCB) {
+		msg_err(m->m_sender, err2str(net_error));
+		uncreate_conn(t, c);
+		return;
+	}
+
+	/*
+	 * Queue as a "writer" for kicking off the connection
+	 */
+	cl->c_entry = ll_insert(&c->t_writers, cl);
+	if (cl->c_entry == 0) {
+		msg_err(m->m_sender, strerror());
+		del_tcp(c->t_tcb); c->t_tcb = 0;
+		uncreate_conn(t, c);
+		return;
+	}
+
+	/*
+	 * Update port tally
+	 */
+	nport += 1;
+
+	/*
+	 * Record client message, wait for connection
+	 */
+	cl->c_msg = *m;
+}
+
+/*
  * inetfs_wstat()
  *	Handle status setting operations
  */
@@ -803,29 +867,23 @@ inetfs_wstat(struct msg *m, struct client *cl)
 {
 	char *field, *val;
 	struct tcp_port *t = cl->c_port;
-	struct tcp_conn *c;
 
-#ifdef LATER
-	if (do_wstat(m, &c->c_port->t_prot, c->c_perm, &field, &val)) {
+	if (do_wstat(m, &t->t_prot, cl->c_perm, &field, &val) == 0) {
 		return;
 	}
-#endif
 	switch (cl->c_dir) {
 	case DIR_PORT:
 		ASSERT_DEBUG(t, "inetfs_wstat: PORT null port");
-		c = get_conn(cl);
-		if (c == 0) {
-			; /* Fall into error case below */
-		}
-		if (!strcmp(field, "dest")) {
-			c->t_fsock.address = aton(val);
-			break;
-		} else if (!strcmp(field, "destsock")) {
-			c->t_fsock.port = atoi(val);
-			break;
-		} else if (!strcmp(field, "conn")) {
+		if (!strcmp(field, "conn")) {
 			inetfs_conn(m, cl, val);
 			return;
+		}
+		if (!strcmp(field, "dest")) {
+			t->t_fsock.address = aton(val);
+			break;
+		} else if (!strcmp(field, "destsock")) {
+			t->t_fsock.port = atoi(val);
+			break;
 		}
 
 		/* VVV fall into error case VVV */
@@ -1066,9 +1124,6 @@ proc_msg(struct msg *m)
 	 * Switch based on request
 	 */
 	switch (m->m_op) {
-	case M_CONNECT:		/* New client */
-		new_client(m);
-		break;
 	case M_DISCONNECT:	/* Client done */
 		dead_client(m, cl);
 		break;
@@ -1156,10 +1211,14 @@ port_daemon(void)
 			_exit(1);
 		}
 
-		/*
-		 * Run the message through
-		 */
-		proc_msg(&m);
+		switch (m.m_op) {
+		case M_CONNECT:		/* New client */
+			new_client(&m);
+			break;
+
+		default:		/* Others */
+			proc_msg(&m);
+		}
 
 		/*
 		 * Release lock and loop
@@ -1175,7 +1234,7 @@ port_daemon(void)
 void
 vsta1(int argc, char **argv)
 {
-	port_name pn;
+	port_name serv_name;
 
 	/*
 	 * Get client & port hash
@@ -1195,13 +1254,13 @@ vsta1(int argc, char **argv)
 	/*
 	 * Get server port, advertise it
 	 */
-	serv_port = msg_port(0, &pn);
+	serv_port = msg_port(0, &serv_name);
 	if (serv_port < 0) {
 		printf("Can't allocate port\n");
 		cleanup();
 		return;
 	}
-	if (namer_register("net/inet", pn) < 0) {
+	if (namer_register("net/inet", serv_name) < 0) {
 		printf("Can't register port name\n");
 		cleanup();
 		return;
@@ -1210,7 +1269,7 @@ vsta1(int argc, char **argv)
 	/*
 	 * Start watcher daemon for this service
 	 */
-	vsta_daemon(port_daemon);
+	port_idx = vsta_daemon(port_daemon);
 }
 
 /*
@@ -1316,12 +1375,11 @@ inetfs_rcv(struct tcb *tcb, int16 cnt)
 static void
 inetfs_xmt(struct tcb *tcb, int16 count)
 {
-	struct tcp_port *t = tcb->user;
 	struct msg *m;
 	struct llist *l;
 	struct client *cl;
 	struct mbuf *mb;
-	struct tcp_conn *c;
+	struct tcp_conn *c = tcb->user;
 
 	/*
 	 * If previous write isn't complete, wait until it is.
@@ -1335,7 +1393,6 @@ inetfs_xmt(struct tcb *tcb, int16 count)
 	 * The first entry in the list will be the most
 	 * recent writer
 	 */
-	c = tcb->user;
 	l = LL_NEXT(&c->t_writers);
 	cl = l->l_data;
 	ll_delete(cl->c_entry); cl->c_entry = 0;
@@ -1369,4 +1426,86 @@ inetfs_xmt(struct tcb *tcb, int16 count)
 		msg_err(m->m_sender, err2str(net_error));
 		ll_delete(cl->c_entry); cl->c_entry = 0;
 	}
+}
+
+/*
+ * show_client()
+ *	Display client status
+ */
+static int
+show_client(long client, struct client *cl, int arg)
+{
+	static char *dirname[] = {"root", "TCP", "port"};
+
+	printf("%d\t%s\t%d\t%x\t%x\t%ld\n",
+		cl->c_perms[0].perm_uid,
+		dirname[cl->c_dir],
+		(cl->c_dir == DIR_PORT) ?
+			(cl->c_port->t_lsock.port) : 0,
+		(ulong)(cl->c_port)  & 0xFFFFFF,
+		(ulong)(cl->c_entry) & 0xFFFFFF,
+		client);
+	return(0);
+}
+
+/*
+ * listlen()
+ *	Return length of a list
+ */
+static uint
+listlen(struct llist *l)
+{
+	struct llist *l2 = LL_NEXT(l);
+	uint len = 0;
+
+	while (l2 != l) {
+		len += 1;
+		l2 = LL_NEXT(l2);
+	}
+	return(len);
+}
+
+/*
+ * show_port()
+ *	Display state of a tcp_port
+ */
+static int
+show_port(long port, struct tcp_port *t, int arg)
+{
+	uint x;
+
+	printf("%ld\t%d\t%d\n", port, t->t_refs, t->t_maxconn);
+	for (x = 0; x < t->t_maxconn; ++x) {
+		struct tcp_conn *c = t->t_conns[x];
+		struct tcb *tcb;
+
+		if (c == 0) {
+			continue;
+		}
+		tcb = c->t_tcb;
+		printf(" %2d rem: %s:%d #rd: %d #wrt: %d\n",
+			x,
+			tcb ? 
+				inet_ntoa(tcb->conn.remote.address)
+			    :	"0.0.0.0",
+			tcb ?
+				tcb->conn.remote.port
+			    :	0,
+			listlen(&c->t_readers),
+			listlen(&c->t_writers));
+	}
+}
+
+/*
+ * dovsta()
+ *	Status queries from KA9Q command line
+ */
+int
+dovsta(char *cmd)
+{
+	printf("========VSTa server port: %d\n", msg_portname(serv_name));
+	printf("UID\tDir\tPort\t\tQueue\n");
+	hash_foreach(clients, show_client, 0);
+	printf("========# ports: %d\nPort\trefs\tmaxconn\n", nport);
+	hash_foreach(ports, show_port, 0);
 }

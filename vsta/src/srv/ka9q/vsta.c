@@ -61,7 +61,8 @@ static struct daemon {
 static pid_t curtid;	/* Current thread holding ka9q_lock */
 lock_t ka9q_lock;	/* Mutex among threads */
 static uint nbg;	/* # of background threads from yield() */
-static pid_t timetid;	/* Timer task thread ID */
+static int
+	time_idx = -1;	/* Timer task thread index in daemons[] */
 
 /*
  * Typeahead for console, a circular list
@@ -83,7 +84,7 @@ extern char *bbsexe;
  * vsta_daemon()
  *	Start a daemon for the given function
  */
-void
+uint
 vsta_daemon(voidfun fn)
 {
 	uint x;
@@ -92,10 +93,11 @@ vsta_daemon(voidfun fn)
 		if (daemons[x].d_fn == 0) {
 			daemons[x].d_fn = fn;
 			daemons[x].d_tid = tfork(fn, 0);
-			return;
+			return(x);
 		}
 	}
 	printf("Too many daemons\n");
+	_exit(1);
 }
 
 /*
@@ -103,17 +105,10 @@ vsta_daemon(voidfun fn)
  *	Clear a daemon entry
  */
 void
-vsta_daemon_done(voidfun fn)
+vsta_daemon_done(uint idx)
 {
-	uint x;
-
-	for (x = 0; x < MAXDAEMON; ++x) {
-		if (daemons[x].d_fn == fn) {
-			daemons[x].d_fn = 0;
-			daemons[x].d_tid = 0;
-			return;
-		}
-	}
+	daemons[idx].d_fn = 0;
+	daemons[idx].d_tid = 0;
 }
 
 /*
@@ -352,6 +347,7 @@ timechange(char *event)
 	 * Do nothing on recalc event, die horribly on anything else
 	 */
 	if (strcmp(event, "recalc")) {
+		printf("Event: %s\n", event);
 		_exit(1);
 	}
 }
@@ -363,7 +359,11 @@ timechange(char *event)
 void
 recalc_timers(void)
 {
-	(void)notify(0, timetid, "recalc");
+	pid_t tid = daemons[time_idx].d_tid;
+
+	if (gettid() != tid) {
+		(void)notify(0, tid, "recalc");
+	}
 }
 
 /*
@@ -381,7 +381,6 @@ timewatcher(void)
 	 * Set up a handler for our "wakeup call", register our TID
 	 */
 	notify_handler(timechange);
-	timetid = gettid();
 
 	/*
 	 * Endless server loop
@@ -495,8 +494,8 @@ eihalt()
 	/*
 	 * Launch the initial threads.  The original thread dies here.
 	 */
-	vsta_daemon(timewatcher);
-	vsta_daemon(conswatcher);
+	time_idx = vsta_daemon(timewatcher);
+	(void)vsta_daemon(conswatcher);
 	_exit(0);
 }
 

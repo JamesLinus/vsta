@@ -89,6 +89,9 @@ int doetherstat();
 #ifdef _FINGER
 int dofinger();
 #endif
+#ifdef UNIX
+extern int dovsta();
+#endif
 
 static struct cmds cmds[] = {
 	/* The "go" command must be first */
@@ -166,6 +169,9 @@ static struct cmds cmds[] = {
 #endif
 	"udp",		doudp,		0, NULLCHAR,	NULLCHAR,
 	"upload",	doupload,	0, NULLCHAR,	NULLCHAR,
+#ifdef UNIX
+	"vsta", 	dovsta,		2, "vsta stat",	NULLCHAR,
+#endif
 	"?",		dohelp,		0, NULLCHAR,	NULLCHAR,
 	NULLCHAR,	NULLFP,		0,
 		"Unknown command; type \"?\" for list",   NULLCHAR, 
@@ -176,7 +182,10 @@ static struct cmds cmds[] = {
 int dis1(),echo1(),ftp1(),smtp1(),tn1(),rem1();
 
 #ifdef _FINGER
-int finger1();
+extern int finger1();
+#endif
+#ifdef UNIX
+extern int vsta1();
 #endif
 
 static struct cmds startcmds[] = {
@@ -189,26 +198,24 @@ static struct cmds startcmds[] = {
 	"smtp",		smtp1,		0, NULLCHAR, NULLCHAR,
 	"telnet",	tn1,		0, NULLCHAR, NULLCHAR,
 	"remote",	rem1,		0, NULLCHAR, NULLCHAR,
-	NULLCHAR,	NULLFP,		0,
 #ifdef UNIX
-#ifdef _FINGER
-		"start options: discard, echo, finger, ftp, remote, smtp, telnet, telunix, x", NULLCHAR,
-#else
-		"start options: discard, echo, ftp, remote, smtp, telnet, telunix, x", NULLCHAR,
+	"vsta",		vsta1,		0, NULLCHAR, NULLCHAR,
 #endif
-#else /* UNIX */
+	NULLCHAR,	NULLFP,		0,
+	"start options: discard, echo, ftp, remote, smtp, telnet"
 #ifdef _FINGER
-		"start options: discard, echo, finger, ftp, remote, smtp, telnet", NULLCHAR,
-#else
-		"start options: discard, echo, ftp, remote, smtp, telnet", NULLCHAR,
+	", finger"
 #endif
-#endif /* UNIX */
+#ifdef UNIX
+	", vsta"
+#endif
+						   , NULLCHAR,
 };
 int ftp_stop(),smtp_stop(),echo_stop(),dis_stop(),tn_stop();
 int dis0(),echo0(),ftp0(),smtp0(),tn0(),rem0();
 
 #ifdef UNIX
-int tnix0();
+int vsta0();
 #endif
 
 #ifdef _FINGER
@@ -225,22 +232,20 @@ static struct cmds stopcmds[] = {
 	"smtp",		smtp0,		0, NULLCHAR, NULLCHAR,
 	"telnet",	tn0,		0, NULLCHAR, NULLCHAR,
 	"remote",	rem0,		0, NULLCHAR, NULLCHAR,
-	NULLCHAR,	NULLFP,		0,
 #ifdef UNIX
-#ifdef _FINGER
-		"stop options: discard, echo, finger, ftp, remote, smtp, telnet, telunix, x", NULLCHAR,
-#else
-		"stop options: discard, echo, ftp, remote, smtp, telnet, telunix, x", NULLCHAR,
+	"vsta",		vsta0,		0, NULLCHAR, NULLCHAR,
 #endif
-#else /* UNIX */
+	NULLCHAR,	NULLFP,		0,
+	"start options: discard, echo, ftp, remote, smtp, telnet"
 #ifdef _FINGER
-		"stop options: discard, echo, finger, ftp, remote, smtp, telnet", NULLCHAR,
-#else
-		"stop options: discard, echo, ftp, remote, smtp, telnet", NULLCHAR,
+	", finger"
 #endif
-#endif /* UNIX */
+#ifdef UNIX
+	", vsta"
+#endif
+						   , NULLCHAR,
 };
-#endif
+#endif /* SERVERS */
 
 void
 keep_things_going()
