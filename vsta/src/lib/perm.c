@@ -12,6 +12,7 @@
  * umask()
  *	Set default protection mask
  */
+int
 umask(int newmask)
 {
 	return(0600);
@@ -21,7 +22,8 @@ umask(int newmask)
  * chmod()
  *	Change mode of file
  */
-chmod(char *file, int mode)
+int
+chmod(const char *file, int mode)
 {
 	return(0);
 }
@@ -33,7 +35,8 @@ chmod(char *file, int mode)
  * Ignores the effective/real dichotomy, since we don't really
  * have it as such.
  */
-access(char *file, int mode)
+int
+access(const char *file, int mode)
 {
 	int fd;
 
@@ -47,4 +50,14 @@ access(char *file, int mode)
 		return(0);
 	}
 	return(-1);
+}
+
+/*
+ * chown()
+ *	Change the owner of a file
+ */
+int
+chown(const char *path, uid_t owner, gid_t group)
+{
+	return(0);
 }
