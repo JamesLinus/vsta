@@ -581,6 +581,16 @@ do_exit(int code)
 		remove_pview(&p->p_vas, t->t_ustack);
 	} else {
 #ifdef DEBUG
+		/*
+		 * This is so we can find the thread if he hangs
+		 * up closing our ports
+		 */
+		p->p_threads = t;
+
+		/*
+		 * Whine if it's a boot server going down--they
+		 * generally aren't expected to.
+		 */
 		if (p->p_vas.v_flags & VF_BOOT) {
 			printf("Boot process %d dies\n", p->p_pid);
 			dbg_enter();
@@ -594,7 +604,7 @@ do_exit(int code)
 		deref_exitgrp(p->p_parent);
 
 		/*
-		 * If last thread gone, tear down process.
+		 * Tear down process
 		 */
 		free_proc(p);
 	}
