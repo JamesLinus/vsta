@@ -405,7 +405,7 @@ init_trap(void)
 	struct trap_tab *t;
 	struct linmem l;
 	char *p;
-	extern void stray_intr(), xint32(), xint33();
+	extern void stray_intr(), stray_ign(), xint32(), xint33();
 
 	/*
 	 * Set up GDT first
@@ -442,6 +442,14 @@ init_trap(void)
 			(voidfun)(p + (x - CPUIDT)*intrlen),
 			T_INTR);
 	}
+
+	/*
+	 * Map interrupt 7 to a fast ingore.  I get bursts of these
+	 * even when IRQ 7 is masked from the PIC.  It only happens
+	 * when I enable the slave PIC, so it smells like hardware
+	 * weirdness.
+	 */
+	set_idt(&idt[CPUIDT+7], stray_ign, T_INTR);
 
 	/*
 	 * Hook up the traps we understand
