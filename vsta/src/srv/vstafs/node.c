@@ -3,7 +3,6 @@
  *	Handling of open file nodes
  */
 #include "vstafs.h"
-#include "buf.h"
 #include <sys/assert.h>
 #include <hash.h>
 #include <std.h>
@@ -67,7 +66,7 @@ alloc_node(daddr_t d)
 	/*
 	 * Get buf, address first sector as an fs_file
 	 */
-	b = find_buf(d, 1);
+	b = find_buf(d, 1, ABC_FILL);
 	fs = index_buf(b, 0, 1);
 	ASSERT(fs->fs_nblk > 0, "alloc_node: zero");
 	ASSERT(fs->fs_blks[0].a_start == d, "alloc_node: mismatch");

@@ -10,7 +10,6 @@
  */
 #include "vstafs.h"
 #include "alloc.h"
-#include "buf.h"
 #include <hash.h>
 #include <std.h>
 #include <sys/assert.h>
@@ -154,7 +153,7 @@ bmap(struct buf *b_fs, struct fs_file *fs, ulong pos,
 			fs->fs_len = pos+cnt;
 			need_sync = 0;
 		}
-		dirty_buf(b_fs);
+		dirty_buf(b_fs, 0);
 		if (need_sync) {
 			sync_buf(b_fs);
 		}
@@ -187,7 +186,7 @@ bmap(struct buf *b_fs, struct fs_file *fs, ulong pos,
 	extstart = (extoff & ~(EXTSIZ-1));
 	start = a->a_start + extstart;
 	len = MIN(a->a_len - extstart, EXTSIZ);
-	b = find_buf(start, len);
+	b = find_buf(start, len, ABC_FILL);
 	if (b == 0) {
 		return(0);
 	}
@@ -266,7 +265,7 @@ do_write(struct openfile *o, ulong pos, char *buf, uint cnt)
 		 * Put contents into block, mark buffer modified
 		 */
 		bcopy(buf, blkp, step);
-		dirty_buf(b2);
+		dirty_buf(b2, 0);
 
 		/*
 		 * Advance to next chunk

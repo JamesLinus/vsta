@@ -2,7 +2,7 @@ CC=gcc
 LD=ld
 INCS=-I../../../include
 CFLAGS=-O -DDEBUG -Wall $(INCS)
-OBJS=main.o alloc.o secio.o buf.o node.o rw.o open.o stat.o
+OBJS=main.o alloc.o secio.o node.o rw.o open.o stat.o
 LIBS=-L../../lib -lusr -lc_s
 CRT0=../../lib/crt0srv.o
 

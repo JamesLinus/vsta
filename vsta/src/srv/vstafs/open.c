@@ -4,7 +4,6 @@
  */
 #include "vstafs.h"
 #include "alloc.h"
-#include "buf.h"
 #include <std.h>
 #include <sys/param.h>
 #include <sys/assert.h>
@@ -77,9 +76,9 @@ dir_fillnew(struct buf *b, struct fs_file *fs, ulong off, ulong len)
 		ASSERT_DEBUG(dummy == SECSZ, "dir_fillnew: short sector");
 		ASSERT(b2, "dir_fillnew: can't fill");
 		bzero(v, SECSZ);
-		dirty_buf(b2);
+		dirty_buf(b2, 0);
 	}
-	sync();
+	sync_bufs(0);
 }
 
 /*
@@ -202,7 +201,7 @@ file_shrink(struct openfile *o, ulong len)
 	/*
 	 * Flag buffer as dirty, update length
 	 */
-	dirty_buf(b);
+	dirty_buf(b, 0);
 	fs->fs_len = len;
 	o->o_len = btors(len);
 	if (o->o_hiwrite > len) {
@@ -227,7 +226,7 @@ getfs(struct openfile *o, struct buf **bp)
 	struct fs_file *fs;
 	struct buf *b;
 
-	b = find_buf(o->o_file, MIN(o->o_len, EXTSIZ));
+	b = find_buf(o->o_file, MIN(o->o_len, EXTSIZ), ABC_FILL);
 	if (!b) {
 		return(0);
 	}
@@ -318,7 +317,7 @@ dir_lookup(struct buf *b, struct fs_file *fs, char *name,
 			/*
 			 * Map it in
 			 */
-			b2 = find_buf(a->a_start+x, len);
+			b2 = find_buf(a->a_start+x, len, ABC_FILL);
 			if (b2 == 0) {
 				return(0);
 			}
@@ -403,7 +402,7 @@ create_file(struct file *f, uint type)
 	if (da == 0) {
 		return(0);
 	}
-	b = find_buf(da, 1);
+	b = find_buf(da, 1, ABC_FILL);
 	if (b == 0) {
 		free_block(da, 1);
 		return(0);
@@ -454,7 +453,7 @@ create_file(struct file *f, uint type)
 	/*
 	 * Flush out info to disk, and return openfile
 	 */
-	dirty_buf(b);
+	dirty_buf(b, 0);
 	sync_buf(b);
 	return(o);
 }
@@ -535,7 +534,7 @@ dir_addspace(struct buf *b, struct fs_file *fs, ulong off)
 		/*
 		 * Mark file header modified
 		 */
-		dirty_buf(b);
+		dirty_buf(b, 0);
 
 		/*
 		 * Tell buffer cache to resize buffer containing this,
@@ -576,7 +575,7 @@ dir_addspace(struct buf *b, struct fs_file *fs, ulong off)
 	fs->fs_nblk += 1;
 	fs->fs_len += stob(newlen);
 	a->a_len = newlen;
-	dirty_buf(b);
+	dirty_buf(b, 0);
 	dir_fillnew(b, fs, off, a->a_len);
 
 	return(0);
@@ -640,7 +639,7 @@ dir_newfile(struct file *f, char *name, int type)
 			/*
 			 * Map it in
 			 */
-			b2 = find_buf(a->a_start+x, len);
+			b2 = find_buf(a->a_start+x, len, ABC_FILL);
 			if (b2 == 0) {
 				err = 1;
 				goto out;
@@ -708,9 +707,9 @@ out:
 	off += sizeof(struct fs_dirent);
 	if (off > fs->fs_len) {
 		fs->fs_len = off;
-		dirty_buf(b);
+		dirty_buf(b, 0);
 	}
-	dirty_buf(b2);
+	dirty_buf(b2, 0);
 	sync_buf(b2);
 	sync_buf(b);
 	unlock_buf(b);
@@ -872,7 +871,7 @@ vfs_open(struct msg *m, struct file *f)
 		 * The directory entry points to the new one
 		 */
 		de->fs_clstart = o2->o_file;
-		dirty_buf(debp);
+		dirty_buf(debp, 0);
 
 		/*
 		 * And the new one points to the older one by way
@@ -893,7 +892,7 @@ vfs_open(struct msg *m, struct file *f)
 		 * If opening for writing, update mtime
 		 */
 		time(&fs->fs_mtime);
-		dirty_buf(b);
+		dirty_buf(b, 0);
 	}
 
 	/*
@@ -940,7 +939,7 @@ vfs_close(struct file *f)
 					file_shrink(o, o->o_hiwrite);
 				}
 			}
-			sync();
+			sync_bufs(0);
 		}
 	}
 	deref_node(o);
@@ -1195,7 +1194,7 @@ vfs_remove(struct msg *m, struct file *f)
 		 * Patch this file out of the chain
 		 */
 		*revp = fs->fs_prev;
-		dirty_buf(brevp);
+		dirty_buf(brevp, 0);
 
 		/*
 		 * Zap the blocks
@@ -1216,7 +1215,7 @@ vfs_remove(struct msg *m, struct file *f)
 	 */
 	if (!rev) {
 		de->fs_name[0] |= 0x80;
-		dirty_buf(bdirent);
+		dirty_buf(bdirent, 0);
 		sync_buf(bdirent);
 	}
 
@@ -1380,8 +1379,8 @@ do_rename(struct file *fsrc, char *src, struct file *fdest, char *dest)
 	/*
 	 * Mark the two directory blocks dirty, and release their locks
 	 */
-	dirty_buf(bsrc); unlock_buf(bsrc);
-	dirty_buf(bdest); unlock_buf(bdest);
+	dirty_buf(bsrc, 0); unlock_buf(bsrc);
+	dirty_buf(bdest, 0); unlock_buf(bdest);
 
 	/*
 	 * Delete the old one now
@@ -1393,7 +1392,7 @@ do_rename(struct file *fsrc, char *src, struct file *fdest, char *dest)
 	/*
 	 * Success
 	 */
-	sync();
+	sync_bufs(0);
 	return(0);
 }
 

@@ -13,6 +13,7 @@
 #include <mnttab.h>
 #include <sys/assert.h>
 #include <syslog.h>
+#include <fdl.h>
 
 extern int valid_fname(char *, int);
 
@@ -396,7 +397,7 @@ main(int argc, char *argv[])
 	/*
 	 * Init our data structures
 	 */
-	init_buf();
+	init_buf(__fd_port(blkdev), CORESEC);
 	init_node();
 	init_block();
 

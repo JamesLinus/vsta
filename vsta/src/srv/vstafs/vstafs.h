@@ -13,6 +13,7 @@
  */
 #include <sys/perm.h>
 #include <sys/fs.h>
+#include <abc.h>
 
 #define SECSZ (512)		/* Basic size of allocation units */
 #define MAXEXT (32)		/* Max # extents in a file */
@@ -23,9 +24,6 @@
 				/*  1 << (DIREXTSIZ + extent#) */
 #define NCACHE (8*EXTSIZ)	/* Crank up if you have lots of users */
 #define CORESEC (512)		/* Sectors to buffer in core at once */
-
-/* Disk addresses, specified as a sector number */
-typedef unsigned long daddr_t;
 
 /* Conversion of units: bytes<->sectors */
 #define btos(x) ((x) / SECSZ)
@@ -160,7 +158,7 @@ extern void vfs_open(struct msg *, struct file *),
 	vfs_wstat(struct msg *, struct file *),
 	vfs_close(struct file *),
 	vfs_fid(struct msg *, struct file *);
-extern void init_buf(void), init_node(void), init_block(void);
+extern void init_node(void), init_block(void);
 extern void ref_node(struct openfile *), deref_node(struct openfile *);
 extern struct openfile *get_node(daddr_t);
 extern uint fs_perms(struct perm *, uint, struct openfile *);

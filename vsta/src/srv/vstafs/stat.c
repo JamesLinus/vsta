@@ -5,7 +5,6 @@
  * We also lump the chmod/chown stuff here as well
  */
 #include "vstafs.h"
-#include "buf.h"
 #include <sys/perm.h>
 #include <stdio.h>
 #include <std.h>
@@ -134,7 +133,7 @@ vfs_wstat(struct msg *m, struct file *f)
 	 * See if common handling code can do it
 	 */
 	if (do_wstat(m, &fs->fs_prot, f->f_perm, &field, &val) == 0) {
-		dirty_buf(b);
+		dirty_buf(b, 0);
 		return;
 	}
 
@@ -146,7 +145,7 @@ vfs_wstat(struct msg *m, struct file *f)
 		 * Convert to number, write to file attribute
 		 */
 		fs->fs_mtime = atoi(val);
-		dirty_buf(b);
+		dirty_buf(b, 0);
 		m->m_nseg = m->m_arg = m->m_arg1 = 0;
 		msg_reply(m->m_sender, m);
 		return;
