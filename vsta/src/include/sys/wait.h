@@ -5,16 +5,23 @@
  *	Process exit coordination
  */
 #include <sys/types.h>
+#include <sys/param.h>
 
 /*
  * Status a child leaves behind on exit()
  */
 struct exitst {
-	ulong e_pid;		/* PID of exit() */
+	pid_t e_pid;		/* PID of exit() */
 	int e_code;		/* Argument to exit() */
 	ulong e_usr, e_sys;	/* CPU time in user and sys */
 	struct exitst *e_next;	/* Next in list */
+	int e_event[ERRLEN];	/* Name of event if killed */
 };
+
+/*
+ * Encoded bits in e_code word
+ */
+#define _W_EV (0x10000)		/* Process died on event */
 
 #ifdef KERNEL
 #include <sys/mutex.h>
@@ -39,7 +46,31 @@ extern struct exitgrp *alloc_exitgrp(struct proc *);
 extern void deref_exitgrp(struct exitgrp *);
 extern void noparent_exitgrp(struct exitgrp *);
 extern void post_exitgrp(struct exitgrp *, struct proc *, int);
-extern struct exitst *wait_exitgrp(struct exitgrp *);
+extern struct exitst *wait_exitgrp(struct exitgrp *, int);
+
+#else
+
+/*
+ * Prototypes for user/POSIX
+ */
+extern pid_t wait(int *),
+	waitpid(pid_t, int *, int);
+
+/*
+ * Options to waitpid()
+ */
+#define WNOHANG (1)		/* Don't wait */
+#define WUNTRACED (2)		/* Job control; ignored */
+
+/*
+ * Fiddling with the returned int
+ */
+#define WIFSIGNALED(x) ((x) & _W_EV)	/* Killed by event */
+#define WTERMSIG(x) (((x) >> 8) & 0xFF)	/* Signal # */
+#define WIFEXITED(x) (!WIFSIGNALED(x))	/* Called exit() */
+#define WEXITSTATUS(x) ((x) & 0xFF)	/* Value passed to exit() */
+#define WIFSTOPPED(x) (0)		/* No job control */
+#define WSTOPSIG(x) (0)
 
 #endif /* KERNEL */
 
