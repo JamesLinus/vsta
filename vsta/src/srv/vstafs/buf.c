@@ -52,6 +52,7 @@ static void
 free_buf(struct buf *b)
 {
 	ASSERT_DEBUG(b->b_list, "free_buf: null b_list");
+	ASSERT_DEBUG(b->b_locks == 0, "free_buf: locks");
 	ll_delete(b->b_list);
 	hash_delete(bufpool, b->b_start);
 	bufsize -= b->b_nsec;
