@@ -192,6 +192,7 @@ resize_buf(daddr_t d, uint newsize, int fill)
 	struct buf *b;
 
 	ASSERT_DEBUG(newsize <= EXTSIZ, "resize_buf: too large");
+	ASSERT_DEBUG(newsize > 0, "resize_buf: zero");
 	/*
 	 * If it isn't currently buffered, we don't care yet
 	 */
@@ -200,7 +201,10 @@ resize_buf(daddr_t d, uint newsize, int fill)
 	}
 #ifdef DEBUG
 	/* This isn't fool-proof, but should catch most transgressions */
-	hash_foreach(bufpool, check_span, (void *)(b->b_start + newsize - 1));
+	if (newsize > b->b_nsec) {
+		hash_foreach(bufpool, check_span,
+			(void *)(b->b_start + newsize - 1));
+	}
 #endif
 
 	/*
