@@ -40,10 +40,7 @@ file_grow(struct fs_file *fs, ulong newsize)
 	 */
 	from = btors(fs->fs_len);
 	ASSERT_DEBUG(newsize > from, "file_grow: shrink");
-	incr = newsize - from;
-	if (incr < EXTSIZ) {
-		incr = EXTSIZ;
-	}
+	incr = MAX(newsize - from, EXTSIZ);
 	newstart = a->a_start + a->a_len;
 	got = take_block(newstart, incr);
 	if (got > 0) {
@@ -52,16 +49,13 @@ file_grow(struct fs_file *fs, ulong newsize)
 		/*
 		 * Calculate new length of this buffer
 		 */
-		buflen = (a->a_len & (EXTSIZ-1)) + got;
-		if (buflen > EXTSIZ) {
-			buflen = EXTSIZ;
-		}
+		buflen = MIN((a->a_len & (EXTSIZ-1)) + got, EXTSIZ);
 
 		/*
 		 * Tell buffer management about this incremental space
 		 */
 		if (resize_buf(a->a_start + (a->a_len & ~(EXTSIZ-1)),
-				got, 0)) {
+				buflen, 0)) {
 			free_block(newstart, got);
 			return(1);
 		}
@@ -179,10 +173,7 @@ bmap(struct buf *b_fs, struct fs_file *fs, ulong pos,
 	 */
 	extstart = (extoff & ~(EXTSIZ-1));
 	start = a->a_start + extstart;
-	len = a->a_len - extstart;
-	if (len > EXTSIZ) {
-		len = EXTSIZ;
-	}
+	len = MIN(a->a_len - extstart, EXTSIZ);
 	b = find_buf(start, len);
 	if (b == 0) {
 		return(0);
@@ -255,9 +246,7 @@ do_write(struct openfile *o, ulong pos, char *buf, uint cnt)
 		/*
 		 * Cap at amount of I/O to do here
 		 */
-		if (step > cnt) {
-			step = cnt;
-		}
+		step = MIN(step, cnt);
 
 		/*
 		 * Put contents into block, mark buffer modified
@@ -356,10 +345,7 @@ vfs_readdir(struct msg *m, struct file *f)
 	 * Get a buffer of the requested size, but put a sanity
 	 * cap on it.
 	 */
-	len = m->m_arg;
-	if (len > 256) {
-		len = 256;
-	}
+	len = MIN(m->m_arg, 256);
 	if ((buf = malloc(len+1)) == 0) {
 		msg_err(m->m_sender, strerror());
 		return;
