@@ -730,8 +730,8 @@ dowait(block, job)
 		if ((status & 0xFF) == 0177)
 			status >>= 8;
 #endif
-		core = status & 0x80;
-		status &= 0x7F;
+		core = WCOREDUMP(status);
+		status = WTERMSIG(status);
 		if ((status != 0) && (status != SIGINT)
 #ifdef SIGPIPE
 				&& (status != SIGPIPE)
