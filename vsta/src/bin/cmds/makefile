@@ -12,7 +12,7 @@ CRT0=../../lib/crt0.o
 # Note: "ps", which used to be here, is now located in srv/proc/cmd
 #
 PROGS=test args cat id ls swapd rm cp sleep mkdir pwd kill mv stat \
-	dumpsect man fstab rmdir touch strings xargs echo du
+	dumpsect man fstab rmdir touch strings xargs echo du chmod
 
 all: $(PROGS)
 
@@ -87,6 +87,9 @@ strings: strings.o
 
 du: du.o
 	$(LD) $(LDFLAGS) -o du $(CRT0) du.o -lc
+
+chmod: chmod.o
+	$(LD) $(LDFLAGS) -o chmod $(CRT0) chmod.o -lc
 
 clean:
 	rm -f *.o
