@@ -1,5 +1,7 @@
 #
 # Database of files used to build the VSTa kernel
+# Only left for purposes of archeology; within a dir the list gives
+# an idea of the order of implementation.
 #
 mach:
 locore.s

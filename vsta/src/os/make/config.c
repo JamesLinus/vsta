@@ -1,6 +1,8 @@
 /*
  * config.c
  *	Poor man's makefile maker
+ *
+ * No longer used, but left for posterity
  */
 #include <stdio.h>
 
