@@ -86,13 +86,29 @@ sema_open(struct msg *m, struct file *f)
 	}
 
 	/*
-	 * Look up name
+	 * "clone" -> pick a new number
 	 */
-	if (sscanf(m->m_buf, "%u", &iname) != 1) {
-		msg_err(m->m_sender, EINVAL);
-		return;
+	if (!strcmp(m->m_buf, "clone")) {
+		static ulong rotor = 1L;
+
+		while (hash_lookup(files, rotor)) {
+			++rotor;
+			if (rotor >= 65535) {
+				rotor = 1L;
+			}
+		}
+		iname = rotor;
+		o = 0;
+	} else {
+		/*
+		 * Look up name
+		 */
+		if (sscanf(m->m_buf, "%u", &iname) != 1) {
+			msg_err(m->m_sender, EINVAL);
+			return;
+		}
+		o = hash_lookup(files, iname);
 	}
-	o = hash_lookup(files, iname);
 
 	/*
 	 * No such file--do they want to create?
