@@ -6,6 +6,9 @@
 # Staging directory for binary distribution
 ROOT=/vsta
 
+# Non-CVS ports of stuff
+PORTS=src/bin/ports
+
 # Copyright/license files
 LAW=README LICENSE
 
@@ -23,106 +26,83 @@ LIB=lib/bison.hairy lib/bison.simple lib/crt0.o lib/crt0srv.o \
 
 BIN=$(LAW) bin boot doc etc include $(LIB)
 
-# Core servers
-SRCSRV=src/srv/bfs src/srv/cdfs src/srv/devnull src/srv/dos \
-	src/srv/env src/srv/mach src/srv/namer src/srv/pipe \
-	src/srv/proc src/srv/sema src/srv/swap src/srv/tmpfs \
-	src/srv/vstafs src/srv/tick src/srv/selfs src/srv/pty
-
-# Core source distribution
-SRC=$(LAW) mkdist.mk src/makefile.all mkall.sh src/mkall.sh \
-	src/bin/adb src/bin/init src/bin/login \
-	src/bin/cmds src/bin/time src/include src/lib src/os \
-	$(SRCSRV) src/boot.386
-
-# Networking
-NET=src/srv/ka9q
-
 # Make (a simple/fast one, and then GNU's)
-MAKE=src/bin/ports/make src/bin/ports/gmake
+MAKE=$(PORTS)/make $(PORTS)/gmake
 
 # Text utilities
-TXT=src/bin/ports/less src/bin/ports/grep src/bin/ports/rh \
-	src/bin/ports/sed src/bin/ports/tar src/bin/ports/awk \
-	src/bin/ports/fileutl src/bin/ports/textutil \
-	src/bin/ports/find src/bin/ports/patch \
-	src/bin/ports/ctags src/bin/ports/rcs5.11 \
-	src/bin/ports/m4 src/bin/ports/roff
-
-# Text formatting utilities
-ROFF=src/bin/roff src/bin/ports/nroff lib/troff
+TXT=$(PORTS)/less $(PORTS)/grep $(PORTS)/rh $(PORTS)/sed $(PORTS)/tar \
+	$(PORTS)/awk $(PORTS)/fileutl $(PORTS)/textutil $(PORTS)/find \
+	$(PORTS)/patch $(PORTS)/ctags $(PORTS)/rcs5.11 $(PORTS)/m4 \
+	$(PORTS)/roff
 
 # Shells
-SH=src/bin/ash src/bin/testsh src/bin/ports/rc
+SH=$(PORTS)/rc
 
 # Editors
-ED=src/bin/ports/emacs src/bin/ports/ed src/bin/ports/vim \
-	src/bin/ports/vim-5.7 src/bin/ports/teco
+ED=$(PORTS)/emacs $(PORTS)/ed $(PORTS)/vim $(PORTS)/vim-5.7 $(PORTS)/teco
 
 # Games
-FUN=src/bin/ports/backgammon src/bin/ports/chess-5.00
+FUN=$(PORTS)/backgammon $(PORTS)/chess-5.00
 
 # "bc" calculator
-BC=src/bin/ports/bc
+BC=$(PORTS)/bc
 
 # GNU zip and friends
-GZIP=src/bin/ports/gzip src/bin/ports/unzip
+GZIP=$(PORTS)/gzip $(PORTS)/unzip $(PORTS)/arc521
 
 # "sc" spreadsheet
-SC=src/bin/ports/sc
+SC=$(PORTS)/sc
 
 # Smalltalk
-SMALL=src/bin/ports/small src/bin/ports/smalltalk-1.8.3 \
-	src/bin/ports/tiny4.0
+SMALL=$(PORTS)/small $(PORTS)/smalltalk-1.8.3 $(PORTS)/tiny4.0
 
 # GNU C, and related language tools
-GCC=src/bin/ports/gcc2 src/bin/ports/binutl2 src/bin/ports/gdb
+GCC=$(PORTS)/gcc2 $(PORTS)/binutl2 $(PORTS)/gdb
 
 # MGR windowing system
 MGR=mgr
 
 # Compiler tools
-LANG=src/bin/ports/flex src/bin/ports/bison src/bin/ports/yacc
+LANG=$(PORTS)/flex $(PORTS)/bison $(PORTS)/yacc
 
 # Python
-PYTHON=src/bin/ports/python $(ROOT)/lib/python15
+PYTHON=$(PORTS)/python $(ROOT)/lib/python15
 
 # Diff utilities
-DIFF=src/bin/ports/diffutl
+DIFF=$(PORTS)/diffutl
 
 # Graphics
-GRAPHICS=src/bin/ports/svgalib src/bin/ports/jpeg6b
+GRAPHICS=$(PORTS)/svgalib $(PORTS)/jpeg6b
 
 # Simulators
-SIM=src/bin/ports/sim_2.3d
+SIM=$(PORTS)/sim_2.3d
 
 # Miscellaneous
-MISC=src/bin/ports/units src/bin/ports/expr src/bin/ports/file-3.22
+MISC=$(PORTS)/units $(PORTS)/expr $(PORTS)/file-3.22 $(PORTS)/rolodex
 
 # Sample accounts
 ACCOUNT=root guest
 
 # Miscellaneous programming languages
-MISCLANG=src/bin/ports/pfe
+MISCLANG=$(PORTS)/pfe
 
-# VSTa specific contributed software
-CONTRIB=src/contrib/rd src/contrib/consexp
-
-# Default: make a distribution
-dist: bindist srcdist make txt sh ed fun bc gzip sc small gcc \
+# Source distribution
+SRC=srcdist make txt sh ed fun bc gzip sc small gcc \
 	mgrdist lang net python diff account graphics sim misc \
 	srccvs misclang contrib
 
-# Create backup
-backup: srcdist make txt sh ed fun bc gzip sc small gcc \
-	mgrdist lang net python diff account graphics sim misc \
-	srccvs misclang
+# Default: make a distribution
+dist: bindist $(SRC)
 
+# Create backup... leave off binary distribution, save the rest
+backup: $(SRC)
+
+#
+# The following are targets which do the actual tarring up of
+# files into archives.
+#
 bindist:
 	cd $(ROOT); tar -cvf - $(BIN) | gzip -9 > $(DEST)/vsta.tz
-
-srcdist:
-	tar -cvf - $(SRC) | gzip -9 > $(DEST)/vsta_src.tz
 
 make:
 	tar -cvf - $(MAKE) | gzip -9 > $(DEST)/make.tz
@@ -184,10 +164,9 @@ misc:
 misclang:
 	tar -cvf - $(MISCLANG) | gzip -9 > $(DEST)/misclang.tz
 
-contrib:
-	tar -cvf - $(CONTRIB) | gzip -9 > $(DEST)/vsta_contrib.tz
-
-# The CVS source control tree behind main VSTa development
+#
+# The CVS source control tree behind the main VSTa source tree
+#
 srccvs:
 	cd /cvs ; tar -cvf - . | gzip -9 > $(DEST)/vsta_cvs.tz
 
