@@ -298,7 +298,6 @@ dos_read(struct msg *m, struct file *f)
 	/*
 	 * Send back reply
 	 */
-	printf("Send back %d bytes\n", cnt);
 	m->m_buf = buf;
 	m->m_arg = m->m_buflen = cnt;
 	m->m_nseg = (cnt ? 1 : 0);
