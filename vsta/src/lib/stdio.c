@@ -947,3 +947,13 @@ fseek(FILE *fp, off_t off, int whence)
 	 */
 	return(lseek(fp->f_fd, off, whence));
 }
+
+/*
+ * rewind()
+ *	Set file position to start
+ */
+void
+rewind(FILE *fp)
+{
+	fseek(fp, (off_t)0, SEEK_SET);
+}

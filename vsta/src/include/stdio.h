@@ -109,6 +109,8 @@ extern char *gets(char *), *fgets(char *, int, FILE *);
 extern int puts(char *), fputs(char *, FILE *);
 extern void clearerr(FILE *), setbuf(FILE *, char *),
 	setbuffer(FILE *, char *, uint);
+extern void rewind(FILE *);
+
 #ifndef __PRINTF_INTERNAL
 /*
  * These prototypes are guarded by an #ifdef so that our actual
