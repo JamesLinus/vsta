@@ -5,7 +5,21 @@
 #include <vstafs/vstafs.h>
 #include <vstafs/buf.h>
 #include <sys/assert.h>
+#include <lib/hash.h>
 #include <std.h>
+
+static struct hash *node_hash;
+
+/*
+ * init_node()
+ *	Initialize node system
+ */
+void
+init_node(void)
+{
+	node_hash = alloc_hash(NCACHE);
+	ASSERT(node_hash, "init_node: out of memory");
+}
 
 /*
  * ref_node()
@@ -40,7 +54,7 @@ deref_node(struct openfile *o)
  * at the front of the file.  We read in the first sector, then extend
  * the buffered block out to the indicated size.
  */
-struct openfile *
+static struct openfile *
 alloc_node(daddr_t d)
 {
 	struct buf *b;
@@ -79,5 +93,37 @@ alloc_node(daddr_t d)
 	o->o_file = d;
 	o->o_len = len;
 	o->o_refs = 1;
+	return(o);
+}
+
+/*
+ * get_node()
+ *	Return node, either from hash or created from scratch
+ */
+get_node(daddr_t d)
+{
+	struct openfile *o;
+
+	/*
+	 * From hash?
+	 */
+	o = hash_lookup(node_hash, d);
+	if (o) {
+		/*
+		 * Yes--add a reference, and return
+		 */
+		o->o_refs += 1;
+		ASSERT(o->o_refs > 1, "get_node: bad o_refs");
+		return(o);
+	}
+
+	/*
+	 * Get a new one, and return it
+	 */
+	o = alloc_node(d);
+	if (hash_insert(node_hash, d, o)) {
+		deref_node(o);
+		o = 0;
+	}
 	return(o);
 }
