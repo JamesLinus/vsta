@@ -81,7 +81,7 @@ PYTHON=src/bin/ports/python lib/python15
 DIFF=src/bin/ports/diffutl
 
 # Graphics
-GRAPHICS=src/bin/ports/svgalib src/bin/ports/jpeg6b
+GRAPHICS=src/bin/ports/svgalib src/bin/ports/jpeg6b lib/libjpeg.a
 
 # Sample accounts
 ACCOUNT=root guest
