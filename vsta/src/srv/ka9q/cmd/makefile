@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-Wall -DDEBUG
+CFLAGS=-g -O -Wall -DDEBUG
 PROGS=proxyd inetdb telnetd
 
 all: $(PROGS)
