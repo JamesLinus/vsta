@@ -2,7 +2,7 @@
 #	Makefile for KA9Q TCP/IP package for Berkeley UNIX
 #
 CC=gcc
-CFLAGS=-O -DUNIX -DBSD -DSLOWCHECK -DMSPTICK=20 -DASY
+CFLAGS=-g -O -DUNIX -DBSD -DSLOWCHECK -DMSPTICK=20 -DASY
 LIBS=-lusr
 
 OBJS =	main.o arp.o arpcmd.o arpdump.o ax25.o ax25cmd.o \
