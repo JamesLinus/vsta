@@ -109,6 +109,7 @@ dos_open(struct msg *m, struct file *f)
 		}
 		clust_setlen(n->n_clust, 0L);
 		n->n_len = 0;
+		n->n_flags |= N_DIRTY;
 	}
 success:
 	move_file(f, n);

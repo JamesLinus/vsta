@@ -32,9 +32,18 @@ deref_node(struct node *n)
 	ASSERT(n->n_refs > 0, "deref_node: no refs");
 
 	/*
-	 * Remove ref, do nothing if still open
+	 * Remove ref
 	 */
 	if ((n->n_refs -= 1) > 0) {
+		/*
+		 * If still open, checkpoint file state into
+		 * directory entry if any changes have been made.
+		 */
+		if (n->n_flags & N_DIRTY) {
+			dir_setlen(n);
+			sync();
+			n->n_flags &= ~N_DIRTY;
+		}
 		return;
 	}
 
