@@ -1,6 +1,8 @@
 #include <select.h>
 #include <std.h>
+#include <fcntl.h>
 #include <time.h>
+#include <stdio.h>
 
 int
 main(int argc, char **argv)
@@ -22,6 +24,6 @@ main(int argc, char **argv)
 			exit(1);
 		}
 		x = read(fd, &t, sizeof(t));
-		printf("%d 0x%x\n", x, t);
+		printf("%d 0x%lx\n", x, t);
 	}
 }
