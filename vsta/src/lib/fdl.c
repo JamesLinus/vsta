@@ -83,6 +83,27 @@ __fd_port(int fd)
 	return(port->p_port);
 }
 
+/*
+ * __fd_clone()
+ *	Clone the FD's port in place
+ */
+port_t
+__fd_clone(int fd)
+{
+	struct port *port;
+	port_t newport;
+
+	if ((port = __port(fd)) == 0) {
+		return(__seterr(EBADF));
+	}
+	newport = clone(port->p_port);
+	if (newport < 0) {
+		return(-1);
+	}
+	port->p_port = newport;
+	return(newport);
+}
+
 #ifndef SRV
 /*
  * __fd_iocount()
