@@ -124,6 +124,14 @@ vfs_wstat(struct msg *m, struct file *f)
 	}
 
 	/*
+	 * Read-only filesystem?
+	 */
+	if (roflag) {
+		msg_err(m->m_sender, EROFS);
+		return;
+	}
+
+	/*
 	 * See if common handling code can do it
 	 */
 	if (do_wstat(m, &fs->fs_prot, f->f_perm, &field, &val) == 0) {

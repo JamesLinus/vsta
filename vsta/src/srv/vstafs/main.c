@@ -26,6 +26,7 @@ static struct hash	/* Handle->filehandle mapping */
 static struct fs
 	*fsroot;	/* Snapshot of root sector */
 static int fflag;	/* Pull in fsck-pending changes */
+int roflag;		/* Read-only on filesystem? */
 
 /*
  * This "open" file just sits around as an easy way to talk about
@@ -280,7 +281,8 @@ loop:
 static void
 usage(void)
 {
-	printf("Usage is: vstafs [-d <disk>] [-n <name>] [-f]\n");
+	printf(
+	 "Usage is: vstafs [-d <disk>] [-n <name>] [-B <blocks>] [-rf]\n");
 	syslog(LOG_ERR, "Illegal command line arguments");
 	exit(1);
 }
@@ -365,6 +367,7 @@ main(int argc, char *argv[])
 	port_name fsname;
 	char *namer_name = 0;
 	char *disk = 0;
+	static int coresec = CORESEC;
 
 	/*
 	 * Initialize syslog
@@ -374,7 +377,7 @@ main(int argc, char *argv[])
 	/*
 	 * Check arguments
 	 */
-	while ((x = getopt(argc, argv, "d:n:f")) > 0) {
+	while ((x = getopt(argc, argv, "d:n:fB:r")) > 0) {
 		switch (x) {
 		case 'd':
 			disk = optarg;
@@ -384,6 +387,17 @@ main(int argc, char *argv[])
 			break;
 		case 'f':
 			fflag = 1;
+			break;
+		case 'r':
+			roflag = 1;
+			break;
+		case 'B':
+			coresec = atoi(optarg);
+			if ((coresec < 64) || (coresec > 1024*1024)) {
+				coresec = CORESEC;
+				syslog(LOG_INFO, "forced -B to %d",
+					CORESEC);
+			}
 			break;
 		default:
 			usage();
@@ -402,7 +416,7 @@ main(int argc, char *argv[])
 	 * during bootup.
 	 */
 	for (x = 0; x < 10; ++x) {
-		blkdev = open(disk, O_RDWR);
+		blkdev = open(disk, roflag ? O_RDONLY : O_RDWR);
 		if (blkdev < 0) {
 			sleep(1);
 		} else {
@@ -442,7 +456,7 @@ main(int argc, char *argv[])
 	/*
 	 * Init our data structures
 	 */
-	init_buf(__fd_port(blkdev), CORESEC);
+	init_buf(__fd_port(blkdev), coresec);
 	init_node();
 	init_block();
 

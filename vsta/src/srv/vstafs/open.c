@@ -806,6 +806,14 @@ vfs_open(struct msg *m, struct file *f)
 		}
 
 		/*
+		 * Read-only?
+		 */
+		if (roflag) {
+			msg_err(m->m_sender, EROFS);
+			goto out;
+		}
+
+		/*
 		 * Failure?
 		 */
 		o = dir_newfile(f, m->m_buf, (m->m_arg & ACC_DIR) ?
@@ -840,6 +848,11 @@ vfs_open(struct msg *m, struct file *f)
 	if ((want & x) != want) {
 		deref_node(o);
 		msg_err(m->m_sender, EPERM);
+		goto out;
+	}
+	if (roflag && (want & (ACC_WRITE | ACC_CREATE | ACC_CHMOD))) {
+		deref_node(o);
+		msg_err(m->m_sender, EROFS);
 		goto out;
 	}
 
@@ -1116,6 +1129,10 @@ vfs_remove(struct msg *m, struct file *f)
 	x = perm_calc(f->f_perms, f->f_nperm, &fsdir->fs_prot);
 	if ((x & (ACC_WRITE|ACC_CHMOD)) == 0) {
 		err = EPERM;
+		goto out;
+	}
+	if (roflag) {
+		err = EROFS;
 		goto out;
 	}
 
@@ -1440,6 +1457,14 @@ vfs_rename(struct msg *m, struct file *f)
 	 */
 	if ((m->m_arg1 == 0) || !valid_fname(m->m_buf, m->m_buflen)) {
 		msg_err(m->m_sender, EINVAL);
+		return;
+	}
+
+	/*
+	 * Read-only filesystem
+	 */
+	if (roflag) {
+		msg_err(m->m_sender, EROFS);
 		return;
 	}
 
