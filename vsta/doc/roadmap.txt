@@ -72,19 +72,19 @@ course, are not kept under RCS.
 
 	The VSTa tree is organized under /vsta as:
 
-	os/		Kernel source
-	os/make		Where objects are compiled into
-	os/kern		Portable C source
-	os/mach		i386 C, as well as assembly
-	srv/		All portable servers (filesystems, etc.)
-	srv/mach	i386/ISA servers (disk, keyboard, etc.)
-	bin.src/	Command source
-	libc/		Library source
-	bin/		Commands
-	lib/		Libraries
-	etc/		System-oriented text files
-	doc/		Documentation, such as it is
+	bin		Commands
+	lib		Libraries
+	etc		System-oriented text files
+	doc		Documentation, such as it is
 	doc/man		Some initial man pages, in roff format
+	src/os		Kernel source
+	src/os/make	Where kernel objects are compiled into
+	src/os/kern	Portable kernel C source
+	src/os/mach	Kernel i386 C, as well as assembly
+	src/srv		All portable servers (filesystems, etc.)
+	src/srv/mach	i386/ISA servers (disk, keyboard, etc.)
+	src/bin		Command source
+	src/lib		Library source
 
 3. Booting the kernel
 
