@@ -395,3 +395,15 @@ getid(int which)
 		return(err(EINVAL));
 	}
 }
+
+/*
+ * assfail()
+ *	Assertion failure in kernel
+ */
+void
+assfail(char *msg, char *file, uint line)
+{
+	printf("Assertion failed line %d file %s\n",
+		line, file);
+	panic(msg, 0);
+}
