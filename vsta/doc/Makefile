@@ -9,4 +9,4 @@ clobber:
 
 install:
 	cp *.txt *.doc $(ROOT)/doc
-	cp -r man $(ROOT)/doc
+	cd man ; make install ; cd ..
