@@ -336,11 +336,12 @@ wd_cmd(int cmd)
 {
 	uint count;
 	int stat;
+	const uint timeout = 10000000;
 
 	/*
 	 * Wait for controller to be ready
 	 */
-	count = 100000;
+	count = timeout;
 	while (inportb(WD_PORT + WD_STATUS) & WDS_BUSY) {
 		if (--count == 0) {
 			return(-1);
@@ -351,7 +352,7 @@ wd_cmd(int cmd)
 	 * Send command, wait for controller to finish
 	 */
 	outportb(WD_PORT + WD_CMD, cmd);
-	count = 100000;
+	count = timeout;
 	for (;;) {
 		stat = inportb(WD_PORT + WD_STATUS);
 		if ((stat & WDS_BUSY) == 0) {

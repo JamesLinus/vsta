@@ -8,10 +8,10 @@
 #include <sys/perm.h>
 #include <wd/fdisk.h>
 
-#define NWD (2)		/* Max # WD units supported */
+#define NWD (1)		/* Max # WD units supported */
 
 #define SECSZ (512)	/* Only 512 byte sectors handled */
-#define MAXIO (64*1024)	/* Max I/O--64K */
+#define MAXIO (128*1024)	/* Max I/O--128K */
 
 #define WD_PORT	0x1f0		/* I/O ports here */
 #define WD_IRQ	14		/* IRQ # for hard disk */
