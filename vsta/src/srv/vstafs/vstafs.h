@@ -145,9 +145,9 @@ extern void vfs_open(struct msg *, struct file *),
 	vfs_stat(struct msg *, struct file *),
 	vfs_close(struct file *),
 	vfs_fid(struct msg *, struct file *);
-extern void binit(void), fat_init(void), dir_init(void);
+extern void init_buf(void), init_node(void), init_block(void);
 extern void ref_node(struct openfile *), deref_node(struct openfile *);
-extern struct openfile *alloc_node(daddr_t);
+extern struct openfile *get_node(daddr_t);
 extern uint fs_perms(struct perm *, uint, struct openfile *);
 
 #endif /* VSTAFS_H */
