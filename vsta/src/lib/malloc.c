@@ -91,6 +91,7 @@ free_core(void *mem)
 			*cp = c->c_next;
 			break;
 		}
+		cp = &c->c_next;
 	}
 
 	/*
