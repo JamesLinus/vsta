@@ -232,12 +232,14 @@ setup_fp(FILE *fp)
 		}
 	}
 
+#ifndef SRV
 	/*
 	 * Cache whether it's a TTY
 	 */
 	if (isatty(fp->f_fd)) {
 		fp->f_flags |= _F_TTY;
 	}
+#endif
 
 	/*
 	 * Flag set up
