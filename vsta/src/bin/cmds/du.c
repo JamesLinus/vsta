@@ -3,12 +3,16 @@
  *	Disk usage
  */
 #include <stat.h>
-#include <hash.h>
 #include <dirent.h>
 #include <alloc.h>
 #include <fcntl.h>
 
-static int kflag;	/* Display in K (default) */
+static int kflag = 1;	/* Display in K (default) */
+
+#ifdef LATER
+
+#include <hash.h>
+
 static struct hash *nodes;
 
 /*
@@ -75,19 +79,27 @@ visited(struct stat *s, port_name pn)
 	return(0);
 }
 
+#else /* LATER */
+
+static int
+visited(struct stat *s, port_name pn)
+{
+	return(0);
+}
+
+#endif /* LATER */
 /*
  * du()
  *	Do "disk use" for named entry
  */
-static void
+static ulong
 du(char *path)
 {
 	struct stat sb;
 	DIR *dir;
 	struct dirent *de;
-	ulong tally = 0, size;
+	ulong tally = 0;
 	port_name pn = 0;
-	struct hash *h;
 	char *delim;
 
 	/*
@@ -119,7 +131,7 @@ du(char *path)
 		case S_IFDIR:		/* Recurse on subdirs */
 			sprintf(delim, "/%s", de->d_name);
 			chdir(de->d_name);
-			du(path);
+			tally += du(path);
 			chdir("..");
 			*delim = '\0';
 
@@ -135,9 +147,7 @@ du(char *path)
 				}
 			}
 			if (!visited(&sb, pn)) {
-				size = sb.st_blocks * sb.st_blksize;
-				tally += (kflag ? (size / 1024) :
-						(size / 512));
+				tally += sb.st_blocks * sb.st_blksize;
 			}
 			break;
 		default:		/* Ignore others */
@@ -145,7 +155,9 @@ du(char *path)
 		}
 	}
 	closedir(dir);
-	printf("%8D %s\n", tally, path);
+	printf("%8D %s\n",
+		kflag ? (tally / 1024) : (tally / 512), path);
+	return(tally);
 }
 
 int
@@ -154,10 +166,12 @@ main(int argc, char **argv)
 	int x, done = 0;
 	char pathbuf[1024];
 
+#ifdef LATER
 	/*
 	 * Get the hash, pick some reasonably large size
 	 */
 	nodes = hash_alloc(1023);
+#endif
 
 	/*
 	 * Parse args
@@ -179,7 +193,7 @@ main(int argc, char **argv)
 	}
 	if (x >= argc) {
 		strcpy(pathbuf, ".");
-		du(pathbuf);
+		(void)du(pathbuf);
 	} else {
 		char cwdbuf[1024];
 
@@ -190,7 +204,7 @@ main(int argc, char **argv)
 			}
 			strcpy(pathbuf, argv[x]);
 			chdir(pathbuf);
-			du(pathbuf);
+			(void)du(pathbuf);
 		}
 	}
 	return(0);
