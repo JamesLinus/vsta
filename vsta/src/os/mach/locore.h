@@ -349,6 +349,9 @@ longjmp(jmp_buf regs, int retval)
 		"movl 20(%%edi),%%ebx\n\t"
 		"movl 24(%%edi),%%edx\n\t"
 		"movl 28(%%edi),%%ecx\n\t"
+#ifdef LONGENA
+		"sti\n\t"
+#endif
 		"ret\n\t"
 		: /* No output */
 		: "D" (regs), "a" (retval));
