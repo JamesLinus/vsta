@@ -7,7 +7,7 @@
 #define M_386 (100)	/* Value for N_MACHTYPE */
 
 #define N_MAGIC(exec) ((exec).a_info & 0xffff)
-#define N_MACHTYPE(exec) ((enum machine_type)(((exec).a_info >> 16) & 0xff))
+#define N_MACHTYPE(exec) ((int)(((exec).a_info >> 16) & 0xff))
 #define N_FLAGS(exec) (((exec).a_info >> 24) & 0xff)
 #define N_SET_INFO(exec, magic, type, flags) \
         ((exec).a_info = ((magic) & 0xffff) \
