@@ -61,6 +61,7 @@ struct node {
  * Bits for n_flags
  */
 #define N_DIRTY 1	/* Contents modified */
+#define N_DEL 2		/* Node has been removed */
 
 /*
  * Each open client has this state
