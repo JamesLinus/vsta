@@ -149,12 +149,15 @@ bootproc(struct boot_task *b)
 	pv = mkview(b->b_pfn, b->b_textaddr, b->b_text, vas);
 	pv->p_prot |= PROT_RO;
 	(void)mkview(b->b_pfn + b->b_text, b->b_dataaddr, b->b_data, vas);
+	if (b->b_bss) {
+		(void)alloc_zfod_vaddr(vas, b->b_bss,
+			(char *)b->b_dataaddr + ptob(b->b_data));
+	}
 
 	/*
 	 * Stack is ZFOD
 	 */
-	ASSERT(alloc_zfod_vaddr(vas, btorp(UMAXSTACK), (void *)USTACKADDR),
-		"bootproc: no stack");
+	(void)alloc_zfod_vaddr(vas, btorp(UMAXSTACK), (void *)USTACKADDR);
 
 	/*
 	 * Get their PIDs
