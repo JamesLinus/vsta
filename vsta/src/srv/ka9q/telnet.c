@@ -510,7 +510,7 @@ int16 cnt;
 	}
 	/* Hold output if we're not the current session */
 	if(!tn->inbuf &&
-	   (tn != consess->cb.telnet) &&
+	   (consess && (tn != consess->cb.telnet)) &&
 	   (mode != CONV_MODE || current == NULLSESSION
 #ifdef	FLOW
 	    || !ttyflow	/* Or if blocked by keyboard input -- hyc */
