@@ -23,7 +23,9 @@ struct buf {
 /*
  * Bits in b_flags
  */
-#define B_DIRTY 2		/* Buffer needs to be written to disk */
+#define B_SEC0 0x1		/* 1st sector valid  */
+#define B_SECS 0x2		/*  ...rest of sectors valid too */
+#define B_DIRTY 0x4		/* Some sector in buffer is dirty */
 
 /*
  * Routines for accessing a buf

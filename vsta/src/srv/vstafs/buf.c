@@ -204,7 +204,6 @@ find_buf(daddr_t d, uint nsec)
 	b->b_nsec = nsec;
 	b->b_flags = 0;
 	b->b_locks = 0;
-	read_secs(d, b->b_data, nsec);
 	bufsize += nsec;
 #ifdef DEBUG
 	nbuf += 1;
@@ -299,6 +298,26 @@ index_buf(struct buf *b, uint index, uint nsec)
 	ASSERT((index+nsec) <= b->b_nsec, "index_buf: too far");
 
 	ll_movehead(&allbufs, b->b_list);
+	if ((index == 0) && (nsec == 1)) {
+		/*
+		 * Only looking at 1st sector.  See about reading
+		 * only 1st sector, if we don't yet have it.
+		 */
+		if ((b->b_flags & B_SEC0) == 0) {
+			/*
+			 * Load the sector, mark it as present
+			 */
+			read_secs(b->b_start, b->b_data, 1);
+			b->b_flags |= B_SEC0;
+		}
+	} else if ((b->b_flags & B_SECS) == 0) {
+		/*
+		 * Otherwise if we don't have the whole buffer, get
+		 * it now.
+		 */
+		read_secs(b->b_start, b->b_data, b->b_nsec);
+		b->b_flags |= (B_SEC0|B_SECS);
+	}
 	return((char *)b->b_data + stob(index));
 }
 
@@ -351,15 +370,13 @@ unlock_buf(struct buf *b)
  * sync_buf()
  *	Sync back buffer if dirty
  *
- * XXX we sync the whole thing, with the hope that usually a reasonable
- * fraction of the extent will all be dirty if any part is dirty.  If
- * not, we would have to add a bitmask marking which sectors are dirty,
- * and only write the appropriate ones.  Keep it simple until we find
- * it must be complicated.
+ * Write back the 1st sector, or the whole buffer, as appropriate
  */
 void
 sync_buf(struct buf *b)
 {
+	ASSERT_DEBUG(b->b_flags & (B_SEC0 | B_SECS), "sync_buf: not ref'ed");
+
 	/*
 	 * Skip it if not dirty
 	 */
@@ -368,9 +385,14 @@ sync_buf(struct buf *b)
 	}
 
 	/*
-	 * Do the I/O
+	 * Do the I/O--whole buffer, or just 1st sector if that was
+	 * the only sector referenced.
 	 */
-	write_secs(b->b_start, b->b_data, b->b_nsec);
+	if (b->b_flags & B_SECS) {
+		write_secs(b->b_start, b->b_data, b->b_nsec);
+	} else {
+		write_secs(b->b_start, b->b_data, 1);
+	}
 	b->b_flags &= ~B_DIRTY;
 }
 
