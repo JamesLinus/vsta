@@ -1,0 +1,21 @@
+/*
+ * vsta.lnk
+ *	ld(1) config for building a VSTa image
+ *
+ * Data abuts text, rounded to page boundary.
+ */
+SECTIONS {
+	.text . : {
+		*(.text)
+		__etext = . ;
+	}
+	.data ALIGN(0x1000) : {
+		__data = . ;
+		*(.data)
+		__edata = . ;
+	}
+	.bss . : {
+		*(.bss)
+		__end = . ;
+	}
+}
