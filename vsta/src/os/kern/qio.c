@@ -48,7 +48,7 @@ qio_msg_send(struct qio *q)
 {
 	struct seg *s = 0;
 	struct sysmsg *sm = 0;
-	struct portref *pr;
+	struct portref *pr = q->q_port;
 	int error = 0;
 	extern struct seg *kern_mem();
 
@@ -74,42 +74,28 @@ qio_msg_send(struct qio *q)
 	}
 
 	/*
-	 * Send a seek.  XXX should we add read+seek and write+seek?
-	 */
-	sm->m_op = FS_SEEK;
-	sm->m_arg = q->q_off;
-	sm->m_nseg = 0;
-	queue_msg(pr->p_port, sm);
-	pr->p_state = PS_IOWAIT;
-	p_sema_v_lock(&pr->p_iowait, PRIHI, &pr->p_lock);
-	p_lock(&pr->p_lock, SPL0);
-	if ((pr->p_port == 0) || (sm->m_arg < 0)) {
-		error = 1;
-		goto out;
-	}
-	ASSERT_DEBUG(sm->m_nseg == 0, "qio: seek got msg seg");
-
-	/*
-	 * Send the block of memory
+	 * Send a seek+r/w
 	 */
 	sm->m_op = q->q_op;
-	sm->m_arg = 0;
+	sm->m_arg = NBPG;
+	sm->m_arg1 = q->q_off;
 	sm->m_nseg = 1;
 	sm->m_seg[0] = s;
-	s = 0;			/* Freed by receiver */
+	sm->m_sender = pr;
 	queue_msg(pr->p_port, sm);
+	pr->p_msg = sm;
 	pr->p_state = PS_IOWAIT;
 	p_sema_v_lock(&pr->p_iowait, PRIHI, &pr->p_lock);
 	p_lock(&pr->p_lock, SPL0);
-
-	/*
-	 * XXX for non-raw-I/O we have received back a segment.
-	 * Do we need to support this?
-	 */
 	if ((pr->p_port == 0) || (sm->m_arg < 0)) {
 		error = 1;
 		goto out;
 	}
+
+	/*
+	 * We only support raw/DMA devices for swap, and rea-only
+	 * for mapped files.
+	 */
 	ASSERT(sm->m_nseg == 0, "qio_msg_send: got back seg");
 
 	/*
@@ -117,12 +103,10 @@ qio_msg_send(struct qio *q)
 	 */
 out:
 	v_lock(&pr->p_lock, SPL0);
+	v_sema(&pr->p_svwait);
 	v_sema(&pr->p_sema);
 	if (sm) {
 		free(sm);
-	}
-	if (s) {
-		free_seg(s);
 	}
 
 	/*
@@ -133,6 +117,11 @@ out:
 		q->q_cnt = error;
 		(*(q->q_iodone))(q);
 	}
+
+	/*
+	 * Release qio element
+	 */
+	free_qio(q);
 }
 
 /*
@@ -210,6 +199,20 @@ alloc_qio(void)
 	qios = q->q_next;
 	v_lock(&qio_lock, SPL0);
 	return(q);
+}
+
+/*
+ * free_qio()
+ *	Free qio element back to pool when finished
+ */
+static void
+free_qio(struct qio *q)
+{
+	p_lock(&qio_lock, SPL0);
+	q->q_next = qios;
+	qios = q;
+	v_lock(&qio_lock, SPL0);
+	v_sema(&qio_sema);
 }
 
 /*
