@@ -213,6 +213,10 @@ clust_setlen(struct clust *c, ulong newlen)
 #endif
 			fat[y] = 0;
 		}
+		if (newclust > 0) {
+			fat[c->c_clust[newclust-1]] = FAT_EOF;
+		}
+		c->c_nclust = newclust;
 		fat_dirty = 1;
 		return(0);
 	}
