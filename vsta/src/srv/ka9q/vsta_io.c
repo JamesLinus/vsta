@@ -46,10 +46,12 @@ static struct asy {
 	char *a_tty;		/* Port accessed */
 	port_t a_txport,	/* Open ports to this name */
 		a_rxport;
-	char *a_txbuf;		/* When active, buffer being sent */
+	char volatile *
+		a_txbuf;	/* When active, buffer being sent */
 	int a_txcnt;		/*  ...size */
 	char *a_rxbuf;		/* Receive buffer */
-	int a_hd, a_tl;		/* Head/tail of rx FIFO */
+	volatile int
+		a_hd, a_tl;	/* Head/tail of rx FIFO */
 	pid_t a_txpid,		/* Thread serving this port (tx) */
 		a_rxpid;	/*   ...rx */
 } asy[ASY_MAX];
@@ -149,22 +151,22 @@ static void
 asy_rx_daemon(struct asy *ap)
 {
 	struct msg m;
-	int cnt;
+	int cnt, tl;
 
 	for (;;) {
 		/*
 		 * See how much we can pull in this time
 		 */
-		if (ap->a_hd >= ap->a_tl) {
+		tl = ap->a_tl;
+		if (ap->a_hd >= tl) {
 			cnt = BUFLEN - ap->a_hd;
 		} else {
-			cnt = (ap->a_tl - ap->a_hd);
+			cnt = (tl - ap->a_hd) - 1;
 		}
-		if (cnt <= 1) {
+		if (cnt <= 0) {
 			__msleep(10);
 			continue;
 		}
-		cnt -= 1;
 
 		/*
 		 * Do the receive
@@ -217,7 +219,7 @@ asy_tx_daemon(struct asy *ap)
 		m.m_op = FS_WRITE;
 		m.m_arg = m.m_buflen = ap->a_txcnt;
 		m.m_arg1 = 0;
-		m.m_buf = ap->a_txbuf;
+		m.m_buf = (char *)ap->a_txbuf;
 		m.m_nseg = 1;
 		(void)msg_send(ap->a_txport, &m);
 
@@ -265,6 +267,7 @@ asy_init(int16 dev, char *port, unsigned int bufsize)
 	(void)wstat(p, "databits=8\n");
 	(void)wstat(p, "stopbits=1\n");
 	(void)wstat(p, "parity=none\n");
+	(void)wstat(p, "onlcr=0\n");
 
 	/*
 	 * Initialize tty, launch threads
@@ -338,16 +341,17 @@ int16
 asy_recv(int16 dev, char *buf, int cnt)
 {
 	struct asy *ap = &asy[dev];
-	int avail;
+	int x, avail;
 
 	/*
 	 * Take the lesser of how much is there and how much
 	 * they want.
 	 */
-	if (ap->a_hd < ap->a_tl) {
+	x = ap->a_hd;
+	if (x < ap->a_tl) {
 		avail = BUFLEN - ap->a_tl;
 	} else {
-		avail = ap->a_hd - ap->a_tl;
+		avail = x - ap->a_tl;
 	}
 	if (avail > cnt) {
 		avail = cnt;
@@ -364,9 +368,11 @@ asy_recv(int16 dev, char *buf, int cnt)
 	/*
 	 * Update state
 	 */
-	ap->a_tl += avail;
-	if (ap->a_tl >= BUFLEN) {
+	x = ap->a_tl + avail;
+	if (x >= BUFLEN) {
 		ap->a_tl = 0;
+	} else {
+		ap->a_tl = x;
 	}
 
 	return(avail);
