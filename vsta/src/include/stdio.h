@@ -99,7 +99,7 @@ putc(char c, FILE *fp)
 /*
  * Pre-allocated stdio structs
  */
-extern FILE *__iob, *__get_iob();
+extern FILE *__iob, *__get_iob(void);
 #define stdin (__iob)
 #define stdout (__iob+1)
 #define stderr (__iob+2)
