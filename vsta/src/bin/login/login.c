@@ -8,6 +8,7 @@
 #include <passwd.h>
 #include <fcntl.h>
 #include <mnttab.h>
+#include <string.h>
 
 #define BANNER "/vsta/etc/banner"	/* Login banner path */
 #define SYSMOUNT "/vsta/etc/fstab"	/* Global mounts */
@@ -131,7 +132,7 @@ login(struct uinfo *u)
 	int x;
 	port_t port;
 	struct perm perm;
-	char buf[128];
+	char *p, buf[128];
 	extern void zero_ids();
 
 	/*
@@ -203,9 +204,17 @@ login(struct uinfo *u)
 	}
 
 	/*
-	 * Launch their shell
+	 * Launch their shell with a leading '-' in argv[0] to flag
+	 * a login shell.
 	 */
-	execl(u->u_shell, u->u_shell, (char *)0);
+	p = strrchr(u->u_shell, '/');
+	if (p && (strlen(p)+4 < sizeof(buf))) {
+		sprintf(buf, "-%s", p+1);
+		p = buf;
+	} else {
+		p = u->u_shell;
+	}
+	execl(u->u_shell, p, (char *)0);
 	perror(u->u_shell);
 	exit(1);
 }
