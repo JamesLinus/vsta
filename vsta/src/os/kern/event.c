@@ -135,7 +135,7 @@ notifypg(struct proc *p, char *event)
  * If arg_proc is 0, it means the current process.  If arg_thread is
  * 0, it means all threads under the named proc.
  */
-notify2(ulong arg_proc, ulong arg_thread, char *evname)
+notify2(pid_t arg_proc, pid_t arg_thread, char *evname)
 {
 	struct proc *p;
 	int x, error = 0;
@@ -212,7 +212,7 @@ out:
  *
  * Wrapper to get event string into kernel
  */
-notify(ulong arg_proc, ulong arg_thread, char *arg_msg, int arg_msglen)
+notify(pid_t arg_proc, pid_t arg_thread, char *arg_msg, int arg_msglen)
 {
 	char evname[EVLEN];
 
@@ -290,7 +290,7 @@ check_events(void)
  *	Join a process group
  */
 void
-join_pgrp(struct pgrp *pg, ulong pid)
+join_pgrp(struct pgrp *pg, pid_t pid)
 {
 	void *e;
 	ulong *lp;
@@ -328,7 +328,7 @@ join_pgrp(struct pgrp *pg, ulong pid)
  *	Leave a process group
  */
 void
-leave_pgrp(struct pgrp *pg, ulong pid)
+leave_pgrp(struct pgrp *pg, pid_t pid)
 {
 	ulong *lp;
 

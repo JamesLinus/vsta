@@ -12,7 +12,7 @@
 #include <sys/mutex.h>
 
 struct thread {
-	ulong t_pid;		/* ID of thread */
+	pid_t t_pid;		/* ID of thread */
 	jmp_buf t_kregs;	/* Saved thread kernel state */
 	struct trapframe
 		*t_uregs;	/* User state on kernel stack */
