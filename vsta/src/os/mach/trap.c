@@ -136,7 +136,7 @@ page_fault(ulong place_holder)
 	/*
 	 * Let the portable code try to resolve it
 	 */
-	vas = t->t_proc->p_vas;
+	vas = &t->t_proc->p_vas;
 	if (vas_fault(vas, (void *)l, f->errcode & EC_WRITE)) {
 		if (t->t_probe) {
 			ASSERT(!user_mode, "page_fault: probe from user");

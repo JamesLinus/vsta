@@ -12,6 +12,7 @@
 #include <llist.h>
 #include <sys/mutex.h>
 #include <sys/wait.h>
+#include <sys/vas.h>
 #include <mach/machreg.h>
 
 /*
@@ -94,7 +95,7 @@ extern void ptrace_slave(char *, uint);
 struct proc {
 	pid_t p_pid;		/* Our process ID */
 	sema_t p_sema;		/* Semaphore on proc structure */
-	struct vas *p_vas;	/* Virtual address space of process */
+	struct vas p_vas;	/* Virtual address space of process */
 	struct thread		/* List of threads in this process */
 		*p_threads;
 	struct sched *p_runq;	/* Scheduling node for all threads */

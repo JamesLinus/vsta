@@ -6,7 +6,6 @@
 #define _VAS_H
 #include <sys/mutex.h>
 #include <mach/hat.h>
-#include <sys/pview.h>
 
 struct vas {
 	struct pview		/* List of views in address space */
@@ -33,6 +32,7 @@ extern struct pview *find_ivew(struct vas *, void *);
 extern void free_vas(struct vas *);
 extern void *alloc_zfod(struct vas *, uint),
 	*alloc_zfod_vaddr(struct vas *, uint, void *);
+extern void fork_vas(struct vas *, struct vas *);
 #endif /* KERNEL */
 
 #endif /* _VAS_H */
