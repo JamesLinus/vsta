@@ -22,6 +22,7 @@
 #define O_BINARY (32)
 #define O_DIR (64)
 #define O_CHMOD (128)
+#define O_SYM (256)
 
 /*
  * Max # characters in a path.  Not clear this belongs here.

@@ -39,6 +39,7 @@ mapmode(int mode)
 	if (mode & O_DIR) m |= ACC_DIR;
 	if (mode & O_CHMOD) m |= ACC_CHMOD;
 	if (mode & O_APPEND) m |= ACC_APPEND;
+	if (mode & O_SYM) m |= ACC_SYM;
 	return(m);
 }
 
