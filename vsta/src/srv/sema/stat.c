@@ -52,6 +52,7 @@ sema_stat(struct msg *m, struct file *f)
 	if (o) {
 		strcat(buf, perm_print(&o->o_prot));
 		sprintf(buf + strlen(buf), "count=%d\n", o->o_count);
+		sprintf(buf + strlen(buf), "name=%u\n", o->o_iname);
 	} else {
 		sprintf(buf+strlen(buf), "perm=1\nacc=%d/%d\n",
 			ACC_READ | ACC_WRITE, ACC_CHMOD);
