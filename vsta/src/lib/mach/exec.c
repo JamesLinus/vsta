@@ -19,7 +19,7 @@
 execv(const char *file, char * const *argv)
 {
 	int fd, x;
-	uint plen, fdl_len, mnt_len, cwd_len;
+	uint plen, fdl_len, mnt_len, cwd_len, sig_len;
 	ulong narg;
 	struct aout a;
 	struct mapfile mf;
@@ -90,6 +90,8 @@ execv(const char *file, char * const *argv)
 	plen += mnt_len;
 	cwd_len = __cwd_size();
 	plen += cwd_len;
+	sig_len = __signal_size();
+	plen += sig_len;
 
 	/*
 	 * Create a shared mmap() area
@@ -131,6 +133,11 @@ execv(const char *file, char * const *argv)
 	 */
 	__cwd_save(p);
 	p += cwd_len;
+
+	/*
+	 * And our signal state
+	 __signal_save(p);
+	 p += sig_len;
 
 	/*
 	 * Here we go!  Get the port_t for this file, and close the FDL

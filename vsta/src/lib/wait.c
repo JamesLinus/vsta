@@ -6,6 +6,7 @@
 #include <sys/proc.h>
 #include <sys/fs.h>
 #include <std.h>
+#include <signal.h>	/* For wait_child() prototype */
 
 /*
  * For PIDs ignored by waitpid()
@@ -215,4 +216,19 @@ waitpid(pid_t pid, int *ip, int opts)
 		*ip = encode(&e);
 	}
 	return(e.e_pid);
+}
+
+/*
+ * wait_child()
+ *	Wait for a child, and store its exit info in the pending queue
+ */
+void
+wait_child(void)
+{
+	struct exitst e;
+
+	while (waits(&e, 1) < 0) {
+		/* Do nothing */ ;
+	}
+	queue(&e);
 }

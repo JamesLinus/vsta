@@ -355,3 +355,19 @@ _select
 ___fd_set_iocount hidden
 _atexit
 _handle_event
+_wait_child hidden
+_raise
+_pause
+_alarm
+_sigemptyset
+_sigfillset
+_sigaddset
+_sigdelset
+_sigismember
+_sigaction
+_sigprocmask
+_sigpending
+_sigsuspend
+___signal_save hidden
+___signal_restore hidden
+___signal_size hidden

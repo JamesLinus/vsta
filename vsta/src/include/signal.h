@@ -12,6 +12,7 @@
 typedef voidfun sig_t;
 #define SIG_DFL ((voidfun)(-1))
 #define SIG_IGN ((voidfun)(-2))
+#define SIG_ERR ((voidfun)(-3))
 
 /*
  * Some of these are not yet used in VSTa, but are included for completeness
@@ -54,7 +55,62 @@ typedef voidfun sig_t;
 
 #define _NSIG 32	/* Max # emulated signals */
 
+/*
+ * Standard C signal functions
+ */
 extern voidfun signal(int, voidfun);
 extern int kill(pid_t, int);
+extern int raise(int);
+
+/*
+ * Function shared between waitpid() emulation and signal emulation
+ */
+extern void wait_child(void);
+
+/*
+ * Mask of signals, must have at least _NSIG bits (viva POSIX)
+ */
+typedef uint sigset_t;
+
+/*
+ * Signal handling description
+ */
+struct sigaction {
+	voidfun sa_handler;	/* Handler function, SIG_DFL or SIG_IGN */
+	sigset_t sa_mask;	/* Additional set of signals to be blocked */
+	uint sa_flags;		/* Flags to affect behavior of signal */
+};
+
+/*
+ * Bits in sa_flags
+ */
+#define SA_NOCLDSTOP 1	/* Do not generate SIGCHLD when children stop */
+
+/*
+ * Values for sigprocmask
+ */
+#define SIG_BLOCK 1	/* Block signals in 'set', other signals unaffected */
+#define SIG_UNBLOCK 2   /* Unblock signals in 'set',  ,, */
+#define SIG_SETMASK 3   /* New mask is 'set' */
+
+/*
+ * POSIX functions
+ */
+extern int sigemptyset(sigset_t *),
+	sigfillset(sigset_t *),
+	sigaddset(sigset_t *, int),
+	sigdelset(sigset_t *, int),
+	sigismember(sigset_t *, int),
+	sigaction(int, struct sigaction *, struct sigaction *),
+	sigprocmask(int, sigset_t *, sigset_t *),
+	sigpending(sigset_t *),
+	sigsuspend(sigset_t *);
+
+/*
+ * Internal infrastructure
+ */
+extern void __signal_save(char *);
+extern char *__signal_restore(char *);
+extern int __signal_size(void), __strtosig(const char *);
 
 #endif /* _SIGNAL_H */

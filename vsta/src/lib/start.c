@@ -8,6 +8,7 @@
 #include <mnttab.h>
 #include <ctype.h>
 #include <stdio.h>
+#include <signal.h>
 
 /*
  * We initialize these here and offer them to C library users
@@ -108,6 +109,11 @@ noargs:
 	 * Restore current working directory
 	 */
 	a = __cwd_restore(a);
+
+	/*
+	 * Restore our signal state
+	 */
+	a = __signal_restore(a);
 
 	/*
 	 * Unmap the argument memory
