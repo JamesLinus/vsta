@@ -67,18 +67,19 @@ execvp(const char *prog, char * const *argv)
 		/*
 		 * Find next path element
 		 */
-		p = strchr(path, ';');
+		p = strchr(path, ':');
 		if (p == 0) {
-			p = strchr(path, ':');
+			p = strchr(path, ';');
 		}
 		if (p) {
 			*p++ = '\0';
 		}
 
 		/*
-		 * Get temp buffer for full path
+		 * Get temp buffer for full path.  Add one extra
+		 * for '/' separator, and another for null termination.
 		 */
-		buf = malloc(len+strlen(path)+1);
+		buf = malloc(len+strlen(path)+2);
 		if (buf == 0) {
 			return(-1);
 		}
