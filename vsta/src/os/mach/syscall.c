@@ -36,7 +36,7 @@ struct syscall {
 	{msg_err, 3},				/*  7 */
 	{exit, 1},				/*  8 */
 	{fork, 0},				/*  9 */
-	{fork_thread, 0},			/* 10 */
+	{fork_thread, 1},			/* 10 */
 	{enable_io, 2},				/* 11 */
 	{enable_isr, 2},			/* 12 */
 	{mmap, 6},				/* 13 */
@@ -76,8 +76,7 @@ syscall(struct trapframe *f)
 	/*
 	 * See if can get needed number of arguments
 	 */
-	if (copyin(f->esp + sizeof(int), args,
-			s->s_narg * sizeof(int))) {
+	if (copyin(f->esp, args, s->s_narg * sizeof(int))) {
 #ifdef DEBUG
 		printf("Short syscall args\n");
 		dbg_enter();
