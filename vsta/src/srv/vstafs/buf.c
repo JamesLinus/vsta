@@ -184,18 +184,17 @@ resize_buf(daddr_t d, uint newsize, int fill)
 	char *p;
 	struct buf *b;
 
-#ifdef DEBUG
-	/* This isn't fool-proof, but should catch most transgressions */
-	ASSERT(newsize <= MAXEXTSIZ, "resize_buf: too large");
-	ASSERT(((ulong)d % EXTSIZ) == 0, "resize_buf: misaligned");
-	hash_foreach(bufpool, check_span, (void *)(b->b_start + newsize - 1));
-#endif
+	ASSERT_DEBUG(newsize <= EXTSIZ, "resize_buf: too large");
 	/*
 	 * If it isn't currently buffered, we don't care yet
 	 */
 	if (!(b = hash_lookup(bufpool, d))) {
 		return(0);
 	}
+#ifdef DEBUG
+	/* This isn't fool-proof, but should catch most transgressions */
+	hash_foreach(bufpool, check_span, (void *)(b->b_start + newsize - 1));
+#endif
 
 	/*
 	 * Get the buffer space
@@ -206,6 +205,7 @@ resize_buf(daddr_t d, uint newsize, int fill)
 	if (p == 0) {
 		return(1);
 	}
+	b->b_data = p;
 
 	/*
 	 * If needed, fill from disk
