@@ -9,6 +9,7 @@
 /*
  * Default and ignore signal "handlers"
  */
+typedef voidfun sig_t;
 #define SIG_DFL ((voidfun)(-1))
 #define SIG_IGN ((voidfun)(-2))
 
