@@ -392,7 +392,6 @@ setup_gdt(void)
 	struct segment *g, *s;
 	struct linmem l;
 	extern pte_t *cr3;
-	extern char id_stack[];
 
 	/*
 	 * Allocate our 32-bit task and our GDT.  We will always
