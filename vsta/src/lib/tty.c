@@ -398,7 +398,7 @@ tcsetattr(int fd, int flag, struct termios *t)
 	if ((t->c_oflag & (ONLCR | OPOST)) !=
 			(t2->c_oflag & (ONLCR | OPOST))) {
 		sprintf(buf, "onlcr=%d\n",
-			(t->c_lflag & (ONLCR | OPOST)) == (ONLCR | OPOST));
+			(t->c_oflag & (ONLCR | OPOST)) == (ONLCR | OPOST));
 		(void)wstat(port->p_port, buf);
 	}
 	if (t->c_ospeed != t2->c_ospeed) {
