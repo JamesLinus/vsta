@@ -3,8 +3,11 @@
 #	Shell script to build the distribution filesets
 #
 
+# Staging directory for binary distribution
+ROOT=/vsta
+
 # Copyright/license files
-LAW=readme license
+LAW=README LICENSE
 
 # Staging area mounted here
 DEST=/dist
@@ -15,7 +18,8 @@ LIB=lib/bison.hairy lib/bison.simple lib/crt0.o lib/crt0srv.o \
 	lib/libcurses.a lib/libdpart.a lib/libg.a lib/libgcc.a \
 	lib/libm.a lib/libregexp.a lib/libsrv.a lib/libtermcap.a \
 	lib/libusr.a lib/termcap lib/units.lib lib/libtermcap.shl \
-	lib/libm.shl lib/libregexp.shl lib/libregex.a lib/magic
+	lib/libm.shl lib/libregexp.shl lib/libregex.a lib/magic \
+	lib/libfl.a lib/libjpeg.a
 
 BIN=$(LAW) bin boot doc etc include $(LIB)
 
@@ -26,7 +30,7 @@ SRCSRV=src/srv/bfs src/srv/cdfs src/srv/devnull src/srv/dos \
 	src/srv/vstafs src/srv/tick src/srv/selfs
 
 # Core source distribution
-SRC=$(LAW) mkdist.mk rcs src/makefile.all \
+SRC=$(LAW) mkdist.mk src/makefile.all \
 	src/bin/adb src/bin/init src/bin/login \
 	src/bin/cmds src/bin/time src/include src/lib src/os \
 	$(SRCSRV) src/boot.386
@@ -53,7 +57,7 @@ SH=src/bin/ash src/bin/testsh src/bin/ports/rc
 
 # Editors
 ED=src/bin/ports/emacs src/bin/ports/ed src/bin/ports/vim \
-	src/bin/ports/vim-5.7
+	src/bin/ports/vim-5.7 src/bin/ports/teco
 
 # Games
 FUN=src/bin/ports/backgammon src/bin/ports/chess-5.00
@@ -78,16 +82,16 @@ GCC=src/bin/ports/gcc2 src/bin/ports/binutl2 src/bin/ports/gdb
 MGR=mgr
 
 # Compiler tools
-LANG=src/bin/ports/flex src/bin/ports/bison src/bin/ports/yacc lib/libfl.a
+LANG=src/bin/ports/flex src/bin/ports/bison src/bin/ports/yacc
 
 # Python
-PYTHON=src/bin/ports/python lib/python15
+PYTHON=src/bin/ports/python $(ROOT)/lib/python15
 
 # Diff utilities
 DIFF=src/bin/ports/diffutl
 
 # Graphics
-GRAPHICS=src/bin/ports/svgalib src/bin/ports/jpeg6b lib/libjpeg.a
+GRAPHICS=src/bin/ports/svgalib src/bin/ports/jpeg6b
 
 # Simulators
 SIM=src/bin/ports/sim_2.3d
@@ -98,13 +102,24 @@ MISC=src/bin/ports/units src/bin/ports/expr src/bin/ports/file-3.22
 # Sample accounts
 ACCOUNT=root guest
 
+# Miscellaneous programming languages
+MISCLANG=src/bin/ports/pfe
+
+# VSTa specific contributed software
+CONTRIB=src/contrib/rd
+
 # Default: make a distribution
 dist: bindist srcdist make txt sh ed fun bc gzip sc small gcc \
 	mgrdist lang net python diff account graphics sim misc \
-	srccvs
+	srccvs misclang
+
+# Create backup
+backup: srcdist make txt sh ed fun bc gzip sc small gcc \
+	mgrdist lang net python diff account graphics sim misc \
+	srccvs misclang
 
 bindist:
-	tar -cvf - $(BIN) | gzip -9 > $(DEST)/vsta.tz
+	cd $(ROOT); tar -cvf - $(BIN) | gzip -9 > $(DEST)/vsta.tz
 
 srcdist:
 	tar -cvf - $(SRC) | gzip -9 > $(DEST)/vsta_src.tz
@@ -155,7 +170,7 @@ diff:
 	tar -cvf - $(DIFF) | gzip -9 > $(DEST)/diff.tz
 
 account:
-	tar -cvf - $(ACCOUNT) | gzip -9 > $(DEST)/account.tz
+	cd $(ROOT); tar -cvf - $(ACCOUNT) | gzip -9 > $(DEST)/account.tz
 
 graphics:
 	tar -cvf - $(GRAPHICS) | gzip -9 > $(DEST)/graphics.tz
@@ -166,6 +181,13 @@ sim:
 misc:
 	tar -cvf - $(MISC) | gzip -9 > $(DEST)/misc.tz
 
+misclang:
+	tar -cvf - $(MISCLANG) | gzip -9 > $(DEST)/misclang.tz
+
+contrib:
+	tar -cvf - $(CONTRIB) | gzip -9 > $(DEST)/vsta_contrib.tz
+
 # The CVS source control tree behind main VSTa development
 srccvs:
 	cd /cvs ; tar -cvf - . | gzip -9 > $(DEST)/vsta_cvs.tz
+
