@@ -38,6 +38,7 @@
 #define S_GETID 31
 #define S_UNHASH 32
 #define S_TIME_SET 33
-#define S_HIGH S_TIME_SET
+#define S_PTRACE 34
+#define S_HIGH S_PTRACE
 
 #endif /* _SYSCALL_H */
