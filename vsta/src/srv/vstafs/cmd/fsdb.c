@@ -235,12 +235,11 @@ dump_file(int argc, char **argv)
 		return;
 	}
 	fs = (struct fs_file *)secbuf;
-	printf("prev @ 0x%lx, version %ld, len %ld, type %s\n",
+	printf("prev @ 0x%lx, revision %U, len %U, type %s\n",
 		fs->fs_prev, fs->fs_rev, fs->fs_len,
 		(fs->fs_type == FT_DIR) ? "dir" : "file");
-	printf("nlink %d rev %U prev %U prot %s\n",
-		fs->fs_nlink, fs->fs_rev, fs->fs_prev,
-		perm_print(&fs->fs_prot));
+	printf("nlink %d prot %s\n",
+		fs->fs_nlink, perm_print(&fs->fs_prot));
 	len = 0;
 	for (x = 0; x < MAXEXT; ++x) {
 		struct alloc *a;
