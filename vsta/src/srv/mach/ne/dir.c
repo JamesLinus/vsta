@@ -154,8 +154,6 @@ dir_newfile(struct file *f)
 		return(0);
 	}
 	bzero(o, sizeof(struct attach));
-	ll_init(&o->a_readers);
-	ll_init(&o->a_writers);
 
 	/*
 	 * Insert in dir chain

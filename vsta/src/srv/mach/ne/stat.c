@@ -28,7 +28,7 @@ ne_stat(struct msg *m, struct file *f)
 	char buf[MAXSTAT];
 	uint len;
 	struct attach *o;
-	struct llist *l;
+	struct llist *l, *lstart;
 	uchar *addr;
 
 	/*
@@ -61,8 +61,8 @@ ne_stat(struct msg *m, struct file *f)
 		 * File--its byte length
 		 */
 		len = 0;
-		for (l = LL_NEXT(&o->a_writers); l != &o->a_writers;
-				l = LL_NEXT(l)) {
+		lstart = &writers[o->a_unit];
+		for (l = LL_NEXT(lstart); l != lstart; l = LL_NEXT(l)) {
 			uint y;
 			struct msg *m2;
 

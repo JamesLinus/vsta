@@ -143,8 +143,6 @@ struct attach {
 	ushort a_refs;		/* # references */
 	ushort a_unit;		/* Unit # opened */
 	uint a_owner;		/* Owner UID */
-	struct llist a_readers,	/* List of read requests pending */
-		a_writers;	/*  ...writers */
 	ushort a_type;		/* ethernet type desired */
 	ushort a_typeset;	/* 1 when type is set; incoming pkts ok */
 };
@@ -206,5 +204,6 @@ extern struct llist files;
 extern int tx_busy[];
 extern struct prot ne_prot;
 extern ulong dropped;
+extern struct llist readers, writers[];
 
 #endif /* _NE_H */
