@@ -365,6 +365,7 @@ main(int argc, char *argv[])
 			exit(1);
 		}
 	} else {
+		namer_name = 0;	/* For -Wall */
 		usage();
 	}
 

@@ -405,7 +405,7 @@ static void
 write_freelist(void)
 {
 	struct freelist *fr;
-	daddr_t old_next;
+	daddr_t old_next = 0;
 	struct freelist *prev_blk = 0;
 
 	for (fr = freelist; fr; fr = fr->fr_next) {
@@ -525,7 +525,7 @@ void
 free_block(daddr_t d, uint nblk)
 {
 	struct freelist *fr, *ff;
-	struct free *f;
+	struct free *f = 0;	/* = 0 for -Wall */
 
 	ASSERT_DEBUG(nblk > 0, "free_block: zero len");
 retry:
