@@ -126,6 +126,7 @@ post_exitgrp(struct exitgrp *e, struct proc *p, int code)
 	es->e_code = code;
 	es->e_usr = p->p_usr;
 	es->e_sys = p->p_sys;
+	strcpy(es->e_event, p->p_event);
 
 	/*
 	 * Queue.  Zero our pointer if it was queued, leave it non-zero
@@ -153,7 +154,7 @@ post_exitgrp(struct exitgrp *e, struct proc *p, int code)
  *	Let parent wait for a child, if any
  */
 struct exitst *
-wait_exitgrp(struct exitgrp *e)
+wait_exitgrp(struct exitgrp *e, int block)
 {
 	struct exitst *es;
 
@@ -170,7 +171,7 @@ retry:
 	/*
 	 * There are no children; return NULL without sleeping
 	 */
-	} else if (e->e_refs == 1) {
+	} else if ((e->e_refs == 1) || !block) {
 		es = 0;
 	/*
 	 * Wait for a child
