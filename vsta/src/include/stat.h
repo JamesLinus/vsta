@@ -25,8 +25,8 @@ struct	stat {
 #define S_IFCHR		0x2000	/* character special */
 #define S_IFBLK		0x3000	/* block special */
 #define S_IFREG		0x0000	/* no bits--regular file */
-#define S_IREAD		0x0400	/* owner may read */
-#define S_IWRITE 	0x0200	/* owner may write */
-#define S_IEXEC		0x0100	/* owner may execute */
+#define S_IREAD		0x0004	/* owner may read */
+#define S_IWRITE 	0x0002	/* owner may write */
+#define S_IEXEC		0x0001	/* owner may execute */
 
 #endif /* _STAT_H */
