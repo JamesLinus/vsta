@@ -588,11 +588,6 @@ do_exit(int code)
 	}
 
 	/*
-	 * One less runable thread
-	 */
-	ATOMIC_DEC(&num_run);
-
-	/*
 	 * Tear down the thread's user stack if not last.  If it's
 	 * last, it'll get torn down with the along with the rest
 	 * of the vas.
@@ -639,16 +634,25 @@ do_exit(int code)
 	 */
 	idle_stack();
 	FREE(curthread->t_kstack, MT_KSTACK);
+
+	/*
+	 * One less runable thread
+	 */
+	ATOMIC_DEC(&num_run);
+
+	/*
+	 * Drop FPU if in use
+	 */
 	if (curthread->t_fpu) {
 		fpu_disable(0);
 		FREE(curthread->t_fpu, MT_FPU);
 	}
-	FREE(curthread, MT_THREAD);
-	curthread = 0;
 
 	/*
 	 * Free thread, switch to new work
 	 */
+	FREE(curthread, MT_THREAD);
+	curthread = 0;
 	ATOMIC_DEC(&nthread);
 	p_lock(&runq_lock, SPLHI);
 	PREEMPT_OK();	/* Can't preempt now with runq_lock held */
