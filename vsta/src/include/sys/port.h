@@ -21,6 +21,7 @@ struct port {
 	sema_t p_mapsema;	/* Mutex for p_maps */
 	struct hash		/* Map file-ID -> pset */
 		*p_maps;
+	port_name p_name;	/* Name of this port */
 };
 
 /*
@@ -65,6 +66,7 @@ struct portref {
 #define PS_CLOSING 6	/* M_DISCONNECT sent */
 
 #ifdef KERNEL
+STRUCT_REF(proc);
 extern struct portref *dup_port(struct portref *);
 extern void fork_ports(struct portref **, struct portref **, uint);
 extern struct portref *alloc_portref(void);
@@ -74,6 +76,10 @@ extern void free_portref(struct portref *);
 extern int kernmsg_send(struct portref *, int, long *);
 extern struct port *alloc_port(void);
 extern void exec_cleanup(struct port *);
+extern struct portref *find_portref(struct proc *, port_t),
+	*delete_portref(struct proc *, port_t);
+extern struct port *find_port(struct proc *, port_t),
+	*delete_port(struct proc *, port_t);
 #endif
 
 #endif /* _PORT_H */
