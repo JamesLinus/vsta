@@ -395,9 +395,11 @@ uncreate_file(struct openfile *o)
 	ASSERT(fs, "uncreate_file: buffer access failed");
 
 	/*
-	 * Dump all but the fs_file
+	 * Dump all but the fs_file.  The buffer can move; re-map
+	 * it.
 	 */
 	file_shrink(o, sizeof(struct fs_file));
+	fs = getfs(o, 0);
 
 	/*
 	 * Dump the file header, and free the openfile
