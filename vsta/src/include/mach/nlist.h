@@ -4,8 +4,6 @@
  * nlist.h
  *	Name list portion of an a.out
  */
-#include <sys/types.h>
-
 #define M_386 (100)	/* Value for N_MACHTYPE */
 
 #define N_MAGIC(exec) ((exec).a_info & 0xffff)

@@ -4,8 +4,6 @@
  * aout.h
  *	A very abbreviated notion of what an a.out header looks like
  */
-#include <sys/types.h>
-
 struct aout {
 unsigned long
 	a_info,		/* Random stuff, already checked */
