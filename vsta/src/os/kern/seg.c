@@ -180,6 +180,7 @@ kern_mem(void *vaddr, uint len)
 	ulong pgstart, pgend;
 	struct pview *pv;
 	int x;
+	struct pset *ps;
 	extern struct pset *physmem_pset();
 
 	/*
@@ -194,7 +195,8 @@ kern_mem(void *vaddr, uint len)
 	pgstart = btop(vaddr);
 	pgend = btop((char *)vaddr + len - 1);
 	pv->p_len = pgend-pgstart+1;
-	pv->p_set = physmem_pset(0, pv->p_len);
+	ps = pv->p_set = physmem_pset(0, pv->p_len);
+	ref_pset(ps);
 	pv->p_prot = PROT_RO;
 
 	/*
@@ -204,7 +206,7 @@ kern_mem(void *vaddr, uint len)
 	for (x = 0; x < pv->p_len; ++x) {
 		struct perpage *pp;
 
-		pp = find_pp(pv->p_set, x);
+		pp = find_pp(ps, x);
 		pp->pp_pfn = btop(vtop((char *)vaddr + ptob(x)));
 	}
 	return(s);
