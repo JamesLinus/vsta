@@ -241,11 +241,13 @@ do_login(void)
 		printf("That account is disabled.\n");
 		return;
 	}
-	printf("password: "); fflush(stdout);
-	get_str(passwd, sizeof(passwd), 0);
-	if (strcmp(uinfo.u_passwd, passwd)) {
-		printf("Incorrect password.\n");
-		return;
+	if (uinfo.u_passwd[0]) {
+		printf("password: "); fflush(stdout);
+		get_str(passwd, sizeof(passwd), 0);
+		if (strcmp(uinfo.u_passwd, passwd)) {
+			printf("Incorrect password.\n");
+			return;
+		}
 	}
 	login(&uinfo);
 }
