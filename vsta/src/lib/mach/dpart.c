@@ -174,7 +174,7 @@ dpart_init(char *name, uint unit, char *secbuf,
 		 * extended partition we need to add in a suitable offset
 		 * for the start of the extended partition.
 		 *
-		 * We use p->p_extoffs because OS/2 has a nasty quirk in it's
+		 * We use p->p_extoffs because OS/2 has a nasty quirk in its
 		 * swap partition handler, and uses the "number of hidden
 		 * sectors" that most other FAT fs implementations ignore :-(
 		 */
@@ -215,9 +215,18 @@ dpart_init(char *name, uint unit, char *secbuf,
 		case PT_DOS12:		/* DOS filesystem */
 		case PT_DOS16:
 		case PT_DOSBIG:
+		case PT_WIN95:
 			sprintf(p->p_name, "%s%d_dos%d", name,
 				unit, dos++);
 			p->p_val = 1;
+			break;
+
+		case PT_WIN95LBA:	/* DOS filesystem, offset? */
+			sprintf(p->p_name, "%s%d_dos%d", name,
+				unit, dos++);
+			p->p_val = 1;
+			p->p_off += 63;
+			p->p_len -= 63;
 			break;
 
 		case PT_OS2HPFS:       	/* OS/2 HPFS fs */
@@ -282,8 +291,10 @@ dpart_init(char *name, uint unit, char *secbuf,
 			(*next_part)++;
 		}
 	}
-	if(!extended)
+
+	if (!extended) {
 		*sec_num = 0;
+	}
 
 	/*
 	 * Next time we come round, we'll want the new "current" extended
