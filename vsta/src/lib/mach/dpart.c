@@ -106,8 +106,10 @@ dpart_init(char *name, uint unit, char *secbuf,
 	static int vsswap, vsbfs;
 	static int ext, dos, hpfs, bsd, minix;
 	static int lxnat, lxminix, lxswap;
-	static int ext_base_sec;
-	int extended = 0;
+	static int ext_base_sec, ext_cur_offs, ext_next_offs;
+	int cur_sec_num, extended = 0;
+
+	cur_sec_num = *sec_num;
 
 	/*
 	 * Are we restarting the list here?
@@ -124,6 +126,8 @@ dpart_init(char *name, uint unit, char *secbuf,
 		lxminix = 0;
 		lxswap = 0;
 		ext_base_sec = 0;
+		ext_cur_offs = 0;
+		ext_next_offs = 0;
 	}
 
 	/*
@@ -162,10 +166,18 @@ dpart_init(char *name, uint unit, char *secbuf,
 
 		/*
 		 * Fill in off/len.  They're ignored if we don't
-		 * set p_val below.
+		 * set p_val below.  Note that if we're currently in an
+		 * extended partition we need to add in a suitable offset
+		 * for the start of the extended partition
 		 */
 		p->p_off = s->ps_start;
 		p->p_len = s->ps_len;
+		if (cur_sec_num) {
+			/*
+			 * We're in an extended partition
+			 */
+			p->p_off += ext_base_sec + ext_cur_offs;
+		}
 
 		/*
 		 * Look up type
@@ -175,9 +187,12 @@ dpart_init(char *name, uint unit, char *secbuf,
 			break;
 
 		case PT_EXT:		/* Extended partition */
-			*sec_num = ext_base_sec + p->p_off;
+			p->p_off -= ext_cur_offs;
+			*sec_num = p->p_off;
 			if (!ext_base_sec) {
 				ext_base_sec = p->p_off;
+			} else {
+				ext_next_offs = p->p_off - ext_base_sec;
 			}
 			extended = 1;
 			break;
@@ -250,11 +265,16 @@ dpart_init(char *name, uint unit, char *secbuf,
 
 		if (s->ps_type != 0 && s->ps_type != PT_EXT) {
 			(*next_part)++;
-printf("current name %s\n", p->p_name);
 		}
 	}
 	if(!extended)
 		*sec_num = 0;
+
+	/*
+	 * Next time we come round, we'll want the new "current" extended
+	 * partition offset established
+	 */
+	ext_cur_offs = ext_next_offs;
 
 	return 1;
 }
