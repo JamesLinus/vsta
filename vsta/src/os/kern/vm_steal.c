@@ -32,6 +32,7 @@
 #include <sys/fs.h>
 #include <sys/vm.h>
 #include <sys/malloc.h>
+/* #define WATCHMEM /* */
 
 extern struct portref *swapdev;
 
@@ -71,21 +72,33 @@ uint desfree, minfree;		/* Initial values calculated on boot */
 static uint
 unvirt(struct perpage *pp)
 {
-	struct atl *a, *an;
+	struct atl *a, *an, **ap;
 	uint flags = 0;
 
-	for (a = pp->pp_atl; a; a = an) {
+	ap = &pp->pp_atl;
+	for (a = *ap; a; a = an) {
 		struct pview *pv;
 
 		an = a->a_next;
 		pv = a->a_pview;
-		hat_deletetrans(pv, (char *)pv->p_vaddr + ptob(a->a_idx),
-			pp->pp_pfn);
-		flags |= hat_getbits(pv, (char *)pv->p_vaddr + ptob(a->a_idx));
-		free(a);
-		pp->pp_refs -= 1;
+		if (pv->p_vas->v_flags & VF_MEMLOCK) {
+			/*
+			 * Leave entry be if memory locked
+			 */
+			ap = &a->a_next;
+		} else {
+			/*
+			 * Delete translation, free attach list element
+			 */
+			hat_deletetrans(pv, (char *)pv->p_vaddr +
+				ptob(a->a_idx), pp->pp_pfn);
+			flags |= hat_getbits(pv,
+				(char *)pv->p_vaddr + ptob(a->a_idx));
+			*ap = an;
+			free(a);
+			pp->pp_refs -= 1;
+		}
 	}
-	pp->pp_atl = 0;
 	return(flags);
 }
 
@@ -135,10 +148,10 @@ steal_master(struct pset *ps, struct perpage *pp, uint idx,
 		if (!clock_slot(ps2, pp2)) {
 			if (pp2->pp_flags & PP_COW) {
 				pp->pp_flags |= unvirt(pp2);
-				ASSERT_DEBUG(pp2->pp_refs == 0,
-					"steal_master: pp2 refs");
-				pp2->pp_flags &= ~(PP_COW|PP_V|PP_R);
-				pp->pp_refs -= 1;
+				if (pp2->pp_refs == 0) {
+					pp2->pp_flags &= ~(PP_COW|PP_V|PP_R);
+					pp->pp_refs -= 1;
+				}
 			}
 			unlock_slot(ps2, pp2);
 		} else {
@@ -239,7 +252,14 @@ do_hand(struct core *c, int trouble, intfun steal)
 	 * remain correct until we release the page slot.
 	 */
 	pp->pp_flags |= unvirt(pp);
-	ASSERT(pp->pp_refs == 0, "do_hand: stale refs");
+
+	/*
+	 * If there are refs, it can only mean the page is involved
+	 * in a memory-locked region.  Leave it alone.
+	 */
+	if (pp->pp_refs > 0) {
+		goto out;
+	}
 
 	/*
 	 * If any trouble, see if this page is should be
@@ -262,7 +282,7 @@ do_hand(struct core *c, int trouble, intfun steal)
 		slot_held = 0;	/* Released in iodone_unlock */
 	} else {
 		/*
-		 * No, leave it alone.  Clear REF bit so we can
+		 * Leave it alone.  Clear REF bit so we can
 		 * estimate its use in the future.
 		 */
 		pp->pp_flags &= ~PP_R;
