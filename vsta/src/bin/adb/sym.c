@@ -206,8 +206,8 @@ map_aout(struct map *m)
 {
 	ulong end_text;
 
-	add_map(m, (void *)0x1000, hdr.a_text, 0);
-	end_text = 0x1000 + hdr.a_text;
+	add_map(m, (void *)0x1000, hdr.a_text + sizeof(hdr), 0);
+	end_text = sizeof(hdr) + 0x1000 + hdr.a_text;
 	add_map(m, (void *)roundup(end_text, 4*1024*1024), hdr.a_data,
 		hdr.a_text + sizeof(struct aout));
 }
