@@ -7,16 +7,32 @@
 #include <sys/types.h>
 
 /*
+ * The type associated with baud rates
+ */
+typedef unsigned long speed_t;
+
+/*
+ * The type associated with flags
+ */
+typedef unsigned long tcflag_t;
+
+/*
+ * ...and with c_cc[] slots
+ */
+typedef unsigned char cc_t;
+
+/*
  * Central TTY state
  */
+#define NCCS 11		/* # slots in c_cc array */
 struct termios {
-	ulong c_iflag;		/* Input */
-	ulong c_oflag;		/* Output */
-	ulong c_cflag;		/* Control */
-	ulong c_lflag;		/* Local */
-	uchar c_cc[11];		/* Characters */
-	ulong c_ispeed;		/* Input baud */
-	ulong c_ospeed;		/* Output baud */
+	tcflag_t c_iflag;	/* Input */
+	tcflag_t c_oflag;	/* Output */
+	tcflag_t c_cflag;	/* Control */
+	tcflag_t c_lflag;	/* Local */
+	cc_t c_cc[NCCS];	/* Characters */
+	speed_t c_ispeed;	/* Input baud */
+	speed_t c_ospeed;	/* Output baud */
 };
 
 /*
@@ -111,7 +127,7 @@ struct termios {
  */
 extern int cfsetispeed(struct termios *, ulong),
 	cfsetospeed(struct termios *, ulong);
-extern ulong cfgetispeed (struct termios *),
+extern speed_t cfgetispeed (struct termios *),
 	cfgetospeed (struct termios *);
 extern int tcdrain(int), tcflow(int, int), tcflush(int, int),
 	tcsendbreak(int, int),
