@@ -1,7 +1,7 @@
 CC=gcc
 LD=ld
 INCS=-I../../../../include
-CFLAGS=$(INCS) -g
+CFLAGS=$(INCS)
 LIBS=-L../../../lib -lusr -lc
 CRT0=../../../lib/crt0.o
 
