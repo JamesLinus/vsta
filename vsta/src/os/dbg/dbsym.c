@@ -5,7 +5,8 @@
  */
 #ifdef KDB
 #include <stdio.h>
-#include <aout.h>
+#include "../../include/mach/aout.h"
+#include "../../include/mach/nlist.h"
 #include "../dbg/dbg.h"
 
 extern void *malloc();
@@ -33,7 +34,7 @@ usage()
 	exit(1);
 }
 
-struct exec hdr;
+struct aout hdr;
 
 main (argc, argv)
 	int argc;
