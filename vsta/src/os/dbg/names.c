@@ -48,6 +48,29 @@ add_ent(char *nm, ulong val)
 }
 
 /*
+ * findent()
+ *	Search for symbol
+ */
+static struct sym *
+findent(char *nm)
+{
+	struct sym *s;
+
+	/*
+	 * Walk table looking for the symbol
+	 */
+	for (s = dbg_start; s->s_type != DBG_END; s = NEXTSYM(s)) {
+		/*
+		 * Match?  Return entry.
+		 */
+		if (!strcmp(s->s_name, nm)) {
+			return(s);
+		}
+	}
+	return(0);
+}
+
+/*
  * find_ent()
  *	Given name, return pointer to entry
  */
@@ -55,37 +78,16 @@ static struct sym *
 find_ent(char *nm)
 {
 	struct sym *s;
-	int x, loops = 1;
 
 	/*
-	 * Ignore leading '_' on the first pass through the name table
+	 * Find symbol.  If no match, try again without leading underscore
+	 * (if any)
 	 */
-	if (nm[0] == '_') {
-		++nm;
-		loops = 2;
+	s = findent(nm);
+	if (!s && (nm[0] == '_')) {
+		s = findent(nm+1);
 	}
-
-	/*
-	 * Walk table looking for the symbol
-	 */
-	for (x = 0; x < loops; x++) {
-		for (s = dbg_start; s->s_type != DBG_END; s = NEXTSYM(s)) {
-			/*
-			 * Match?  Return entry.
-			 */
-			if (!strcmp(s->s_name, nm)) {
-				return(s);
-			}
-		}
-
-		/*
-		 * If we started with an underscore, let's see if it
-		 * really was important!
-		 */
-		--nm;
-	}
-
-	return(0);
+	return(s);
 }
 
 /*
