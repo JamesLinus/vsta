@@ -54,7 +54,7 @@ tmpfs_stat(struct msg *m, struct file *f)
 		len = o->o_len;
 		owner = o->o_owner;
 	}
-	sprintf(buf, "size=%d\ntype=%c\nowner=%d\ninode=%ud\n",
+	sprintf(buf, "size=%d\ntype=%c\nowner=%d\ninode=%u\n",
 		len, f->f_file ? 'f' : 'd', owner, o);
 	strcat(buf, perm_print(&o->o_prot));
 	m->m_buf = buf;

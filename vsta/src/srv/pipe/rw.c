@@ -235,7 +235,7 @@ pipe_readdir(struct msg *m, struct file *f)
 		/*
 		 * Point to next file.  Get its length.
 		 */
-		sprintf(buf2, "%ud", l->l_data);
+		sprintf(buf2, "%u", l->l_data);
 		slen = strlen(buf2)+1;
 
 		/*

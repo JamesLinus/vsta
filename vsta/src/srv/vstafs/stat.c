@@ -24,6 +24,7 @@ vfs_stat(struct msg *m, struct file *f)
 	struct fs_file *fs;
 	struct buf *b;
 	uint len;
+	char typec;
 
 	/*
 	 * Verify access
@@ -44,6 +45,7 @@ vfs_stat(struct msg *m, struct file *f)
 	if (fs->fs_type == FT_DIR) {
 		ulong idx;
 
+		typec = 'd';
 		idx = sizeof(struct fs_file); 
 		len = 0;
 		lock_buf(b);
@@ -68,11 +70,11 @@ vfs_stat(struct msg *m, struct file *f)
 		}
 		unlock_buf(b);
 	} else {
+		typec = 'f';
 		len = fs->fs_len - sizeof(struct fs_file);
 	}
-	sprintf(buf, "size=%d\ntype=%c\nowner=%d\ninode=%ud\n",
-		len, f->f_file ? 'f' : 'd', fs->fs_owner,
-		fs->fs_blks[0].a_start);
+	sprintf(buf, "size=%u\ntype=%c\nowner=%d\ninode=%u\n",
+		len, typec, fs->fs_owner, fs->fs_blks[0].a_start);
 	strcat(buf, perm_print(&fs->fs_prot));
 	m->m_buf = buf;
 	m->m_arg = m->m_buflen = strlen(buf);

@@ -45,7 +45,7 @@ env_stat(struct msg *m, struct file *f)
 	} else {
 		len = strlen(n->n_val->s_val);
 	}
-	sprintf(buf, "size=%d\ntype=%c\nowner=%d\ninode=%ud\n",
+	sprintf(buf, "size=%d\ntype=%c\nowner=%d\ninode=%u\n",
 		len, DIR(n) ? 'd' : 'f', n->n_owner, n);
 	strcat(buf, perm_print(&n->n_prot));
 	m->m_buf = buf;
