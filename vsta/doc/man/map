@@ -18,3 +18,7 @@ mmap: mmap.2
 munmap: munmap.2
 strerror: strerr.2
 notify: notify.2
+clone: clone.2
+page_wire: pagewire.2
+page_release: pagerel.2
+enable_dma: enabdma.2
