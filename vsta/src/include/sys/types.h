@@ -53,5 +53,6 @@ STRUCT_REF(prot);
 STRUCT_REF(perm);
 STRUCT_REF(port);
 STRUCT_REF(portref);
+STRUCT_REF(qio);
 
 #endif /* _TYPES_H */
