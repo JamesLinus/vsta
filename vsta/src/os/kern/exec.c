@@ -117,7 +117,9 @@ get_exec_pset(struct portref *pr, uint hi)
 		if (port) {
 			v_sema(&port->p_mapsema);
 		}
-		return(alloc_pset_fod(pr, hi));
+		ps = alloc_pset_fod(pr, hi);
+		ref_pset(ps);
+		return(ps);
 	}
 
 	/*
