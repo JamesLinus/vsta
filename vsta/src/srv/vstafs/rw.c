@@ -352,15 +352,6 @@ vfs_readdir(struct msg *m, struct file *f)
 	uint step;
 
 	/*
-	 * If the current seek position doesn't match a directory
-	 * entry boundary, blow them out of the water.
-	 */
-	if ((f->f_pos % sizeof(struct fs_dirent)) != 0) {
-		msg_err(m->m_sender, EINVAL);
-		return;
-	}
-
-	/*
 	 * Get a buffer of the requested size, but put a sanity
 	 * cap on it.
 	 */
@@ -400,12 +391,25 @@ vfs_readdir(struct msg *m, struct file *f)
 		if (step < sizeof(struct fs_dirent)) {
 			char *p;
 
+			if (f->f_pos >= fs->fs_len) {
+				break;
+			}
 			if (!bmap(b, fs, f->f_pos, len-bufcnt, &p, &step)) {
 				break;
 			}
 			ASSERT_DEBUG(step >= sizeof(*d),
 				"vfs_readdir: bad size");
 			d = (struct fs_dirent *)p;
+		}
+
+		/*
+		 * Skip deleted, bail when there are no more entries
+		 */
+		if (d->fs_clstart == 0) {
+			break;
+		}
+		if (d->fs_name[0] & 0x80) {
+			continue;
 		}
 
 		/*
