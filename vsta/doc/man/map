@@ -30,6 +30,15 @@ page_wire: pagewire.2
 page_release: pagerel.2
 enable_dma: enabdma.2
 
+/3
+hash_dealloc: hash_dealloc.3
+hash_foreach: hash_foreach.3
+hash_lookup: hash_lookup.3  
+hash_alloc: hash_alloc.3
+hash_delete: hash_delete.3
+hash_insert: hash_insert.3
+hash_size: hash_size.3    
+
 /6
 group: group.6
 ids: ids.6
