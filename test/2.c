@@ -1,3 +1,4 @@
+hi
 X
 b
 #include <stdio.h>
