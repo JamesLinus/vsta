@@ -330,6 +330,44 @@ dup(int fd)
 }
 
 /*
+ * dup2()
+ *	Duplicate old FD onto a given descriptor
+ */
+dup2(int oldfd, int newfd)
+{
+	struct port *port;
+
+	/*
+	 * Get pointer to current port
+	 */
+	port = __port(oldfd);
+	if (port == 0) {
+		__seterr(EBADF);
+		return(-1);
+	}
+
+	/*
+	 * Close destination if open
+	 */
+	if (newfd < NFD) {
+		if (fdmap[newfd]) {
+			close(newfd);
+		}
+	} else {
+		if (hash_lookup(fdhash, (ulong)newfd)) {
+			close(newfd);
+		}
+	}
+
+	/*
+	 * Map destination onto existing port
+	 */
+	setfd(newfd, port);
+	port->p_refs += 1;
+	return(0);
+}
+
+/*
  * read()
  *	Do a read() "syscall"
  */
