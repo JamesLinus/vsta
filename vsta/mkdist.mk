@@ -16,7 +16,7 @@ LIB=lib/bison.hairy lib/bison.simple lib/crt0.o lib/crt0srv.o \
 	lib/libm.a lib/libregex.a lib/libsrv.a lib/libtermcap.a \
 	lib/libusr.a lib/termcap lib/units.lib
 
-BIN=$(LAW) bin boot doc etc grub include $(LIB)
+BIN=$(LAW) bin boot doc etc include $(LIB)
 
 # Core servers
 SRCSRV=src/srv/bfs src/srv/cdfs src/srv/devnull src/srv/dos \
