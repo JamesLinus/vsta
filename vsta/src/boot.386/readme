@@ -1,0 +1,14 @@
+The code in this directory is historical.  VSTa now boots using
+GRUB, complying with the Multiboot standard.  The code here was
+used to bootload VSTa from a loader running as a DOS real mode
+application.  It no longer works, since VSTa is now organized
+to be loaded above the 1 meg boundary.
+
+In some future release, this directory will go away.
+
+Andy Valencia 5/15/2000
+
+For now, you can use RCS to take a look at the old source files.
+One step closer to deleting this....
+
+Andy Valencia 1/17/2001
