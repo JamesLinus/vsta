@@ -86,7 +86,7 @@ putc(char c, FILE *fp)
  * For non-GNU C, just live with the function call overhead for now
  */
 #define getc(f) fgetc(f)
-#define putc(f) fputc(f)
+#define putc(c, f) fputc(c, f)
 
 #endif
 
