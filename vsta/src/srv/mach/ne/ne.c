@@ -276,7 +276,7 @@ ne_start(struct adapter *ap, struct file *f)
 
 	/* Wait till done, then shutdown feature */
 	while ((inportb(nec+ds0_isr) & DSIS_RDC) == 0)
-		;
+		yield();
 	outportb(nec+ds0_isr, DSIS_RDC);
 	outportb(nec+ds_cmd, cmd);		/* ??? */
 
@@ -359,8 +359,8 @@ ne_isr(void)
 
 	/* Save cmd, clear interrupt */
 	cmd = inportb(nec+ds_cmd);
-loop:
 	isr = inportb(nec+ds0_isr);
+loop:
 	outportb(nec+ds_cmd,DSCM_NODMA|DSCM_START);
 	outportb(nec+ds0_isr, isr);
 
@@ -477,6 +477,7 @@ loop:
 
 	/* Still more to do? */
 	isr = inportb(nec+ds0_isr);
-	if (isr)
+	if (isr) {
 		goto loop;
+	}
 }

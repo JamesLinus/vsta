@@ -25,8 +25,6 @@ ulong dropped;			/* # packets without reader */
 /*
  * run_queue()
  *	If there's stuff in writers queue, launch next
- *
- * If there's nothing, clears "tx_busy"
  */
 void
 run_queue(int unit)
@@ -38,7 +36,6 @@ run_queue(int unit)
 	 * Nobody waiting--adapter falls idle
 	 */
 	if (writers[unit].l_forw == &writers[unit]) {
-		tx_busy[unit] = 0;
 		return;
 	}
 
@@ -174,7 +171,10 @@ ne_send_up(char *buf, int len)
 	ushort etype;
 	int sent;
 
-	if ((len == 0) || (LL_EMPTY(&readers))) {
+	/*
+	 * Fast discard for null packets
+	 */
+	if (len == 0) {
 		return;
 	}
 

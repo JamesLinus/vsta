@@ -45,7 +45,6 @@ ne_stat(struct msg *m, struct file *f)
 	o = f->f_file;
 	if (!o) {
 		extern struct llist files;
-		extern ulong dropped;
 
 		/*
 		 * Root dir--# files in dir

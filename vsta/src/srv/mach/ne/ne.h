@@ -205,5 +205,6 @@ extern struct adapter adapters[];
 extern struct llist files;
 extern int tx_busy[];
 extern struct prot ne_prot;
+extern ulong dropped;
 
 #endif /* _NE_H */
