@@ -288,7 +288,7 @@ getreg(long index)
 	if ((index < 0) || (index >= NREG)) {
 		return(-1);
 	}
-	return(*((long *)(&curthread->t_uregs) + index));
+	return(*((long *)(curthread->t_uregs) + index));
 }
 
 /*
