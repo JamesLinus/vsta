@@ -9,19 +9,20 @@
 #include <mach/aout.h>
 #include <sys/param.h>
 #include <fdl.h>
+#include <mnttab.h>
 
 /*
- * execl()
+ * execv()
  *	Execute a file with some arguments
  */
-execl(char *file, char *arg0, ...)
+execv(char *file, char **argv)
 {
 	int fd, x;
-	uint plen, fdl_len;
+	uint plen, fdl_len, mnt_len;
 	ulong narg;
 	struct aout a;
 	struct mapfile mf;
-	char *p, **pp, *args;
+	char *p, *args;
 
 	/*
 	 * Open the file we're going to run
@@ -72,17 +73,17 @@ execl(char *file, char *arg0, ...)
 	 * Assemble arguments into a counted array
 	 */
 	plen = sizeof(ulong);
-	narg = 0;
-	for (pp = &arg0; *pp; ++pp) {
-		narg += 1;
-		plen += (strlen(*pp)+1);
+	for (narg = 0; argv[narg]; ++narg) {
+		plen += (strlen(argv[narg])+1);
 	}
 
 	/*
-	 * Add in length for fdl state
+	 * Add in length for fdl state and mount table
 	 */
 	fdl_len = __fdl_size();
 	plen += fdl_len;
+	mnt_len = __mount_size();
+	plen += mnt_len;
 
 	/*
 	 * Create a shared mmap() area
@@ -98,11 +99,11 @@ execl(char *file, char *arg0, ...)
 	 */
 	*(ulong *)p = narg;
 	p += sizeof(ulong);
-	for (pp = &arg0; *pp; ++pp) {
+	for (narg = 0; argv[narg]; ++narg) {
 		uint plen2;
 
-		plen2 = strlen(*pp)+1;
-		bcopy(*pp, p, plen2);
+		plen2 = strlen(argv[narg])+1;
+		bcopy(argv[narg], p, plen2);
 		p += plen2;
 	}
 
@@ -113,8 +114,25 @@ execl(char *file, char *arg0, ...)
 	p += fdl_len;
 
 	/*
+	 * And our mount state
+	 */
+	__mount_save(p);
+	p += mnt_len;
+
+	/*
 	 * Here we go!
 	 */
 	return(exec(__fd_port(fd), &mf, args));
 }
 
+/*
+ * execl()
+ *	Alternate interface to exec(), simpler to call
+ *
+ * Interestingly, the arguments are already in the right format
+ * on the stack.  We just use a little smoke and we're there.
+ */
+execl(char *file, char *arg0, ...)
+{
+	return(execv(file, &arg0));
+}
