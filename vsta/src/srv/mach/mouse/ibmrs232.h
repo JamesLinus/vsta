@@ -39,13 +39,24 @@ extern void ibm_serial_coordinates(ushort x, ushort y);
 extern void ibm_serial_bounds(ushort x1, ushort y1, ushort x2, ushort y2);
 extern void ibm_serial_update_period(ushort period);
 
+/* interrupt identification register IBM_RS_INTID FIFO extension bits */
+#define	IIR_FIFO_MASK	0xc0	/* set if FIFOs are enabled */
+
+/* fifo control register (written to IBM_RS_INTID */
+#define	FIFO_ENABLE	0x01
+#define	FIFO_RCV_RST	0x02
+#define	FIFO_XMT_RST	0x04
+#define	FIFO_DMA_MODE	0x08
+#define	FIFO_TRIGGER_1	0x00
+#define	FIFO_TRIGGER_4	0x40
+#define	FIFO_TRIGGER_8	0x80
+#define	FIFO_TRIGGER_14	0xc0
+
+/* IBM_RS_MODEM bits */
+#define	MCR_LOOPBACK	0x10
+#define	MCR_IENABLE	0x08
+#define	MCR_DRS		0x04
+#define	MCR_RTS		0x02
+#define	MCR_DTR		0x01
+
 #endif /* __MOUSE_IBM_SERIAL_H__ */
-
-
-
-
-
-
-
-
-

@@ -24,6 +24,7 @@ struct {
    { "pc98_bus",         pc98_bus_initialise,     },
    { "microsoft_bus",    ms_bus_initialise,       },
    { "logitech_bus",     logitech_bus_initialise, },
+   { "serial",		 ibm_serial_initialise,	  },
    { NULL,               NULL,                    },  /* last entry */
 };
 

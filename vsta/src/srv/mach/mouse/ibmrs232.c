@@ -31,7 +31,7 @@ static ushort      ibm_serial_delay_period    = 100;
 static uint        ibm_serial_update_allowed  = TRUE;
 static uint        ibm_serial_baud_rate       = 1200;
 static uint        ibm_serial_port_number     = 0;
-static ibm_model_t ibm_serial_model           = RS_UNKNOWN;
+static ibm_model_t ibm_serial_model           = RS_MICROSOFT;
 static uint        ibm_serial_iobase          = 0;
 
 static uchar ibm_serial_data[6][5] =
@@ -50,30 +50,33 @@ static uchar ibm_serial_data[6][5] =
  *	Initialise the com port to the baud specified.
  */
 static void
-rs232_init(uint port, uint baud)
+rs232_init(uint baud)
 {
-   uchar hi_baud = 0x0;
-   uchar lo_baud = 0x0C;
+	uint bits;
 
-   switch(baud){
-   case  300:
-   case 1200:
-   case 2400:
-   case 4800:
-      fprintf(stderr,"mouse: Unknown baud rate. Using 9600\n");
-   case 9600:
-      hi_baud  = 0x0;
-      lo_baud  = 0x0C;
-      break;
-   default:
-      fprintf(stderr,"mouse: Unknown baud rate. Using 9600\n");
-      hi_baud  = 0x0;
-      lo_baud  = 0x0C;
-   }
-   outportb(IBM_RS_LINEREG, 0x80);        /* 9600 baud */
-   outportb(IBM_RS_HIBAUD,  hi_baud);
-   outportb(IBM_RS_LOWBAUD, lo_baud);
-   outportb(IBM_RS_LINEREG, 3);           /* 8 bits, one stop */
+	/*
+	 * Compute high/low bit divisor based on bit rate
+	 */
+	bits = 1843200 / (16 * baud);
+	outportb(IBM_RS_LINEREG, 0x80);
+	outportb(IBM_RS_HIBAUD, (bits >> 8) & 0xFF);
+	outportb(IBM_RS_LOWBAUD, bits & 0xFF);
+	outportb(IBM_RS_LINEREG, 0x03);
+
+	/*
+	 * Set up 16550 FIFO chip, if present
+	 */
+	outportb(IBM_RS_INTID, FIFO_ENABLE|FIFO_RCV_RST|
+		FIFO_XMT_RST|FIFO_TRIGGER_4);
+	__msleep(100);
+	if ((inportb(IBM_RS_INTID) & IIR_FIFO_MASK) == IIR_FIFO_MASK) {
+		outportb(IBM_RS_INTID, FIFO_ENABLE|FIFO_TRIGGER_4);
+	}
+
+	/*
+	 * Turn on DTR/RTS, which the mouse powers itself off of
+	 */
+	outportb(IBM_RS_MODEM, MCR_DTR|MCR_RTS);
 }
 
 /*
@@ -83,9 +86,20 @@ rs232_init(uint port, uint baud)
 static void
 rs232_putc(int c)
 {
-   while ((inportb(IBM_RS_LINESTAT) & 0x20) == 0)
-      ;
+   while ((inportb(IBM_RS_LINESTAT) & 0x20) == 0) {
+      __msleep(1);
+   }
    outportb(IBM_RS_DATA, c & 0x7F);
+}
+
+/*
+ * rs232_data_pending()
+ *	Tell if data is ready on the serial port
+ */
+static inline int
+rs232_data_pending(void)
+{
+	return ((inportb(IBM_RS_LINESTAT) & 1) != 0);
 }
 
 /*
@@ -95,9 +109,13 @@ rs232_putc(int c)
 static int
 rs232_getc(void)
 {
-   while ((inportb(IBM_RS_LINESTAT) & 1) == 0)
-      ;
-   return(inportb(IBM_RS_DATA) & 0x7F);
+   uchar c;
+
+   while (!rs232_data_pending()) {
+      __msleep(1);
+   }
+   c = inportb(IBM_RS_DATA);
+   return(c);
 }
 
 /*
@@ -108,14 +126,15 @@ static inline void
 ibm_serial_check_status(void)
 {
    short new_x, new_y;
-   unsigned char buffer[5];
+   uchar buffer[5];
    char x_off, y_off;
    int i, buttons;
-
    uchar *m_data = ibm_serial_data[ibm_serial_model];
 
+   if (!rs232_data_pending()) {
+	return;
+   }
    buffer[0] = rs232_getc();
-
 restart:
    /* find a header packet */
    while ((buffer[0] & m_data[0]) != m_data[1]) {
@@ -123,11 +142,22 @@ restart:
    }
 
    /* read in the rest of the packet */
+restart_body:
    for (i = 1; i < m_data[4]; ++i) {
       buffer[i] = rs232_getc();
       /* check whether it's a data packet */
-      if ((buffer[i] & m_data[2]) != m_data[3] || buffer[i] == 0x80)
+      if ((buffer[i] & m_data[2]) != m_data[3] || buffer[i] == 0x80) {
+	 /*
+	  * If we glitched and have started a new packet, don't
+	  * throw it away and make them wait for *another* packet,
+	  * start assembling from this header.
+	  */
+	 if ((buffer[i] & m_data[0]) == m_data[1]) {
+		buffer[0] = buffer[i];
+	 	goto restart_body;
+	 }
 	 goto restart;
+      }
    }
 
    set_semaphore(&ibm_serial_update_allowed, FALSE);
@@ -140,6 +170,7 @@ restart:
       buttons = ((buffer[0] & 0x20) >> 3) | ((buffer[0] & 0x10) >> 4);
       x_off = (char) (((buffer[0] & 0x03) << 6) | (buffer[1] & 0x3F));
       y_off = (char) (((buffer[0] & 0x0C) << 4) | (buffer[2] & 0x3F));
+      printf("xoff %d yoff %d\n", x_off, y_off);
       break;
    case RS_MOUSE_SYS_3:		 /* Mouse Systems 3 byte */
       buttons = (~buffer[0]) & 0x07;
@@ -181,6 +212,7 @@ restart:
       */
       mouse_data.pointer_data.x = new_x;
       mouse_data.pointer_data.y = new_y;
+      printf("x = %d, y = %d\n", new_x, new_y);
    }
    switch (buttons) {			 /* simulate a 3 button mouse here */
    case 4:
@@ -220,7 +252,8 @@ ibm_serial_poller_entry_point(void)
 void
 ibm_serial_bounds(ushort x1, ushort y1, ushort x2, ushort y2)
 {
-   while (!ibm_serial_update_allowed);
+   while (!ibm_serial_update_allowed)
+   	__msleep(1);
    set_semaphore(&ibm_serial_update_allowed, FALSE);
    mouse_data.pointer_data.bx1 = x1;
    mouse_data.pointer_data.bx2 = x2;
@@ -236,7 +269,9 @@ ibm_serial_bounds(ushort x1, ushort y1, ushort x2, ushort y2)
 void
 ibm_serial_coordinates(ushort x, ushort y)
 {
-   while (!ibm_serial_update_allowed);
+   while (!ibm_serial_update_allowed) {
+   	__msleep(1);
+   }
    set_semaphore(&ibm_serial_update_allowed, FALSE);
    mouse_data.pointer_data.x = x;
    mouse_data.pointer_data.y = y;
@@ -374,7 +409,7 @@ ibm_serial_initialise(int argc, char **argv)
       return (-1);
    }
 
-   rs232_init(ibm_serial_port_number, ibm_serial_baud_rate);
+   rs232_init(ibm_serial_baud_rate);
 
    /*
     *  Make doubly sure that we have every ready for polling.
