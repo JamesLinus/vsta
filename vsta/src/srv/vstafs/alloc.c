@@ -56,7 +56,7 @@ init_block(void)
 {
 	daddr_t x;
 	struct freelist *fr, **fpp;
-	ulong largest = 0, nextent = 0;
+	ulong largest = 0, nextent = 0, segs = 0;
 
 	fpp = &freelist;
 	for (x = FREE_SEC; x; x = fr->fr_free.f_next) {
@@ -95,11 +95,7 @@ init_block(void)
 				}
 			}
 		}
-
-		/*
-		 * Advance to next sector
-		 */
-		x = fr->fr_free.f_next;
+		segs += 1;
 	}
 
 	/*
@@ -110,8 +106,9 @@ init_block(void)
 	/*
 	 * Report
 	 */
-	syslog(LOG_INFO, "%ld free extents, longest %ld sectors",
-		nextent, largest);
+	syslog(LOG_INFO, "%ld free extents,"
+		" %ld segments, longest %ld sectors",
+		nextent, segs, largest);
 }
 
 /*
@@ -277,69 +274,72 @@ free_chunk(struct free *f, daddr_t d, uint nblk)
 static void
 move_forward(struct freelist *from, struct freelist *to, uint cnt)
 {
-	struct free *f = &to->fr_free, *f2 = &from->fr_free;
-	struct alloc *a, *a2;
+	struct free *fto, *ffrom = &from->fr_free;
+	struct alloc *ato, *afrom;
 
 	ASSERT_DEBUG(from->fr_next == to, "move_forward: mismatch");
-	ASSERT_DEBUG(cnt < f2->f_nfree, "move_forward: too few");
-	ASSERT_DEBUG((f->f_nfree + cnt) <= NALLOC, "move_forward: overflow");
+	ASSERT_DEBUG(cnt < ffrom->f_nfree, "move_forward: too few");
+
+	/*
+	 * Create a node if there isn't one yet
+	 */
+	if (!to) {
+		from->fr_next = to = malloc(sizeof(struct freelist));
+		ASSERT(to, "move_forward: out of core");
+		to->fr_next = 0;
+		from->fr_free.f_next = to->fr_this =
+			alloc_chunk(ffrom, 1);
+		ASSERT_DEBUG(to->fr_this, "move_forward: no block");
+		to->fr_free.f_nfree = 0;
+		to->fr_free.f_next = 0;
+	}
+
+	/*
+	 * Our destination exists by now
+	 */
+	fto = &to->fr_free;
+	ASSERT_DEBUG((fto->f_nfree + cnt) <= NALLOC,
+		"move_forward: overflow");
 
 	/*
 	 * Check for coalesce
 	 */
-	a2 = &f2->f_free[f2->f_nfree - 1];
-	if (f->f_nfree > 0) {
-		a = &f->f_free[0];
-		if ((a2->a_start + a2->a_len) == a->a_start) {
+	afrom = &ffrom->f_free[ffrom->f_nfree - 1];
+	if (fto->f_nfree > 0) {
+		ato = &fto->f_free[0];
+		if ((afrom->a_start + afrom->a_len) == ato->a_start) {
 			/*
 			 * Add space from last "from" element onto first
 			 * "to" element.  Update counts.
 			 */
-			a->a_start = a2->a_start;
+			ato->a_start = afrom->a_start;
 			cnt -= 1;
-			f2->f_nfree -= 1;
+			ffrom->f_nfree -= 1;
 		}
 	}
 
 	/*
-	 * If there's not room, move some forward.  If there's no more
-	 * elements on the freelist, create a new entry with a block
-	 * from our list.
+	 * If there's not room, move some forward.
 	 */
-	if ((NALLOC - f->f_nfree) > cnt) {
-		/*
-		 * Create a node if there isn't one yet
-		 */
-		if (to->fr_next == 0) {
-			struct freelist *fp;
-
-			to->fr_next = fp = malloc(sizeof(struct freelist));
-			ASSERT(fp, "move_forward: out of core");
-			fp->fr_next = 0;
-			fp->fr_this = alloc_chunk(f, 1);
-			ASSERT_DEBUG(fp->fr_this, "move_forward: no block");
-			fp->fr_free.f_nfree = 0;
-			fp->fr_free.f_next = 0;
-		}
-
+	if ((cnt + fto->f_nfree) > NALLOC) {
 		/*
 		 * Push the necessary amount forward.  We could push more,
 		 * in the expectation that this is a free list rebalance.
 		 * But we'll keep the function "pure" for now.
 		 */
-		move_forward(to, to->fr_next, (f->f_nfree + cnt) - NALLOC);
+		move_forward(to, to->fr_next, (fto->f_nfree + cnt) - NALLOC);
 	}
 
 	/*
 	 * Now we have room.  Move up the entries, and put the required
 	 * number into place at the front.
 	 */
-	bcopy(&f->f_free[0], &f->f_free[cnt],
-		f->f_nfree * sizeof(struct alloc));
-	bcopy(&f2->f_free[f2->f_nfree - cnt], &f->f_free[0],
+	bcopy(&fto->f_free[0], &fto->f_free[cnt],
+		fto->f_nfree * sizeof(struct alloc));
+	bcopy(&ffrom->f_free[ffrom->f_nfree - cnt], &fto->f_free[0],
 		cnt * sizeof(struct alloc));
-	f->f_nfree += cnt;
-	f2->f_nfree -= cnt;
+	fto->f_nfree += cnt;
+	ffrom->f_nfree -= cnt;
 }
 
 /*
@@ -352,41 +352,41 @@ move_forward(struct freelist *from, struct freelist *to, uint cnt)
 static void
 move_back(struct freelist *to, struct freelist *from, uint cnt)
 {
-	struct alloc *a, *a2;
-	struct free *f = &to->fr_free, *f2 = &from->fr_free;
+	struct free *fto = &to->fr_free, *ffrom = &from->fr_free;
+	struct alloc *ato, *afrom;
 
 	/*
 	 * Coalesce if possible
 	 */
-	a2 = &f2->f_free[0];
+	afrom = &ffrom->f_free[0];
 	if (to->fr_free.f_nfree > 0) {
-		a = &f->f_free[f->f_nfree-1];
-		if ((a->a_start + a->a_len) == a2->a_start) {
+		ato = &fto->f_free[fto->f_nfree-1];
+		if ((ato->a_start + ato->a_len) == afrom->a_start) {
 			/*
 			 * Move space back into last entry of first freelist.
 			 * Advance pointer to next element in "from", and
 			 * lower count to reflect consumed entry.
 			 */
-			a->a_len += a2->a_len;
-			a2 += 1;
+			ato->a_len += afrom->a_len;
 			cnt -= 1;
-			f2->f_nfree -= 1;
+			ffrom->f_nfree -= 1;
+			bcopy(afrom+1, afrom,
+				ffrom->f_nfree * sizeof(struct alloc));
 		}
-		a += 1;
+		ato += 1;
 	} else {
-		a = &f->f_free[f->f_nfree];
+		ato = &fto->f_free[fto->f_nfree];
 	}
 
 	/*
-	 * Now simply move back entries the indicated amount
+	 * Now move back entries the indicated amount
 	 */
-	while (cnt > 0) {
-		*a++ = *a2++;
-		f->f_nfree += 1;
-		ASSERT_DEBUG(f2->f_nfree > 0, "move_back: underflow");
-		f2->f_nfree -= 1;
-	}
-	ASSERT_DEBUG(f->f_nfree <= NALLOC, "move_back: too far");
+	ASSERT_DEBUG(ffrom->f_nfree >= cnt, "move_back: underflow");
+	bcopy(afrom, ato, cnt * sizeof(struct alloc));
+	fto->f_nfree += cnt;
+	ffrom->f_nfree -= cnt;
+	ASSERT_DEBUG(fto->f_nfree <= NALLOC, "move_back: too far");
+	bcopy(afrom+cnt, afrom, ffrom->f_nfree * sizeof(struct alloc));
 }
 
 /*
@@ -426,6 +426,7 @@ write_freelist(void)
 		if (prev_blk) {
 			write_sec(prev_blk->fr_this, &prev_blk->fr_free);
 		}
+		prev_blk = fr;
 	}
 
 	/*
@@ -469,8 +470,7 @@ compress_freelist(void)
 	struct freelist *fr;
 	struct free *f;
 
-	fr = freelist;
-	while (fr) {
+	for (fr = freelist; fr; fr = fr->fr_next) {
 		f = &fr->fr_free;
 
 		/*
@@ -478,7 +478,6 @@ compress_freelist(void)
 		 */
 		if (f->f_nfree > NALLOC/2) {
 			move_forward(fr, fr->fr_next, f->f_nfree-NALLOC/2);
-			fr = fr->fr_next;
 			continue;
 		}
 
@@ -568,15 +567,14 @@ retry:
 	 * a generously balanced freelist; forward progress on the retry
 	 * is guaranteed.
 	 */
+	f = &ff->fr_free;
 	if (free_chunk(f, d, nblk)) {
 		compress_freelist();
 		goto retry;
 	}
 #ifdef DEBUG
 	/* Not strictly needed, but useful for debugging */
-	if (fr) {
-		write_sec(fr->fr_this, f);
-	}
+	write_sec(ff->fr_this, f);
 #endif
 
 	/*
