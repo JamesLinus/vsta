@@ -382,6 +382,8 @@ main(int argc, char *argv[])
 	 * Init our data structures
 	 */
 	init_buf();
+	init_node();
+	init_block();
 
 	/*
 	 * Open access to the root filesystem
