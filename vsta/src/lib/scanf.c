@@ -42,6 +42,18 @@ atoi(const char *p)
 	return neg ? (0 - val) : val;
 }
 
+/*
+ * atol()
+ *	Convert ascii to long
+ *
+ * We cheat; fix when sizeof(int) != sizeof(long) again
+ */
+long
+atol(const char *p)
+{
+	return(atoi(p));
+}
+
 #define	SPC	01
 #define	STP	02
 
