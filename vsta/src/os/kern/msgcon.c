@@ -212,9 +212,9 @@ msg_connect(port_name arg_port, int arg_mode)
 	sm.sm_op = M_CONNECT;
 	sm.sm_sender = pr;
 	sm.sm_seg[0] = (void *)(p->p_ids);
-	sm.sm_nseg = sizeof(p->p_ids);
+	sm.sm_nseg = 0;
 	sm.sm_arg = arg_mode;
-	sm.sm_arg1 = 0;
+	sm.sm_arg1 = sizeof(p->p_ids);
 	pr->p_msg = &sm;
 
 	/*

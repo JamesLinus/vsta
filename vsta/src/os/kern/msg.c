@@ -528,7 +528,7 @@ msg_receive(port_t arg_port, struct msg *arg_msg)
 		v_lock(&port->p_lock, SPL0);
 		new_client(pr);
 
-		sm->sm_seg[0] = kern_mem(sm->sm_seg[0], sm->sm_nseg);
+		sm->sm_seg[0] = kern_mem(sm->sm_seg[0], sm->sm_arg1);
 		sm->sm_nseg = 1;
 
 	/*
