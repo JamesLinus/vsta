@@ -112,7 +112,7 @@ mmap(void *addr, ulong len, int prot, int flags,
 	 * Create read-only or copy-on-write view of a file
 	 */
 	if (flags & MAP_FILE) {
-		struct portref *pr, *newpr;
+		struct portref *pr;
 
 		/*
 		 * If writing, make sure they're asking for COW; we
@@ -125,30 +125,25 @@ mmap(void *addr, ulong len, int prot, int flags,
 		}
 
 		/*
-		 * Get the portref, make our own copy of it.  Note
-		 * mmap() doesn't "steal" the open file mapped, thus
-		 * we need our own parallel connection to the server.
+		 * Get the portref.  add_map() creates new portrefs
+		 * as necessary, so just use the open file.
 		 */
 		pr = find_portref(p, port);
 		v_lock(&pr->p_lock, SPL0);
-		newpr = dup_port(pr);
-		v_sema(&pr->p_sema);
 
 		/*
-		 * Try to generate a view.  If we fail, we need to
-		 * shut down our private connection.  Return address
-		 * or 0.
+		 * Try to generate a view.  Return address or error.
 		 */
-		addr = add_map(vas, newpr, addr,
+		addr = add_map(vas, pr, addr,
 			btorp(len + (offset - ptob(btop(offset)))),
 			btop(offset), !(prot & PROT_WRITE));
-		if (addr == 0) {
-			shut_client(newpr);
-			err(EINVAL);
-			return(0);
-		} else {
+		v_sema(&pr->p_sema);
+		if (addr) {
 			return(addr);
 		}
+
+		/* VVV fall down to common error case VVV */
+
 	}
 
 	err(EINVAL);
