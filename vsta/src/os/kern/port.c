@@ -231,7 +231,7 @@ delete_port(struct proc *p, port_t portid)
 	/*
 	 * Take spinlock on port.  Release proc.
 	 */
-	p_lock(&port->p_lock, SPL0);
+	p_lock(&port->p_lock, SPLHI);
 	v_sema(&p->p_sema);
 
 	/*
@@ -259,6 +259,7 @@ alloc_portref(void)
 	set_sema(&pr->p_iowait, 0);
 	set_sema(&pr->p_svwait, 0);
 	pr->p_state = PS_OPENING;
+	pr->p_flags = 0;
 	return(pr);
 }
 
@@ -274,6 +275,13 @@ dup_port(struct portref *opr)
 {
 	struct portref *pr;
 	long args[3];
+
+	/*
+	 * Never duplicate a PF_NODUP portref
+	 */
+	if (opr->p_flags & PF_NODUP) {
+		return(0);
+	}
 
 	/*
 	 * Get our new proposed port, set it up
