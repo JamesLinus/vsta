@@ -336,6 +336,7 @@ main(int argc, char *argv[])
 	if (argc == 0) {
 		static char *my_argv[6];
 
+		(void)set_cmd("dos");
 		my_argv[0] = "dos";
 		my_argv[1] = "-p";
 		my_argv[2] = "disk/wd";
