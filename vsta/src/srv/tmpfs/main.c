@@ -13,9 +13,6 @@
 
 #define NCACHE (16)	/* Roughly, # clients */
 
-extern void tmpfs_open(), tmpfs_read(), tmpfs_write(),
-	tmpfs_remove(), tmpfs_stat(), tmpfs_close(), tmpfs_wstat();
-
 static struct hash	/* Map of all active users */
 	*filehash;
 port_t rootport;	/* Port we receive contacts through */
@@ -244,6 +241,11 @@ loop:
 	case FS_WSTAT:		/* Set stuff on file */
 		tmpfs_wstat(&msg, f);
 		break;
+
+	case FS_FID:		/* Return file ID for caching */
+		tmpfs_fid(&msg, f);
+		break;
+
 	default:		/* Unknown */
 		msg_err(msg.m_sender, EINVAL);
 		break;

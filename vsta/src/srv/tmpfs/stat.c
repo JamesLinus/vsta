@@ -96,3 +96,25 @@ tmpfs_wstat(struct msg *m, struct file *f)
 	 */
 	msg_err(m->m_sender, EINVAL);
 }
+
+/*
+ * tmpfs_fid()
+ *	Return file ID/size for kernel caching of mappings
+ */
+void
+tmpfs_fid(struct msg *m, struct file *f)
+{
+	struct openfile *o = f->f_file;
+
+	/*
+	 * Only files get an ID
+	 */
+	if (o == 0) {
+		msg_err(m->m_sender, EINVAL);
+		return;
+	}
+	m->m_arg = (ulong)o;
+	m->m_arg1 = o->o_len;
+	m->m_nseg = 0;
+	msg_reply(m->m_sender, m);
+}

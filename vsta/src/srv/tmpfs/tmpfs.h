@@ -45,4 +45,13 @@ struct file {
 	int f_perm;	/*  ...for the current f_file */
 };
 
+extern void tmpfs_open(struct msg *, struct file *),
+	tmpfs_read(struct msg *, struct file *),
+	tmpfs_write(struct msg *, struct file *),
+	tmpfs_remove(struct msg *, struct file *),
+	tmpfs_stat(struct msg *, struct file *),
+	tmpfs_close(struct file *),
+	tmpfs_wstat(struct msg *, struct file *),
+	tmpfs_fid(struct msg *, struct file *);
+
 #endif /* _TMPFS_H */
