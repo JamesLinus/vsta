@@ -17,7 +17,7 @@ v_lock(volatile lock_t *lp)
 	*lp = 0;
 }
 inline extern void
-init_lock(lock_t *lp)
+init_lock(volatile lock_t *lp)
 {
 	*lp = 0;
 }
