@@ -166,7 +166,7 @@ map_filename(char *file, char *f1, char *f2)
 			 * If char is illegal in a short name,
 			 * but OK in a long, use long format.
 			 */
-			if (strchr(villegal, c)) {
+			if (!strchr(villegal, c)) {
 				return(1);
 			}
 			return(2);
