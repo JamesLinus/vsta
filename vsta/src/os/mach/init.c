@@ -35,6 +35,7 @@ struct percpu *nextcpu = &cpu;
 
 struct boot_task *boot_tasks;
 uint nboot_task = 0;
+uint num_run = 0;	/* Number of currently runnable threads */
 
 struct rmap *vmap;	/* Map for virtual memory */
 
@@ -122,6 +123,9 @@ init_machdep(void)
 	memsegs[0].m_len = 640*K;
 	memsegs[1].m_base = (void *)(K*K);
 	memsegs[1].m_len = size_ext;
+	if (size_ext > 15*K*K) {
+		memsegs[1].m_len = 15*K*K;
+	}
 
 	/*
 	 * Set up our heap.  Amusingly, because data starts at 4 Mb

@@ -10,6 +10,7 @@
 #include <sys/percpu.h>
 
 extern lock_t runq_lock;
+extern uint num_run;
 
 /*
  * p_lock()
@@ -163,6 +164,7 @@ p_sema(sema_t *s, pri_t p)
 	p_lock(&runq_lock, SPLHI);
 	v_lock(&s->s_lock, SPLHI);
 	t->t_state = TS_SLEEP;
+	ATOMIC_DEC(&num_run);
 	swtch();
 
 	/*
@@ -322,6 +324,7 @@ p_sema_v_lock(sema_t *s, pri_t p, lock_t *l)
 	v_lock(&s->s_lock, SPLHI);
 	v_lock(l, SPLHI);
 	t->t_state = TS_SLEEP;
+	ATOMIC_DEC(&num_run);
 	swtch();
 
 	/*
