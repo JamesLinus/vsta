@@ -11,22 +11,20 @@
 #include <sys/param.h>
 #include <sys/assert.h>
 #include <sys/syscall.h>
-#include <std.h>
+#include <stdlib.h>
 #include <syslog.h>
 #include "wd.h"
 
-extern void wd_rw(), wd_init(), rw_init(), wd_isr(),
-	wd_stat(), wd_wstat(), wd_readdir(), wd_open(),
-	rw_readpartitions();
 extern int valid_fname();
 
 static struct hash *filehash;	/* Map session->context structure */
-
-port_t wdport;		/* Port we receive contacts through */
-port_name wdname;	/*  ...its name */
-uint partundef;		/* Can we take clients yet? */
-char *secbuf;		/* Sector-aligned buffer for bootup */
-extern uint first_unit;	/* Lowerst unit # configured */
+int wd_baseio;			/* Base I/O address */
+int wd_irq;			/* IRQ number in use */
+port_t wdport;			/* Port we receive contacts through */
+port_name wdname;		/*  ...its name */
+uint partundef;			/* Can we take clients yet? */
+char *secbuf;			/* Sector-aligned buffer for bootup */
+char wd_namer_name[NAMESZ];	/* Namer entry */
 
 /*
  * Per-disk state information
@@ -153,7 +151,7 @@ dead_client(struct msg *m, struct file *f)
  *	Endless loop to receive and serve requests
  */
 static void
-wd_main()
+wd_main(void)
 {
 	struct msg msg;
 	int x;
@@ -263,14 +261,12 @@ loop:
  *	Startup of the WD hard disk server
  */
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char **argv)
 {
 	int i;
 
 	/*
-	 * Initialize syslog
+	 * Initialise syslog
 	 */
 	openlog("wd", LOG_PID, LOG_DAEMON);
 
@@ -280,7 +276,7 @@ main(argc, argv)
 	 */
         filehash = hash_alloc(8);
 	if (filehash == 0) {
-		syslog(LOG_ERR, "file hash");
+		syslog(LOG_ERR, "file hash not allocated");
 		exit(1);
         }
 
@@ -291,15 +287,7 @@ main(argc, argv)
 	 * consume a channel.
 	 */
 	if (enable_dma(0) < 0) {
-		syslog(LOG_ERR, "DMA");
-		exit(1);
-	}
-
-	/*
-	 * Enable I/O for the needed range
-	 */
-	if (enable_io(WD_LOW, WD_HIGH) < 0) {
-		syslog(LOG_ERR, "I/O");
+		syslog(LOG_ERR, "DMA not enabled");
 		exit(1);
 	}
 
@@ -317,16 +305,16 @@ main(argc, argv)
 	/*
 	 * Register as WD hard drive
 	 */
-	if (namer_register("disk/wd", wdname) < 0) {
-		syslog(LOG_ERR, "can't register name\n");
+	if (namer_register(wd_namer_name, wdname) < 0) {
+		syslog(LOG_ERR, "can't register name '%s'", wd_namer_name);
 		exit(1);
 	}
 
 	/*
 	 * Tell system about our I/O vector
 	 */
-	if (enable_isr(wdport, WD_IRQ)) {
-		syslog(LOG_ERR, "IRQ attach");
+	if (enable_isr(wdport, wd_irq)) {
+		syslog(LOG_ERR, "can't enable IRQ %d", wd_irq);
 		exit(1);
 	}
 

@@ -10,10 +10,6 @@
 #include "wd.h"
 
 extern char *perm_print();
-extern struct wdparms parm[];
-extern struct disk disks[];
-extern struct prot wd_prot;
-extern int do_wstat();
 
 /*
  * find_prot()
@@ -30,11 +26,7 @@ find_prot(int node)
 	} else {
 		unit = NODE_UNIT(node);
 		part = NODE_SLOT(node);
-		if (part == WHOLE_DISK) {
-			p = &disks[unit].d_prot;
-		} else {
-			p = &disks[unit].d_parts[part]->p_prot;
-		}
+		p = &disks[unit].d_parts[part]->p_prot;
 	}
 	return(p);
 }
@@ -52,29 +44,44 @@ wd_stat(struct msg *m, struct file *f)
 	struct prot *p;
 
 	if (f->f_node == ROOTDIR) {
-		size = NWD;
+		int x;
+
+		size = 0;
 		node = 0;
 		type = 'd';
 		pextoffs = 0;
+		
+		/*
+		 * Work out the dir size
+		 */
+		for (x = 0; x < NWD; x++) {
+			if (disks[x].d_configed) {
+				int y;
+				
+				for (y = 0; y < MAX_PARTS; y++) {
+					if (disks[x].d_parts[y]
+					    && disks[x].d_parts[y]->p_val) {
+						size++;
+					}
+				}
+			}
+		}
 	} else {
 		uint part, unit;
 
-		node = f->f_node;
-		unit = NODE_UNIT(node);
-		part = NODE_SLOT(node);
-		if (part == WHOLE_DISK) {
-			size = parm[unit].w_size;
-		} else {
-			size = disks[unit].d_parts[part]->p_len;
-		}
+		node = f->f_node + UNITSTEP;
+		unit = NODE_UNIT(f->f_node);
+		part = NODE_SLOT(f->f_node);
+		size = disks[unit].d_parts[part]->p_len;
 		size *= SECSZ;
 		type = 's';
 		pextoffs = disks[unit].d_parts[part]->p_extoffs;
 	}
 	p = find_prot(f->f_node);
 	sprintf(buf,
-		"size=%d\ntype=%c\nowner=1/1\ninode=%d\npextoffs=%d\n",
-		size, type, node, pextoffs);
+		"size=%d\ntype=%c\nowner=1/1\ninode=%d\ndev=%d\n" \
+		"pextoffs=%d\nirq=%d\nbaseio=0x%x\n",
+		size, type, node, wdname, pextoffs, wd_irq, wd_baseio);
 	strcat(buf, perm_print(p));
 	m->m_buf = buf;
 	m->m_buflen = strlen(buf);

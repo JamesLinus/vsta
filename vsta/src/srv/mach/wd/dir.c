@@ -9,8 +9,6 @@
 
 #define MAXDIRIO (1024)		/* Max # bytes in one dir read */
 
-extern struct disk disks[];
-
 /*
  * add_ent()
  *	Add another entry to the buffer if there's room
@@ -62,18 +60,19 @@ wd_readdir(struct msg *m, struct file *f)
 	 */
 	entries = 0;
 	for (x = 0; x < NWD; ++x) {
+		d = &disks[x];
+		
 		/*
 		 * Skip disks not present
 		 */
-		if (!configed[x]) {
+		if (!d->d_configed) {
 			continue;
 		}
 
 		/*
 		 * Scan partition table
 		 */
-		d = &disks[x];
-		for (y = 0; y <= MAX_PARTS; ++y) {
+		for (y = 0; y < MAX_PARTS; ++y) {
 			if ((d->d_parts[y] == NULL)
 					|| (d->d_parts[y]->p_val == 0)) {
 				continue;
@@ -139,7 +138,7 @@ wd_open(struct msg *m, struct file *f)
 	 * Next digit is always the unit number
 	 */
 	unit = p[2] - '0';
-	if (unit > NWD) {
+	if ((unit > NWD) || (!disks[unit].d_configed)) {
 		msg_err(m->m_sender, ESRCH);
 		return;
 	}

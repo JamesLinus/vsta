@@ -1,6 +1,6 @@
 /*
  * wd.c
- *	Wester Digital hard disk handling
+ *	Western Digital hard disk handling
  *
  * This level of code assumes a single transfer is active at a time.
  * It will handle a contiguous series of sector transfers.
@@ -8,6 +8,7 @@
 #include <sys/types.h>
 #include <sys/fs.h>
 #include <sys/assert.h>
+#include <sys/syscall.h>
 #include <mach/nvram.h>
 #include <mach/io.h>
 #include <syslog.h>
@@ -21,13 +22,6 @@ static void wd_start(), wd_readp(int), wd_cmos(int),
 	wd_parseparms(int, char *);
 
 uint first_unit;		/* Lowest unit # configured */
-
-/*
- * The parameters we read on each disk, and a flag to ask if we've
- * gotten them yet.
- */
-struct wdparms parm[NWD];
-char configed[NWD];
 
 /*
  * Miscellaneous counters
@@ -69,12 +63,31 @@ swab2(void *ptr, uint cnt)
 static void
 load_sect(void)
 {
-	repoutsw(WD_PORT+WD_DATA, cur_vaddr,
+	repoutsw(wd_baseio + WD_DATA, cur_vaddr,
 		SECSZ/sizeof(ushort));
 	cur_vaddr += SECSZ;
 	cur_sec += 1;
 	cur_secs -= 1;
 	cur_xfer -= 1;
+}
+
+/*
+ * usage()
+ *	Tell how to use
+ */
+static void
+usage(void)
+{
+	fprintf(stderr, "Usage: wd [ch[1-2] | userdef] <drive-configs>" \
+			" [opts=args] ...\n\n");
+	fprintf(stderr, "       drive-configs: d[number]:readp\n" \
+			"                      d[number]:cmos\n" \
+			"                      d[number]:[cyls]:" \
+			"[tracks]:[sectors]\n\n");
+	fprintf(stderr, "       options:       iobase=<I/O-base-address>\n" \
+			"                      irq=<IRQ-number>\n" \
+			"                      namer=<namer-entry>\n\n");
+	exit(1);
 }
 
 /*
@@ -89,57 +102,171 @@ load_sect(void)
 void
 wd_init(int argc, char **argv)
 {
+	int i = 1;
 	int x;
-	int found_first;
+	int found_first = 0;
+	int cfg_params[NWD] = {0, 0};
+	char *check;
+
+	/*
+	 * Start checking the usage
+	 */
+	if (argc < 2) {
+		usage();
+	}
+	if (!strncmp(argv[1], "ch", 2)) {
+		int p;
+
+		/*
+		 * We're using a standard disk definition - find the lookup
+		 * table reference details
+		 */		
+		p = argv[1][2] - '1';
+		if (p < 0 || p >= NWD) {
+			usage();
+		}
+		if (p == 0) {
+			wd_baseio = WD1_PORT;
+			wd_irq = WD1_IRQ;
+			strcpy(wd_namer_name, "disk/wd1");
+		} else {
+			wd_baseio = WD2_PORT;
+			wd_irq = WD2_IRQ;
+			strcpy(wd_namer_name, "disk/wd2");
+		}
+		i++;
+	} else if (!strcmp(argv[1], "userdef")) {
+		/*
+		 * Set initial conditions for a user-defined setup.  Basically
+		 * make sure that there are no defaults
+		 */
+		wd_baseio = 0;
+		wd_irq = 0;
+		i++;
+	} else {
+		/*
+		 * Establish the default
+		 */
+		wd_baseio = WD1_PORT;
+		wd_irq = WD1_IRQ;
+		strcpy(wd_namer_name, "disk/wd");
+	}
+
+	/*
+	 * Start processing the option parameters
+	 */
+	while (i < argc) {
+		if (argv[i][0] == 'd') {
+			/*
+			 * Select drive parameters
+			 */
+			int n;
+			
+			n = argv[i][1] - '0';
+			if (n < 0 || n >= NWD) {
+				fprintf(stderr, "wd: non supported drive " \
+					"number '%c' - aborting\n",
+					argv[i][1]);	
+				exit(1);
+			}
+			cfg_params[n] = i;
+		} else if (!strncmp(argv[i], "irq=", 4)) {
+			/*
+			 * Select a new IRQ line
+			 */
+			wd_irq = (int)strtol(&argv[i][4], &check, 0);
+			if (check == &argv[i][4] || *check != '\0') {
+				fprintf(stderr, "wd: invalid IRQ setting " \
+					"'%s' - aborting\n", argv[i]);
+				exit(1);
+			}
+		} else if (!strncmp(argv[i], "baseio=", 7)) {
+			/*
+			 * Select a new base I/O port address
+			 */
+			wd_baseio = (int)strtol(&argv[i][7], &check, 0);
+			if (check == &argv[i][7] || *check != '\0') {
+				fprintf(stderr, "wd: invalid I/O adress " \
+					"'%s' - aborting\n", argv[i]);
+				exit(1);
+			}
+		} else if (!strncmp(argv[i], "namer=", 6)) {
+			/*
+			 * Select a new namer entry
+			 */
+			if ((strlen(&argv[i][6]) == 0)
+			    || (strlen(&argv[i][6]) >= NAMESZ)) {
+				fprintf(stderr, "wd: invalid name '%s' " \
+					"- aborting\n", &argv[i][6]);
+				exit(1);
+			}
+			strcpy(wd_namer_name, &argv[i][6]);
+		} else {
+			fprintf(stderr,
+				"wd: unknown option '%s' - aborting\n",
+				argv[i]);
+			exit(1);
+		}
+		i++;
+	}
+
+	/*
+	 * Check that after all of the messing about we have a valid set
+	 * of parameters - report failures if we don't
+	 */
+	if (wd_baseio == 0) {
+		fprintf(stderr,
+			"wd: no I/O base address specified - aborting\n");
+		exit(1);
+	}
+	if (wd_irq == 0) {
+		fprintf(stderr,
+			"wd: no IRQ line specified - aborting\n");
+		exit(1);
+	}
+	if (wd_namer_name[0] == '\0') {
+		fprintf(stderr,
+			"wd: no namer entry specified - aborting\n");
+		exit(1);
+	}
+
+	/*
+	 * Enable I/O for the needed range
+	 */
+	if (enable_io(wd_baseio, wd_baseio + WD_CTLR) < 0) {
+		syslog(LOG_ERR, "I/O permissions not granted");
+		exit(1);
+	}
 
 	/*
 	 * Send reset to controller, wait, drop reset bit.
 	 */
-	outportb(WD_PORT+WD_CTLR, CTLR_RESET|CTLR_IDIS);
+	outportb(wd_baseio + WD_CTLR, CTLR_RESET|CTLR_IDIS);
 	__msleep(100);
-	outportb(WD_PORT+WD_CTLR, CTLR_IDIS);
+	outportb(wd_baseio + WD_CTLR, CTLR_IDIS);
 	__msleep(100);
 
 	/*
 	 * Ask him if he's OK
 	 */
 	if (wd_cmd(WDC_DIAG) < 0) {
-		syslog(LOG_ERR, "controller fails diagnostic\n");
+		syslog(LOG_ERR, "controller failed self diagnostic");
 		exit(1);
 	}
-	inportb(WD_PORT+WD_ERROR);
+	inportb(wd_baseio + WD_ERROR);
 
 	/*
 	 * Allow interrupts now
 	 */
-	outportb(WD_PORT+WD_CTLR, CTLR_4BIT);
+	outportb(wd_baseio + WD_CTLR, CTLR_4BIT);
 
 	/*
-	 * First, mark nothing as found
+	 * Scan the unit whose parameters were specified
 	 */
-	found_first = 0;
-	bzero(configed, sizeof(configed));
-
-	/*
-	 * Scan units
-	 */
-	for (x = 1; x < argc; ++x) {
-		uint unit;
-
-		/*
-		 * Sanity check command line format
-		 */
-		if (argv[x][0] != 'd') {
-			syslog(LOG_ERR, "bad arg: %s\n", argv[x]);
-			continue;
-		}
-
-		/*
-		 * Sanity check drive number
-		 */
-		unit = argv[x][1] - '0';
-		if (unit >= NWD) {
-			syslog(LOG_ERR, "bad drive: %s\n", argv[x]);
+	for (i = 0; i < NWD; i++) {
+		disks[i].d_configed = 0;
+		x = cfg_params[i];
+		if (!x) {
 			continue;
 		}
 
@@ -147,37 +274,41 @@ wd_init(int argc, char **argv)
 		 * Verify colon and argument
 		 */
 		if ((argv[x][2] != ':') || !argv[x][3]) {
-			syslog(LOG_ERR, "bad arg: %s\n", argv[x]);
-			continue;
+			fprintf(stderr,
+				"wd: bad argument '%s' - aborting\n",
+				argv[cfg_params[i]]);
+			exit(1);
 		}
 
 		/*
 		 * Now get drive parameters in the requested way
 		 */
 		if (!strcmp(argv[x]+3, "readp")) {
-			wd_readp(unit);
+			wd_readp(i);
 		} else if (!strcmp(argv[x]+3, "cmos")) {
-			wd_cmos(unit);
+			wd_cmos(i);
 		} else {
-			wd_parseparms(unit, argv[x]+3);
+			wd_parseparms(i, argv[x]+3);
 		}
 
-		if (configed[unit]) {
-			uint s = parm[unit].w_size * SECSZ;
+		if (disks[i].d_configed) {
+			struct wdparms *w = &disks[i].d_parm;
+			uint s = w->w_size * SECSZ;
 			const uint m = 1024*1024;
 
 			syslog(LOG_INFO,
-"unit %d: %d.%dM - %d heads, %d cylinders, %d sectors\n",
-	unit, s / m, (s % m) / (m/10),
-	parm[unit].w_tracks, parm[unit].w_cyls, parm[unit].w_secpertrk);
+				"unit %d: %d.%dM - " \
+				"%d heads, %d cylinders, %d sectors",
+				i, s / m, (s % m) / (m / 10),
+				w->w_tracks, w->w_cyls, w->w_secpertrk);
 			found_first = 1;
-			if (unit < first_unit) {
-				first_unit = unit;
+			if (i < first_unit) {
+				first_unit = i;
 			}
 		}
 	}
 	if (!found_first) {
-		syslog(LOG_ERR, "no units found, exiting.\n");
+		syslog(LOG_ERR, "no units found, exiting");
 		exit(1);
 	}
 }
@@ -204,10 +335,10 @@ wd_io(int op, void *handle, uint unit, ulong secnum, void *va, uint secs)
 	/*
 	 * If not configured, error out
 	 */
-	if (!configed[unit]) {
+	if (!disks[unit].d_configed) {
 		return(1);
 	}
-	ASSERT_DEBUG(secnum < parm[unit].w_size, "wd_io: high sector");
+	ASSERT_DEBUG(secnum < disks[unit].d_parm.w_size, "wd_io: high sector");
 
 	/*
 	 * Record transfer parameters
@@ -238,10 +369,10 @@ static void
 wd_start(void)
 {
 	uint cyl, sect, trk, lsect;
-	struct wdparms *w = &parm[cur_unit];
+	struct wdparms *w = &disks[cur_unit].d_parm;
 
 #ifdef DEBUG
-	ASSERT((inportb(WD_PORT+WD_STATUS) & WDS_BUSY) == 0,
+	ASSERT((inportb(wd_baseio + WD_STATUS) & WDS_BUSY) == 0,
 		"wd_start: busy");
 #endif
 	/*
@@ -271,20 +402,20 @@ wd_start(void)
 	/*
 	 * Program I/O
 	 */
-	outportb(WD_PORT+WD_SCNT, cur_xfer);
-	outportb(WD_PORT+WD_SNUM, sect);
-	outportb(WD_PORT+WD_CYL0, cyl & 0xFF);
-	outportb(WD_PORT+WD_CYL1, (cyl >> 8) & 0xFF);
-	outportb(WD_PORT+WD_SDH,
+	outportb(wd_baseio + WD_SCNT, cur_xfer);
+	outportb(wd_baseio + WD_SNUM, sect);
+	outportb(wd_baseio + WD_CYL0, cyl & 0xFF);
+	outportb(wd_baseio + WD_CYL1, (cyl >> 8) & 0xFF);
+	outportb(wd_baseio + WD_SDH,
 		WDSDH_EXT|WDSDH_512 | trk | (cur_unit << 4));
-	outportb(WD_PORT+WD_CMD,
+	outportb(wd_baseio + WD_CMD,
 		(cur_op == FS_READ) ? WDC_READ : WDC_WRITE);
 
 	/*
 	 * Feed data immediately for write
 	 */
 	if (cur_op == FS_WRITE) {
-		while ((inportb(WD_PORT+WD_STATUS) & WDS_DRQ) == 0) {
+		while ((inportb(wd_baseio + WD_STATUS) & WDS_DRQ) == 0) {
 			;
 		}
 		load_sect();
@@ -305,7 +436,7 @@ wd_isr(void)
 	 * Get status.  If this interrupt was meaningless, just
 	 * log it and return.
 	 */
-	stat = inportb(WD_PORT+WD_STATUS);
+	stat = inportb(wd_baseio + WD_STATUS);
 	if ((stat & WDS_BUSY) || !busy) {
 		wd_strayintr += 1;
 		return;
@@ -317,8 +448,8 @@ wd_isr(void)
 	if (stat & WDS_ERROR) {
 		void *v;
 
-		syslog(LOG_ERR, "hard error unit %d sector %d error=0x%x\n",
-		       cur_unit, cur_sec, inportb(WD_PORT+WD_ERROR));
+		syslog(LOG_ERR, "hard error unit %d sector %d error=0x%x",
+		       cur_unit, cur_sec, inportb(wd_baseio + WD_ERROR));
 		v = busy;
 		busy = 0;
 		iodone(v, -1);
@@ -339,7 +470,7 @@ wd_isr(void)
 		/*
 		 * Sector is ready; read it in and advance counters
 		 */
-		repinsw(WD_PORT+WD_DATA, cur_vaddr, SECSZ/sizeof(ushort));
+		repinsw(wd_baseio + WD_DATA, cur_vaddr, SECSZ/sizeof(ushort));
 		cur_vaddr += SECSZ;
 		cur_sec += 1;
 		cur_secs -= 1;
@@ -396,7 +527,7 @@ wd_cmd(int cmd)
 	 * Wait for controller to be ready
 	 */
 	count = timeout;
-	while (inportb(WD_PORT + WD_STATUS) & WDS_BUSY) {
+	while (inportb(wd_baseio + WD_STATUS) & WDS_BUSY) {
 		if (--count == 0) {
 			return(-1);
 		}
@@ -405,10 +536,10 @@ wd_cmd(int cmd)
 	/*
 	 * Send command, wait for controller to finish
 	 */
-	outportb(WD_PORT + WD_CMD, cmd);
+	outportb(wd_baseio + WD_CMD, cmd);
 	count = timeout;
 	for (;;) {
-		stat = inportb(WD_PORT + WD_STATUS);
+		stat = inportb(wd_baseio + WD_STATUS);
 		if ((stat & WDS_BUSY) == 0) {
 			return(stat);
 		}
@@ -433,7 +564,7 @@ readp_data(void)
 	for (count = 200000; count > 0; --count) {
 		uint stat;
 
-		stat = inportb(WD_PORT + WD_STATUS);
+		stat = inportb(wd_baseio + WD_STATUS);
 		if (stat & WDS_ERROR) {
 			return(-1);
 		}
@@ -448,7 +579,7 @@ readp_data(void)
  * wd_readp()
  *	Issue READP to drive, get its geometry and such
  *
- * On success, sets configed[unit] to 1.
+ * On success, sets disks[unit].d_configed to 1.
  */
 static void
 wd_readp(int unit)
@@ -460,7 +591,7 @@ wd_readp(int unit)
 	/*
 	 * Send READP and see if he'll answer
 	 */
-	outportb(WD_PORT+WD_SDH, WDSDH_EXT|WDSDH_512 | (unit << 4));
+	outportb(wd_baseio + WD_SDH, WDSDH_EXT|WDSDH_512 | (unit << 4));
 	if (wd_cmd(WDC_READP) < 0) {
 		return;
 	}
@@ -471,7 +602,7 @@ wd_readp(int unit)
 	if (readp_data() < 0) {
 		return;
 	}
-	repinsw(WD_PORT+WD_DATA, buf, sizeof(buf)/sizeof(ushort));
+	repinsw(wd_baseio + WD_DATA, buf, sizeof(buf)/sizeof(ushort));
 	bcopy(buf, &xw, sizeof(xw));
 
 	/*
@@ -479,9 +610,9 @@ wd_readp(int unit)
 	 * drive needs the little delay, but it did... (pat)
 	 */
 	__msleep(100);
-	outportb(WD_PORT+WD_SDH,
+	outportb(wd_baseio + WD_SDH,
 		WDSDH_EXT|WDSDH_512 | (unit << 4) | (xw.w_heads - 1));
-	outportb(WD_PORT+WD_SCNT, xw.w_sectors);
+	outportb(wd_baseio + WD_SCNT, xw.w_sectors);
 	if (wd_cmd(WDC_SPECIFY) < 0) {
 		return;
 	}
@@ -494,13 +625,13 @@ wd_readp(int unit)
 	/*
 	 * Massage into a convenient format
 	 */
-	w = &parm[unit];
+	w = &disks[unit].d_parm;
 	w->w_cyls = xw.w_fixedcyl + xw.w_removcyl;
 	w->w_tracks = xw.w_heads;
 	w->w_secpertrk = xw.w_sectors;
 	w->w_secpercyl = xw.w_heads * xw.w_sectors;
 	w->w_size = w->w_secpercyl * w->w_cyls;
-	configed[unit] = 1;
+	disks[unit].d_configed = 1;
 }
 
 /*
@@ -510,17 +641,17 @@ wd_readp(int unit)
 static void
 wd_parseparms(int unit, char *parms)
 {
-	struct wdparms *w = &parm[unit];
+	struct wdparms *w = &disks[unit].d_parm;
 
 	if (sscanf(parms, "%d:%d:%d", &w->w_cyls, &w->w_tracks,
 			&w->w_secpertrk) != 3) {
-		syslog(LOG_ERR, "unit %d: bad parameters: %s\n",
-			unit, parms);
+		syslog(LOG_ERR, "unit %d: bad parameters: %s",
+		       unit, parms);
 		return;
 	}
 	w->w_secpercyl = w->w_tracks * w->w_secpertrk;
 	w->w_size = w->w_secpercyl * w->w_cyls;
-	configed[unit] = 1;
+	disks[unit].d_configed = 1;
 }
 
 /*
@@ -555,7 +686,7 @@ wd_cmos(int unit)
 	 * NVRAM only handles two
 	 */
 	if (unit > 1) {
-		syslog(LOG_ERR, "unit %d: no CMOS information\n", unit);
+		syslog(LOG_ERR, "unit %d: no CMOS information", unit);
 		return;
 	}
 
@@ -569,7 +700,7 @@ wd_cmos(int unit)
 	/*
 	 * It appears present, so read in the parameters
 	 */
-	w = &parm[unit];
+	w = &disks[unit].d_parm;
 	w->w_cyls = cmos_read(nv_hi8 + off) << 8 | cmos_read(nv_lo8 + off);
 	w->w_tracks = cmos_read(nv_heads + off);
 	w->w_secpertrk = cmos_read(nv_sec + off);
@@ -588,5 +719,5 @@ wd_cmos(int unit)
 	 */
 	w->w_secpercyl = w->w_tracks * w->w_secpertrk;
 	w->w_size = w->w_secpercyl * w->w_cyls;
-	configed[unit] = 1;
+	disks[unit].d_configed = 1;
 }

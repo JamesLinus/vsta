@@ -10,8 +10,6 @@
 #include <syslog.h>
 #include "wd.h"
 
-extern void wd_readdir();
-
 /*
  * Busy/waiter flags
  */
@@ -20,14 +18,7 @@ int busy_unit;
 struct llist waiters;		/* Who's waiting */
 char *secbuf = NULL;
 
-extern uint partundef;		/* All partitioning read yet? */
-extern char configed[];
-extern struct disk disks[];
-extern struct wdparms parm[];
-
-
 static int update_partition_list(int, int);
-
 
 /*
  * queue_io()
@@ -150,13 +141,18 @@ wd_rw(struct msg *m, struct file *f)
 	}
 
 	/*
-	 * Check size and alignment
+	 * Check size of I/O request
 	 */
-	if ((m->m_arg & (SECSZ - 1)) ||
-			(m->m_arg > MAXIO) ||
-			(m->m_arg == 0) ||
-			(f->f_pos & (SECSZ-1))) {
+	if ((m->m_arg > MAXIO) || (m->m_arg <= 0)) {
 		msg_err(m->m_sender, EINVAL);
+		return;
+	}
+
+	/*
+	 * Check alignment of request (block alignment)
+	 */
+	if ((m->m_arg & (SECSZ - 1)) || (f->f_pos & (SECSZ-1))) {
+		msg_err(m->m_sender, EBALIGN);
 		return;
 	}
 
@@ -216,7 +212,7 @@ iodone(void *tran, int result)
 
 			for (i = 0; i < NWD; i++) {
 				if (partundef & (1 << i)) {
-					if (configed[i]) {
+					if (disks[i].d_configed) {
 						update_partition_list(i, 1);
 						return;
 					} else {
@@ -243,9 +239,12 @@ iodone(void *tran, int result)
 
 		/*
 		 * Success.  Return count of bytes processed and
-		 * buffer if local.
+		 * buffer if local.  Update the f_pos pointer to show where
+		 * we've reached so far
 		 */
 		m.m_arg = f->f_count * SECSZ;
+		f->f_pos += m.m_arg;
+
 		if (f->f_local) {
 			m.m_nseg = 1;
 			m.m_buf = f->f_buf;
@@ -297,7 +296,7 @@ rw_readpartitions(int unit)
 	/*
 	 * First, bounce any requests to non-configured drives
 	 */
-	if (!configed[unit]) {
+	if (!disks[unit].d_configed) {
 		return;
 	}
 
@@ -350,18 +349,19 @@ update_partition_list(int unit, int initiating)
 		 * OK, zero down the reference markers, establish the
 		 * "whole disk" parameters and do the 1st read
 		 */
-		dpart_init_whole("wd", unit, parm[unit].w_size,
-				 disks[unit].d_parts);
+		dpart_init_whole("wd", unit, disks[unit].d_parm.w_size,
+				 &wd_prot, disks[unit].d_parts);
 		sector_num = 0;
 		next_part = FIRST_PART;
 		wd_io(FS_READ, (void *)(unit + 1), unit, 0L, secbuf, 1);
 		return 0;
 	} else {
 		/*
-		 * We must bein the middle of an update so sort out the
+		 * We must be in the middle of an update so sort out the
 		 * table manipulations and start any further reads
 		 */
-		if (dpart_init("wd", (uint)unit, secbuf, &sector_num,
+		if (dpart_init("wd", (uint)unit, secbuf,
+			       &sector_num, &wd_prot,
 			       disks[unit].d_parts, &next_part) == 0) {
 			sector_num = 0;
 		}

@@ -2,13 +2,13 @@
 #define _WD_H
 /*
  * wd.h
- *	Wester Digital ST-506 type hard disk interface definitions
+ *	Western Digital ST-506 type hard disk interface definitions
  */
 #include <sys/types.h>
 #include <sys/perm.h>
 #include <mach/dpart.h>
 
-#define NWD (2)		/* Max # WD units supported */
+#define NWD (2)			/* Max # WD units supported */
 
 /*
  * Undefine this if your WD controller can't switch heads by itself.
@@ -16,13 +16,13 @@
  */
 #define AUTO_HEAD
 
-#define SECSZ (512)	/* Only 512 byte sectors handled */
+#define SECSZ (512)		/* Only 512 byte sectors handled */
 #define MAXIO (128*1024)	/* Max I/O--128K */
 
-#define WD_PORT	0x1f0		/* I/O ports here */
-#define WD_IRQ	14		/* IRQ # for hard disk */
-#define WD_LOW WD_PORT		/* Low/high range */
-#define WD_HIGH (WD_PORT+WD_CTLR)
+#define WD1_PORT 0x1f0		/* I/O ports here */
+#define WD2_PORT 0x170		/* Secondary I/O ports start here */
+#define WD1_IRQ	14		/* IRQ number for hard disk ctrl */
+#define WD2_IRQ	15		/* Usual IRQ number for second HDD ctrl */
 
 /*
  * Registers on WD controller
@@ -116,6 +116,7 @@ struct wdparms {
  * Values for f_nodes
  */
 #define ROOTDIR (-1)		/* Root */
+#define UNITSTEP (0x10)		/* Node number step between units */ 
 #define NODE_UNIT(n) ((n >> 4) & 0xFF)
 				/* Unit number */
 #define NODE_SLOT(n) (n & 0xF)	/* Partition in unit */
@@ -125,34 +126,68 @@ struct wdparms {
  * State of an open file
  */
 struct file {
-	long f_sender;	/* Sender of current operation */
-	uint f_flags;	/* User access bits */
-	struct llist	/* When operation pending on this file */
+	long f_sender;		/* Sender of current operation */
+	uint f_flags;		/* User access bits */
+	struct llist		/* When operation pending on this file */
 		*f_list;
-	int f_node;	/* Current "directory" */
-	ushort f_unit;	/* Unit we want */
-	ushort f_abort;	/* Abort requested */
-	uint f_blkno;	/* Block # for operation */
-	uint f_count;	/* # bytes wanted for current op */
-	ushort f_op;	/* FS_READ, FS_WRITE */
-	void *f_buf;	/* Base of buffer for operation */
-	off_t f_pos;	/* Offset into device */
-	int f_local;	/* f_buf is a local buffer */
+	int f_node;		/* Current "directory" */
+	ushort f_unit;		/* Unit we want */
+	ushort f_abort;		/* Abort requested */
+	uint f_blkno;		/* Block # for operation */
+	uint f_count;		/* # bytes wanted for current op */
+	ushort f_op;		/* FS_READ, FS_WRITE */
+	void *f_buf;		/* Base of buffer for operation */
+	off_t f_pos;		/* Offset into device */
+	int f_local;		/* f_buf is a local buffer */
 };
 
 /*
  * State of a disk
  */
 struct disk {
-	struct prot		/* Protection for whole-disk */
-		d_prot;
-	struct part		/* Partitions */
+	struct part		/* Partition details */
 		*d_parts[MAX_PARTS];
+	struct wdparms d_parm;	/* Disk "physical" parameters */
+	int d_configed;		/* Is the disk configured */
 };
 
-extern void wd_init(int, char **);
-extern void iodone();
-extern char configed[];
-extern int wd_io(int, void *, uint, ulong, void *, uint);
+/*
+ * Function prototypes for wd.c
+ */
+extern void wd_init(int argc, char **argv);
+extern int wd_io(int op, void *handle, uint unit,
+		 ulong secnum, void *va, uint secs);
+extern void wd_isr(void);
+
+/*
+ * Function prototypes for rw.c
+ */
+extern void wd_rw(struct msg *m, struct file *f);
+extern void iodone(void *tran, int result);
+extern void rw_init(void);
+extern void rw_readpartitions(int unit);
+
+/*
+ * Function prototypes for stat.c
+ */
+extern void wd_stat(struct msg *m, struct file *f);
+extern void wd_wstat(struct msg *m, struct file *f);
+
+/*
+ * Function prototypes for dir.c
+ */
+extern void wd_readdir(struct msg *m, struct file *f);
+extern void wd_open(struct msg *m, struct file *f);
+
+/*
+ * Global data
+ */
+extern uint first_unit,		/* Lowest unit # configured */
+	partundef;		/* All partitioning read yet? */
+extern struct disk disks[];
+extern struct prot wd_prot;
+extern int wd_irq, wd_baseio;
+extern port_name wdname;
+extern char wd_namer_name[];
 
 #endif /* _WD_H */
