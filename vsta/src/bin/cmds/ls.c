@@ -12,11 +12,17 @@
 #include <sys/stat.h>
 #include <string.h>
 #include <fcntl.h>
+#include <termios.h>
+#include <fdl.h>
 
 static int ndir;	/* # dirs being displayed */
 static int cols = 80;	/* Columns on display */
 
 static int lflag = 0;	/* -l flag */
+static int Fflag = 0;	/* -F flag */
+static int oneflag = 0; /* -1 flag */
+static int dflag = 0;	/* -d flag */
+static int aflag = 0;	/* -a flag */
 
 /*
  * sort()
@@ -62,6 +68,10 @@ prcols(char **v)
 	if (nelem % col) {
 		entcol += 1;
 	}
+	if (oneflag) {
+		entcol = nelem;
+		col = 1;
+	}
 
 	/*
 	 * Dump out the strings
@@ -102,19 +112,50 @@ prcols(char **v)
 }
 
 /*
+ * usage()
+ *	Print usage
+ */
+void
+usage(void)
+{
+	fprintf(stderr, "Usage:\n");
+	fprintf(stderr, "\t-a\t\tDo not hide entries starting with .\n");
+	fprintf(stderr, "\t-d\t\tList directory entries instead of contents\n");
+	fprintf(stderr, "\t-F\t\tAppend indicator (one of */) to entries\n");
+	fprintf(stderr, "\t-l\t\tUse a long listing format\n");
+	fprintf(stderr, "\t-1\t\tList one file per line\n");
+	fprintf(stderr, "\t-h, --help\tDisplay this help and exit\n");
+	exit(1);
+}
+
+/*
  * setopt()
  *	Set option flag
  */
 static void
-setopt(char c)
+setopt(int c)
 {
 	switch (c) {
 	case 'l':
 		lflag = 1;
 		break;
+	case 'F':
+		Fflag = 1;
+		break;
+	case '1':
+		oneflag = 1;
+		break;
+	case 'd':
+		dflag = 1;
+		break;
+	case 'a':
+		aflag = 1;
+		break;
+	case 'h':
+		usage();
 	default:
 		fprintf(stderr, "Unknown option: %c\n", c);
-		exit(1);
+		usage();
 	}
 }
 
@@ -129,7 +170,7 @@ fld(char **args, char *field, char *deflt)
 	char *p;
 
 	len = strlen(field);
-	for (x = 0; p = args[x]; ++x) {
+	for (x = 0; (p = args[x]); ++x) {
 		/*
 		 * See if we match
 		 */
@@ -183,16 +224,36 @@ prprot(char *perm, char *acc)
 	uchar ids[PERMLEN];
 	uint x;
 	extern char *cvt_id();
+	char protstr[32];
+	char tmpstr[32];
 
 	/*
 	 * Heading, need both fields
 	 */
-	printf("\tprot: ");
 	if (!perm || !acc) {
-		printf("not available\n");
+		printf("not available            ");
 		return;
 	}
 
+
+	/*
+	 * Now display access bits symbolically
+	 */
+	p = acc;
+	x = 0;
+	strcpy(protstr, "");
+	while (p) {
+		if (x) strcat(protstr, ".");
+		x = atoi(p);
+		if (x & ACC_READ) {strcat(protstr, "R"); x &= ~ACC_READ;}
+		if (x & ACC_WRITE) {strcat(protstr, "W"); x &= ~ACC_WRITE;}
+		if (x & ACC_CHMOD) {strcat(protstr, "C"); x &= ~ACC_CHMOD;}
+		if (x & ACC_EXEC) {strcat(protstr, "X"); x &= ~ACC_EXEC;}
+		if (x) {sprintf(tmpstr, "|0x%x", x); strcat(protstr, tmpstr);}
+		p = strchr(p, '/'); if (p) ++p;
+		x = 1;
+	}
+	printf("%-12s ", protstr);
 	/*
 	 * Convert dotted notation to binary, look up in our
 	 * ID table and print.
@@ -205,25 +266,41 @@ prprot(char *perm, char *acc)
 		x += 1;
 	}
 	p = cvt_id(ids, x);
-	printf("%s, access: ", p); free(p);
+	printf("%-12s", p); free(p);
+}
 
-	/*
-	 * Now display access bits symbolically
-	 */
+/*
+ * printname()
+ *	Print the name of the file with -F formatting if needed
+ */
+char *
+printname(char *name, char *acc, char *type)
+{
+	static char fname[256];
+	char *p;
+	uint x;
+
+	if (Fflag==0)
+	{
+		return name;
+	}
+	if (strcmp("d", type) == 0)
+	{
+		sprintf(fname, "%s/", name);	
+		return fname;
+	}
 	p = acc;
 	x = 0;
 	while (p) {
-		if (x) printf(".");
 		x = atoi(p);
-		if (x & ACC_READ) {printf("R"); x &= ~ACC_READ;}
-		if (x & ACC_WRITE) {printf("W"); x &= ~ACC_WRITE;}
-		if (x & ACC_CHMOD) {printf("C"); x &= ~ACC_CHMOD;}
-		if (x & ACC_EXEC) {printf("X"); x &= ~ACC_EXEC;}
-		if (x) printf("|0x%x", x);
+		if (x & ACC_READ) {x &= ~ACC_READ;}
+		if (x & ACC_WRITE) {x &= ~ACC_WRITE;}
+		if (x & ACC_CHMOD) {x &= ~ACC_CHMOD;}
+		if (x & ACC_EXEC) {sprintf(fname, "%s*", name); return fname;}
 		p = strchr(p, '/'); if (p) ++p;
 		x = 1;
 	}
-	printf("\n");
+	return name;
 }
 
 /*
@@ -237,7 +314,12 @@ ls_l(struct dirent *de)
 	int fd;
 	struct passwd *pwd;
 	extern char *rstat();
+	time_t time;
+	char timestr[32];
 
+	if (aflag == 0 && de->d_name[0] == '.') {
+		return;
+	}
 	/*
 	 * Read in the stat string for the entry
 	 */
@@ -267,12 +349,15 @@ ls_l(struct dirent *de)
 	 * Print out various fields, use prprot() for the protection
 	 * labels.
 	 */
-	printf("%s: %s, %d bytes, owner %s\n",
-		de->d_name,
-		fld(sv, "type", "file"),
-		atoi(fld(sv, "size", "0")),
-		pwd ? (pwd->pw_name) : ("not set"));
+	time = atoi(fld(sv, "mtime", "0"));
+	strftime(timestr, 18, "%b %d %H:%M %Y", gmtime(&time));
+	printf("%s ", fld(sv, "type", "f"));
 	prprot(fld(sv, "perm", 0), fld(sv, "acc", 0));
+	printf("%-6s %8d %-17s %s\n",
+		pwd ? (pwd->pw_name) : ("not set"),
+		atoi(fld(sv, "size", "0")),
+		timestr,
+		printname(de->d_name, fld(sv, "acc", 0), fld(sv, "type", "f")));
 }
 
 /*
@@ -292,7 +377,7 @@ ls(char *path)
 		perror("stat failed");
 		return;
 	}
-	if (!S_ISDIR(st.st_mode)) {
+	if (!S_ISDIR(st.st_mode) || dflag == 1) {
 		if (lflag) {
 			struct dirent de;
 
@@ -301,7 +386,31 @@ ls(char *path)
 			ls_l(&de);
 		} else {
 			char *v[2];
-			v[0] = path;
+			char *s, **sv;
+			int fd;
+			extern char *rstat();
+
+			/*
+			 * Read in the stat string for the entry
+			 */
+			fd = open(path, O_RDONLY);
+			if (fd < 0) {
+				perror(path);
+				return;
+			}
+			s = rstat(__fd_port(fd), (char *)0);
+			close(fd);
+			if (s == 0) {
+				perror(path);
+				return;
+			}
+			sv = explode(s);
+			if (sv == 0) {
+				perror(path);
+				return;
+			}
+
+			sprintf(v[0], "%s", printname(path, fld(sv, "acc", 0), fld(sv, "type", "f")));
 			v[1] = 0;
 			prcols(v);
 		}
@@ -323,14 +432,18 @@ ls(char *path)
 		perror(path);
 		return;
 	}
+	chdir (path);
 
 	/*
 	 * Read elements
 	 */
 	nelem = 0;
-	while (de = readdir(d)) {
+	while ((de = readdir(d))) {
 		if (lflag) {
 			ls_l(de);
+			continue;
+		}
+		if (aflag == 0 && de->d_name[0] == '.') {
 			continue;
 		}
 		nelem += 1;
@@ -338,10 +451,33 @@ ls(char *path)
 		if (v == 0) {
 			perror("ls");
 			exit(1);
-		}
-		if ((v[nelem-1] = strdup(de->d_name)) == 0) {
-			perror("ls");
-			exit(1);
+		} else {
+			char *s, **sv;
+			int fd;
+			extern char *rstat();
+
+
+			/*
+			 * Read in the stat string for the entry
+			 */
+			fd = open(de->d_name, O_RDONLY);
+			if (fd < 0) {
+				perror(de->d_name);
+				return;
+			}
+			s = rstat(__fd_port(fd), (char *)0);
+			close(fd);
+			if (s == 0) {
+				perror(de->d_name);
+				return;
+			}
+			sv = explode(s);
+			if (sv == 0) {
+				perror(de->d_name);
+				return;
+			}
+			v[nelem-1]=malloc(sizeof(char)*256);
+			sprintf(v[nelem-1], "%s", printname(de->d_name, fld(sv, "acc", 0), fld(sv, "type", "f")));
 		}
 	}
 	closedir(d);
@@ -368,11 +504,13 @@ ls(char *path)
 	}
 }
 
+int
 main(argc, argv)
 	int argc;
 	char **argv;
 {
 	int x, rows;
+	char currpath[128];
 
 	/*
 	 * Parse leading args
@@ -380,8 +518,11 @@ main(argc, argv)
 	for (x = 1; x < argc; ++x) {
 		char *p;
 
-		if (argv[x][0] != '-') {
+		if (argv[x][0] != '-' || strcmp(argv[x], "--") == 0) {
 			break;
+		}
+		if (strcmp(argv[x], "--help") == 0) {
+			usage();
 		}
 		for (p = &argv[x][1]; *p; ++p) {
 			setopt(*p);
@@ -401,7 +542,9 @@ main(argc, argv)
 		ls(".");
 	} else {
 		for (; x < argc; ++x) {
+			getcwd (currpath, sizeof (currpath));
 			ls(argv[x]);
+			chdir (currpath);
 		}
 	}
 
