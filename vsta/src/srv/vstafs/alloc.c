@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#define TRACE		/* Noisy, but helpful for debugging */
+#undef TRACE		/* Noisy, but helpful for debugging */
 
 /*
  * The head of the free list
