@@ -45,11 +45,11 @@ write_sec(daddr_t sec, void *buf)
 
 	pos = stob(sec);
 	if (lseek(fd, pos, SEEK_SET) != pos) {
-printf("write error seeking to sector %ld: %s\n", sec, strerror());
+printf("write error seeking to sector %lx: %s\n", sec, strerror());
 		exit(1);
 	}
 	if (write(fd, buf, SECSZ) != SECSZ) {
-printf("write error reading sector %ld: %s\n", sec, strerror());
+printf("write error reading sector %lx: %s\n", sec, strerror());
 		exit(1);
 	}
 }
@@ -77,11 +77,11 @@ get_sec(daddr_t sec)
 	}
 	pos = stob(sec);
 	if (lseek(fd, pos, SEEK_SET) != pos) {
-printf("Error seeking to sector %ld: %s\n", sec, strerror());
+printf("Error seeking to sector %lx: %s\n", sec, strerror());
 		exit(1);
 	}
 	if (read(fd, buf, SECSZ) != SECSZ) {
-printf("Error reading sector %ld: %s\n", sec, strerror());
+printf("Error reading sector %lx: %s\n", sec, strerror());
 		exit(1);
 	}
 	lastsec = sec;
@@ -210,6 +210,7 @@ check_freelist(void)
 	for (next = FREE_SEC; next; next = fr->f_next) {
 		struct alloc *a;
 		uint x;
+		int modified = 0;
 
 		/*
 		 * Count fragments
@@ -221,57 +222,104 @@ check_freelist(void)
 		 */
 		fr = get_sec(next);
 		if (fr->f_nfree > NALLOC) {
-printf("Free list sector %ld claims %d free slots\n",
+printf("Free list sector %lx claims %d free slots\n",
 	next, fr->f_nfree);
 			exit(1);
 		}
 
 		/*
-		 * Now walk each slot & sanity check the members
+		 * Mark off freelist sector as used
+		 */
+		if (getbit(allocmap, next, 1)) {
+printf("Free list sector %lx already allocated\n", next);
+			exit(1);
+		}
+		setbit(allocmap, next, 1);
+		setbit(freemap, next, 1);
+
+		/*
+		 * Walk each slot & sanity check the members
 		 */
 		a = fr->f_free;
-		for (x = 0; x < fr->f_nfree; ++x,++a) {
+		x = 0;
+		while (x < fr->f_nfree) {
+			int bad = 0;
+
 			/*
 			 * Verify start and end of range lie within
 			 * the filesystem.
 			 */
 			if (!valid_block(a->a_start)) {
-printf("Free list sector %ld slot %d lists invalid block %ld\n",
+printf("Free list sector %lx slot %d lists invalid block %lx\n",
 	next, x, a->a_start);
-				exit(1);
-			}
-			if (!valid_block(a->a_start + a->a_len)) {
-printf("Free list sector %ld slot %d lists invalid block length %ld\n",
+				bad = 1;
+			} else if (!valid_block(a->a_start + a->a_len)) {
+printf("Free list sector %lx slot %d lists invalid block length %ld\n",
 	next, x, a->a_len);
-				exit(1);
-			}
+				bad = 1;
 
 			/*
 			 * Verify block list is still sorted.
 			 */
-			if (a->a_start < highest) {
+			} else if (a->a_start < highest) {
 				if (a->a_start <= FREE_SEC) {
-printf("Free list sector %ld slot %d lists bad block %ld\n",
+printf("Free list sector %lx slot %d lists bad block %lx\n",
 	next, x, a->a_start);
-					exit(1);
+				} else {
+printf("Free list sector %lx slot %d has out-of-order block %lx\n",
+	next, x, a->a_start);
 				}
-printf("Free list sector %ld slot %d has out-of-order block %ld\n",
-	next, x, a->a_start);
-				exit(1);
+				bad = 1;
 			}
-			highest = a->a_start + a->a_len;
 
-			/*
-			 * Mark free blocks into freemap.  Note that
-			 * we don't check for the bit being set already,
-			 * because our sort check above guarantees this.
-			 */
-			setbit(freemap, a->a_start, a->a_len);
+			if (bad) {
+				/*
+				 * Offer to dump the entry.  Even
+				 * if they want to keep it, we don't
+				 * honor it for freelist purposes.
+				 */
+				printf("Remove entry");
+				if (ask()) {
+					fr->f_nfree -= 1;
+					bcopy(a+1, a,
+						(fr->f_nfree -
+						 (a - fr->f_free)) *
+						 sizeof(struct alloc));
+					modified = 1;
+				}
 
-			/*
-			 * Tabulate free space
-			 */
-			nfree += a->a_len;
+				/*
+				 * x, a are already pointing at the
+				 * next entry, don't advance them.
+				 */
+				;
+			} else {
+				highest = a->a_start + a->a_len;
+
+				/*
+				 * Mark free blocks into freemap.  Note that
+				 * we don't check for the bit being set already,
+				 * because our sort check above guarantees this.
+				 */
+				setbit(freemap, a->a_start, a->a_len);
+
+				/*
+				 * Tabulate free space
+				 */
+				nfree += a->a_len;
+
+				/*
+				 * Advance to next entry
+				 */
+				++x, ++a;
+			}
+		}
+
+		/*
+		 * If we fixed any entries, flush the sector back
+		 */
+		if (modified) {
+			write_sec(next, fr);
 		}
 	}
 
@@ -307,15 +355,15 @@ check_fsalloc(char *name, struct fs_file *fs)
 		 * Basic sanity check on block range
 		 */
 		if (!valid_block(a->a_start)) {
-printf("File %s block %ld invalid.\n", name, a->a_start);
+printf("File %s block %lx invalid.\n", name, a->a_start);
 			return(1);
 		}
 		if (a->a_len > max_blk) {
-printf("File %s block %ld length invalid.\n", name, a->a_start);
+printf("File %s block %lx length invalid.\n", name, a->a_start);
 			return(1);
 		}
 		if (!valid_block(a->a_start + a->a_len)) {
-printf("File %s block range %ld..%ld invalid.\n",
+printf("File %s block range %lx..%lx invalid.\n",
 	name, a->a_start, a->a_start + a->a_len - 1);
 			return(1);
 		}
@@ -324,7 +372,7 @@ printf("File %s block range %ld..%ld invalid.\n",
 		 * See if any have been found in another file's allocation
 		 */
 		if (getbit(allocmap, a->a_start, a->a_len)) {
-printf("File %s blocks %ld..%ld doubly allocated.\n",
+printf("File %s blocks %lx..%lx doubly allocated.\n",
 	name, a->a_start, a->a_start + a->a_len - 1);
 			return(1);
 		}
@@ -333,7 +381,7 @@ printf("File %s blocks %ld..%ld doubly allocated.\n",
 		 * See if any of them are present on the freelist
 		 */
 		if (getbit(freemap, a->a_start, a->a_len)) {
-printf("File %s blocks %ld..%ld conflict with freelist.\n",
+printf("File %s blocks %lx..%lx conflict with freelist.\n",
 	name, a->a_start, a->a_start + a->a_len - 1);
 			return(1);
 		}
@@ -573,7 +621,7 @@ check_tree(daddr_t sec, char *name)
 	 * Basic sanity check on starting sector
 	 */
 	if (sec > max_blk) {
-printf("Invalid starting block for %s: %ld\n", name, sec);
+printf("Invalid starting block for %s: %lx\n", name, sec);
 		return(1);
 	}
 
@@ -582,7 +630,7 @@ printf("Invalid starting block for %s: %ld\n", name, sec);
 	 */
 	fs = get_sec(sec);
 	if ((fs->fs_type != FT_FILE) && (fs->fs_type != FT_DIR)) {
-printf("Unknown file node for %s at %ld\n", name, sec);
+printf("Unknown file node for %s at %lx\n", name, sec);
 		return(1);
 	}
 
@@ -590,7 +638,7 @@ printf("Unknown file node for %s at %ld\n", name, sec);
 	 * Make sure there's an fs_blk[0], and a length
 	 */
 	if (fs->fs_nblk == 0) {
-printf("No blocks allocated for %s at %ld\n", name, sec);
+printf("No blocks allocated for %s at %lx\n", name, sec);
 		return(1);
 	}
 	if (fs->fs_nblk > MAXEXT) {
@@ -606,7 +654,7 @@ printf("Internal file length too short for %s--%ld\n", name, fs->fs_len);
 	 * Verify that first sector is this fs_file
 	 */
 	if (fs->fs_blks[0].a_start != sec) {
-printf("Dir entry for %s at block %ld mismatches alloc information\n",
+printf("Dir entry for %s at block %lx mismatches alloc information\n",
 	name, sec);
 		return(1);
 	}
