@@ -166,3 +166,29 @@ fabs(double d)
 	}
 	return(d);
 }
+
+double
+frexp(value, eptr)
+	double value;
+	int *eptr;
+{
+	union {
+                double v;
+                struct {
+			u_int u_mant2 : 32;
+			u_int u_mant1 : 20;
+			u_int   u_exp : 11;
+                        u_int  u_sign :  1;
+                } s;
+        } u;
+
+	if (value) {
+		u.v = value;
+		*eptr = u.s.u_exp - 1022;
+		u.s.u_exp = 1022;
+		return(u.v);
+	} else {
+		*eptr = 0;
+		return((double)0);
+	}
+}

@@ -334,3 +334,4 @@ _isnan
 _ldexp
 _modf
 _strtod
+_frexp
