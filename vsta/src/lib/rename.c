@@ -11,12 +11,13 @@
 #include <std.h>
 #include <fcntl.h>
 #include <alloc.h>
+#include <stdio.h>
 
 /*
  * Not reentrant XXX
  */
 static int srcfd = -1, destfd = -1;
-static char *srcent, *destent;
+static const char *srcent, *destent;
 
 /*
  * getpath()
@@ -30,7 +31,7 @@ static char *srcent, *destent;
  * Return 0 on success, non-zero on failure.
  */
 static int
-getpath(char *path, int *fdp, port_name *namep, char **name)
+getpath(const char *path, int *fdp, port_name *namep, const char **name)
 {
 	char *p, *d;
 	extern char *__cwd;
@@ -77,7 +78,7 @@ getpath(char *path, int *fdp, port_name *namep, char **name)
  *	Send a message
  */
 static int
-msg(int fd, int type, int arg, char *buf)
+msg(int fd, int type, int arg, const char *buf)
 {
 	struct msg m;
 
@@ -88,7 +89,7 @@ msg(int fd, int type, int arg, char *buf)
 	m.m_arg = arg;
 	m.m_arg1 = getpid();
 	m.m_nseg = 1;
-	m.m_buf = buf;
+	m.m_buf = (char *)buf;
 	m.m_buflen = strlen(buf)+1;
 
 	/*
@@ -116,7 +117,7 @@ request(void)
  *	Request rename of object within a server
  */
 int
-rename(char *src, char *dest)
+rename(const char *src, const char *dest)
 {
 	int err, tries = 0;
 	char *p;
