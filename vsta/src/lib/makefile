@@ -33,13 +33,13 @@ setjmp.o: mach/setjmp.s
 	$(AS) -o setjmp.o mach/setjmp.s
 # crt0, standard version and one with boot server support
 crt0.o: mach/crt0.s
-	$(CPP) mach/crt0.s > tmp.s
+	$(CPP) mach/crt0.s tmp.s
 	$(AS) -o crt0.o tmp.s
-	rm -f tmp.s
+	del tmp.s
 crt0srv.o: mach/crt0.s
-	$(CPP) -DSRV mach/crt0.s > tmp.s
+	$(CPP) -DSRV mach/crt0.s tmp.s
 	$(AS) -o crt0srv.o tmp.s
-	rm -f tmp.s
+	del tmp.s
 gnufuncs.o: mach/gnufuncs.s
 	$(AS) -o gnufuncs.o mach/gnufuncs.s
 exec.o: mach/exec.c
@@ -47,7 +47,7 @@ exec.o: mach/exec.c
 
 # Our tricky syscall stub which needs to use CPP
 syscalls.o: mach/syscalls.s
-	$(CPP) $(INCS) mach/syscalls.s  > tmp.s
+	$(CPP) $(INCS) mach/syscalls.s tmp.s
 	as -o syscalls.o tmp.s
 	del tmp.s
 
@@ -56,4 +56,5 @@ hash.o: ../lib/hash.c
 	$(CC) $(CFLAGS) -c ../lib/hash.c
 
 clean:
-	rm -f *.o *.a
+	del *.o
+	del *.a

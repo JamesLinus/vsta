@@ -14,4 +14,5 @@ kbd: $(OBJS)
 	$(LD) $(LDFLAGS) -e start -o kbd ../libc/crt0srv.o $(OBJS) $(LIBS)
 
 clean:
-	rm -f *.o kbd
+	del *.o
+	del kbd

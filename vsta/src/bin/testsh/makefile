@@ -15,4 +15,5 @@ testsh: $(OBJS)
 	$(LD) $(LDFLAGS) -e start -o testsh ../../libc/crt0srv.o $(OBJS) -lc
 
 clean:
-	rm -f testsh *.o
+	del testsh
+	del *.o

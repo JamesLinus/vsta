@@ -14,4 +14,5 @@ tmpfs: $(OBJS)
 	$(LD) $(LDFLAGS) -o tmpfs ../libc/crt0srv.o $(OBJS) $(LIBS)
 
 clean:
-	rm -f *.o tmpfs
+	del *.o
+	del tmpfs

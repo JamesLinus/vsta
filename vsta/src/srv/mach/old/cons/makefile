@@ -19,4 +19,5 @@ cons: $(IBM_OBJS)
 	$(LD) $(LDFLAGS) -e start -o cons ../libc/crt0srv.o $(IBM_OBJS) $(LIBS)
 
 clean:
-	rm -f -r cons *.o *.c~ *.h~ *.~ 
+	del *.o
+	del cons

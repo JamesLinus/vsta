@@ -14,4 +14,5 @@ bfs: $(OBJS)
 	$(LD) $(LDFLAGS) -o bfs ../libc/crt0srv.o $(OBJS) $(LIBS)
 
 clean:
-	rm -f *.o bfs
+	del *.o
+	del bfs

@@ -14,4 +14,5 @@ dos: $(OBJS)
 	$(LD) $(LDFLAGS) -o dos ../libc/crt0srv.o $(OBJS) $(LIBS)
 
 clean:
-	rm -f *.o dos
+	del *.o
+	del dos

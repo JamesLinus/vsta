@@ -13,4 +13,5 @@ cons: $(OBJS)
 	$(LD) $(LDFLAGS) -e start -o cons ../libc/crt0srv.o $(OBJS) $(LIBS)
 
 clean:
-	rm -f *.o cons
+	del *.o
+	del cons
