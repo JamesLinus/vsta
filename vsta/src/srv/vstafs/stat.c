@@ -5,26 +5,9 @@
  * We also lump the chmod/chown stuff here as well
  */
 #include <vstafs/vstafs.h>
-#include <sys/param.h>
 #include <sys/perm.h>
-#include <sys/fs.h>
-#include <lib/llist.h>
 
 extern char *perm_print();
-
-/*
- * fs_perms()
- *	Given the current open file, return access rights granted
- */
-uint
-fs_perms(struct perm *perms, uint nperm, struct openfile *o)
-{
-	struct fs_file *fs;
-	struct buf *b;
-
-	b = find_buf(o->
-	fs = index_buf(
-}
 
 /*
  * vfs_stat()
@@ -36,6 +19,8 @@ vfs_stat(struct msg *m, struct file *f)
 	char buf[MAXSTAT];
 	uint len, owner;
 	struct openfile *o;
+	struct buf *b;
+	struct fs_file *fs;
 
 	/*
 	 * Verify access
