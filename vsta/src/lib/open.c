@@ -22,7 +22,7 @@ extern int __nmnttab;	/*  ...# elements in __mnttab */
  * mapmode()
  *	Convert to <sys/fs.h> format of modes
  */
-static
+static int
 mapmode(int mode)
 {
 	int m = 0;
@@ -44,6 +44,7 @@ mapmode(int mode)
  *
  * Also takes care of "."'s.
  */
+int
 __dotdot(char *path)
 {
 	int nelem = 0, x, had_dot = 0;
@@ -151,7 +152,7 @@ __dotdot(char *path)
  *
  * Returns 1 on error, 0 on success.
  */
-static
+static int
 try_open(port_t newfile, char *file, int mask, int mode)
 {
 	char *p;
@@ -209,7 +210,8 @@ try_open(port_t newfile, char *file, int mask, int mode)
  * open()
  *	Open a file
  */
-open(char *file, int mode, ...)
+int
+open(const char *file, int mode, ...)
 {
 	int x, len, mask;
 	port_t newfile;
@@ -418,6 +420,7 @@ chdir(const char *newdir)
  * mkdir()
  *	Create a directory
  */
+int
 mkdir(char *dir)
 {
 	int fd;
@@ -491,7 +494,8 @@ getcwd(char *buf, int len)
  * unlink()
  *	Move down to dir containing entry, and try to remove it
  */
-unlink(char *path)
+int
+unlink(const char *path)
 {
 	int fd, x, tries;
 	char *dir, *file, buf[MAXPATH];
@@ -548,7 +552,38 @@ unlink(char *path)
  * creat()
  *	Create a file - basically a specialised version of open()
  */
-int creat(char *path, int mode)
+int
+creat(char *path, int mode)
 {
-	return open(path, (O_WRONLY | O_CREAT | O_TRUNC), mode);
+	return(open(path, (O_WRONLY | O_CREAT | O_TRUNC), mode));
+}
+
+/*
+ * rmdir()
+ *	Remove a directory
+ */
+int
+rmdir(const char *olddir)
+{
+	int fd;
+	char *p;
+
+	/*
+	 * Open entry
+	 */
+	fd = open(olddir, O_READ, 0);
+	if (fd < 0) {
+		return(-1);
+	}
+
+	/*
+	 * See if it's a dir
+	 */
+	p = rstat(__fd_port(fd), "type");
+	close(fd);
+	if (!p || strcmp(p, "d")) {
+		__seterr(ENOTDIR);
+		return(-1);
+	}
+	return(unlink(olddir));
 }

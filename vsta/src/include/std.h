@@ -32,6 +32,7 @@ extern long atol(const char *);
 extern void perror(const char *);
 extern uint sleep(uint);
 extern int chdir(const char *);
+extern int rmdir(const char *);
 extern void *bsearch(const void *key, const void *base, size_t nmemb,
 		     size_t size, int (*compar)(const void *, const void *));
 extern void qsort(void *base, int n, unsigned size,

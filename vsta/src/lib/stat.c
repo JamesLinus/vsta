@@ -100,6 +100,7 @@ rstat(port_t fd, char *field)
  * wstat()
  *	Write a string through the stat function
  */
+int
 wstat(port_t fd, char *field)
 {
 	struct msg m;
@@ -116,7 +117,7 @@ wstat(port_t fd, char *field)
  * field()
  *	Parse a x/y/z field and allow array-type access
  */
-static
+static int
 field(char *str, int idx)
 {
 	int x;
@@ -148,7 +149,7 @@ field(char *str, int idx)
  * modes()
  *	Convert the <sys/fs.h> access bits into the stat.h ones
  */
-static
+static int
 modes(int v)
 {
 	int x = 0;
@@ -163,6 +164,7 @@ modes(int v)
  * fstat()
  *	Stat an open file
  */
+int
 fstat(int fd, struct stat *s)
 {
 	char *sbuf, *p;
@@ -243,7 +245,8 @@ fstat(int fd, struct stat *s)
  * stat()
  *	Open file and get its fstat() information
  */
-stat(char *f, struct stat *s)
+int
+stat(const char *f, struct stat *s)
 {
 	int fd, x;
 
@@ -260,6 +263,7 @@ stat(char *f, struct stat *s)
  * isatty()
  *	Tell if given port talks to a TTY-like device
  */
+int
 isatty(int fd)
 {
 	port_t port;

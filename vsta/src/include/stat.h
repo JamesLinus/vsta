@@ -39,7 +39,7 @@ struct	stat {
  * Function prototypes for POSIX that use the VSTa stat mechanism
  */
 extern int fstat(int fd, struct stat *s);
-extern int stat(char *f, struct stat *s);
+extern int stat(const char *f, struct stat *s);
 extern int isatty(int fd);
 
 #endif /* _STAT_H */
