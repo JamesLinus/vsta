@@ -51,6 +51,63 @@ sigtostr(int s)
 }
 
 /*
+ * __handler()
+ *	Handle VSTa event deliver, map onto signal() semantics
+ */
+static void
+__handler(char *evstr)
+{
+	int s;
+	voidfun vec;
+
+	/*
+	 * Convert to numeric
+	 */
+	s = __strtosig(evstr);
+
+	/*
+	 * Handle as appropriate
+	 */
+	switch (s) {
+	case SIGINT:
+	case SIGILL:
+	case SIGFPE:
+	case SIGSEGV:
+		/*
+		 * For an active handler, dispatch.  Otherwise fall
+		 * into the unhandled case, where we terminate.
+		 */
+		vec = sigs[s];
+		if (vec && (vec != SIG_DFL)) {
+			/*
+			 * SIG_IGN; ignore entirely
+			 */
+			if (vec == SIG_IGN) {
+				return;
+			}
+
+			/*
+			 * Invoke signal handler, and done
+			 */
+			(*vec)(s);
+			return;
+		}
+
+		/* VVV fall into VVV */
+
+	case SIGKILL:
+	default:
+		/*
+		 * For unknown and fatal sigs, disable handler and
+		 * terminate on the event
+		 */
+		notify_handler(0);
+		notify(0, 0, evstr);
+		break;
+	}
+}
+
+/*
  * signal()
  *	Arrange signal handling
  */
@@ -60,11 +117,11 @@ signal(int s, voidfun v)
 	static int init = 0;
 	voidfun ov;
 
-	if (!init) {
-		/* XXX wire handler */
-	}
 	if (s >= _NSIG) {
 		return((voidfun)-1);
+	}
+	if (!init) {
+		notify_handler(__handler);
 	}
 	ov = sigs[s];
 	sigs[s] = v;
