@@ -457,7 +457,7 @@ bounce_msgs(struct port *port)
 	 */
 	p_lock_void(&port->p_lock, SPL0);
 	msgs = port->p_hd;
-	port->p_hd = port->p_tl = 0;
+	port->p_hd = 0;
 	v_lock(&port->p_lock, SPL0);
 
 	/*

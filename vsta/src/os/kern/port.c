@@ -479,7 +479,7 @@ alloc_port(void)
 	init_sema(&port->p_wait); set_sema(&port->p_wait, 0);
 	init_sema(&port->p_sema);
 	init_sema(&port->p_mapsema);
-	port->p_hd = port->p_tl = 0;
+	port->p_hd = 0;
 	port->p_flags = 0;
 	port->p_refs = 0;
 	port->p_maps = 0;
