@@ -455,7 +455,7 @@ close_client(struct port *port, struct portref *pr)
  *
  * We need to do this as sysmsg's can have segments within them,
  * and we need to clean those segments up.  This routine is called
- * with the port locked.
+ * with the port locked, and returns with it released.
  */
 static void
 bounce_msgs(struct port *port)
@@ -487,8 +487,21 @@ bounce_msgs(struct port *port)
 #ifdef DEBUG
 		sm->m_next = 0;
 #endif
+
+		/*
+		 * ISR messages are somewhat special.  They don't have
+		 * a portref, and there's no connection to break.
+		 * We have already de-registered, so it can't come
+		 * back.
+		 */
+		if (pr == 0) {
+			ASSERT_DEBUG(sm->m_op == M_ISR,
+				"bounce_msgs: !pr !M_ISR");
+			continue;
+		}
+
 		ASSERT_DEBUG(pr->p_port == port,
-			"msg_disconnect: msg in queue not for port");
+			"bounce_msgs: msg in queue not for port");
 
 		/*
 		 * Lock portref, then port
@@ -572,7 +585,6 @@ shut_server(struct port *port)
 	while (port->p_refs) {
 		if (close_client(port, port->p_refs)) {
 			bounce_msgs(port);
-			v_lock(&port->p_lock, SPL0);
 		}
 	}
 
