@@ -30,7 +30,7 @@ SRCSRV=src/srv/bfs src/srv/cdfs src/srv/devnull src/srv/dos \
 	src/srv/vstafs src/srv/tick src/srv/selfs src/srv/pty
 
 # Core source distribution
-SRC=$(LAW) mkdist.mk src/makefile.all \
+SRC=$(LAW) mkdist.mk src/makefile.all mkall.sh src/mkall.sh \
 	src/bin/adb src/bin/init src/bin/login \
 	src/bin/cmds src/bin/time src/include src/lib src/os \
 	$(SRCSRV) src/boot.386
