@@ -168,7 +168,7 @@ alloc_block(uint nblk)
 	daddr_t d = 0;
 
 #ifdef TRACE
-	printf("alloc_block %d blocks", nblk);
+	printf("alloc_block %d blocks\n", nblk);
 #endif
 	for (fr = freelist; fr; fr = fr->fr_next) {
 		d = alloc_chunk(&fr->fr_free, nblk);
@@ -208,11 +208,27 @@ free_chunk(struct free *f, daddr_t d, uint nblk)
 	 */
 	a = f->f_free;
 	for (x = 0; x < f->f_nfree; ++x,++a) {
+		/*
+		 * This would be so bad, that it's worth checking
+		 * always.
+		 */
+		if (d > a->a_start) {
+			ASSERT(d >= (a->a_start + a->a_len),
+				"free_chunk: freeing free block");
+		}
+
+		/*
+		 * Free space abuts against start of this free extent
+		 */
 		if (a->a_start == dend) {
 			a->a_start = d;
 			a->a_len += nblk;
 			return(0);
 		}
+
+		/*
+		 * This free extent abuts our freeing range
+		 */
 		if ((a->a_start + a->a_len) == d) {
 			a->a_len += nblk;
 
@@ -618,7 +634,7 @@ take_chunk(struct freelist *fr, uint idx, ulong nsec)
 	 */
 	if (nsec == a->a_len) {
 		f->f_nfree -= 1;
-		bcopy(a+1, a, f->f_nfree-idx);
+		bcopy(a+1, a, (f->f_nfree-idx)*sizeof(struct alloc));
 	} else {
 		a->a_start += nsec;
 		a->a_len -= nsec;
