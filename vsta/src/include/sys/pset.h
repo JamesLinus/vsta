@@ -10,6 +10,7 @@
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/mutex.h>
+#include <mach/hat.h>
 
 /*
  * For enumerating current mappings of a physical page
@@ -92,6 +93,7 @@ struct pset {
 		*p_ops;
 	uint p_flags;		/* Flag bits */
 	sema_t p_lockwait;	/* Waiters for a PP_LOCK to go away */
+	struct hatpset p_hat;	/* HAT contribution to pset */
 };
 
 /*

@@ -7,6 +7,7 @@
 #ifndef _PVIEW_H
 #define _PVIEW_H
 #include <sys/types.h>
+#include <mach/hat.h>
 
 struct pview {
 	struct pset *p_set;	/* Physical pages under view */
@@ -17,6 +18,7 @@ struct pview {
 	struct pview		/* For listing under vas */
 		*p_next;
 	uchar p_prot;		/* Protections on view */
+	struct hatpview p_hat;	/* HAT contribution */
 };
 
 /*
