@@ -16,6 +16,7 @@
 #include <sys/thread.h>
 
 extern int cpfail(void);
+extern unsigned char id_stack[];
 
 /*
  * set_cr0()
@@ -248,8 +249,6 @@ outportb(int port, uchar data)
 inline static void
 idle_stack(void)
 {
-	extern void *id_stack;
-
 	__asm__ __volatile__ (
 		"movl $_id_stack-0x40,%%esp\n\t"
 		"movl $_id_stack,%%ebp\n\t"
