@@ -78,6 +78,7 @@ mem_write(struct port *port, void *buf, uint nbyte)
 		 */
 		(s->s_buf)[s->s_hd] = *p++;
 		s->s_hd = next(s->s_hd, s);
+		s->s_cnt += 1;
 		cnt += 1;
 		nbyte -= 1;
 	}
