@@ -243,7 +243,7 @@ main(int argc, char **argv)
 			}
 			cp_dir(argv[x], dest);
 		}
-		return;
+		return(errs);
 	}
 	cp_file(argv[1], argv[2]);
 	return(errs);
