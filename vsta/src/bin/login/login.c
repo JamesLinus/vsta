@@ -214,6 +214,11 @@ login(struct uinfo *u)
 	}
 
 	/*
+	 * Create our own signal group
+	 */
+	(void)setsid();
+
+	/*
 	 * Launch their shell with a leading '-' in argv[0] to flag
 	 * a login shell.
 	 */
