@@ -131,7 +131,7 @@ dump_proc(struct proc *p, int brief)
 		return;
 	}
 	printf(" vas %x threads %x runq %x sys/usr %d/%d\n",
-		p->p_vas, p->p_threads, p->p_runq, p->p_sys, p->p_usr);
+		&p->p_vas, p->p_threads, p->p_runq, p->p_sys, p->p_usr);
 	printf(" sema %x prefs %x nopen %d all %x/%x handler %x\n",
 		&p->p_sema, p->p_prefs, p->p_nopen, p->p_allprev,
 		p->p_allnext, p->p_handler);
