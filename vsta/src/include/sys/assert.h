@@ -4,6 +4,8 @@
  * assert.h
  *	Both debug and everyday assertion interfaces
  */
+extern void assfail(const char *, const char *, int);
+
 #define ASSERT(condition, message) \
 	if (!(condition)) { assfail(message, __FILE__, __LINE__); }
 #ifdef DEBUG
