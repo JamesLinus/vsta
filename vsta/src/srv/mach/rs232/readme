@@ -1,0 +1,100 @@
+Subject: Readme for the VSTa PC RS232 device server
+Date: 5th October 1994
+From: Dave Hudson <dave@humbug.demon.co.uk>
+
+
+1.0 Introduction
+
+This is the VSTa PC RS232 server - rs232.  This code provides serial
+communications via user programmable data rates, line settings and control
+signals.
+
+
+2.0 Copyright
+
+The code is copyrighted under the same terms as the VSTa kernel.  Please see
+the license details provided with the kernel for more details.
+
+
+3.0 Modification summary
+
+The original rs232 server was written by Andy Valencia at the end of 1993.
+This provided the most fundamental features:
+
+	core server
+	receiver/transmitter handling
+	16550A FIFO handling
+	baud rate control
+
+The code was extended in 1994 by Dave Hudson to add some extra features:
+
+	hardware handshake support
+	line settings/comms parameters (data, parity, start and stop bits)
+	support for UARTs on arbitrary IRQs and I/O addresses
+	improved UART detection
+	control of FIFO thresholds
+
+
+4.0 Technical Description
+
+The server expects to be initialised using the following mechanism:
+
+	rs232 <com[1-4] | userdef> [opts=args] ...
+
+The following optional parameters are available:
+
+	baseio=<I/O-base-address>
+		- sets the base I/O address used by the UART
+
+	irq=<IRQ-number>
+		- sets the Interrupt Request line used by the UART
+
+	namer=<namer-entry>
+		- sets the name used to register the server with VSTa's
+		  namer
+
+	uart=<uart-type>
+		- force the UART type to one of: "8250", "16450", "16550"
+		  or "16550A"
+
+	nouarttest
+		- don't attempt to test for the UART's presence.  This
+		  allows some dodgy internal modems (that don't have
+		  loopback testing) to be used
+
+Example uses are as follows:
+
+	rs232 com1
+		- initialises comms with default parameters for PC COM1
+
+	rs232 com3 irq=5 namer=tty/ttyS02
+		- initialises rs232 comms with default I/O address for PC
+		  COM3, but with IRQ 5 used instead of the default and
+		  registers the server under the name "tty/ttyS02"
+
+	rs232 userdef baseio=0x368 irq=11 namer=tty/silly232 uart=8250
+		- initialises rs232 comms where the UARTs base I/O address
+		  is 0x368, its IRQ is 11 forces the UART to only use 8250
+		  features and registers under the name "tty/silly232"
+
+
+Control over line state, control signals, and FIFO thresholds is acheived
+via the VSTa stat (FS_STAT and FS_WSTAT) mechanism.
+
+
+5.0 To Do
+
+There are some areas that could be improved in this server:
+
+a) Built-in hardware flow control.  This would handle say RTS/CTS control.
+
+b) Break handling
+
+c) Use Real-Time scheduling priority to avoid any overruns.
+
+d) Support a mode (via stat mechanism) where line error information is
+interwoven into the received data stream (every other byte as line status).
+
+e) Support for multi-port serial cards (usually 16550A based) where a single
+interrupt line is used for 2 or more UARTs.  Possibly these sort of boards
+should be handled by special servers though.
