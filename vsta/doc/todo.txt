@@ -1,0 +1,91 @@
+copyin/copyout--put in locore.s, use user's segment
+
+X TLB staleness--how split HAT/portable?  Assume TLB shootdown is
+X relatively cheap and if not assume HAT will do the gyrations
+X necessary?
+	-- Yes
+
+X Should HAT update ref/mod bits in c_flags?
+	-- Moved this to pp_flags.  It's done above the HAT.
+
+Make sure users can't send M_RESVD messages
+
+X How hand msg_err() answers around?
+	-- In the m_err field in a sysmsg, which is copied into
+	 the thread's error field when in the thread's context.
+
+X Make msg_send() and msg_connect() handle the case of the port dying
+X with their stuff queued.  Does a lock on the port give a guarantee
+X that any transition to state P_DEAD will guarantee an answer to their
+X queued message first?
+	-- client handles sysmsg; server handles segments received.
+	 Server gets away from client by zeroing the p_port field.
+	 Server enumerates clients through his circular linked list
+	 of portrefs.
+
+X Have to have server use portref's segref array--multiple outstanding
+X requests on a server allows several requests worth of mapped data
+X to be present.
+	-- The segrefs which are currently attached is kept in a per-
+	 *thread* variable.  A thread must either finish with its use
+	 of the data before its next receipt, or must copy it to
+	 someplace more permanent.
+
+X Change the psop_writeslot so that the asynch flag is instead a pointer
+X to a function--NULL means synchronous.  Then pageout pushes can use
+X a routine to free/clean the page, exit pushes can simply free, and
+X so forth.
+	-- Done.  iodone_free() and iodone_unlock() will do free/unlock
+	or unlock on completion.
+
+X Add a FS_ABSWRITE and FS_ABSREAD to combine a seek and a write.  Needed
+X for many things, including swap I/O's.
+	-- Added for floppy driver.  Must ensure handled for disk drivers
+	when they're written.  Still nice to add to all handlers that
+	offer seek.
+
+X Add the second argument to msg.c and msgcon.c handling.
+	-- Done.
+
+Add optimization to add the cache translation *each time* someone faults
+a slot translation in.  Currently we only add when going from !PP_V->PP_V;
+this works, but will guarantee that the page must be brought in from
+its server if the cache view is ever paged out.  Should be done by keeping
+a flag with the perpage, and clearing it when these cache translations
+are deleted.
+
+Add machinery to page stealer to raid cache pviews who are the last
+reference to the pset.  We need them as we don't tag the page otherwise,
+but we should clear them out over time.  Note that the pages can be
+stolen just fine; it's the pview itself that we need to reclaim at
+some point.
+
+Add code to manage T_KERN bit of thread flags
+
+Add code to qio_msg_send to handle case of a "copyout".  A bcopy()
+to ptov(pfn) should suffice?
+
+X Add handling for M_DUP messaging.  How correlate back to new portref
+X being created?
+	-- Done.  The p_msg field of the portref tells us that it's an
+	M_DUP, and it tells us (in m_arg) what's being created.
+
+Convert m_connect() (and others?) to use kernmsg_send().  I think I
+can make the code quite a bit smaller.
+
+Add code to put a proc on the "cheated" queue.
+
+Should "allprocs" be doubly-linked?
+
+Once up, should invalidate all vaddr's above heap
+
+Clean up scheduling node on exit
+
+Implement mmap()
+
+In fork() the portref array is mutexed across the entire dup_port()
+	using p_sema from the proc structure.  This is at least overkill,
+	perhaps worse.  The code should use find_portref(), scanning the
+	old portref array and attempting to get portrefs through the
+	usual interface.  This shares more code, and considerably narrows
+	the time for which the proc sema must be held.

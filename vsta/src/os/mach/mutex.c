@@ -1,0 +1,354 @@
+/*
+ * mutex.c
+ *	Uniprocessor i386 implementation of mutual exclusion
+ *
+ * Mutual exclusion's not very hard on a uniprocessor, eh?
+ */
+#include <sys/mutex.h>
+#include <sys/assert.h>
+#include <sys/thread.h>
+#include <sys/percpu.h>
+
+#define LOCK_HELD (0x8000)	/* Private flag p_sema<->cp_sema */
+
+extern lock_t runq_lock;
+
+/*
+ * p_lock()
+ *	Take spinlock
+ */
+spl_t
+p_lock(lock_t *l, spl_t s)
+{
+	int x;
+
+	ASSERT_DEBUG(l->l_lock == 0, "p_lock: deadlock");
+	l->l_lock = 1;
+	if (s == SPLHI) {
+		x = cli();
+	}
+	cpu.pc_locks += 1;
+	return(x ? SPL0 : SPLHI);
+}
+
+/*
+ * cp_lock()
+ *	Conditional take of spinlock
+ */
+spl_t
+cp_lock(lock_t *l, spl_t s)
+{
+	if (l->l_lock) {
+		return(-1);
+	}
+	return(p_lock(l, s));
+}
+
+/*
+ * v_lock()
+ *	Release spinlock
+ */
+void
+v_lock(lock_t *l, spl_t s)
+{
+	ASSERT_DEBUG(l->l_lock, "v_lock: not held");
+	l->l_lock = 0;
+	if (s == SPL0) {
+		sti();
+	}
+	cpu.pc_locks -= 1;
+}
+
+/*
+ * init_lock()
+ *	Initialize lock to "not held"
+ */
+void
+init_lock(lock_t *l)
+{
+	l->l_lock = 0;
+}
+
+/*
+ * q_sema()
+ *	Queue a thread under a semaphore
+ *
+ * Assumes semaphore is locked.
+ */
+static void
+q_sema(struct sema *s, struct thread *t)
+{
+	if (!s->s_sleepq) {
+		s->s_sleepq = t;
+		t->t_hd = t->t_tl = t;
+	} else {
+		struct thread *t2 = s->s_sleepq->t_tl;
+
+		t->t_hd = t2->t_hd;
+		t->t_tl = t2;
+		t2->t_tl->t_hd = t;
+		t2->t_tl = t;
+	}
+}
+
+/*
+ * dq_sema()
+ *	Remove a thread from a semaphore sleep list
+ *
+ * Assumes semaphore is locked.
+ */
+void
+dq_sema(struct sema *s, struct thread *t)
+{
+	ASSERT_DEBUG(s->s_count < 0, "dq_sema: bad count");
+	s->s_count += 1;
+	if (t->t_hd == t) {
+		s->s_sleepq = 0;
+	} else {
+		t->t_hd->t_tl = t->t_tl;
+		t->t_tl->t_hd = t->t_hd;
+		if (s->s_sleepq == t) {
+			s->s_sleepq = t->t_hd;
+		}
+	}
+}
+
+/*
+ * p_sema()
+ *	Take semaphore, sleep if can't
+ */
+p_sema(sema_t *s, pri_t p)
+{
+	struct thread *t;
+
+	ASSERT_DEBUG(s->s_lock.l_lock == 0, "p_sema: deadlock");
+
+	/*
+	 * Counts > 0, just decrement the count and go
+	 */
+	if (p & LOCK_HELD) {
+		p &= ~LOCK_HELD;
+	} else {
+		spl_t spl;
+
+		spl = p_lock(&s->s_lock, SPLHI);
+		ASSERT_DEBUG(spl == SPL0, "p_sema: lock held");
+	}
+	s->s_count -= 1;
+	if (s->s_count >= 0) {
+		v_lock(&s->s_lock, SPL0);
+		return(0);
+	}
+
+	/*
+	 * We're going to sleep.  Add us at the tail of the
+	 * queue, and relinquish the processor.
+	 */
+	t = curthread;
+	t->t_wchan = s;
+	q_sema(s, t);
+	p_lock(&runq_lock, SPLHI);
+	v_lock(&s->s_lock, SPLHI);
+	swtch();
+
+	/*
+	 * We're back.  If we have an event pending, give up on the
+	 * semaphore and return the right result.
+	 */
+	if (EVENT(t) && (p < PRIHI)) {
+		ASSERT_DEBUG(t->t_wchan == 0, "p_sema: intr w. wchan");
+		if (p == PRICATCH) {
+			return(1);
+		}
+		longjmp(t->t_qsav, 1);
+	}
+
+	/*
+	 * We were woken up to be next with the semaphore.  Our waker
+	 * did the reference count update, so we just return.
+	 */
+	return(0);
+}
+
+/*
+ * cp_sema()
+ *	Conditional p_sema()
+ */
+int
+cp_sema(sema_t *s)
+{
+	spl_t spl;
+
+	ASSERT_DEBUG(s->s_lock.l_lock == 0, "p_sema: deadlock");
+
+	spl = p_lock(&s->s_lock, SPLHI);
+	ASSERT_DEBUG(spl == SPL0, "cp_sema: lock held");
+	if (s->s_count <= 0) {
+		v_lock(&s->s_lock, SPL0);
+		return(-1);
+	}
+	return(p_sema(s, PRIHI|LOCK_HELD));
+}
+
+/*
+ * v_sema()
+ *	Release a semaphore
+ */
+void
+v_sema(sema_t *s)
+{
+	struct thread *t;
+	spl_t spl;
+
+	spl = p_lock(&s->s_lock, SPLHI);
+	if (s->s_sleepq) {
+		ASSERT_DEBUG(s->s_count < 0, "v_sema: too many sleepers");
+		dq_sema(s, t = s->s_sleepq);
+		setrun(t);
+	} else {
+		/* dq_sema() does it otherwise */
+		s->s_count += 1;
+	}
+	v_lock(&s->s_lock, spl);
+}
+
+/*
+ * vall_sema()
+ *	Kick everyone loose who's sleeping on the semaphore
+ */
+void
+vall_sema(sema_t *s)
+{
+	while (s->s_count < 0) {
+		/* XXX races on MP; have to expand v_sema here */
+		v_sema(s);
+	}
+}
+
+/*
+ * blocked_sema()
+ *	Tell if anyone's sleeping on the semaphore
+ */
+blocked_sema(sema_t *s)
+{
+	return (s->s_count < 0);
+}
+
+/*
+ * init_sema()
+ * 	Initialize semaphore
+ *
+ * The s_count starts at 1.
+ */
+void
+init_sema(sema_t *s)
+{
+	s->s_count = 1;
+	s->s_sleepq = 0;
+	init_lock(&s->s_lock);
+}
+
+/*
+ * set_sema()
+ *	Manually set the value for the semaphore count
+ *
+ * Use with care; if you strand someone on the queue your system
+ * will start to act funny.  If DEBUG is on, it'll probably panic.
+ */
+void
+set_sema(sema_t *s, int cnt)
+{
+	s->s_count = cnt;
+}
+
+/*
+ * p_sema_v_lock()
+ *	Atomically transfer from a spinlock to a semaphore
+ */
+p_sema_v_lock(sema_t *s, pri_t p, lock_t *l)
+{
+	struct thread *t;
+	spl_t spl;
+
+	ASSERT_DEBUG(s->s_lock.l_lock == 0, "p_sema: deadlock");
+
+	/*
+	 * Take semaphore lock.  If count is high enough, release
+	 * semaphore and lock now.
+	 */
+	spl = p_lock(&s->s_lock, SPLHI);
+	s->s_count -= 1;
+	if (s->s_count >= 0) {
+		v_lock(&s->s_lock, spl);
+		v_lock(l, SPL0);
+		return(0);
+	}
+
+	/*
+	 * We're going to sleep.  Add us at the tail of the
+	 * queue, and relinquish the processor.
+	 */
+	t = curthread;
+	t->t_wchan = s;
+	q_sema(s, t);
+	p_lock(&runq_lock, SPLHI);
+	v_lock(&s->s_lock, SPLHI);
+	v_lock(l, SPLHI);
+	swtch();
+
+	/*
+	 * We're back.  If we have an event pending, give up on the
+	 * semaphore and return the right result.
+	 */
+	if (EVENT(t) && (p < PRIHI)) {
+		ASSERT_DEBUG(t->t_wchan == 0, "p_sema: intr w. wchan");
+		if (p == PRICATCH)
+			return(1);
+		longjmp(t->t_qsav, 1);
+	}
+
+	/*
+	 * We were woken up to be next with the semaphore.  Our waker
+	 * did the reference count update, so we just return.
+	 */
+	return(0);
+}
+
+/*
+ * cunsleep()
+ *	Try to remove a process from a sema queue
+ *
+ * Returns 1 on busy mutex; 0 for success
+ */
+cunsleep(struct thread *t)
+{
+	spl_t s;
+	sema_t *sp;
+
+	ASSERT_DEBUG(t->t_wchan, "cunsleep: zero wchan");
+
+	/*
+	 * Try for mutex on semaphore
+	 */
+	sp = t->t_wchan;
+	s = cp_lock(&sp->s_lock, SPLHI);
+	if (s == -1) {
+		return(1);
+	}
+
+	/*
+	 * Get thread off queue
+	 */
+	dq_sema(sp, t);
+
+	/*
+	 * Null out wchan to be safe.  Sema count was updated
+	 * by dq_sema().
+	 */
+	t->t_wchan = 0;
+
+	/*
+	 * Success
+	 */
+	return(0);
+}
