@@ -1008,7 +1008,7 @@ setvbuf(FILE *fp, char *buf, int mode, size_t size)
 	/*
 	 * If there's a buffer specified, set the details
 	 */
-	fp->f_pos = fp->f_buf = buf;
+	fp->f_pos = fp->f_buf = (void *)buf;
 	fp->f_bufsz = size;
 	fp->f_cnt = 0;
 	fp->f_flags |= _F_UBUF;
