@@ -164,7 +164,7 @@ write_stat(char *name, int use_port, char *field, int verbose)
 main(int argc, char **argv)
 {
 	int exit_code = 0, x, doing_wstat = 0, verbose = 0, using_port = 0;
-	int c;
+	int c, sleep_after = 0;
 	port_t pt;
 
 	/*
@@ -177,7 +177,7 @@ main(int argc, char **argv)
 	/*
 	 * Scan for command line options
 	 */
-	while ((c = getopt(argc, argv, "prsvw")) != EOF) {
+	while ((c = getopt(argc, argv, "prsvwS:")) != EOF) {
 		switch(c) {
 		case 'p' :	/* Use port name instead of file name */
 			using_port = 1;
@@ -197,6 +197,10 @@ main(int argc, char **argv)
 
 		case 'w' :			/* Write stat info */
 			doing_wstat = 1;
+			break;
+
+		case 'S':			/* Sleep after ops */
+			sleep_after = atoi(optarg);
 			break;
 
 		default :	/* Only errors should get us here? */
@@ -254,5 +258,15 @@ main(int argc, char **argv)
 			}
 		}		
 	}
+
+	/*
+	 * Almost all done?  Sleep now.  This is useful where we've
+	 * stat'd in something which only "keeps" until the requesting
+	 * client exits.
+	 */
+	if (sleep_after > 0) {
+		sleep(sleep_after);
+	}
+
 	return(0);
 }
