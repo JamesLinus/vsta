@@ -85,8 +85,7 @@ unmapsegs(struct segref *segref)
  * mapsegs()
  *	Map each segment in a message into the user process
  *
- * Records the attachment under the segref structure, which
- * will be cleared of old mappings if necessary.
+ * Records the attachment under the segref structure
  */
 static int
 mapsegs(struct proc *p, struct sysmsg *sm, struct segref *segref)
@@ -118,8 +117,10 @@ mapsegs(struct proc *p, struct sysmsg *sm, struct segref *segref)
 
 /*
  * sm_to_m()
- *	Convert the segment information from the sysmsg format to its
- *	internal msg format
+ *	Convert sysmsg back into user msg format
+ *
+ * Primary job is converting the segment information from
+ * the sysmsg format to the user-visible msg format
  */
 static void
 sm_to_m(struct sysmsg *sm)
@@ -207,7 +208,7 @@ m_to_sm(struct vas *vas, struct sysmsg *sm)
  * message, and queueing it to the appropriate destination.
  * The receiving side maps it into the process address space.
  * When the receiving side msg_reply()'s, this routine picks up
- * any corresponding reply segments and maps them back into
+ * any corresponding reply segments and copies them back into
  * this process' address space.
  */
 int
@@ -227,18 +228,13 @@ msg_send(port_t arg_port, struct msg *arg_msg)
 	}
 
 	/*
-	 * Protect our reserved messages types.  M_TIME is a special
-	 * case because I used to think I'd generate these from the
-	 * kernel, but currently I do it through a user-space thread.
-	 * I could renumber it out of the reserved range--TBD.
+	 * Protect our reserved messages types.
 	 *
 	 * We mask the low bits to avoid being confused by the
 	 * M_READ bit in the higher bits.
 	 */
 	if ((sm.sm_op & 0xFFF) < M_RESVD) {
-		if ((sm.sm_op & 0xFFF) != M_TIME) {
-			return(err(EINVAL));
-		}
+		return(err(EINVAL));
 	}
 
 	/*
