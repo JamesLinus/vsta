@@ -23,6 +23,8 @@ static struct directory		/* Root dir contents */
 static uint cldirs;		/* # dir entries in a cluster */
 struct hash *dirhash;		/* Maps dirs to nodes */
 
+static void timestamp(struct directory *d);
+
 /*
  * dir_init()
  *	Set up various tables, read in root directory
@@ -588,6 +590,7 @@ dir_newfile(struct file *f, char *file, int isdir)
 	dir->attr = 0;
 	dir->start = 0;
 	dir->size = 0;
+	timestamp(dir);
 
 	/*
 	 * Have to allocate an empty directory (., ..) for directories
@@ -618,10 +621,12 @@ dir_newfile(struct file *f, char *file, int isdir)
 		bcopy("   ", d->ext, sizeof(d->ext));
 		dir->attr = d->attr = DA_DIR|DA_ARCHIVE;
 		dir->start = d->start = c->c_clust[0];
+		timestamp(dir);
 		++d;
 		bcopy("..      ", d->name, sizeof(d->name));
 		bcopy("   ", d->ext, sizeof(d->ext));
 		d->attr = DA_DIR|DA_ARCHIVE;
+		timestamp(dir);
 		if (n == rootdir) {
 			d->start = 0;
 		} else {

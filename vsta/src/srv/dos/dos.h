@@ -170,6 +170,7 @@ extern void binit(void), bsync(void), bfree(void *);
  */
 extern struct node *dir_look(struct node *, char *),
 	*dir_newfile(struct file *, char *, int);
+extern int dir_empty(struct node *);
 extern void dir_remove(struct node *);
 extern int dir_copy(struct node *, uint, struct directory *);
 extern void dir_setlen(struct node *);

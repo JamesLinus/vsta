@@ -140,6 +140,7 @@ fat_init(void)
 	dirtymap = malloc(dirtymapsize);
 	ASSERT(dirtymap, "fat_init: dirtymap");
 	bzero(dirtymap, dirtymapsize);
+	fat_dirty = 0;
 
 	/*
 	 * Convert FAT-12 to FAT-16
@@ -453,6 +454,7 @@ map_write(void)
 	 * Clear dirtymap--everything's been flushed successfully
 	 */
 	bzero(dirtymap, dirtymapsize);
+	fat_dirty = 0;
 }
 
 /*
@@ -475,7 +477,6 @@ fat_sync(void)
 	/*
 	 * Seek to start of FATs, write them out
 	 */
-	lseek(blkdev, 1 * SECSZ, 0);
 	if (fat12) {
 		int x;
 
@@ -483,6 +484,7 @@ fat_sync(void)
 		 * FAT12--write whole thing.  FAT12 entries can span
 		 * sectors, so it needs its own loop. XXX
 		 */
+		lseek(blkdev, 1 * SECSZ, 0);
 		fat16_fat12(fat, fat12, fatlen);
 		x = write(blkdev, fat12, fat12len);
 		if (x!= fat12len) {
@@ -497,6 +499,7 @@ fat_sync(void)
 				"Write of FAT12 #2 failed\n");
 			exit(1);
 		}
+		fat_dirty = 0;
 	} else {
 		map_write();
 	}
