@@ -7,8 +7,11 @@ LIBS= -lc
 .c.o:
 	$(CC) $(CFLAGS) -c $*.c
 
+#
+# Note: "ps", which used to be here, is now located in srv/proc/cmd
+#
 PROGS=test args cat id ls swapd rm cp sleep mkdir pwd kill mv stat \
-	dumpsect man fstab ps rmdir touch
+	dumpsect man fstab rmdir touch
 
 all: $(PROGS)
 
@@ -17,9 +20,6 @@ touch: touch.o
 
 rmdir: rmdir.o
 	$(LD) $(LDFLAGS) -o rmdir ../../libc/crt0.o rmdir.o -lc
-
-ps: ps.o
-	$(LD) $(LDFLAGS) -o ps ../../libc/crt0.o ps.o -lc
 
 fstab: fstab.o
 	$(LD) $(LDFLAGS) -o fstab ../../libc/crt0.o fstab.o -lc
