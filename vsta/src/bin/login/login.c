@@ -180,9 +180,9 @@ login(struct uinfo *u)
 	 * Mount system default stuff.  Remove our root-capability
 	 * entry from the mount table.
 	 */
-	port = mount_port("/vsta");
+	port = mount_port("/");
 	mount_init(SYSMOUNT);
-	umount("/vsta", port);
+	umount("/", port);
 
 	/*
 	 * Put some stuff into our environment.  We place it in the

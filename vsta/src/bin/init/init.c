@@ -20,7 +20,6 @@
 #include <syslog.h>
 
 #define INITTAB "/vsta/etc/inittab"	/* Table of stuff to run */
-#define FSTAB "/vsta/etc/fstab"		/* Filesystems at boot */
 
 /*
  * State associated with each entry in the inittab
@@ -322,7 +321,7 @@ main()
 		printf("init: can't connect to root\n");
 		exit(1);
 	}
-	mountport("/vsta", p);
+	mountport("/", p);
 
 	/*
 	 * Read in inittab
