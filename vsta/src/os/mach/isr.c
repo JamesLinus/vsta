@@ -23,12 +23,20 @@ struct isr_msg {
 };
 static struct isr_msg handler[MAX_IRQ];
 char handlers[MAX_IRQ];
+ulong strayintr = 0L, dupintr = 0L;
 
 /*
  * Master mask of what interrupts are enabled.  Starts with all
  * interrupts disabled.
  */
 ushort intr_mask = 0xFFFF;
+
+/*
+ * Count of users of IRQ vectors in the slave PIC.  We enable
+ * the slave vector when this goes non-zero, and disable it when
+ * it returns to 0.
+ */
+static ushort cnt_slave = 0;
 
 /*
  * Mask determining who can do these sort of operations
@@ -104,6 +112,10 @@ enable_isr(port_t arg_port, int irq)
 	 * Enable this interrupt vector
 	 */
 	intr_mask &= ~(1 << irq);
+	if (irq >= SLAVE_IRQ) {
+		++cnt_slave;
+		intr_mask &= ~(1 << MASTER_SLAVE);
+	}
 	SETMASK(intr_mask);
 out:
 	v_lock(&port->p_lock, SPL0);
@@ -127,6 +139,13 @@ disable_isr(struct port *port)
 			 * Shut off this interrupt vector
 			 */
 			intr_mask |= (1 << x);
+			if (x >= SLAVE_IRQ) {
+				ASSERT_DEBUG(cnt_slave > 0,
+					"disable_isr: stray high");
+				if (--cnt_slave == 0) {
+					intr_mask |= (1 << MASTER_SLAVE);
+				}
+			}
 			SETMASK(intr_mask);
 
 			/*
@@ -191,6 +210,7 @@ deliver_isr(int isr)
 	 * Anybody registered?
 	 */
 	if (handlers[isr] == 0) {
+		strayintr += 1;
 		return(0);
 	}
 
@@ -212,6 +232,7 @@ deliver_isr(int isr)
 	 * m_arg field to tell them how many times they missed.
 	 */
 	sm->m_arg1 += 1;
+	dupintr += 1;
 	return(1);
 }
 
