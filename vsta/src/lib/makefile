@@ -17,7 +17,7 @@ OBJS= syscall.o malloc.o \
 	perm.o random.o namer.o dir.o wait.o mktemp.o grp.o pwd.o \
 	pipe.o fdnull.o errno.o port.o syslog.o rename.o fnmatch.o \
 	bsearch.o strtol.o utime.o getline.o strftime.o mstring.o \
-	fdcall.o obsolete.o \
+	fdcall.o obsolete.o getpass.o \
 	$(MACHOBJS)
 
 SRVOBJS= syscall.o malloc.o srvstr.o srvprnt.o srvopen.o srvfdl.o \
@@ -31,7 +31,7 @@ SRVOBJS= syscall.o malloc.o srvstr.o srvprnt.o srvopen.o srvfdl.o \
 	$(CC) $(CFLAGS) -c $*.c
 
 # Libraries to be build
-LIBS=libc.a libc_s.a ld.a libusr.a libtermc.a libregex.a libm.a \
+LIBS=libc.a libc_s.a ld.a libusr.a libtermc.a libregex.a libm.a libsrv.a \
 	$(MACHTARGS)
 
 # Databases for shared libraries
