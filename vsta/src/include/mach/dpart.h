@@ -57,6 +57,8 @@ struct part_slot {
 #define PT_EXT 0x05		/* Extended partition */
 #define PT_DOSBIG 0x06		/* DOS > 32 Mb 16-bit FAT fs */
 #define PT_OS2HPFS 0x07		/* OS/2 HPFS fs*/
+#define PT_WIN95 0x0B		/* Windows 95 FAT fs */
+#define PT_WIN95LBA 0x0F	/* Windows 95 FAT fs, LBA/offset format? */
 #define PT_386BSD 0xa5		/* 386BSD McKusick-type fs */
 #define PT_MINIX 0x80		/* Old style Minix fs */
 #define PT_LXMINIX 0x81		/* Linux/Minix fs */
