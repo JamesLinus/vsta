@@ -630,17 +630,17 @@ sched_op(int op, int arg)
 		/*
 		 * Set thread priority
 		 * Range check the priority specified as the
-		 * argument.  An "idle" priority means just yield
-		 * and retry for the CPU.
+		 * argument.
 		 */
-		if (arg == PRI_IDLE) {
-			timeslice();
-			return(0);
-		}
-		if ((arg < PRI_IDLE) || (arg > PRI_RT)) {
+		switch (arg) {
+		case PRI_BG:
+		case PRI_RT:
+		case PRI_TIMESHARE:
+			return(sched_prichg(arg));
+		default:
 			break;
-		} 
-		return(sched_prichg(arg));
+		}
+		break;
 
 	case SCHEDOP_GETPRIO:
 		/*
@@ -655,7 +655,6 @@ sched_op(int op, int arg)
 		 */
 		timeslice();
 		return(0);
-		break;
 
 	default:
 		break;
