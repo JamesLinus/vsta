@@ -102,4 +102,9 @@ extern int *__ptr_errno(void);
 #define ESYMLINK (104)	/* Symbolic link */
 #define ELOOP (105)	/* Symbolic link loop */
 
+/*
+ * For mapping these values into VSTa error strings
+ */
+extern char *__map_errno(int);
+
 #endif /* _ERRNO_H */
