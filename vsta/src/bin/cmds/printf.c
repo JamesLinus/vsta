@@ -84,6 +84,12 @@ main(int argc, char **argv)
 				if (isdigit(c)) {
 					(void)sscanf(fmt+x, "%3o", &val);
 					c = val;
+					for (val = 0; val < 3; ++val) {
+						if (!isdigit(fmt[x])) {
+							break;
+						}
+						x += 1;
+					}
 				} else {
 					switch (c) {
 					case 'n':
@@ -98,10 +104,13 @@ main(int argc, char **argv)
 					default:
 						break;
 					}
+					x += 1;
 				}
+				putchar(c);
+			} else {
+				x += 1;
+				putchar(c);
 			}
-			x += 1;
-			putchar(c);
 			continue;
 		}
 
