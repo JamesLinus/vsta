@@ -233,7 +233,7 @@ main(void)
 	 * Last check is that we can register with the given name.
 	 */
 	rootport = msg_port((port_name)0, &fsname);
-	x = namer_register("proc", fsname);
+	x = namer_register("fs/proc", fsname);
 	if (x < 0) {
 		syslog(LOG_ERR, "unable to register with namer");
 		exit(1);
