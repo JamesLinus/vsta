@@ -64,7 +64,9 @@ typedef	struct termios	SGTTY;
 /*
  * Capabilities from termcap
  */
-
+#ifdef HZ
+#undef HZ
+#endif
 extern bool     AM, BS, CA, DA, DB, EO, HC, HZ, IN, MI, MS, NC, NS, OS, UL,
 		XB, XN, XT, XS, XX;
 extern char	*AL, *BC, *BT, *CD, *CE, *CL, *CM, *CR, *CS, *DC, *DL,
