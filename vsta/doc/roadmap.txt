@@ -108,7 +108,7 @@ Create a GRUB boot loader floppy by doing:
 	cd \vsta\grub\bin_std
 	(If you don't have rawrite.exe, get it from the VSTa
 	 distribution site)
-	rawrite stage12 a:
+	rawrite grub.raw a:
 
 Reboot your machine with this floppy in drive A (and your BIOS configured
 to attempt booting from floppy), and you should end up at a GRUB interactive
