@@ -8,9 +8,10 @@
 
 extern void dump_phys(), dump_virt(), dump_procs(), dump_pset(),
 	dump_instr(), trace(), trapframe(), dump_vas(), dump_port(),
-	dump_pview();
+	dump_pview(), dump_thread();
 extern void dbg_inport(), dbg_outport();
-static void quit(), calc(), set();
+static void quit(), calc(), set(), set_mem();
+extern int get_num();
 
 jmp_buf dbg_errjmp;		/* For aborting on error */
 
@@ -36,8 +37,10 @@ struct {
 	"quit", quit,
 	"set", set,
 	"tframe", trapframe,
+	"thread", dump_thread,
 	"trace", trace,
 	"vas", dump_vas,
+	"writemem", set_mem,
 	0, 0
 };
 
@@ -91,6 +94,33 @@ quit()
 }
 
 /*
+ * set_mem()
+ *	Set memory word to value
+ */
+static void
+set_mem(char *p)
+{
+	uint addr, val;
+
+	addr = get_num(p);
+	p = strchr(p, ' ');
+	if (p == 0) {
+		printf("Usage: writemem <addr> <val> [<val>...]\n");
+		return;
+	}
+	*p++ = '\0';
+	while (p) {
+		while (*p == ' ') {
+			++p;
+		}
+		val = get_num(p);
+		*(uint *)addr = val;
+		addr += sizeof(uint);
+		p = strchr(p, ' ');
+	}
+}
+
+/*
  * calc()
  *	Print out value in multiple formats
  */
@@ -99,11 +129,9 @@ calc(str)
 	char *str;
 {
 	int x;
-	extern int get_num();
 
 	x = get_num(str);
-	printf("%s 0x%x %d\n",
-		symloc(x), x, x);
+	printf("%s 0x%x %d\n", symloc(x), x, x);
 }
 
 /*
