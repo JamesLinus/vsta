@@ -79,6 +79,14 @@ bfs_open(struct msg *m, struct file *f)
 		}
 
 		/*
+		 * Check read-only filesystem
+		 */
+		if (roflag) {
+			msg_err(m->m_sender, EROFS);
+			return;
+		}
+
+		/*
 		 * Insufficient priveleges
 		 */
 		if (f->f_write == 0) {
@@ -192,6 +200,10 @@ bfs_remove(struct msg *m, struct file *f)
 		msg_err(m->m_sender, EINVAL);
 		return;
 	}
+	if (roflag) {
+		msg_err(m->m_sender, EROFS);
+		return;
+	}
 	if (!f->f_write) {
 		msg_err(m->m_sender, EPERM);
 		return;
@@ -296,6 +308,14 @@ bfs_rename(struct msg *m, struct file *f)
 	 */
 	if ((m->m_arg1 == 0) || !valid_fname(m->m_buf, m->m_buflen)) {
 		msg_err(m->m_sender, EINVAL);
+		return;
+	}
+
+	/*
+	 * Check read-only filesystem
+	 */
+	if (roflag) {
+		msg_err(m->m_sender, EROFS);
 		return;
 	}
 

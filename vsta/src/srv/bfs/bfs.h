@@ -121,7 +121,7 @@ extern void *bdata(void *bp);
 extern void bfree(void *bp);
 extern void binit(void);
 extern void bsync(void);
-
+extern int ncache;
 
 /*
  * Definitions for filectrl.c - file/dir tracking code
@@ -138,6 +138,10 @@ extern void ino_init(void);
 extern void blk_trunc(struct inode *i);
 extern int blk_alloc(struct inode *i, uint newsize);
 
+/*
+ * Definitions from main.c - initialization and main message loop
+ */
+extern int roflag, blkdev;
 
 /*
  * Definitions for open.c - file open/close/delete code

@@ -17,7 +17,7 @@
 #include "bfs.h"
 
 
-extern int blkdev;
+int ncache = NCACHE;		/* # blocks in cache, with default */
 
 char *errstr;			/* String for last error */
 static int cached = 0;		/* # blocks currently cached */
@@ -58,7 +58,7 @@ static struct llist allblocks;
  * bnew()
  *	Get a new block, associate it with the named block number
  *
- * Since we're only allowed NCACHE blocks in-core, we might have to
+ * Since we're only allowed ncache blocks in-core, we might have to
  * push a dirty block out.  For a boot filesystem, we just push
  * synchronously.  Other filesystems will doubtless prefer to push
  * dirty blocks asynchronously while still scanning forward for
@@ -75,7 +75,7 @@ bnew(int blkno)
 	/*
 	 * Not above our limit--easy living!
 	 */
-	if (cached < NCACHE) {
+	if (cached < ncache) {
 		b = malloc(sizeof(struct block));
 		if (b) {
 			b->b_data = malloc(BLOCKSIZE);

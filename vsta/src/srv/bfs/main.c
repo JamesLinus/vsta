@@ -8,8 +8,6 @@
  * Description: Main message handling and startup routines for the bfs
  *		filesystem (boot file system)
  */
-
-
 #include <fcntl.h>
 #include <fdl.h>
 #include <hash.h>
@@ -19,6 +17,7 @@
 #include <sys/namer.h>
 #include <sys/perm.h>
 #include <syslog.h>
+#include <getopt.h>
 #include "bfs.h"
 
 
@@ -27,11 +26,9 @@ port_t rootport;		/* Port we receive contacts through */
 struct super *sblock;		/* Our filesystem's superblock */
 void *shandle;			/*  ...handle for the block entry */
 static struct hash *filehash;	/* Handle->filehandle mapping */
-
+int roflag;			/* Read-only filesystem? */
 
 extern valid_fname(char *, int);
-extern port_t path_open(char *, int);
-
 
 /*
  * Protection for all BFS files: everybody can read, only
@@ -330,15 +327,14 @@ usage(void)
  *	Startup of a boot filesystem
  *
  * A BFS instance expects to start with a command line:
- *	$ bfs <block instance> <filesystem name>
+ *	$ bfs -d <disk path> -n <filesystem name>
  */
 void
 main(int argc, char *argv[])
 {
-	port_t port;
 	port_name fsname;
-	int x;
-	char *namer_name;
+	int x, retries;
+	char *namer_name, *blkname;
 
 	/*
 	 * Initialize syslog
@@ -348,50 +344,55 @@ main(int argc, char *argv[])
 	/*
 	 * Check arguments
 	 */
-	if (argc == 3) {
-		namer_name = argv[2];
-
-		blkdev = open(argv[1], O_RDWR);
-		if (blkdev < 0) {
-			syslog(LOG_ERR, "%s %s", argv[1], strerror());
-			exit(1);
-		}
-	} else if (argc == 4) {
-		int retries;
-
-		/*
-		 * Version of invocation where service is specified
-		 */
-		namer_name = argv[3];
-		if (strcmp(argv[1], "-p")) {
-			usage();
-		}
-		for (retries = 10; retries > 0; retries -= 1) {
-			port = path_open(argv[2], ACC_READ|ACC_WRITE);
-			if (port < 0) {
-				sleep(1);
-			} else {
-				break;
+	while ((x = getopt(argc, argv, "d:n:rB:")) > 0) {
+		switch (x) {
+		case 'd':
+			blkname = optarg;
+			break;
+		case 'n':
+			namer_name = optarg;
+			break;
+		case 'r':
+			roflag = 1;
+			break;
+		case 'B':
+			ncache = atoi(optarg);
+			if ((ncache < 16) || (ncache > 1024*1024)) {
+				ncache = NCACHE;
+				syslog(LOG_INFO, "cache size forced to %d",
+					NCACHE);
 			}
 		}
-		if (port < 0) {
-			syslog(LOG_ERR, "couldn't connect to block device %s",
-			       argv[2]);
-			exit(1);
-		}
-		blkdev = __fd_alloc(port);
-		if (blkdev < 0) {
-			syslog(LOG_ERR, "%s %s", argv[2], strerror());
-			exit(1);
-		}
-	} else {
+	}
+
+	/*
+	 * Check usage
+	 */
+	if ((optind < argc) || !blkname || !namer_name) {
 		usage();
+	}
+
+	/*
+	 * Try and open the block device
+	 */
+	for (retries = 10; retries > 0; retries -= 1) {
+		blkdev = open(blkname, roflag ? O_RDONLY : O_RDWR);
+		if (blkdev < 0) {
+			sleep(1);
+		} else {
+			break;
+		}
+	}
+	if (blkdev < 0) {
+		syslog(LOG_ERR, "couldn't connect to block device %s",
+		       blkname);
+		exit(1);
 	}
 
 	/*
 	 * Allocate data structures we'll need
 	 */
-        filehash = hash_alloc(NCACHE / 4);
+        filehash = hash_alloc(ncache / 4);
 	if (filehash == 0) {
 		syslog(LOG_ERR, "file hash allocation failed");
 		exit(1);
@@ -408,12 +409,12 @@ main(int argc, char *argv[])
 	 */
 	shandle = bget(0);
 	if (!shandle) {
-		syslog(LOG_ERR, "superblock read failed for %s", argv[1]);
+		syslog(LOG_ERR, "superblock read failed for %s", blkname);
 		exit(1);
 	}
 	sblock = bdata(shandle);
 	if (sblock->s_magic != SMAGIC) {
-		syslog(LOG_ERR, "bad superblock on %s", argv[1]);
+		syslog(LOG_ERR, "bad superblock on %s", blkname);
 		exit(1);
 	}
 
