@@ -323,3 +323,14 @@ _setsid
 ___fieldval
 _mutex_thread
 _yield
+__fdcall
+_funopen
+_popen
+_pclose
+_atof
+_fabs
+_finite
+_isnan
+_ldexp
+_modf
+_strtod

@@ -3,7 +3,7 @@ AS=as
 LD=ld
 CPP= cpp
 INCS= -I../../include
-CFLAGS= $(INCS) -O -DDEBUG
+CFLAGS= $(INCS) -O -DDEBUG -DFLOAT_SUPPORT
 CRT=start.o startsrv.o
 target: all
 
@@ -16,6 +16,7 @@ OBJS= syscall.o malloc.o \
 	perm.o random.o namer.o dir.o wait.o mktemp.o grp.o pwd.o \
 	pipe.o fdnull.o errno.o port.o syslog.o rename.o fnmatch.o \
 	bsearch.o strtol.o utime.o getline.o strftime.o mstring.o \
+	fdcall.o \
 	$(MACHOBJS)
 
 .c.o:
