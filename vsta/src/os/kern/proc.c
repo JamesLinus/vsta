@@ -41,19 +41,13 @@ mkview(uint pfn, void *vaddr, uint pages, struct vas *vas)
 {
 	struct pview *pv;
 	struct pset *ps;
-	extern struct pset *physmem_pset();
 
 	ps = physmem_pset(pfn, pages);
-	pv = MALLOC(sizeof(struct pview), MT_PVIEW);
-	pv->p_set = ps;
-	ref_pset(ps);
+	pv = alloc_pview(ps);
 	pv->p_vaddr = vaddr;
-	pv->p_len = pages;
-	pv->p_off = 0;
 	pv->p_vas = vas;
 	pv->p_next = vas->v_views;
 	vas->v_views = pv;
-	pv->p_prot = 0;
 	return(pv);
 }
 
