@@ -283,11 +283,13 @@ try_open(port_t newfile, char *file, int mask, int mode)
 
 		/*
 		 * Map element to a getenv() of it if it  has
-		 * a "@" prefix.
+		 * a "@" prefix and the path element starts with
+		 * an initial capital.
 		 */
 		tmp = 0;
 #ifndef SRV
-		if (*file == '@') {
+		if ((file[0] == '@') &&
+				((file[1] >= 'A') && (file[1] <= 'Z'))) {
 			tmp = getenv(file+1);
 			if (tmp) {
 				file = tmp;
