@@ -31,7 +31,7 @@ extern int page_wire(), page_release(), enable_dma(), time_get(),
 	set_cmd(), pageout(), unhash(),
 	time_set(), ptrace(), nop(), msg_portname(), pstat();
 extern int notify_handler(), sched_op(), setsid(), mutex_thread();
-extern void check_events(), nudge();
+extern void check_events();
 
 struct syscall {
 	intfun s_fun;
