@@ -82,7 +82,7 @@ void fs_read(loff_t pos,int size,void *data)
     CHANGE *walk;
     int got;
 
-    if (llseek(fd,pos,0) != pos) pdie("Seek to %lld",pos);
+    if (llseek(fd,pos,SEEK_SET) != pos) pdie("Seek to %lld",pos);
     if ((got = read(fd,data,size)) < 0) pdie("Read %d bytes at %lld",size,pos);
     if (got != size) die("Got %d bytes instead of %d at %lld",got,size,pos);
     for (walk = changes; walk; walk = walk->next) {
@@ -102,7 +102,7 @@ int fs_test(loff_t pos,int size)
     void *scratch;
     int okay;
 
-    if (llseek(fd,pos,0) != pos) pdie("Seek to %lld",pos);
+    if (llseek(fd,pos,SEEK_SET) != pos) pdie("Seek to %lld",pos);
     scratch = alloc(size);
     okay = read(fd,scratch,size) == size;
     free(scratch);
@@ -117,7 +117,7 @@ void fs_write(loff_t pos,int size,void *data)
 
     if (write_immed) {
 	did_change = 1;
-	if (llseek(fd,pos,0) != pos) pdie("Seek to %lld",pos);
+	if (llseek(fd,pos,SEEK_SET) != pos) pdie("Seek to %lld",pos);
 	if ((did = write(fd,data,size)) == size) return;
 	if (did < 0) pdie("Write %d bytes at %lld",size,pos);
 	die("Wrote %d bytes instead of %d at %lld",did,size,pos);
@@ -140,7 +140,7 @@ static void fs_flush(void)
     while (changes) {
 	this = changes;
 	changes = changes->next;
-	if (llseek(fd,this->pos,0) != this->pos)
+	if (llseek(fd,this->pos,SEEK_SET) != this->pos)
 	    fprintf(stderr,"Seek to %lld failed: %s\n  Did not write %d bytes.\n",
 	      this->pos,strerror(errno),this->size);
 	else if ((size = write(fd,this->data,this->size)) < 0)
