@@ -47,10 +47,14 @@ extern struct proc *pfind();
 static int
 signal_thread(struct thread *t, char *event, int is_sys)
 {
+	char *evp;
 	extern void nudge(), lsetrun();
 
-	if (!is_sys) {
-		if (cp_sema(&t->t_evq)) {
+	if (is_sys) {
+		evp = t->t_evsys;
+	} else {
+		evp = t->t_evproc;
+		if (*evp) {
 			return(err(EAGAIN));
 		}
 	}
@@ -59,7 +63,7 @@ signal_thread(struct thread *t, char *event, int is_sys)
 	 * Take lock, place event in appropriate place
 	 */
 retry:	p_lock_void(&runq_lock, SPLHI);
-	strcpy((is_sys ? t->t_evsys : t->t_evproc), event);
+	strcpy(evp, event);
 
 	/*
 	 * As appropriate, kick him awake
@@ -286,7 +290,6 @@ check_events(void)
 		PTRACE_PENDING(t->t_proc, PD_EVENT, event);
 		if (event[0])
 			sendev(t, event);
-		v_sema(&t->t_evq);
 		return;
 	}
 	v_lock(&runq_lock, s);

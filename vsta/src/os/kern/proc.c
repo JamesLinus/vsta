@@ -137,7 +137,6 @@ bootproc(struct boot_task *b)
 	boot_regs(t, b);
 	t->t_runq = sched_thread(p->p_runq, t);
 	t->t_proc = p;
-	init_sema(&t->t_evq);
 	t->t_state = TS_SLEEP;	/* -> RUN in setrun() */
 
 	/*
@@ -336,7 +335,6 @@ fork_thread(voidfun f, ulong arg)
 	 */
 	t->t_usrcpu = t->t_syscpu = 0L;
 	t->t_evsys[0] = t->t_evproc[0] = '\0';
-	init_sema(&t->t_evq);
 	t->t_err[0] = '\0';
 	t->t_runq = sched_thread(p->p_runq, t);
 	t->t_uregs = 0;
@@ -405,7 +403,6 @@ fork(void)
 	 */
 	tnew->t_kstack = MALLOC(KSTACK_SIZE, MT_KSTACK);
 	tnew->t_flags = told->t_flags;
-	init_sema(&tnew->t_evq);
 	tnew->t_state = TS_SLEEP;	/* -> RUN in setrun() */
 	tnew->t_ustack = (void *)USTACKADDR;
 
@@ -563,13 +560,6 @@ do_exit(int code)
 	p->p_sys += t->t_syscpu;
 
 	v_sema(&p->p_sema);
-
-	/*
-	 * Let through anybody waiting to signal
-	 */
-	while (blocked_sema(&t->t_evq)) {
-		v_sema(&t->t_evq);
-	}
 
 	/*
 	 * Tear down the thread's user stack if not last.  If it's

@@ -55,11 +55,10 @@ dump_thread2(struct thread *t, int brief)
 	FLAG(T_RT, "RT"); FLAG(T_BG, "BG");
 	printf("\n  hd %x tl %x next %x\n",
 		t->t_hd, t->t_tl, t->t_next);
-	printf("  probe %x err %s usr/sys %d/%d evq %x eng %x\n",
+	printf("  probe %x err %s usr/sys %d/%d eng %x\n",
 		t->t_probe,
 		t->t_err[0] ? t->t_err : "<none>",
-		t->t_usrcpu, t->t_syscpu,
-		&t->t_evq, t->t_eng);
+		t->t_usrcpu, t->t_syscpu, t->t_eng);
 }
 
 /*
