@@ -194,7 +194,7 @@ printf("Free list sector %ld claims %d free slots\n",
 		 * Now walk each slot & sanity check the members
 		 */
 		a = fr->f_free;
-		for (x = 0; x < fr->f_nfree; ++x) {
+		for (x = 0; x < fr->f_nfree; ++x,++a) {
 			/*
 			 * Verify start and end of range lie within
 			 * the filesystem.
