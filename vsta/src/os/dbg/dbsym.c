@@ -6,7 +6,7 @@
 #ifdef KDB
 #include <stdio.h>
 #include <aout.h>
-#include <dbg/dbg.h>
+#include "../dbg/dbg.h"
 
 extern void *malloc();
 

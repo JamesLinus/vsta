@@ -4,8 +4,6 @@
  * names.h
  *	Values shared between kernel and utiliies
  */
-#include <sys/types.h>
-
 #define DBG_NAMESZ (20*1024)	/* Buffer for namelist data */
 
 /*
@@ -19,8 +17,8 @@
  * Structure superimposed onto the stream of bytes in dbg_names[]
  */
 struct sym {
-	uchar s_type;		/* Must be first--see dbg_names[] */
-	ulong s_val;
+	unsigned char s_type;		/* Must be first--see dbg_names[] */
+	unsigned long s_val;
 	char s_name[1];
 };
 
