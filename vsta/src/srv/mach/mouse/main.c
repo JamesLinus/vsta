@@ -71,6 +71,8 @@ mouse_new_client(struct msg *m)
 	 */
 	f->f_gen = mouse_accgen;
 	f->f_flags = uperms;
+	sc_init(&f->f_selfs);
+	f->f_sentry = NULL;
 
 	/*
 	 *  Hash under the sender's handle
@@ -108,6 +110,8 @@ mouse_dup_client(struct msg *m, struct file *fold)
 	 * Fill in fields.  Simply duplicate old file.
 	 */
 	*f = *fold;
+	sc_init(&f->f_selfs);
+	f->f_sentry = NULL;
 
 	/*
 	 * Hash under the sender's handle
@@ -133,6 +137,9 @@ static void
 mouse_dead_client(struct msg *m, struct file *f)
 {
 	(void) hash_delete(mouse_hash, m->m_sender);
+	if (f->f_sentry) {
+		ll_delete(f->f_sentry);
+	}
 	free(f);
 }
 
@@ -203,6 +210,8 @@ loop:
 
 	case FS_STAT:			/* Stat of file */
 		if (!mouse_check_gen(&msg, f)) {
+			f->f_selfs.sc_iocount += 1;
+			f->f_selfs.sc_needsel = 1;
 			mouse_stat(&msg, f);
 		}
 		break;
@@ -215,6 +224,8 @@ loop:
 
 	case FS_READ:
 		if (!mouse_check_gen(&msg, f)) {
+			f->f_selfs.sc_iocount += 1;
+			f->f_selfs.sc_needsel = 0;
 			mouse_read(&msg, f);
 		}
 		break;
@@ -255,6 +266,11 @@ main(int argc, char **argv)
 	 *  Initialise the mouse driver.
 	 */
 	mouse_initialise(argc, argv);
+
+	/*
+	 * Initialize select()'or list
+	 */
+	ll_init(&selectors);
 
 	/*
 	 *  Get a port and name

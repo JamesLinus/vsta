@@ -116,7 +116,7 @@ update_changes(void)
  * check_changes()
  *	Tell if any mouse state has changed
  */
-static int
+int
 check_changes(void)
 {
 	mouse_pointer_data_t *p = &mouse_data.pointer_data;
@@ -134,19 +134,26 @@ mouse_changed(void)
 	struct msg m;
 
 	/*
-	 * Nothing of note, or nobody cares, just get out
+	 * Nothing of note, just get out
 	 */
-	if (!sleeper || !check_changes()) {
+	if (!check_changes()) {
 		return;
 	}
 
 	/*
-	 * Wake up our sleeper
+	 * Notify select()'ors
 	 */
-	m.m_arg = 1;
-	m.m_nseg = m.m_arg1 = 0;
-	msg_reply(sleeper, &m);
-	sleeper = 0;
+	update_select();
+
+	/*
+	 * Wake up our sleeper, if any
+	 */
+	if (sleeper) {
+		m.m_arg = 1;
+		m.m_nseg = m.m_arg1 = 0;
+		msg_reply(sleeper, &m);
+		sleeper = 0;
+	}
 }
 
 /*
@@ -179,6 +186,7 @@ mouse_read(struct msg *m, struct file *f)
 		m->m_nseg = m->m_arg1 = 0;
 		m->m_arg = (changed ? 1 : 0);
 		msg_reply(m->m_sender, m);
+		f->f_selfs.sc_needsel = 1;
 		if (changed && sleeper) {
 			msg_reply(sleeper, m);
 			sleeper = 0;

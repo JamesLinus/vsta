@@ -11,6 +11,8 @@
 #include <sys/param.h>
 #include <sys/perm.h>
 #include <sys/fs.h>
+#include <selfs.h>
+#include <llist.h>
 
 #include "nec_bus.h"
 #include "ms_bus.h"
@@ -35,8 +37,12 @@
  * An open file
  */
 struct file {
-	uint f_gen;   /* Generation of access */
-	uint f_flags; /* User access bits */
+	uint f_gen;		/* Generation of access */
+	uint f_flags;		/* User access bits */
+	struct selclient
+		f_selfs;	/* Support for select() */
+	struct llist		/*  ...list of active select() clients */
+		*f_sentry;
 };
 
 /*
@@ -73,6 +79,7 @@ extern port_t mouse_port;
 extern port_name mouse_name;
 extern uint mouse_accgen;
 extern mouse_data_t mouse_data;
+extern struct llist selectors;
 
 extern void mouse_initialise(int, char **);
 extern void mouse_read(struct msg *, struct file *);
@@ -81,5 +88,7 @@ extern void mouse_wstat(struct msg *, struct file *);
 extern void mouse_changed(void);
 extern void update_changes(void);
 extern void mouse_update(mouse_pointer_data_t *);
+extern void update_select(void);
+extern int check_changes(void);
 
 #endif /* __VSTA_MOUSE_H__ */

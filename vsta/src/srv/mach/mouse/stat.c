@@ -14,6 +14,8 @@
 
 extern char *perm_print();
 
+struct llist selectors;		/* select() clients */
+
 /*
  * mouse_stat()
  *     Handle the mouse stat() call.
@@ -47,6 +49,25 @@ mouse_stat(struct msg * m, struct file * f)
 }
 
 /*
+ * update_select()
+ *	Send out any needed select() events
+ */
+void
+update_select(void)
+{
+	struct file *f;
+	struct llist *l;
+
+	if (!check_changes()) {
+		return;
+	}
+	for (l = LL_NEXT(&selectors); l != &selectors; l = LL_NEXT(l)) {
+		f = l->l_data;
+		sc_event(&f->f_selfs, ACC_READ);
+	}
+}
+
+/*
  * mouse_wstat()
  *     Handle the wstat() call for the mouse driver.
  */
@@ -62,6 +83,15 @@ mouse_wstat(struct msg * m, struct file * f)
 	 */
 	if (do_wstat(m, &mouse_prot, f->f_flags, &field, &val) == 0)
 		return;
+
+	/*
+	 * select() support?
+	 */
+	if (sc_wstat(m, &f->f_selfs, field, val) == 0) {
+		f->f_sentry = ll_insert(&selectors, f);
+		update_select();
+		return;
+	}
 
 	/*
 	 * Get integer representation
