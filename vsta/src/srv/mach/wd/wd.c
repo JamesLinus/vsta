@@ -241,9 +241,15 @@ wd_start(void)
 	 */
 	cyl =  cur_sec / w->w_secpercyl;
 	sect = cur_sec % w->w_secpercyl;
+#ifdef AUTO_HEAD
 	lsect = w->w_secpercyl - sect;
+#endif
 	trk = sect / w->w_secpertrk;
 	sect = (sect % w->w_secpertrk) + 1;
+#ifndef AUTO_HEAD
+	/* Cap at end of this track--heads won't switch automatically */
+	lsect = w->w_secpertrk + 1 - sect;
+#endif
 
 	/*
 	 * Transfer size--either the rest, or the remainder of this track

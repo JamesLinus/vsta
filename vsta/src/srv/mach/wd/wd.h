@@ -10,6 +10,12 @@
 
 #define NWD (2)		/* Max # WD units supported */
 
+/*
+ * Undefine this if your WD controller can't switch heads by itself.
+ * Most can, and it's much more efficient, so we leave it on by default.
+ */
+#define AUTO_HEAD
+
 #define SECSZ (512)	/* Only 512 byte sectors handled */
 #define MAXIO (128*1024)	/* Max I/O--128K */
 
