@@ -174,6 +174,6 @@ namer_find(char *buf)
 	if (x < 0) {
 		return(-1);
 	}
-	numbuf[sizeof(numbuf)-1] = '\0';
+	numbuf[x] = '\0';
 	return(atoi(numbuf));
 }
