@@ -321,10 +321,8 @@ tcsetattr(int fd, int flag, struct termios *t)
 		sprintf(buf, "quit=%d\n", t->c_cc[VQUIT]);
 		(void)wstat(port->p_port, buf);
 	}
-	if ((t->c_lflag & (ISIG | ICANON)) !=
-			(tty_state.c_lflag & (ISIG | ICANON))) {
-		sprintf(buf, "isig=%d\n",
-			(t->c_lflag & (ISIG | ICANON)) == (ISIG | ICANON));
+	if ((t->c_lflag & ISIG) != (tty_state.c_lflag & ISIG)) {
+		sprintf(buf, "isig=%d\n", (t->c_lflag & ISIG) != 0);
 		(void)wstat(port->p_port, buf);
 	}
 	if ((t->c_lflag & (ONLCR | ICANON)) !=
