@@ -35,10 +35,15 @@ free_buf(struct buf *b)
 #ifdef TRACE
 	printf("free_buf start %ld len %d\n", b->b_start, b->b_nsec);
 #endif
+	ASSERT_DEBUG(b->b_list, "free_buf: null b_list");
 	ll_delete(b->b_list);
 	hash_delete(bufpool, b->b_start);
 	bufsize -= b->b_nsec;
+	ASSERT_DEBUG(b->b_data, "free_buf: null b_data");
 	free(b->b_data);
+#ifdef DEBUG
+	bzero(b, sizeof(struct buf));
+#endif
 	free(b);
 }
 
