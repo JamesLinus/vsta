@@ -670,6 +670,7 @@ main(int argc, char **argv)
 		s->s_quit = '\34';	/* ^\ */
 		s->s_isig = 1;
 		s->s_xkeys = 1;
+		s->s_attr = NORMAL;
 		ll_init(&s->s_readers);
 		ll_init(&s->s_selectors);
 	}

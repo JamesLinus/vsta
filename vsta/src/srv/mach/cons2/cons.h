@@ -60,12 +60,17 @@ struct screen {
 		s_selectors;	/* List of select() clients */
 	struct scroll
 		*s_scroll;	/* Scroll region(s), if not NULL */
+	char s_state,		/* Escape sequence state machine */
+		s_onlast,	/* Column 80 handling */
+		s_attr,		/* Current display attribute */
+		s_pad0;		/* Pad to 32-bit boundary */
 };
 
 /*
  * PC screen attributes
  */
-#define NORMAL 7		/* Attribute for normal characters */
+#define NORMAL 0x07		/* Attribute for normal characters */
+#define INVERSE 0x70		/*  ...for highlighted */
 #define BLANKW (0x0720)		/* Normal attribute, blank char */
 #define BLANK (0x07200720)	/*  ... two of them in a longword */
 

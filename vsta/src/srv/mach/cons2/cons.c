@@ -335,6 +335,8 @@ scroll_region(int x, int y)
 /*
  * sequence()
  *	Called when we've decoded args and it's time to act
+ *
+ * This handles ESC-[ [<num>] [;<num>]] <operator>
  */
 static void
 sequence(int x, int y, char c)
@@ -454,6 +456,18 @@ sequence(int x, int y, char c)
 		scroll_region(x, y);
 		break;
 
+	case 'm':		/* Set character enhancements */
+		/*
+		 * Just make it reverse if any enhancement
+		 * selected, otherwise normal.
+		 */
+		if (x) {
+			active_screen->s_attr = INVERSE;
+		} else {
+			active_screen->s_attr = NORMAL;
+		}
+		break;
+
 	default:
 		/* Ignore */
 		break;
@@ -567,7 +581,7 @@ do_multichar(int state, char c)
 			x = c - '0';
 			return(3);
 		}
-		if (c == 'r') {
+		if ((c == 'r') || (c == 'm')) {
 			sequence(0, 0, c);
 		} else {
 			sequence(1, 1, c);
@@ -615,21 +629,22 @@ do_multichar(int state, char c)
  *	Given a counted string, put the characters onto the screen
  */
 void
-write_string(char *s, uint cnt)
+write_string(char *p, uint cnt)
 {
-	char c;
 	int x;
-	static int state = 0, onlast = 0;
+	struct screen *s = active_screen;
+	char c, attr = s->s_attr;
 
 	while (cnt--) {
-		c = (*s++) & 0x7F;
+		c = (*p++) & 0x7F;
 
 		/*
 		 * If we are inside a multi-character sequence,
 		 * continue
 		 */
-		if (state > 0) {
-			state = do_multichar(state, c);
+		if (s->s_state > 0) {
+			s->s_state = do_multichar(s->s_state, c);
+			attr = s->s_attr;	/* May have changed */
 			continue;
 		}
 
@@ -641,20 +656,20 @@ write_string(char *s, uint cnt)
 			 * If we put to last position on line last time,
 			 * advance position for new output.
 			 */
-			if (onlast) {
+			if (s->s_onlast) {
 				cur += CELLSZ;
 				if (cur >= bottom) {	/* Scroll */
 					scrollup();
 					cur = lastl;
 				}
-				onlast = 0;
+				s->s_onlast = 0;
 			}
 
 			/*
 			 * Put char on screen
 			 */
 			*cur++ = c;
-			*cur++ = NORMAL;
+			*cur++ = attr;
 
 			/*
 			 * Delay motion to new line until next
@@ -662,7 +677,7 @@ write_string(char *s, uint cnt)
 			 */
 			if (((cur - top) % LINESZ) == 0) {
 				cur -= CELLSZ;
-				onlast = 1;
+				s->s_onlast = 1;
 			}
 			continue;
 		}
@@ -674,7 +689,7 @@ write_string(char *s, uint cnt)
 			/*
 			 * Last line--just scroll
 			 */
-			onlast = 0;
+			s->s_onlast = 0;
 			if ((cur+LINESZ) >= bottom) {
 				scrollup();
 				cur = lastl;
@@ -692,7 +707,7 @@ write_string(char *s, uint cnt)
 		 * carriage return
 		 */
 		if (c == '\r') {
-			onlast = 0;
+			s->s_onlast = 0;
 			cur = LINE(cur);
 			continue;
 		}
@@ -702,8 +717,8 @@ write_string(char *s, uint cnt)
 		 */
 		if (c == '\b') {
 			if (cur > top) {
-				if (onlast) {
-					onlast = 0;
+				if (s->s_onlast) {
+					s->s_onlast = 0;
 				} else {
 					cur -= CELLSZ;
 				}
@@ -718,7 +733,7 @@ write_string(char *s, uint cnt)
 			/*
 			 * Get current position
 			 */
-			onlast = 0;
+			s->s_onlast = 0;
 			x = cur-top;
 			x %= LINESZ;
 
@@ -744,7 +759,7 @@ write_string(char *s, uint cnt)
 		 * Escape starts a multi-character sequence
 		 */
 		if (c == '\33') {
-			state = 1;
+			s->s_state = 1;
 			continue;
 		}
 
