@@ -4,6 +4,7 @@
  */
 #include <dos/dos.h>
 #include <sys/assert.h>
+#include <lib/hash.h>
 
 /*
  * ref_node()
