@@ -190,7 +190,7 @@ create_file(struct file *f, uint type)
 	 */
 	d->fs_prev = 0;
 	d->fs_rev = 1;
-	d->fs_len = 0;
+	d->fs_len = sizeof(struct fs_file);
 	d->fs_type = type;
 	d->fs_nlink = 1;
 	d->fs_nblk = 1;
