@@ -120,6 +120,9 @@ extern void cow_write(struct pset *, struct perpage *, uint);
 extern void ref_slot(struct pset *, struct perpage *, uint),
 	deref_slot(struct pset *, struct perpage *, uint);
 extern void set_core(uint, struct pset *, uint);
+extern struct pset *alloc_pset_cow(struct pset *, uint, uint);
+extern ulong alloc_swap(uint);
+extern void free_swap(ulong, uint);
 #endif /* KERNEL */
 
 #endif /* _PSET_H */
