@@ -39,14 +39,14 @@
 #define _N_HDROFF(x) 0
 
 #define N_TXTOFF(x) \
- (N_MAGIC(x) == ZMAGIC ? _N_HDROFF((x)) + sizeof (struct exec) : \
-	 sizeof (struct exec))
+ (N_MAGIC(x) == ZMAGIC ? _N_HDROFF((x)) + sizeof (struct aout) : \
+	 sizeof (struct aout))
 #define N_DATOFF(x) (N_TXTOFF(x) + (x).a_text)
 #define N_TRELOFF(x) (N_DATOFF(x) + (x).a_data)
 #define N_DRELOFF(x) (N_TRELOFF(x) + (x).a_trsize)
 #define N_SYMOFF(x) (N_DRELOFF(x) + (x).a_drsize)
 #define N_STROFF(x) (N_SYMOFF(x) + (x).a_syms)
-#define N_TXTADDR(x) (sizeof(struct exec)+4096)
+#define N_TXTADDR(x) (sizeof(struct aout)+4096)
 
 /* Data address rounded up to next SEGMENT_SIZE segment after text */
 #define SEGMENT_SIZE 0x400000
