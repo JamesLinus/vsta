@@ -21,6 +21,7 @@ struct file {
 #define ROWS 25		/* Screen dimensions */
 #define COLS 80
 #define CELLSZ 2	/* Bytes per character cell */
+#define TABS 8		/* Tab stops every 8 positions */
 
 /*
  * Top of respective adaptors

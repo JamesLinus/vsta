@@ -154,6 +154,34 @@ write_string(char *s, int cnt)
 		}
 
 		/*
+		 * \t--tab to next stop
+		 */
+		if (c == '\t') {
+			/*
+			 * Get current position
+			 */
+			x = cur-top;
+			x %= (COLS*CELLSZ);
+
+			/*
+			 * Calculate steps to next tab stop
+			 */
+			x = (TABS*CELLSZ) - (x % (TABS*CELLSZ));
+
+			/*
+			 * Advance that many.  If we run off the end
+			 * of the display, scroll and start at column
+			 * zero.
+			 */
+			cur += x;
+			if (cur >= bottom) {
+				scrollup();
+				cur = lastl;
+			}
+			continue;
+		}
+
+		/*
 		 * Ignore other control characters
 		 */
 	}
