@@ -52,7 +52,8 @@ ROFF=src/bin/roff src/bin/ports/nroff lib/troff
 SH=src/bin/ports/ash src/bin/testsh src/bin/ports/rc
 
 # Editors
-ED=src/bin/ports/emacs src/bin/ports/ed src/bin/ports/vim
+ED=src/bin/ports/emacs src/bin/ports/ed src/bin/ports/vim \
+	src/bin/ports/vim-5.7
 
 # Games
 FUN=src/bin/ports/backgamm
@@ -91,7 +92,7 @@ GRAPHICS=src/bin/ports/svgalib src/bin/ports/jpeg6b lib/libjpeg.a
 SIM=src/bin/ports/sim_2.3d
 
 # Miscellaneous
-MISC=src/bin/ports/units
+MISC=src/bin/ports/units src/bin/ports/expr
 
 # Sample accounts
 ACCOUNT=root guest
