@@ -9,7 +9,7 @@ OBJS= start.o startsrv.o syscalls.o syscall.o \
 	mount.o open.o stat.o fdl.o hash.o time.o exec.o getopt.o \
 	shell.o gnufuncs.o qsort.o float.o signal.o env.o fdmem.o \
 	perm.o random.o namer.o dir.o wait.o mktemp.o grp.o pwd.o \
-	pipe.o fdnull.o
+	pipe.o fdnull.o errno.o
 
 .c.o:
 	$(CC) $(CFLAGS) -c $*.c
