@@ -53,17 +53,3 @@ seg_copyout(seg_t *seg, uint nseg, void *buf, uint buflen)
 	}
 	return(count);
 }
-
-/*
- * seg_create(buf, buflen)
- *	Create a segment
- */
-seg_t
-seg_create(void *buf, uint buflen)
-{
-	seg_t s;
-
-	s.s_buf = buf;
-	s.s_buflen = buflen;
-	return(s);
-}
