@@ -283,6 +283,8 @@ ref_pset(struct pset *ps)
 void
 deref_pset(struct pset *ps)
 {
+	uint refs;
+
 	ASSERT_DEBUG(ps->p_refs > 0, "deref_pset: 0 ref");
 
 	/*
@@ -290,18 +292,15 @@ deref_pset(struct pset *ps)
 	 */
 	p_lock(&ps->p_lock, SPL0);
 	ATOMIC_DEC(&ps->p_refs);
+	refs = ps->p_refs;
+	v_lock(&ps->p_lock, SPL0);
 
 	/*
 	 * When it reaches 0, ask for it to be freed
 	 */
-	if (ps->p_refs == 0) {
+	if (refs == 0) {
 		(*(ps->p_ops->psop_deinit))(ps);
 		free_pset(ps);
-	} else {
-		/*
-		 * Otherwise let it go
-		 */
-		v_lock(&ps->p_lock, SPL0);
 	}
 }
 
