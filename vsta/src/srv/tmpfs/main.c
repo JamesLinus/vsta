@@ -5,6 +5,9 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <std.h>
+#ifdef DEBUG
+#include <sys/ports.h>
+#endif
 
 #define NCACHE (16)	/* Roughly, # clients */
 
@@ -268,6 +271,15 @@ main(int argc, char *argv[])
 	port_name fsname;
 	char *namer_name;
 	int x;
+#ifdef DEBUG
+	int scrn, kbd;
+
+	kbd = msg_connect(PORT_KBD, ACC_READ);
+	(void)__fd_alloc(kbd);
+	scrn = msg_connect(PORT_CONS, ACC_WRITE);
+	(void)__fd_alloc(scrn);
+	(void)__fd_alloc(scrn);
+#endif
 
 	/*
 	 * Check arguments
