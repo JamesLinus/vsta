@@ -80,7 +80,7 @@ alloc_node(daddr_t d)
 		if (len > EXTSIZ) {
 			len = EXTSIZ;
 		}
-		if (extend_buf(d, (uint)len, 1)) {
+		if (resize_buf(d, (uint)len, 1)) {
 			return(0);
 		}
 	}
