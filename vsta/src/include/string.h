@@ -31,5 +31,6 @@ extern void *memmove(void *, const void *, size_t),
 	*memset(void *, int, size_t);
 extern char *strsep(char **, const char *);
 extern void swab(const char *, char *, size_t);
+extern size_t strcspn(const char *, const char *);
 
 #endif /* _STRING_H */
