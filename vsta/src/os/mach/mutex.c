@@ -22,12 +22,14 @@ p_lock(lock_t *l, spl_t s)
 {
 	int x;
 
-	ASSERT_DEBUG(l->l_lock == 0, "p_lock: deadlock");
-	l->l_lock = 1;
 	if (s == SPLHI) {
 		x = cli();
+	} else {
+		x = 1;
 	}
-	cpu.pc_locks += 1;
+	ASSERT_DEBUG(l->l_lock == 0, "p_lock: deadlock");
+	l->l_lock = 1;
+	ATOMIC_INC(&cpu.pc_locks);
 	return(x ? SPL0 : SPLHI);
 }
 
@@ -38,10 +40,22 @@ p_lock(lock_t *l, spl_t s)
 spl_t
 cp_lock(lock_t *l, spl_t s)
 {
+	int x;
+
+	if (s == SPLHI) {
+		x = cli();
+	} else {
+		x = 1;
+	}
 	if (l->l_lock) {
+		if ((s == SPLHI) && x) {
+			sti();
+		}
 		return(-1);
 	}
-	return(p_lock(l, s));
+	l->l_lock = 1;
+	ATOMIC_INC(&cpu.pc_locks);
+	return(x ? SPL0 : SPLHI);
 }
 
 /*
@@ -56,7 +70,7 @@ v_lock(lock_t *l, spl_t s)
 	if (s == SPL0) {
 		sti();
 	}
-	cpu.pc_locks -= 1;
+	ATOMIC_DEC(&cpu.pc_locks);
 }
 
 /*
