@@ -17,6 +17,7 @@ static struct hash	/* Map of all active users */
 port_t rootport;	/* Port we receive contacts through */
 static port_name	/*  ...its name */
 	fsname;
+struct llist selectors;	/* List of select() clients */
 
 /*
  * new_client()
@@ -148,6 +149,10 @@ loop:
 		tick_read(&msg, f);
 		break;
 
+	case FS_WSTAT:		/* Set status of file */
+		tick_wstat(&msg, f);
+		break;
+
 	case TICK:		/* Second interval has expired */
 		empty_queue();
 		msg.m_arg = msg.m_nseg = 0;
@@ -248,6 +253,11 @@ main(int argc, char *argv[])
 		syslog(LOG_ERR, "can't register name '%s'", fsname);
 		exit(1);
 	}
+
+	/*
+	 * Set up for select() clients
+	 */
+	ll_init(&selectors);
 
 	/*
 	 * Start serving requests for the filesystem
