@@ -211,7 +211,6 @@ loop:
 			break;
 		}
 		f->f_pos = msg.m_arg1;
-		msg.m_op = (msg.m_op == FS_ABSREAD) ? FS_READ : FS_WRITE;
 
 		/* VVV fall into VVV */
 
