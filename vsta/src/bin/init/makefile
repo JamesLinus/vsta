@@ -2,7 +2,7 @@ CC= gcc
 LD= ld
 CFLAGS= -O -I../../../include
 LDFLAGS= -L../../lib
-LIBS= -lc_s
+LIBS= -lusr -lc_s
 OBJS= init.o
 CRT0= ../../lib/crt0srv.o
 
