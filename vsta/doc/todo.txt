@@ -102,3 +102,9 @@ Rethink struct core's c_long vs. c_atl fields.  They are mutually
 	to regain 4 bytes per 4K (0.1%) overhead?
 
 Add check to enable_dma() for conflict in DMA channels
+
+Check abort in wd/rw.c to see if we do the right thing when we're
+	DMA'ing into the would-be-aborters address space.
+
+Check whether the right nodes get flagged dirty when we create
+	a node within a dir.  Does the dir node need to be flagged?
