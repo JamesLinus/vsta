@@ -169,8 +169,8 @@ find_buf(daddr_t d, uint nsec)
 }
 
 /*
- * extend_buf()
- *	Indicate that the cached region is growing to newsize
+ * resize_buf()
+ *	Indicate that the cached region is changing to newsize
  *
  * If "fill" is non-zero, the incremental contents are filled from disk.
  * Otherwise the buffer space is left uninitialized.
@@ -178,14 +178,15 @@ find_buf(daddr_t d, uint nsec)
  * Returns 0 on success, 1 on error.
  */
 int
-extend_buf(daddr_t d, uint newsize, int fill)
+resize_buf(daddr_t d, uint newsize, int fill)
 {
 	char *p;
 	struct buf *b;
 
 #ifdef DEBUG
 	/* This isn't fool-proof, but should catch most transgressions */
-	ASSERT(newsize <= MAXEXTSIZ, "extend_buf: too large");
+	ASSERT(newsize <= MAXEXTSIZ, "resize_buf: too large");
+	ASSERT(((ulong)d % EXTSIZ) == 0, "resize_buf: misaligned");
 	hash_foreach(bufpool, check_span, (void *)(b->b_start + newsize - 1));
 #endif
 	/*
@@ -198,6 +199,8 @@ extend_buf(daddr_t d, uint newsize, int fill)
 	/*
 	 * Get the buffer space
 	 */
+	ASSERT_DEBUG(!(fill && (newsize < b->b_nsec)),
+		"resize_buf: fill && shrink");
 	p = realloc(b->b_data, stob(newsize));
 	if (p == 0) {
 		return(1);
@@ -309,15 +312,25 @@ sync_buf(struct buf *b)
 /*
  * inval_buf()
  *	Clear out (without sync'ing) some buffer data
+ *
+ * This routine will handle multiple buffer entries, but "d" must
+ * point to an aligned beginning of such an entry.
  */
 void
 inval_buf(daddr_t d, uint len)
 {
 	struct buf *b;
 
-	b = hash_lookup(bufpool, d);
-	if (b) {
-		free_buf(b);
+	for (;;) {
+		b = hash_lookup(bufpool, d);
+		if (b) {
+			free_buf(b);
+		}
+		if (len <= EXTSIZ) {
+			break;
+		}
+		d += EXTSIZ;
+		len -= EXTSIZ;
 	}
 }
 
