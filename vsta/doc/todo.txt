@@ -133,9 +133,10 @@ Add check to enable_dma() for conflict in DMA channels
 Check abort in wd/rw.c to see if we do the right thing when we're
 	DMA'ing into the would-be-aborters address space.
 
-Check whether the right nodes get flagged dirty when we create
-	a node within a dir.  Does the dir node need to be flagged?
-	(DOSFS)
+XCheck whether the right nodes get flagged dirty when we create
+X	a node within a dir.  Does the dir node need to be flagged?
+X	(DOSFS)
+	I believe this is all working OK now.
 
 Xrmdir seems hosed.  We need to throw away the clusters under the file,
 X	but we hash off this cluster number for the case of directories.
@@ -181,13 +182,17 @@ X	hunt down the right node to clear.
 	-- Fixed.  inode number can simply be node address; more efficient,
 	and keeps inum from changing due to rename.
 
-VM can't reclaim cached pages which have no current attach list entry.
-	We currently allow valid pset slots with ref count of 0.  Should
-	probably have pset_fod type psets keep a cache pseudo-vas and then
-	free memory under a pset when ref count goes to 0.
+XVM can't reclaim cached pages which have no current attach list entry.
+X	We currently allow valid pset slots with ref count of 0.  Should
+X	probably have pset_fod type psets keep a cache pseudo-vas and then
+X	free memory under a pset when ref count goes to 0.
+	-- Fixed.  Caching is done by always leaving a reference around
+	  to a pseudo-pview under the pset.  Pageout can flush this
+	  reference out just like others, and a ->0 ref frees the page.
 
-There are a couple more pset operations which should be vectors instead
-	of special cases in a switch statement.
+X There are a couple more pset operations which should be vectors instead
+X	of special cases in a switch statement.
+	-- Done.  I think all the appropriate ones are vectors now.
 
 System call interruption via t_qsav is screwed.  *Any* semaphore op--for
 	page fault, system call, whatever--can longjmp back out through
@@ -198,3 +203,14 @@ Need to set up message operation interruption so even a completely
 	hosed server can't hang a client.  Client should be able to
 	interrupt operation without blocking ; client should be able
 	to disconnect without blocking.  DMA is a special case.
+
+DOS file ID is OK for purposes of caching executables, but hoses things
+	like "du" which want to know if a particular file is a link to
+	one which has already been examined.  Well no, you can't have
+	hard links under DOS, but you still need to return a unique
+	per-file ID.  Blk # of first cluster would be OK, except that
+	zero-length files don't have any blocks, so what ID do they
+	get?  We used to use the cluster # of the containing dir OR'ed
+	in with the directory slot, but this caused the ID to change
+	on a rename.  It was then impossible to unhash a renamed a.out
+	which was kernel cached.
