@@ -120,7 +120,7 @@ ptrace_attach(void)
  * unless it's the unblockable kill message.
  */
 void
-ptrace_slave(char *event)
+ptrace_slave(char *event, uint why)
 {
 	struct thread *t = curthread;
 	struct proc *p = t->t_proc;
@@ -186,10 +186,11 @@ retry:
 	v_lock(&pr->p_lock, SPL0);
 
 	/*
-	 * Return value is initially 0.  It will be set to the
-	 * result of the last operation on iterations of the loop.
+	 * Return value is initially the bits which matched and
+	 * caused us to drop into ptrace_slave().
 	 */
-	args[0] = args[1] = 0;
+	args[0] = why;
+	args[1] = 0;
 	for (;;) {
 		/*
 		 * Build a message and send it
