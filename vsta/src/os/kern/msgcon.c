@@ -412,28 +412,28 @@ shut_client(struct portref *pr)
  * is taken on the portref.  Otherwise zeroes the p_port field of
  * the portref, flagging that the server's gone.  It also removes
  * the portref from the port's list, and finally returns 0.
- *
- * For efficiency, when returning 1 the routines leaves the
- * port locked; this is simply for efficiency.
  */
 static int
 close_client(struct port *port, struct portref *pr)
 {
+	int err;
+
 	unmapsegs(&pr->p_segs);
 	p_lock_fast(&pr->p_lock, SPL0);
 	p_lock_fast(&port->p_lock, SPLHI);
 	if (port->p_hd) {
-		v_lock(&pr->p_lock, SPLHI_SAME);
-		return(1);
+		err = 1;
+	} else {
+		pr->p_port = 0;
+		if (blocked_sema(&pr->p_iowait)) {
+			v_sema(&pr->p_iowait);
+		}
+		deref_port(port, pr);
+		err = 0;
 	}
-	pr->p_port = 0;
-	if (blocked_sema(&pr->p_iowait)) {
-		v_sema(&pr->p_iowait);
-	}
-	deref_port(port, pr);
 	v_lock(&port->p_lock, SPL0);
 	v_lock(&pr->p_lock, SPL0_SAME);
-	return(0);
+	return(err);
 }
 
 /*
@@ -456,6 +456,7 @@ bounce_msgs(struct port *port)
 	 * hold the port lock and go for the portrefs, as we lock in
 	 * the other order, and would deadlock.
 	 */
+	p_lock_fast(&port->p_lock, SPL0);
 	msgs = port->p_hd;
 	port->p_hd = port->p_tl = 0;
 	v_lock(&port->p_lock, SPL0);
@@ -513,16 +514,14 @@ bounce_msgs(struct port *port)
 		} else {
 
 			/*
-			 * To be thorough, fill in sysmsg as an I/O error.
-			 * Remove our port from the portref, and kick
-			 * the client awake.  Remove him from our portref
-			 * list.
+			 * Fill in sysmsg as an I/O error, clear
+			 * p_port to preclude further I/O, and
+			 * kick client awake.
 			 */
 			sm->sm_arg1 = sm->sm_arg = -1;
 			strcpy(sm->sm_err, EIO);
 			pr->p_port = 0;
 			v_sema(&pr->p_iowait);
-			deref_port(port, pr);
 		}
 
 		/*
@@ -571,15 +570,31 @@ shut_server(struct port *port)
 	mmap_cleanup(port);
 
 	/*
-	 * Enumerate our current clients, shut them down
+	 * Dump any work left from clients in our queue
 	 */
-	while (pr = port->p_refs) {
-		if (close_client(port, pr)) {
-			bounce_msgs(port);
+	do {
+		bounce_msgs(port);
+
+		/*
+		 * Enumerate our current clients, shut them down
+		 */
+		while (pr = port->p_refs) {
+			/*
+			 * If traffic has slipped in, re-bounce messages.
+			 * Forward progress is guaranteed, because each
+			 * time this happens we close off their access to
+			 * the port, and new connections aren't possible.
+			 */
+			if (close_client(port, pr)) {
+				break;
+			} else {
+				p_sema(&p->p_sema, PRIHI);
+				ASSERT(hash_delete(p->p_prefs, (ulong)pr) == 0,
+					"shut_server: pr not hashed");
+				v_sema(&p->p_sema);
+			}
 		}
-		ASSERT(hash_delete(p->p_prefs, (ulong)pr) == 0,
-			"shut_server: pr not hashed");
-	}
+	} while (port->p_refs);
 
 	/*
 	 * Take this semaphore to flush out any lagging folks trying
