@@ -51,6 +51,8 @@ free_pset(struct pset *ps)
 
 		pp = ps->p_perpage;
 		for (x = 0; x < ps->p_len; ++x,++pp) {
+			ASSERT_DEBUG(pp->pp_refs == 0,
+				"free_pset: still refs");
 			/*
 			 * Non-valid slots--no problem
 			 */
