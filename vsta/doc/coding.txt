@@ -11,6 +11,12 @@ I've tried to hone it down to just 10 rules.  It seems like a lot,
 but hopefully 5 of them will match your personal style anyway,
 so it isn't as bad as it looks.
 
+In case you're wondering, this wasn't my C style of choice either.
+But I learned it at HP for their kernel, and had it heavily
+reinforced at Sequent with their kernel gurus.  So now I stick with
+it, accepting Henry's observation that "standard is better than
+better", at least for C styles.
+
 0. Henry Spencer's Rules of C
 
 	Read this article.  Believe it.  The rest of this is just
