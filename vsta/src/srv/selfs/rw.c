@@ -171,6 +171,7 @@ selfs_write(struct msg *m, struct file *f)
 		 */
 		e->e_index = se->se_index;
 		e->e_iocount = se->se_iocount;
+		e->e_mask = se->se_mask;
 
 		/*
 		 * If there's a client waiting, get this out to them
