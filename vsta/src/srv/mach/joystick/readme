@@ -1,0 +1,94 @@
+Date: 20th January 1993
+Author: Dave Hudson <dave@humbug.demon.co.uk>
+Title: Readme notes for the joystick device server.
+
+1.0 Introduction
+
+The joystick device server is designed to support standard IBM PC type
+joystick ports, as provided by many multi-I/O devices, multi-I/O adaptor
+cards and sound cards.
+
+Throughout this readme file joystick is taken to mean any device which is
+designed to plug into a PC joystick port - this could mean joysticks, game
+pads, steering wheels, etc.
+
+
+2.0 Copyright
+
+The VSTa joystick device server was written by Dave Hudson
+<dave@humbug.demon.co.uk>.  The following notice applies to all files
+in this distribution:
+
+    Copyright (C) 1994 David John Hudson
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 1, or (at your option)
+    any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+This is in line with the kernel of the VSTa system.
+
+
+3.0 Technical description
+
+The PC's joystick ports allow up to 4 buttons (switches) and 4 analogue
+input channels to be connected at once.  I have identified a couple of
+different connection types, both based around a 15 pin D connector.  On the
+original joystick/games cards there were usually 2 connectors with identical
+signal pinouts to support 2 joysticks (2 buttons and 2 analogue channels
+each).  On most recent systems and adaptor boards however there is only one
+connector.  These single connector systems either only support a single
+joystick device (and hence only 2 buttons and 2 analogue channels) or
+provide extra signals on otherwise unused pins of the interface connector
+(to give 4 button and 4 analogue channel support).  Some newer joysticks use
+these extra connections to provide additional features such as 4 buttons or
+a throttle control, etc.  In order to use 2 joysticks on a single "enhanced"
+connector there are a number of Y splitter cables available which provide 2
+standard (2 button/2 analogue) connections.
+
+The PC's implementation of the analogue connections leaves rather a lot to
+be desired.  Instead of using a standard A-D converter device to perform the
+measurement of the voltages established by the joystick, the PC designers
+used a circuit based on 555 timer derivative devices.  These are configured
+in such a way as to produce a pulse after a time period (approximately)
+proportional to voltage being supplied by the joystcick.  This pulse
+generation is initiated by triggering the "555" timer device.  In order to
+determine the size of this pulse (and hence the joystick position) it is
+necessary to use the PC's high resolution timer (ticks at 1.19 MHz) to time
+the pulses from the "555" timer.  Fortunately all of the analogue channels
+can be measured in parallel, however analysis of the the port circuits
+suggests that the maximum pulse lengths can be in the region of 10 ms!
+During testing, I have typically measured maximum pulse lengths of about
+5ms.
+
+Unfortunately, under VSTa the device server can be interrupted so I've tried
+to make the code detect the fact that it's timings may not be accurate (a
+lot might want to happen if you're hanging around for 5 ms).  When values
+are read back from the server it's always going to be a good idea to check
+that timeouts haven't occurred :-(
+
+When the server starts, it attempts to determine the number of analogue
+channels that are connected to anything, but it always assumes that the full
+4 buttons are available.  Any channel which is not found at startup will
+return "JS_NONE" as a return value.
+
+The server only allows a single connection to be established at any one
+time.  I hope that this won't cause any problems :-)
+
+If you do find any problems when using the joystick server, please contact
+me!
+
+
+		Regards,
+
+		Dave Hudson
+		dave@humbug.demon.co.uk
