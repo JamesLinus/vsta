@@ -1,6 +1,6 @@
 CC=gcc
 LD=ld
-CFLAGS=-I../../../include -O
+CFLAGS=-Wall -I../../../include -O
 OBJS=adb.o disasm.o expr.o lex.o sym.o map.o proc.o i386.o
 LIBS=-L../../lib -lc
 CRT0=../../lib/crt0.o
