@@ -154,6 +154,7 @@ mmap(void *addr, ulong len, int prot, int flags,
  * munmap()
  *	Unmap a region given an address within
  */
+int
 munmap(void *vaddr, ulong len)
 {
 	struct vas *vas = curthread->t_proc->p_vas;
@@ -200,7 +201,6 @@ static struct pset *
 get_map_pset(struct portref *pr)
 {
 	struct pset *ps;
-	struct portref *prmap;
 	long args[3];
 	struct port *port;
 
@@ -362,10 +362,11 @@ add_map(struct vas *vas, struct portref *pr, void *vaddr, ulong len,
  * do_derefport()
  *	Release a cached access to a port
  */
-static
+static int
 do_derefport(long keydummy, struct pset *ps, void *dummy)
 {
 	deref_pset(ps);
+	return(0);
 }
 
 /*
@@ -407,6 +408,7 @@ mmap_cleanup(struct port *port)
  * unhash()
  *	Unhash any reference to the indicated hash #
  */
+int
 unhash(port_t arg_port, long arg_fid)
 {
 	struct port *port;

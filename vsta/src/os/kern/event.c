@@ -34,7 +34,6 @@
 #include <hash.h>
 #include <sys/assert.h>
 
-extern sema_t pid_sema;
 extern lock_t runq_lock;
 extern struct hash *pid_hash;
 extern struct proc *pfind();
@@ -45,7 +44,7 @@ extern struct proc *pfind();
  *
  * The process mutex is held by the caller.
  */
-static
+static int
 signal_thread(struct thread *t, char *event, int is_sys)
 {
 	extern void nudge(), lsetrun();
@@ -88,13 +87,14 @@ retry:	p_lock(&runq_lock, SPLHI);
 		ASSERT(0, "signal_thread: unknown state");
 	}
 	v_lock(&runq_lock, SPL0);
+	return(0);
 }
 
 /*
  * notifypg()
  *	Send an event to a process group
  */
-static
+static int
 notifypg(struct proc *p, char *event)
 {
 	ulong *l, *lp;
@@ -136,6 +136,7 @@ notifypg(struct proc *p, char *event)
  * If arg_proc is 0, it means the current process.  If arg_thread is
  * 0, it means all threads under the named proc.
  */
+int
 notify2(pid_t arg_proc, pid_t arg_thread, char *evname)
 {
 	struct proc *p;
@@ -213,6 +214,7 @@ out:
  *
  * Wrapper to get event string into kernel
  */
+int
 notify(pid_t arg_proc, pid_t arg_thread, char *arg_msg, int arg_msglen)
 {
 	char evname[EVLEN];
