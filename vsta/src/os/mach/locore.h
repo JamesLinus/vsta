@@ -271,8 +271,9 @@ on_idle_stack(void)
 		"	ja 1f\n"
 		"	incl %0\n"
 		"1:"
-		: "=r" (res)
+		: "=a" (res)
 		: /* No input */);
+	return(res);
 }
 
 /*
