@@ -5,7 +5,6 @@
  *	Data structures organizing core
  */
 #include <sys/types.h>
-#include <sys/malloc.h>
 
 /*
  * Per-physical-page information
