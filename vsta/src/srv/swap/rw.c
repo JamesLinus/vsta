@@ -6,8 +6,8 @@
  */
 #include <sys/param.h>
 #include <swap/swap.h>
+#include <std.h>
 
-extern char *strerror();
 extern struct swapmap *swapent();
 
 /*
@@ -26,7 +26,7 @@ swap_rw(struct msg *m, struct file *f, uint bytes)
 		msg_err(m->m_sender, EPERM);
 		return;
 	}
-	if (bytes & (NBPG-1)) {
+	if ((m->m_nseg != 1) || (bytes & (NBPG-1))) {
 		msg_err(m->m_sender, EINVAL);
 		return;
 	}
