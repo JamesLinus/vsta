@@ -22,7 +22,8 @@ extern int msg_port(), msg_connect(), msg_accept(), msg_send(),
 extern int exit(), fork(), fork_thread(), enable_io(), enable_isr(),
 	mmap(), munmap(), strerror(), notify(), clone();
 extern int page_wire(), page_release(), enable_dma(), time_get(),
-	time_sleep(), exec(), waits(), perm_ctl();
+	time_sleep(), exec(), waits(), perm_ctl(), set_swapdev(),
+	run_qio();
 static int do_dbg_enter();
 
 struct syscall {
@@ -56,6 +57,8 @@ struct syscall {
 	{exec, 3},				/* 24 */
 	{waits, 1},				/* 25 */
 	{perm_ctl, 3},				/* 26 */
+	{set_swapdev, 1},			/* 27 */
+	{run_qio, 0},				/* 28 */
 };
 #define NSYSCALL (sizeof(syscalls) / sizeof(struct syscall))
 #define MAXARGS (6)

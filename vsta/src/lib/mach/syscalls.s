@@ -54,4 +54,6 @@ ENTRY(dbg_enter, S_DBG_ENTER)
 ENTRY(exec, S_EXEC)
 ENTRY(waits, S_WAITS)
 ENTRY(perm_ctl, S_PERM_CTL)
+ENTRY(set_swapdev, S_SET_SWAPDEV)
+ENTRY(run_qio, S_RUN_QIO)
 
