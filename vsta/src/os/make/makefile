@@ -4,13 +4,14 @@ CPP= cpp
 LD= ld
 INCS= -I../../../include -I.
 
+target: vsta
+
 include ../mach/Makefile.inc
 
 DEFS= -DKERNEL -DKDB -DDEBUG
 CFLAGS= $(DEFS) $(INCS) -O2
 LIBS= ../../lib/libusr.a
 
-all: vsta
 
 config: config.c
 	$(CC) -o config config.c
@@ -122,9 +123,6 @@ pstat.o: ../kern/pstat.c
 dbgmain.o: ../dbg/dbgmain.c
 	$(CC) $(CFLAGS) -c ../dbg/dbgmain.c
 
-disasm.o: ../dbg/disasm.c
-	$(CC) $(CFLAGS) -c ../dbg/disasm.c
-
 dump.o: ../dbg/dump.c
 	$(CC) $(CFLAGS) -c ../dbg/dump.c
 
@@ -134,20 +132,11 @@ expr.o: ../dbg/expr.c
 lex.o: ../dbg/lex.c
 	$(CC) $(CFLAGS) -c ../dbg/lex.c
 
-mem.o: ../dbg/mem.c
-	$(CC) $(CFLAGS) -c ../dbg/mem.c
-
 names.o: ../dbg/names.c
 	$(CC) $(CFLAGS) -c ../dbg/names.c
 
 dbgproc.o: ../dbg/dbgproc.c
 	$(CC) $(CFLAGS) -c ../dbg/dbgproc.c
-
-trace.o: ../dbg/trace.c
-	$(CC) $(CFLAGS) -c ../dbg/trace.c
-
-dbgio.o: ../dbg/dbgio.c
-	$(CC) $(CFLAGS) -c ../dbg/dbgio.c
 
 OBJS=$(MACHOBJS) \
 	main.o vm_fault.o vm_steal.o vm_page.o malloc.o misc.o \
@@ -156,8 +145,7 @@ OBJS=$(MACHOBJS) \
 	pset_mem.o pset_cow.o vm_swap.o sched.o rand.o \
 	proc.o pview.o xclock.o event.o mmap.o phys.o \
 	exec.o exitgrp.o ptrace.o pstat.o dbgmain.o \
-	disasm.o dump.o expr.o lex.o mem.o names.o \
-	dbgproc.o trace.o dbgio.o
+	dump.o expr.o lex.o names.o dbgproc.o
 
 vsta: $(OBJS) dbsym
 	$(LD) -e _start -o vsta $(OBJS) $(LIBS)
