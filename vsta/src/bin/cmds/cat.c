@@ -12,6 +12,7 @@
 #include <ctype.h>
 #include <fcntl.h>
 #include <stat.h>
+#include <getopt.h>
 
 static int bflag, eflag, nflag, sflag, tflag, vflag;
 static int rval;

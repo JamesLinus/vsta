@@ -14,6 +14,7 @@
 #include <stat.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <getopt.h>
 #include <sys/fs.h>
 #include <sys/msg.h>
 
