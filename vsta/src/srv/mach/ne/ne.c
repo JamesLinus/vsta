@@ -198,11 +198,9 @@ void
 ne_start(struct adapter *ap, struct file *f)
 {
 	struct msg *m = &f->f_msg;
-	seg_t *segp;
 	uchar cmd;
 	ushort oddword;
-	int seg, len, have_oddword = 0;
-	register nec = ap->a_base;
+	uint seg, len, have_oddword, nec = ap->a_base;
 
 	/*
 	 * Get length of complete packet
@@ -232,30 +230,48 @@ ne_start(struct adapter *ap, struct file *f)
 	 * Copy the remaining segments into the transmit buffer
 	 * Watch out for odd-length segments.
 	 */
-	segp = 0;
 	oddword = 0;
+	have_oddword = 0;
 	for (seg = 0; seg < m->m_nseg; seg++) {
-		segp = &m->m_seg[seg];
+		uchar *p;
+		uint slen;
+		seg_t *segp;
 
+		/*
+		 * Pull buffer/len into local registers
+		 */
+		segp = &m->m_seg[seg];
+		p = segp->s_buf;
+		slen = segp->s_buflen;
+
+		/*
+		 * If have pending odd word, accumulate complete word
+		 * and add its data first.
+		 */
 		if (have_oddword) {
-			oddword |= *((char *)segp->s_buf);
+			oddword |= (*p++) << 8;
 			outportw(nec+ne_data, oddword);
 			have_oddword = 0;
-			segp->s_buf += 1;
-			segp->s_buflen -= 1;
+			slen -= 1;
 		}
-		if (segp->s_buflen >= 2) {
-			repoutsw(nec+ne_data, segp->s_buf, segp->s_buflen / 2);
+
+		/*
+		 * Write any complete words
+		 */
+		if (slen >= 2) {
+			repoutsw(nec+ne_data, p, slen >> 1);
 		}
-		if (segp->s_buflen & 1) {
-			oddword |= (((char *)segp->s_buf)[segp->s_buflen-1] << 8);
+
+		/*
+		 * If trailing byte, accumulate it
+		 */
+		if (slen & 1) {
+			oddword = p[slen - 1];
 			have_oddword = 1;
 		}
 	}
-	if (segp && have_oddword) {
-		oddword |= *((char *)segp->s_buf);
+	if (have_oddword) {
 		outportw(nec+ne_data, oddword);
-		have_oddword = 0;
 	}
 
 	/* Wait till done, then shutdown feature */
@@ -270,8 +286,8 @@ ne_start(struct adapter *ap, struct file *f)
 	if (len < ETHER_MIN_LEN) {
 		len = ETHER_MIN_LEN;
 	}
-	outportb(nec+ds0_tbcr0, len & 0xff);
-	outportb(nec+ds0_tbcr1, (len >> 8) & 0xff);
+	outportb(nec+ds0_tbcr0, len);
+	outportb(nec+ds0_tbcr1, len >> 8);
 	outportb(nec+ds0_tpsr, TBUF / DS_PGSIZE);
 	outportb(nec+ds_cmd, DSCM_TRANS|DSCM_NODMA|DSCM_START);
 }
