@@ -59,6 +59,7 @@ hat_initvas(struct vas *vas)
 	vas->v_hat.h_cr3 = (ulong)vtop(c);
 	bzero(c, NBPG);
 	bcopy(cr3, c, freel1pt * sizeof(pte_t));
+	vas->v_hat.h_l1segs = 0L;
 
 	/*
 	 * Get an address map for doing on-demand virtual address
@@ -76,19 +77,48 @@ hat_initvas(struct vas *vas)
 void
 hat_freevas(struct vas *vas)
 {
-	pte_t *pt;
-	int x;
+	pte_t *pt, *ptend;
+	ulong bit;
 
 	/*
 	 * Free any level-two page tables we allocated for
-	 * the user.
+	 * the user.  We use our bitmap in h_l1segs to skip
+	 * scanning parts of the L1 pte's which have never been
+	 * touched.  We only scan the top 2 GB, since kernel
+	 * address occupies the lower 2 GB, and is not involved
+	 * with VM address space tear-down.
 	 */
-	pt = vas->v_hat.h_vcr3;
+	ptend = pt = vas->v_hat.h_vcr3;
 	pt += (NPTPG/2);
-	for (x = NPTPG/2; x < NPTPG; ++x,++pt) {
-		if (*pt & PT_V) {
-			free_page(*pt >> PT_PFNSHIFT);
+	ptend += NPTPG;
+	bit = (1L << (H_L1SEGS/2));
+	while (pt < ptend) {
+		/*
+		 * If we've touched this part of the address space...
+		 */
+		if (vas->v_hat.h_l1segs & bit) {
+			uint x;
+
+			/*
+			 * Walk across each L1 PTE in it and free L2
+			 * page tables.
+			 */
+			for (x = 0; x < NPTPG/H_L1SEGS; ++x,++pt) {
+				if (*pt & PT_V) {
+					free_page(*pt >> PT_PFNSHIFT);
+				}
+			}
+		} else {
+			/*
+			 * Skip this part
+			 */
+			pt += (NPTPG/H_L1SEGS);
 		}
+
+		/*
+		 * Advance to next part of L1 PTEs
+		 */
+		bit <<= 1;
 	}
 
 	/*
@@ -125,6 +155,8 @@ hat_addtrans(struct pview *pv, void *va, uint pfn, int prot)
 		bzero(pt, NBPG);
 		pg = btop(vtop(pt));
 		*root = (pg << PT_PFNSHIFT) | PT_V|PT_W|PT_U;
+		pv->p_vas->v_hat.h_l1segs |=
+			(1L << (L1IDX(va)*H_L1SEGS / NPTPG));
 	} else {
 		pt = ptov(*root & PT_PFN);
 	}
