@@ -653,6 +653,9 @@ __allclose(void)
 /*
  * gets()
  *	Get a string, discard terminating newline
+ *
+ * Both gets() and fgets() have extra brain damage to coexist with
+ * MS-DOS editors.
  */
 char *
 gets(char *buf)
@@ -661,6 +664,9 @@ gets(char *buf)
 	char *p = buf;
 
 	while ((c = fgetc(stdin)) != EOF) {
+		if (c == '\r') {
+			continue;
+		}
 		if (c == '\n') {
 			break;
 		}
@@ -684,6 +690,9 @@ fgets(char *buf, int len, FILE *fp)
 	char *p = buf;
 
 	while ((c = fgetc(fp)) != EOF) {
+		if (c == '\r') {
+			continue;
+		}
 		if (x++ < len) {
 			*p++ = c;
 		}
