@@ -35,11 +35,11 @@ ask(void)
 }
 
 /*
- * write_sec()
+ * my_write_sec()
  *	Write back the buffer as a sector
  */
 static void
-write_sec(daddr_t sec, void *buf)
+my_write_sec(daddr_t sec, void *buf)
 {
 	off_t pos;
 
@@ -319,7 +319,7 @@ printf("Free list sector %lx slot %d has out-of-order block %lx\n",
 		 * If we fixed any entries, flush the sector back
 		 */
 		if (modified) {
-			write_sec(next, fr);
+			my_write_sec(next, fr);
 		}
 	}
 
@@ -566,7 +566,7 @@ printf("Corrupt directory entry file %s position %ld\n",
 					printf("Delete");
 					if (ask()) {
 						d->fs_name[0] |= 0x80;
-						write_sec(blk, dbase);
+						my_write_sec(blk, dbase);
 					}
 					continue;
 				}
@@ -581,7 +581,7 @@ printf("Corrupt directory entry file %s position %ld\n",
 					if (ask()) {
 						(void)get_sec(blk);
 						d->fs_name[0] |= 0x80;
-						write_sec(blk, dbase);
+						my_write_sec(blk, dbase);
 					}
 				}
 				free(p);
@@ -690,7 +690,7 @@ printf("Dir entry for %s at block %lx mismatches alloc information\n",
 			if (ask()) {
 				fs = get_sec(sec);
 				fs->fs_prev = 0;
-				write_sec(sec, fs);
+				my_write_sec(sec, fs);
 				res = 0;
 			}
 		}
@@ -757,7 +757,7 @@ printf("Warning: couldn't free all pending space\n");
 			}
 		}
 	}
-	write_sec(BASE_SEC, fs);
+	my_write_sec(BASE_SEC, fs);
 }
 
 static void
