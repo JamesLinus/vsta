@@ -81,7 +81,7 @@ abort(void)
  * errors.
  */
 char *
-strerror(void)
+strerror(...)
 {
 
 	if (__err[0] == '\0') {
