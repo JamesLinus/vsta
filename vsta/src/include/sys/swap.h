@@ -28,10 +28,9 @@
  * Format of message which accompanies SWAP_ADD
  */
 struct swapadd {
-	port_name s_port;	/* Port which serves */
+	char s_path[32];	/* port:path name format */
 	ulong s_off;		/* Offset in port, in blocks */
 	ulong s_len;		/* # blocks */
-	char s_path[16];	/* Name within port */
 };
 
 /*
