@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <sys/perm.h>
 #include <std.h>
+#include <ctype.h>
 
 /*
  * perm_step()
@@ -80,34 +81,6 @@ zero_ids(struct perm *perms, int nperms)
 	for (x = 0; x < nperms; ++x) {
 		PERM_NULL(&perms[x]);
 	}
-}
-
-/*
- * parse_perm()
- *	Parse a numeric dotted string into a struct perm
- */
-void
-parse_perm(struct perm *p, char *s)
-{
-	int len;
-
-	/*
-	 * Special case--no digits, Mr. Superuser
-	 */
-	if (*s == '\0') {
-		p->perm_len = 0;
-		return;
-	}
-
-	/*
-	 * Parse dot-separated numbers
-	 */
-	len = 0;
-	p->perm_id[len++] = atoi(s);
-	while (s = strchr(s, '.')) {
-		p->perm_id[len++] = atoi(++s);
-	}
-	p->perm_len = len;
 }
 
 /*
