@@ -1,6 +1,37 @@
 /*
  * vsta_srv.c
  *	Offer a VSTa filesystem interface to the KA9Q TCP/IP engine
+ *
+ * There's more to this than meets the eye.  For outgoing connections
+ * and non-clone incoming connections,
+ * the client can simply open a port and complete their
+ * single point-to-point connection.  Destination IP address and port
+ * are specified using FS_WSTAT.
+ *
+ * However, for servers, a single receiving CLONE port can have many
+ * attached clients.  To handle this, an open connection can have
+ * a list of connections, with a particular one being the current;
+ * the seek position indicates which one.  The position is not
+ * changed due to I/O, but can be set using FS_ABS{READ,WRITE}
+ * to allow switch-and-I/O in a single message operation.
+ *
+ * m_arg1 is used to provide
+ * standard I/O compatibility if 0, and an efficient read interface
+ * for scalable servers if non-zero:
+ *
+ * A read with m_arg1 == 0 causes the reader to block until data
+ * is available.
+ *
+ * A read with m_arg1 != 0 causes the next available data from any
+ * connection to be returned, and m_arg1 is filled in with the connection
+ * number.
+ *
+ * For writes, the current position determines which connection
+ * receives the data.
+ *
+ * Connections are numbered 0..max.  Note that there can be
+ * "holes" in the numbering if a client disconnects while other clients
+ * exist above.
  */
 #include <sys/fs.h>
 #include <sys/perm.h>
@@ -27,6 +58,7 @@ extern int32 ip_addr;		/* Our node's IP address */
 static struct hash *clients;	/* /inet filesystem clients */
 static struct hash *ports;	/* Port # -> tcp_port mapping */
 static port_t serv_port;	/* Our port */
+static uint nport;		/* # ports being served */
 
 /*
  * Protection of privileged TCP port numbers
@@ -39,26 +71,42 @@ static struct prot port_priv = {
 };
 
 /*
- * Per-port TCP state.  Note that there can be numerous distinct
- * client connections
+ * Per-connection TCP state
  */
-struct tcp_port {
+struct tcp_conn {
 	struct tcb *t_tcb;	/* KA9Q's TCB struct */
-	uint t_refs;		/* # clients attached */
+	struct tcp_port		/* Back-pointer to tcp_port */
+		*t_port;
+	uint t_conn;		/*  ...and index in tcp_port */
 	struct llist		/* Reader/writer queues */
 		t_readers,
 		t_writers;
-	struct prot t_prot;	/* Protection on this TCP port */
-	struct socket
-		t_lsock,	/* Local/foreign TCP sockets */
+	struct socket		/* Foreign TCP socket */
 		t_fsock;
 	struct mbuf *t_readq;	/* Queue of mbufs of data to be consumed */
 	uint t_mode;		/* Current connect mode of port */
 };
 
 /*
+ * Per-port TCP state.  Note that there can be numerous distinct
+ * client connections, enumerated via t_conns/t_maxconn
+ */
+struct tcp_port {
+	uint t_refs;		/* # clients attached */
+	struct prot t_prot;	/* Protection on this TCP port */
+	struct socket
+		t_lsock;	/* Local TCP socket */
+	struct tcp_conn
+		**t_conns;	/* Connected remote clients */
+	uint t_maxconn;		/* # of slots in t_conns */
+	struct llist t_any;	/* Reader for "any" connection */
+};
+
+/*
  * Per-client state.  Each client has a TCP port open; multiple
- * clients can have concurrent access to a particular port.
+ * clients can have concurrent access to a particular port.  Each
+ * client also has a particular connection opened; for the case of
+ * a single remote connection, this is always 1.
  */
 struct client {
 	struct tcp_port
@@ -70,11 +118,7 @@ struct client {
 	enum {DIR_ROOT = 0, DIR_TCP, DIR_PORT}
 		c_dir;		/* Current dir position */
 	uint c_pos;		/* Position, for dir reads */
-	XXX need to vector out from a single port on this side
-		to multiple CLONE connections
-		Consider: how to name each remote, how to see
-		 connect indications
-		Add wstat() support to switch
+				/* Connection #, for TCP mode */
 };
 
 /*
@@ -209,13 +253,39 @@ dup_client(struct msg *m, struct client *cold)
 static void
 deref_tcp(struct tcp_port *t)
 {
-	struct tcb *tcb = t->t_tcb;
-
 	t->t_refs -= 1;
-	if ((t->t_refs == 0) && (tcb = t->t_tcb)) {
-		close_tcp(tcb);
+	if (t->t_refs == 0) {
+		uint x;
+
+		/*
+		 * Clean up each connection under the port
+		 */
+		for (x = 0; x < t->t_maxconn; ++x) {
+			struct tcp_conn *c;
+
+			c = t->t_conns[x];
+			if (c) {
+				ASSERT_DEBUG(LL_EMPTY(&c->t_readers),
+					"deref_tcp: readers");
+				ASSERT_DEBUG(LL_EMPTY(&c->t_writers),
+					"deref_tcp: writers");
+				if (c->t_tcb) {
+					del_tcp(c->t_tcb); c->t_tcb = 0;
+					nport -= 1;
+				}
+				free(c); t->t_conns[x] = 0;
+			}
+		}
+
+		/*
+		 * Clear out port itself
+		 */
+		ASSERT_DEBUG(LL_EMPTY(&t->t_any), "deref_tcp: any");
 		(void)hash_delete(ports, t->t_lsock.port);
-		t->t_tcb = 0;
+		if (t->t_conns) {
+			free(t->t_conns); t->t_conns = 0;
+		}
+		free(t);
 	}
 }
 
@@ -228,8 +298,7 @@ abort_op(struct client *c)
 {
 	if (c->c_entry) {
 		/* XXX what if the buffer's active? */
-		ll_delete(c->c_entry);
-		c->c_entry = 0;
+		ll_delete(c->c_entry); c->c_entry = 0;
 	}
 }
 
@@ -250,10 +319,8 @@ shut_client(long client, struct client *c, int arg)
 	/*
 	 * Deref TCP port
 	 */
-	t = c->c_port;
-	if (t) {
-		deref_tcp(t);
-		c->c_port = 0;
+	if (t = c->c_port) {
+		deref_tcp(t); c->c_port = 0;
 	}
 	return(0);
 }
@@ -304,6 +371,75 @@ find_port(uint portnum)
 }
 
 /*
+ * uncreate_conn()
+ *	Clean up a connection under a tcp_port
+ */
+static void
+uncreate_conn(struct tcp_port *t, struct tcp_conn *c)
+{
+	uint idx;
+
+	for (idx = 0; idx < t->t_maxconn; ++idx) {
+		if (t->t_conns[idx] == c) {
+			t->t_conns[idx] = 0;
+			free(c);
+			return;
+		}
+	}
+	ASSERT(0, "uncreate_conn: not found");
+}
+
+/*
+ * create_conn()
+ *	Create a new connection under a tcp_port
+ */
+static struct tcp_conn *
+create_conn(struct tcp_port *t)
+{
+	struct tcp_conn *c, **cp;
+	uint idx;
+
+	/*
+	 * Make room for another connection
+	 */
+	for (idx = 0; idx < t->t_maxconn; ++idx) {
+		if (t->t_conns[idx] == 0) {
+			break;
+		}
+	}
+	if (idx == t->t_maxconn) {
+		cp = realloc(t->t_conns,
+			(t->t_maxconn + 1) * sizeof(struct tcp_conn *));
+		if (cp == 0) {
+			return(0);
+		}
+		t->t_conns = cp;
+		t->t_maxconn += 1;
+	}
+
+	/*
+	 * Get connection data structure
+	 */
+	t->t_conns[idx] = c = malloc(sizeof(struct tcp_conn));
+	if (c == 0) {
+		/*
+		 * Yes, this leaves t_conns resized, but that's harmless.
+		 * The NULL return also cleared the slot out correctly.
+		 */
+		return(0);
+	}
+
+	/*
+	 * Initialize
+	 */
+	bzero(c, sizeof(struct tcp_conn));
+	ll_init(&c->t_readers);
+	ll_init(&c->t_writers);
+
+	return(c);
+}
+
+/*
  * create_port()
  *	Create new tcp_port
  */
@@ -321,10 +457,9 @@ create_port(int16 portnum)
 		return(0);
 	}
 	bzero(t, sizeof(struct tcp_port));
-	ll_init(&t->t_readers);
-	ll_init(&t->t_writers);
 	t->t_lsock.address = ip_addr;
 	t->t_lsock.port = portnum;
+	ll_init(&t->t_any);
 	return(t);
 }
 
@@ -332,7 +467,7 @@ create_port(int16 portnum)
  * inetfs_open()
  */
 static void
-inetfs_open(struct msg *m, struct client *c)
+inetfs_open(struct msg *m, struct client *cl)
 {
 	uint portnum;
 	struct socket lsocket;
@@ -341,13 +476,13 @@ inetfs_open(struct msg *m, struct client *c)
 	/*
 	 * Handle open request based on current dir level
 	 */
-	switch (c->c_dir) {
+	switch (cl->c_dir) {
 	case DIR_ROOT:
 		if (strcmp(m->m_buf, "tcp")) {
 			msg_err(m->m_sender, ESRCH);
 			return;
 		}
-		c->c_dir = DIR_TCP;
+		cl->c_dir = DIR_TCP;
 		break;
 	case DIR_TCP:
 		/*
@@ -383,9 +518,10 @@ inetfs_open(struct msg *m, struct client *c)
 		}
 
 		/*
-		 * Add client to this port
+		 * Add client to this port, move to this node
 		 */
-		c->c_port = t;
+		cl->c_port = t;
+		cl->c_dir = DIR_PORT;
 		t->t_refs += 1;
 		break;
 
@@ -398,6 +534,7 @@ inetfs_open(struct msg *m, struct client *c)
 	 * Success
 	 */
 	m->m_arg = m->m_arg1 = m->m_nseg = 0;
+	cl->c_pos = 0;
 	msg_reply(m->m_sender, m);
 }
 
@@ -406,7 +543,7 @@ inetfs_open(struct msg *m, struct client *c)
  *	Handle status query operations
  */
 static void
-inetfs_stat(struct msg *m, struct client *c)
+inetfs_stat(struct msg *m, struct client *cl)
 {
 	msg_err(m->m_sender, EINVAL);
 }
@@ -418,14 +555,14 @@ inetfs_stat(struct msg *m, struct client *c)
 static void
 cleario(struct llist *l, char *err)
 {
-	struct client *c;
+	struct client *cl;
 
 	while (!LL_EMPTY(l)) {
 		struct msg *m;
 
-		c = LL_NEXT(l)->l_data;
-		ll_delete(c->c_entry); c->c_entry = 0;
-		m = &c->c_msg;
+		cl = LL_NEXT(l)->l_data;
+		ll_delete(cl->c_entry); cl->c_entry = 0;
+		m = &cl->c_msg;
 		if (err) {
 			msg_err(m->m_sender, err);
 		} else {
@@ -441,14 +578,26 @@ cleario(struct llist *l, char *err)
 static void
 inetfs_state(struct tcb *tcb, char old, char new)
 {
-	struct tcp_port *t = tcb->user;
+	struct tcp_conn *c, *c2;
 
+	/*
+	 * For all but new connections, these links exist
+	 */
+	c = tcb->user;
+
+	/*
+	 * Demux for new state
+	 */
 	switch (new) {
 	case ESTABLISHED:
-		if (t->t_mode == TCP_CLONE) {
-			XXX tabulate multiple TCP conns under one client
+		if (tcb->flags & CLONE) {
+			c2 = create_conn(c->t_port);
+			c2->t_tcb = tcb;
+			c2->t_conn = c->t_conn;
+			tcb->user = c;
+		} else {
+			cleario(&c->t_writers, 0);
 		}
-		cleario(&t->t_writers, 0);
 		break;
 
 	case FINWAIT1:
@@ -456,19 +605,21 @@ inetfs_state(struct tcb *tcb, char old, char new)
 	case CLOSING:
 	case LAST_ACK:
 	case TIME_WAIT:
-		cleario(&t->t_readers, EIO);
-		cleario(&t->t_writers, EIO);
+		if (c) {
+			cleario(&c->t_readers, EIO);
+			cleario(&c->t_writers, EIO);
+		}
 		break;
 
 	case CLOSE_WAIT:
 		/* flush last buffers */
-		while (!LL_EMPTY(&t->t_writers)) {
+		while (!LL_EMPTY(&c->t_writers)) {
 			struct mbuf *mb;
-			struct client *c;
+			struct client *cl;
 
-			c = LL_NEXT(&t->t_writers)->l_data;
-			ll_delete(c->c_entry); c->c_entry = 0;
-			mb = msg_to_mbuf(&c->c_msg);
+			cl = LL_NEXT(&c->t_writers)->l_data;
+			ll_delete(cl->c_entry); cl->c_entry = 0;
+			mb = msg_to_mbuf(&cl->c_msg);
 			if (mb) {
 				send_tcp(tcb, mb);
 			}
@@ -478,7 +629,10 @@ inetfs_state(struct tcb *tcb, char old, char new)
 	
 	case CLOSED:
 		del_tcp(tcb);
-		t->t_tcb = NULLTCB;
+		if (c) {
+			c->t_tcb = 0;
+		}
+		nport -= 1;
 		break;
 	}
 }
@@ -488,18 +642,19 @@ inetfs_state(struct tcb *tcb, char old, char new)
  *	Try to change connection mode for this TCP port
  */
 static void
-inetfs_conn(struct msg *m, struct client *c, char *val)
+inetfs_conn(struct msg *m, struct client *cl, char *val)
 {
-	struct tcp_port *t = c->c_port;
+	struct tcp_port *t = cl->c_port;
+	struct tcp_conn *c;
 	uint mode;
 
 	/*
 	 * Disconnection--shut TCP if open, return success
 	 */
 	if (!strcmp(val, "disconnect")) {
-		if (t->t_tcb) {
-			close_tcp(t->t_tcb);
-			t->t_tcb = 0;
+		if (c->t_tcb) {
+			close_tcp(c->t_tcb); c->t_tcb = 0;
+			tcb->user = 0;
 		}
 		(void)msg_reply(m->m_sender, m);
 		return;
@@ -516,7 +671,7 @@ inetfs_conn(struct msg *m, struct client *c, char *val)
 		/*
 		 * Require a destination ip/port pair
 		 */
-		if (!t->t_fsock.address || !t->t_fsock.port) {
+		if (!c->t_fsock.address || !c->t_fsock.port) {
 			msg_err(m->m_sender, "ip/no addr");
 			return;
 		}
@@ -529,35 +684,69 @@ inetfs_conn(struct msg *m, struct client *c, char *val)
 	/*
 	 * Don't permit if connection already initiated
 	 */
-	if (t->t_tcb) {
+	if (c->t_tcb) {
 		msg_err(m->m_sender, EBUSY);
 		return;
 	}
 
 	/*
+	 * Get tcp_conn first
+	 */
+	c = create_conn(t);
+	c->t_conn = cl->c_pos;
+
+	/*
 	 * Request connection, with upcall connections
 	 */
-	t->t_tcb = open_tcp(&t->t_lsock, NULLSOCK, mode, 0,
+	c->t_tcb = open_tcp(&t->t_lsock, NULLSOCK, mode, 0,
 		inetfs_rcv, inetfs_xmt, inetfs_state, 0, t);
-	if (t->t_tcb == NULLTCB) {
+	if (c->t_tcb == NULLTCB) {
 		msg_err(m->m_sender, err2str(net_error));
+		uncreate_conn(t, c);
 		return;
 	}
-	t->t_mode = mode;
+	c->t_mode = mode;
 
 	/*
 	 * Queue as a "writer" for kicking off the connection
 	 */
-	c->c_entry = ll_insert(&t->t_writers, c);
-	if (c->c_entry == 0) {
+	cl->c_entry = ll_insert(&c->t_writers, cl);
+	if (cl->c_entry == 0) {
 		msg_err(m->m_sender, strerror());
+		close_tcp(c->t_tcb); c->t_tcb = 0;
+		uncreate_conn(t, c);
 		return;
 	}
 
 	/*
+	 * Update port tally
+	 */
+	nport += 1;
+
+	/*
 	 * Record client message, wait for connection
 	 */
-	c->c_msg = *m;
+	cl->c_msg = *m;
+}
+
+/*
+ * get_conn()
+ *	Given client, return tcp_conn currently selected, or 0
+ */
+static struct tcp_conn *
+get_conn(struct client *cl)
+{
+	ulong pos;
+	struct tcp_port *t = cl->c_port;
+
+	/*
+	 * Pick session based on current file position
+	 */
+	pos = cl->c_pos;
+	if (pos >= t->t_maxconn) {
+		return(0);
+	}
+	return(cl->c_port->t_conns[pos]);
 }
 
 /*
@@ -565,27 +754,32 @@ inetfs_conn(struct msg *m, struct client *c, char *val)
  *	Handle status setting operations
  */
 static void
-inetfs_wstat(struct msg *m, struct client *c)
+inetfs_wstat(struct msg *m, struct client *cl)
 {
 	char *field, *val;
-	struct tcp_port *t = c->c_port;
+	struct tcp_port *t = cl->c_port;
+	struct tcp_conn *c;
 
 #ifdef LATER
 	if (do_wstat(m, &c->c_port->t_prot, c->c_perm, &field, &val)) {
 		return;
 	}
 #endif
-	switch (c->c_dir) {
+	switch (cl->c_dir) {
 	case DIR_PORT:
 		ASSERT_DEBUG(t, "inetfs_wstat: PORT null port");
+		c = get_conn(cl);
+		if (c == 0) {
+			; /* Fall into error case below */
+		}
 		if (!strcmp(field, "dest")) {
-			t->t_fsock.address = aton(val);
+			c->t_fsock.address = aton(val);
 			break;
 		} else if (!strcmp(field, "destsock")) {
-			t->t_fsock.port = atoi(val);
+			c->t_fsock.port = atoi(val);
 			break;
 		} else if (!strcmp(field, "conn")) {
-			inetfs_conn(m, c, val);
+			inetfs_conn(m, cl, val);
 			return;
 		}
 
@@ -604,32 +798,143 @@ inetfs_wstat(struct msg *m, struct client *c)
 }
 
 /*
+ * add_dir()
+ *	Add next entry to dir listing
+ */
+static int
+add_dir(long port, struct tcp_port *t, char *buf)
+{
+	char *p;
+
+	p = buf + strlen(buf);
+	sprintf(p, "%d\n", t->t_lsock.port);
+	return(0);
+}
+
+/*
+ * inetfs_read_dir()
+ *	Handle read requests when in a directory
+ */
+static void
+inetfs_read_dir(struct msg *m, struct client *cl)
+{
+	char *buf;
+	int len;
+
+	switch (cl->c_dir) {
+	case DIR_ROOT:
+		buf = "tcp\n"; len = 4;
+		break;
+	case DIR_TCP:
+		buf = alloca(nport * 6);
+		buf[0] = '\0';
+		hash_foreach(ports, add_dir, buf);
+		len = strlen(buf);
+		break;
+	default:
+		len = 0;
+		break;
+	}
+
+	/*
+	 * Adjust for what's been read
+	 */
+	buf += cl->c_pos;
+	len -= cl->c_pos;
+
+	/*
+	 * Send back result, with buffer if any
+	 */
+	if (len > 0) {
+		m->m_buf = buf;
+		m->m_buflen = len;
+		m->m_nseg = 1;
+	} else {
+		len = 0;
+		m->m_nseg = 0;
+	}
+	m->m_arg = len;
+	m->m_arg1 = 0;
+	msg_reply(m->m_sender, m);
+	cl->c_pos += len;
+}
+
+/*
  * inetfs_read()
  *	Read data from TCP stream into VSTa client
  */
 static void
-inetfs_read(struct msg *m, struct client *c)
+inetfs_read(struct msg *m, struct client *cl)
 {
-	struct tcp_port *t;
+	struct tcp_port *t = cl->c_port;
+	struct tcp_conn *c;
 
 	/*
 	 * If not in a port, it's a directory
 	 */
-	if (c->c_dir != DIR_PORT) {
-		inetfs_read_dir(m, c);
+	if (cl->c_dir != DIR_PORT) {
+		inetfs_read_dir(m, cl);
+		return;
+	}
+
+	/*
+	 * If he doesn't care, pick current stream based on
+	 * availability
+	 */
+	if (m->m_arg1) {
+		uint idx = cl->c_pos, found = 0;
+
+		/*
+		 * Scan for any TCB with data.  We use a "rover"
+		 * to try and be fair about which connection gets
+		 * processed next
+		 */
+		do {
+			if (++idx > t->t_maxconn) {
+				idx = 0;
+			}
+			c = t->t_conns[idx];
+			if (c && c->t_tcb && c->t_tcb->rcvcnt) {
+				found = 1;
+				break;
+			}
+		} while (idx != cl->c_pos);
+		cl->c_pos = idx;
+
+		/*
+		 * Nothing found; queue under the "any" queue.  Otherwise
+		 * we fall down into the regular receive path, with our
+		 * current position now reflecting a TCB with data.
+		 */
+		if (!found) {
+			cl->c_entry = ll_insert(&t->t_any, cl);
+			if (cl->c_entry == 0) {
+				msg_err(m->m_sender, ENOMEM);
+				return;
+			}
+			cl->c_msg = *m;
+			return;
+		}
+	}
+
+	/*
+	 * Get tcp_conn, validate
+	 */
+	c = get_conn(cl);
+	if (c == 0) {
+		msg_err(m->m_sender, EINVAL);
 		return;
 	}
 
 	/*
 	 * Queue as a reader, then see if we can get data yet
 	 */
-	t = c->c_port;
-	c->c_entry = ll_insert(&t->t_readers, c);
-	if (c->c_entry == 0) {
+	cl->c_entry = ll_insert(&c->t_readers, cl);
+	if (cl->c_entry == 0) {
 		msg_err(m->m_sender, ENOMEM);
 		return;
 	}
-	inetfs_rcv(t->t_tcb, 0);
+	inetfs_rcv(c->t_tcb, 0);
 }
 
 /*
@@ -637,17 +942,19 @@ inetfs_read(struct msg *m, struct client *c)
  *	Write message from VSTa client onto TCP stream
  */
 static void
-inetfs_write(struct msg *m, struct client *c)
+inetfs_write(struct msg *m, struct client *cl)
 {
+	struct tcp_port *t = cl->c_port;
 	struct mbuf *mb;
-	struct tcp_port *t = c->c_port;
-	struct tcb *tcb = t->t_tcb;
+	struct tcp_conn *c;
+	struct tcb *tcb;
 	uint size;
 
 	/*
-	 * Output is only legal once you have a particular TCP port open
+	 * Output is only legal once you have a particular TCP port open,
+	 * and only if you have selected a valid connection index
 	 */
-	if (!t) {
+	if (!t || !(c = get_conn(cl))) {
 		msg_err(m->m_sender, EINVAL);
 		return;
 	}
@@ -665,8 +972,8 @@ inetfs_write(struct msg *m, struct client *c)
 	/*
 	 * Get a a linked list entry, queue us
 	 */
-	c->c_entry = ll_insert(&t->t_writers, c);
-	if (c->c_entry == 0) {
+	cl->c_entry = ll_insert(&c->t_writers, cl);
+	if (cl->c_entry == 0) {
 		free_p(mb);
 		msg_err(m->m_sender, ENOMEM);
 		return;
@@ -675,17 +982,18 @@ inetfs_write(struct msg *m, struct client *c)
 	/*
 	 * Record our message parameters
 	 */
-	c->c_msg = *m;
+	cl->c_msg = *m;
 
 	/*
 	 * If there's nothing outbound on this TCP port, send.
 	 * Otherwise queueing is sufficient; our transmit upcall
 	 * will send it later.
 	 */
+	tcb = c->t_tcb;
 	if (tcb->sndcnt == 0) {
 		if (send_tcp(tcb, mb) < 0) {
 			msg_err(m->m_sender, err2str(net_error));
-			ll_delete(c->c_entry); c->c_entry = 0;
+			ll_delete(cl->c_entry); cl->c_entry = 0;
 			return;
 		}
 	}
@@ -698,13 +1006,13 @@ inetfs_write(struct msg *m, struct client *c)
 static void
 proc_msg(struct msg *m)
 {
-	struct client *c;
+	struct client *cl;
 
 	/*
 	 * Get state for client
 	 */
-	c = hash_lookup(clients, m->m_sender);
-	if (c == 0) {
+	cl = hash_lookup(clients, m->m_sender);
+	if (cl == 0) {
 		msg_err(m->m_sender, EIO);
 		return;
 	}
@@ -717,14 +1025,14 @@ proc_msg(struct msg *m)
 		new_client(m);
 		break;
 	case M_DISCONNECT:	/* Client done */
-		dead_client(m, c);
+		dead_client(m, cl);
 		break;
 	case M_DUP:		/* File handle dup during exec() */
-		dup_client(m, c);
+		dup_client(m, cl);
 		break;
 
 	case M_ABORT:		/* Aborted operation */
-		abort_op(c);
+		abort_op(cl);
 		m->m_arg = m->m_arg1 = m->m_nseg = 0;
 		msg_reply(m->m_sender, m);
 		break;
@@ -735,7 +1043,7 @@ proc_msg(struct msg *m)
 			msg_err(m->m_sender, EINVAL);
 			break;
 		}
-		inetfs_open(m, c);
+		inetfs_open(m, cl);
 		break;
 
 	case FS_ABSREAD:	/* Set position, then read */
@@ -743,10 +1051,10 @@ proc_msg(struct msg *m)
 			msg_err(m->m_sender, EINVAL);
 			break;
 		}
-		c->c_pos = m->m_arg1;
+		cl->c_pos = m->m_arg1;
 		/* VVV fall into VVV */
 	case FS_READ:		/* Read file */
-		inetfs_read(m, c);
+		inetfs_read(m, cl);
 		break;
 
 	case FS_ABSWRITE:	/* Set position, then write */
@@ -754,21 +1062,21 @@ proc_msg(struct msg *m)
 			msg_err(m->m_sender, EINVAL);
 			break;
 		}
-		c->c_pos = m->m_arg1;
+		cl->c_pos = m->m_arg1;
 		/* VVV fall into VVV */
 	case FS_WRITE:		/* Write file */
-		inetfs_write(m, c);
+		inetfs_write(m, cl);
 		break;
 
 	case FS_SEEK:		/* Set new file position */
-		inetfs_seek(m, c);
+		inetfs_seek(m, cl);
 		break;
 
 	case FS_STAT:		/* Tell about file */
-		inetfs_stat(m, c);
+		inetfs_stat(m, cl);
 		break;
 	case FS_WSTAT:		/* Set stuff on file */
-		inetfs_wstat(m, c);
+		inetfs_wstat(m, cl);
 		break;
 	default:		/* Unknown */
 		msg_err(m->m_sender, EINVAL);
@@ -874,36 +1182,34 @@ vsta0(void)
  *	Move data from mbufs out to VSTa clients
  */
 static void
-send_data(struct tcp_port *t)
+send_data(struct tcp_conn *c, struct llist *q)
 {
 	struct msg *m;
-	struct llist *q;
-	struct client *c;
+	struct client *cl;
 	uint mb_pullup = 0;
 
 	/*
 	 * While there's data and readers, move data
 	 */
-	q = &t->t_readers;
-	while (t->t_readq && !LL_EMPTY(q)) {
+	while (c->t_readq && !LL_EMPTY(q)) {
 		uint nseg, count, req;
 		struct mbuf *mb;
 
 		/*
 		 * Dequeue next request
 		 */
-		c = LL_NEXT(q)->l_data;
-		ll_delete(c->c_entry); c->c_entry = 0;
+		cl = LL_NEXT(q)->l_data;
+		ll_delete(cl->c_entry); cl->c_entry = 0;
 
 		/*
 		 * Fill up scatter/gather until it's maxed or
 		 * until we've satisfied the client read.
 		 */
-		m = &c->c_msg;
+		m = &cl->c_msg;
 		nseg = 0;
 		count = 0;
 		req = m->m_arg;
-		mb = t->t_readq;
+		mb = c->t_readq;
 		while (req && mb && (nseg < MSGSEGS)) {
 			uint step;
 
@@ -924,6 +1230,7 @@ send_data(struct tcp_port *t)
 		 * Send back to requestor
 		 */
 		m->m_arg = count;
+		m->m_arg1 = c->t_conn;
 		m->m_nseg = nseg;
 		msg_reply(m->m_sender, m);
 
@@ -936,12 +1243,12 @@ send_data(struct tcp_port *t)
 			 * a pullup if we couldn't use all the data
 			 */
 			if ((nseg == 0) && mb_pullup) {
-				pullup(&t->t_readq, NULLCHAR, mb_pullup);
+				pullup(&c->t_readq, NULLCHAR, mb_pullup);
 			} else {
 				/*
 				 * Otherwise just free the mbuf
 				 */
-				t->t_readq = free_mbuf(t->t_readq);
+				c->t_readq = free_mbuf(c->t_readq);
 			}
 		}
 	}
@@ -954,19 +1261,30 @@ send_data(struct tcp_port *t)
 static void
 inetfs_rcv(struct tcb *tcb, int16 cnt)
 {
-	struct tcp_port *t = tcb->user;
+	struct tcp_conn *c = tcb->user;
 
 	/*
 	 * If we consumed all the current data, take a new batch from TCP
 	 */
-	if (t->t_readq == 0) {
-		recv_tcp(tcb, &t->t_readq, 0);
+	if (c->t_readq == 0) {
+		recv_tcp(tcb, &c->t_readq, 0);
 	}
 
 	/*
 	 * Send data off to clients
 	 */
-	send_data(t);
+	send_data(c, &c->t_readers);
+
+	/*
+	 * If there's still data, see if an "any" reader is present
+	 */
+	if (c->t_readq) {
+		struct tcp_port *t = c->t_port;
+
+		if (!LL_EMPTY(&t->t_any)) {
+			send_data(c, &t->t_any);
+		}
+	}
 }
 
 /*
@@ -979,14 +1297,15 @@ inetfs_xmt(struct tcb *tcb, int16 count)
 	struct tcp_port *t = tcb->user;
 	struct msg *m;
 	struct llist *l;
-	struct client *c;
+	struct client *cl;
 	struct mbuf *mb;
+	struct tcp_conn *c;
 
 	/*
 	 * If previous write isn't complete, wait until it is.
 	 * Also no-op if there is no writer traffic active.
 	 */
-	if (tcb->sndcnt || LL_EMPTY(&t->t_writers)) {
+	if (tcb->sndcnt || LL_EMPTY(&c->t_writers)) {
 		return;
 	}
 
@@ -994,36 +1313,38 @@ inetfs_xmt(struct tcb *tcb, int16 count)
 	 * The first entry in the list will be the most
 	 * recent writer
 	 */
-	l = LL_NEXT(&t->t_writers);
-	c = l->l_data;
-	ll_delete(c->c_entry); c->c_entry = 0;
+	c = tcb->user;
+	l = LL_NEXT(&c->t_writers);
+	cl = l->l_data;
+	ll_delete(cl->c_entry); cl->c_entry = 0;
 
 	/*
 	 * Complete his write
 	 */
-	m = &c->c_msg;
-	m->m_arg1 = m->m_nseg = 0;
+	m = &cl->c_msg;
+	m->m_arg1 = c->t_conn;
+	m->m_nseg = 0;
 	msg_reply(m->m_sender, m);
 
 	/*
 	 * If no further writes, done
 	 */
-	if (LL_EMPTY(&t->t_writers)) {
+	if (LL_EMPTY(&c->t_writers)) {
 		return;
 	}
 
 	/*
 	 * Get next writer
 	 */
-	l = LL_NEXT(&t->t_writers);
-	c = l->l_data;
+	l = LL_NEXT(&c->t_writers);
+	cl = l->l_data;
 
 	/*
 	 * Start his data out the door
 	 */
-	mb = msg_to_mbuf(&c->c_msg);
+	mb = msg_to_mbuf(&cl->c_msg);
 	if (send_tcp(tcb, mb) < 0) {
 		msg_err(m->m_sender, err2str(net_error));
-		ll_delete(c->c_entry); c->c_entry = 0;
+		ll_delete(cl->c_entry); cl->c_entry = 0;
 	}
 }
