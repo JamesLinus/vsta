@@ -35,6 +35,7 @@
 #define S_RUN_QIO 28
 #define S_SET_CMD 29
 #define S_PAGEOUT 30
-#define S_HIGH S_PAGEOUT
+#define S_GETID 31
+#define S_HIGH S_GETID
 
 #endif /* _SYSCALL_H */
