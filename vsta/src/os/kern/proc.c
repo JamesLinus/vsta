@@ -126,6 +126,7 @@ bootproc(struct boot_task *b)
 	 */
 	vas = malloc(sizeof(struct vas));
 	vas->v_views = 0;
+	vas->v_flags = VF_MEMLOCK;
 	init_lock(&vas->v_lock);
 	hat_initvas(vas);
 	p->p_vas = vas;
