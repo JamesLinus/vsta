@@ -1031,7 +1031,7 @@ gmtload(struct state *sp)
 /*
  * tzsetwall()
  */
-static void
+void
 tzsetwall(void)
 {
 	lcl_is_set = TRUE;
