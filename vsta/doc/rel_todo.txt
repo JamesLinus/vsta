@@ -3,7 +3,7 @@
 Things to do per release:
 
 1. Make sure /vsta/doc/features.txt is up to date
-2. Check copyright year in /vsta/readme
+2. Check copyright year in /vsta/readme and /vsta/etc/motd
 3. Edit /vsta/etc/banner
 4. "changed", followed by "changed -r | grep -vw '[oa]'"
 5. "cd /vsta/src" and "sh mkall", followed (if OK) by "sh mkall install"
