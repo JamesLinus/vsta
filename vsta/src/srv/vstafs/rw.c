@@ -122,6 +122,9 @@ file_grow(struct buf *b_fs, struct fs_file *fs, ulong newsize)
  * the returned data range.  On success, *blkp points to the appropriate
  * spot within the buffer, and *stepp holds the number of bytes available
  * at this location.
+ *
+ * bmap() may return space which is physically within the file, but
+ * currently beyond fs_len.
  */
 struct buf *
 bmap(struct buf *b_fs, struct fs_file *fs, ulong pos,
@@ -410,8 +413,11 @@ vfs_readdir(struct msg *m, struct file *f)
 			 * End if EOF or no room for another name
 			 */
 			x = roundup(len-bufcnt, MAXNAMLEN);
-			x = (x / MAXNAMLEN) * sizeof(struct fs_dirent);
-			if ((f->f_pos >= fs->fs_len) || (x < 1)) {
+			ASSERT_DEBUG(f->f_pos <= fs->fs_len,
+				"vfs_readdir: pos > len");
+			x = MIN((x / MAXNAMLEN) * sizeof(struct fs_dirent),
+				fs->fs_len - f->f_pos);
+			if (x < 1) {
 				break;
 			}
 			if (!bmap(b, fs, f->f_pos, x, &p, &step)) {
