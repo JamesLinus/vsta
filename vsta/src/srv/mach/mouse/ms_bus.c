@@ -62,7 +62,7 @@ ms_bus_interrupt(void)
 	case 1:
 		buttons = MOUSE_RIGHT_BUTTON;
 		break;
-	case 0:
+	case 5:
 		buttons = MOUSE_MIDDLE_BUTTON;
 		break;
 	default:

@@ -232,6 +232,14 @@ ps2aux_interrupt(void)
 	}
 
 	/*
+	 * Map 1+3 -> 2, simulate middle button
+	 */
+	if ((buttons & MOUSE_LEFT_BUTTON) &&
+			(buttons & MOUSE_RIGHT_BUTTON)) {
+		buttons = MOUSE_MIDDLE_BUTTON;
+	}
+
+	/*
 	 * Flag any change
 	 */
 	changed = p->dx || p->dy || (buttons != p->buttons);
