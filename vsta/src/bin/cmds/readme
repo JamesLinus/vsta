@@ -1,0 +1,3 @@
+These are a bunch of little programs which exercise successive
+amounts of microkernel functionality.  I use them during bringup
+and occasionally for regression checks.
