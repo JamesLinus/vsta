@@ -29,15 +29,30 @@ void
 dup_stack(struct thread *old, struct thread *new, voidfun f)
 {
 	ASSERT_DEBUG(old->t_uregs, "dup_stack: no old");
+
+	/*
+	 * Calculate location of kernel registers on new stack.
+	 * Copy over old to new.
+	 */
 	new->t_uregs = (struct trapframe *)(
 		(new->t_kstack + KSTACK_SIZE) -
 		sizeof(struct trapframe));
 	bcopy(old->t_uregs, new->t_uregs, sizeof(struct trapframe));
-	new->t_uregs->ebp =
-	new->t_uregs->esp = (ulong)(new->t_ustack + UMINSTACK) - sizeof(long);
 
 	/*
-	 * New thread returns with 0 value; ESP is one lower so that
+	 * A thread fork moves to a new, empty stack.  A process
+	 * fork has a copy of the stack at the same virtual address,
+	 * so the stack location doesn't have to be updated.
+	 */
+	if (f) {
+		new->t_uregs->ebp =
+		new->t_uregs->esp =
+		 (ulong)(new->t_ustack + UMINSTACK) - sizeof(long);
+		new->t_uregs->eip = (ulong)f;
+	}
+
+	/*
+	 * New entity returns with 0 value; ESP is one lower so that
 	 * the resume() path has a place to write its return address.
 	 * This simulates the normal context switch mechanism of
 	 * setjmp/longjmp.
@@ -45,10 +60,14 @@ dup_stack(struct thread *old, struct thread *new, voidfun f)
 	new->t_kregs->eip = (ulong)retuser;
 	new->t_kregs->ebp = (ulong)(new->t_uregs);
 	new->t_kregs->esp = (new->t_kregs->ebp) - sizeof(ulong);
-	if (f) {
-		new->t_uregs->eip = (ulong)f;
-	}
 	new->t_uregs->eax = 0;
+
+	/*
+	 * Now that we're done with setup, flag that he's not in
+	 * kernel mode.  New processes vector pretty directly into
+	 * user mode.
+	 */
+	new->t_uregs = 0;
 }
 
 /*
