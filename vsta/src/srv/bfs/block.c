@@ -9,7 +9,7 @@
 extern void *malloc();
 extern char *strerror();
 
-extern port_t blkdev;
+extern int blkdev;
 
 char *errstr;			/* String for last error */
 static int cached = 0;		/* # blocks currently cached */
@@ -99,8 +99,8 @@ bnew(int blkno)
 		 * Clean it if dirty
 		 */
 		if (b->b_flags & B_DIRTY) {
-			__seek(blkdev, b->b_blkno*BLOCKSIZE);
-			__write(blkdev, b->b_data, BLOCKSIZE);
+			lseek(blkdev, b->b_blkno*(long)BLOCKSIZE, 0);
+			write(blkdev, b->b_data, BLOCKSIZE);
 			b->b_flags &= ~B_DIRTY;
 		}
 
@@ -196,12 +196,12 @@ bget(int blkno)
 	b = bfind(blkno);
 	if (!b) {
 		b = bnew(blkno);
-		if (__seek(blkdev, blkno*BLOCKSIZE)) {
+		if (lseek(blkdev, blkno*(long)BLOCKSIZE, 0) == -1) {
 			bjunk(b);
 			errstr = strerror();
 			return(0);
 		}
-		x = __read(blkdev, b->b_data, BLOCKSIZE);
+		x = read(blkdev, b->b_data, BLOCKSIZE);
 		if (x != BLOCKSIZE) {
 			bjunk(b);
 			errstr = strerror();
@@ -264,8 +264,8 @@ bsync(void)
 	for (l = allblocks.l_forw; l != &allblocks; l = l->l_forw) {
 		b = l->l_data;
 		if (b->b_flags & B_DIRTY) {
-			__seek(blkdev, b->b_blkno*BLOCKSIZE);
-			__write(blkdev, b->b_data, BLOCKSIZE);
+			lseek(blkdev, b->b_blkno*(long)BLOCKSIZE, 0);
+			write(blkdev, b->b_data, BLOCKSIZE);
 			b->b_flags &= ~B_DIRTY;
 		}
 	}
