@@ -233,10 +233,22 @@ unbecome(void)
 	struct perm perm;
 
 	/*
+	 * Recreate our sys.sys ID in slot 1; it'll be needed
+	 * when we interact with selfs.  We have to strobe on
+	 * root ability to forget sys.sys.
+	 */
+	add_root();
+	perm.perm_len = 2;
+	perm.perm_id[0] = perm.perm_id[1] = 1;
+	perm.perm_uid = 0;
+	(void)perm_ctl(1, &perm, (void *)0);
+	drop_root();
+
+	/*
 	 * Zero out our slots.  Root ability not needed.
 	 */
 	PERM_NULL(&perm);
-	for (x = 1; x < PROCPERMS; ++x) {
+	for (x = 2; x < PROCPERMS; ++x) {
 		(void)perm_ctl(x, &perm, (void *)0);
 	}
 }
