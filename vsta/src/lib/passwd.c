@@ -29,7 +29,7 @@ load_groups(struct uinfo *u)
 	/*
 	 * Read group file
 	 */
-	if ((fp = fopen(GROUP, "r")) == 0) {
+	if ((fp = fopen(_PATH_GROUP, "r")) == 0) {
 		return;
 	}
 	while (fgets(buf, sizeof(buf), fp)) {
@@ -213,23 +213,15 @@ fillin(char *rec, struct uinfo *u)
 }
 
 /*
- * getuinfo_name()
- *	Get account information given name
+ * getuinfo_file()
+ *	Get user info from passed file
  *
  * Returns 0 on success, 1 on failure
  */
-getuinfo_name(char *name, struct uinfo *u)
+static int
+getuinfo_file(FILE *fp, char *name, struct uinfo *u)
 {
-	FILE *fp;
 	char *p, buf[80];
-
-	/*
-	 * Open password file
-	 */
-	fp = fopen(PASSWD, "r");
-	if (fp == 0) {
-		return(1);
-	}
 
 	/*
 	 * Get lines out of file until EOF or match
@@ -250,12 +242,44 @@ getuinfo_name(char *name, struct uinfo *u)
 		 */
 		*p++ = '\0';
 		if (!strcmp(name, buf)) {
-			fclose(fp);
 			strcpy(u->u_acct, name);
 			fillin(p, u);
 			return(0);
 		}
 	}
-	fclose(fp);
 	return(1);
+}
+
+/*
+ * getuinfo_name()
+ *	Get account information given name
+ *
+ * Returns 0 on success, 1 on failure
+ */
+getuinfo_name(char *name, struct uinfo *u)
+{
+	FILE *fp;
+
+	/*
+	 * Open password file
+	 */
+	fp = fopen(_PATH_PASSWD, "r");
+	if (fp == 0) {
+		return(1);
+	}
+	if (getuinfo_file(fp, name, u)) {
+		fclose(fp);
+		return(1);
+	}
+	fclose(fp);
+	fp = fopen(_PATH_SHADOW, "r");
+	if (fp) {
+		struct uinfo utmp;
+
+		if (getuinfo_file(fp, name, &utmp) == 0) {
+			strcpy(u->u_passwd, utmp.u_passwd);
+		}
+		fclose(fp);
+	}
+	return(0);
 }
