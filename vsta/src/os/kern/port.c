@@ -63,9 +63,8 @@ find_portref(struct proc *p, port_t port)
 	v_sema(&p->p_sema);
 
 	/*
-	 * Quick sanity check
+	 * If the server exited, return I/O errors instead
 	 */
-	ASSERT_DEBUG(ptref->p_port, "find_portref: null p_port");
 	if (ptref->p_port == 0) {
 		v_lock(&ptref->p_lock, SPL0);
 		err(EIO);
