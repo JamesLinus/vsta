@@ -5,6 +5,7 @@ OUT=env
 include ../../makefile.all
 
 env: $(OBJS)
+	rm -f env
 	$(LD) $(LDFLAGS) -o env $(CRT0) $(OBJS) -lusr -lc
 
 install: all
