@@ -206,8 +206,10 @@ geti(void)
 		"popl %0\n\t"
 		"andl $0x200,%0\n\t"
 		"shrl $2,%0\n\t"
+		"xorl $0x80,%0"
 		: "=r" (res)
 		: /* No input */);
+	return(res);
 }
 
 /*
