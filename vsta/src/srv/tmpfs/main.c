@@ -198,12 +198,29 @@ loop:
 		}
 		tmpfs_open(&msg, f);
 		break;
+
+	case FS_ABSREAD:	/* Set position, then read */
+		if (msg.m_arg1 < 0) {
+			msg_err(msg.m_sender, EINVAL);
+			break;
+		}
+		f->f_pos = msg.m_arg1;
+		/* VVV fall into VVV */
 	case FS_READ:		/* Read file */
 		tmpfs_read(&msg, f);
 		break;
+
+	case FS_ABSWRITE:	/* Set position, then write */
+		if (msg.m_arg1 < 0) {
+			msg_err(msg.m_sender, EINVAL);
+			break;
+		}
+		f->f_pos = msg.m_arg1;
+		/* VVV fall into VVV */
 	case FS_WRITE:		/* Write file */
 		tmpfs_write(&msg, f);
 		break;
+
 	case FS_SEEK:		/* Set new file position */
 		tmpfs_seek(&msg, f);
 		break;
