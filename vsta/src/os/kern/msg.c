@@ -293,9 +293,12 @@ msg_send(port_t arg_port, struct msg *arg_msg)
 	if (p_sema_v_lock(&pr->p_iowait, PRICATCH, &pr->p_lock)) {
 		/*
 		 * Oops.  Interrupted.  Grapple with the server for
-		 * control of the in-progress message.
+		 * control of the in-progress message.  Re-grab the
+		 * port pointer, which may have changed (i.e., been
+		 * zeroed) from under us.
 		 */
 		p_lock_void(&pr->p_lock, SPL0_SAME);
+		port = pr->p_port;
 
 		/*
 		 * Based on the state, either abort the I/O or
@@ -304,6 +307,15 @@ msg_send(port_t arg_port, struct msg *arg_msg)
 		switch (pr->p_state) {
 		case PS_IOWAIT: {
 			struct sysmsg sm2, *s;
+
+			/*
+			 * Server gone--just I/O err
+			 */
+			if (!port) {
+				pr->p_state = PS_IODONE;
+				v_lock(&pr->p_lock, SPL0_SAME);
+				break;
+			}
 
 			/*
 			 * If our message has not yet been dequeued,
