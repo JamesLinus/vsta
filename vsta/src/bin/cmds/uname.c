@@ -145,14 +145,7 @@ main(int argc, char **argv)
 	my_puts(sflag, "VSTa");
 	my_puts(nflag, get_node());
 	my_puts(rflag, get_ver());
-	my_puts(mflag,
-#ifdef i386
-		"i386"
-#endif
-#ifdef m68k
-		"m68k"
-#endif
-	);
+#include "./mach/cpu.c"
 	putchar('\n');
 	return(0);
 }
