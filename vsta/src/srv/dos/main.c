@@ -392,14 +392,14 @@ main(int argc, char *argv[])
 	/*
 	 * Walk arguments
 	 */
-	while ((x = getopt(argc, argv, "f:b:n:r")) > 0) {
+	while ((x = getopt(argc, argv, "n:d:B:r")) > 0) {
 		switch (x) {
 
-		case 'f':	/* Set name filesystem registers under */
+		case 'n':	/* Set name filesystem registers under */
 			namer_name = optarg;
 			break;
 
-		case 'b':	/* Block device holding filesystem */
+		case 'd':	/* Block device holding filesystem */
 			/*
 			 * Sleep and retry a bit if necessary.
 			 */
@@ -421,7 +421,7 @@ main(int argc, char *argv[])
 			}
 			break;
 
-		case 'n':	/* Set size of cache in sectors */
+		case 'B':	/* Set size of cache in sectors */
 			ncache = atoi(optarg);
 			if ((ncache < 16) || (ncache > 1024*1024)) {
 				ncache = NCACHE;
