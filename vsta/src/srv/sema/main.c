@@ -213,9 +213,6 @@ usage(void)
 /*
  * main()
  *	Startup of a sema filesystem
- *
- * A TMPFS instance expects to start with a command line:
- *	$ sema <filesystem name>
  */
 int
 main(int argc, char *argv[])
