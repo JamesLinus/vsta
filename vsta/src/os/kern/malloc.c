@@ -235,7 +235,8 @@ _free(void *ptr, uint type)
 {
 	ASSERT(type < MALLOCTYPES, "_free: bad type");
 	ATOMIC_DEC(&n_alloc[type]);
-	return(free(ptr));
+	free(ptr);
+	return;
 }
 #endif /* DEBUG */
 
