@@ -14,3 +14,4 @@ Things to do per release:
 10. See if there are any new packages, and put links in the WWW page
 11. "cd /vsta", and "rcsdo rcs -N<rel>:"
 	<rel> is formatted as V1_6_4 (for 1.6.4, duh)
+12. Update the release note page on the web site
