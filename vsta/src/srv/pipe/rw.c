@@ -71,7 +71,7 @@ sendseg(long retaddr, struct msg *m, uint nbyte)
 	 */
 	oseg = 0;
 	s = &m->m_seg[0];
-	while ((nbyte > 0) && (m->m_nseg > 0)) {
+	while ((nbyte > 0) && (m->m_nseg > 0) && (oseg < MSGSEGS)) {
 		uint cnt;
 
 		/*
