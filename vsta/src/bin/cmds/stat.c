@@ -126,7 +126,7 @@ write_stat(char *name, int use_port, char *field, int verbose)
 		/*
 		 * Open the named file, stat it and then close it!
 		 */
-		fd = open(name, O_WRONLY);
+		fd = open(name, O_CHMOD);
 		if (fd < 0) {
 			perror(name);
 			return 1;
