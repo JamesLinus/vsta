@@ -76,6 +76,16 @@ do_dbg_enter(void)
 }
 
 /*
+ * mach_flagerr()
+ *	Flag that the current operation resulted in an error
+ */
+void
+mach_flagerr(struct trapframe *f)
+{
+	f->eflags |= F_CF;
+}
+
+/*
  * syscall()
  *	Code to handle a trap for system services
  */
@@ -112,6 +122,11 @@ syscall(struct trapframe *f)
 		f->eax = err(EFAULT);
 		return;
 	}
+
+	/*
+	 * Default to carry flag clear--no error
+	 */
+	f->eflags &= ~F_CF;
 
 #ifdef SYSCALLTRACE
 	{ int x;
