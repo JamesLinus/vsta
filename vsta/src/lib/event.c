@@ -11,6 +11,7 @@
 #include <event.h>
 #include <std.h>
 #include <stdio.h>
+#include <alloc.h>
 
 extern int __seterr(char *);
 static void ev_handler(const char *event);
@@ -189,6 +190,8 @@ static void
 ev_handler(const char *event)
 {
 	struct event *cur;
+	char *buf;
+	static char msg[] = "Event not caught: ";
 
 	for (cur = ev_hash[string_hash(event)]; cur; cur = cur->ev_next) {
 		if (strcmp(cur->ev_string, event) == 0) {
@@ -209,10 +212,9 @@ ev_handler(const char *event)
 	 * Not even a global default, kill the process by
 	 * removing our handler and re-sending the event.
 	 */
-#define msg(str) write(2, str, strlen(str))
-	msg("Event not caught: ");
-	msg(event);
-	msg("\n");
+	buf = alloca(sizeof(msg) + strlen(event) + 4);
+	(void)sprintf(buf, "%s%s\n", msg, event);
+	(void)write(2, buf, strlen(buf));
 	notify_handler(0);
 	notify(0, 0, event);
 }
