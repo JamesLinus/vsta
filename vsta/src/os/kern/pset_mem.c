@@ -102,6 +102,7 @@ mem_dup(struct pset *ops, struct pset *ps)
 	 * into a ZFOD pset which happens to be filled.  The mem
 	 * pset doesn't have swap, so we get it from the mem set.
 	 */
+	ASSERT_DEBUG(ops->p_flags & PF_BOOT, "mem_dup: !PF_BOOT");
 	ps->p_type = PT_ZERO;
 	ps->p_ops = &psop_zfod;
 	ps->p_swapblk = alloc_swap(ps->p_len);

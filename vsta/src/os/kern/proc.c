@@ -43,6 +43,7 @@ mkview(uint pfn, void *vaddr, uint pages, struct vas *vas)
 	struct pset *ps;
 
 	ps = physmem_pset(pfn, pages);
+	ps->p_flags |= PF_BOOT;
 	pv = alloc_pview(ps);
 	pv->p_vaddr = vaddr;
 	ASSERT(attach_pview(vas, pv), "mkview: attach failed");
