@@ -5,6 +5,7 @@
 #include <vstafs/alloc.h>
 #include <sys/assert.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 /*
  * The head of the free list
@@ -29,6 +30,7 @@ init_block(void)
 {
 	daddr_t x;
 	struct freelist *fr, **fpp;
+	ulong largest = 0, nextent = 0;
 
 	fpp = &freelist;
 	for (x = FREE_SEC; x; x = fr->fr_free.f_next) {
@@ -54,6 +56,21 @@ init_block(void)
 		fpp = &fr->fr_next;
 
 		/*
+		 * Tally it
+		 */
+		nextent += fr->fr_free.f_nfree;
+		{
+			struct alloc *a = fr->fr_free.f_free;
+			uint x;
+
+			for (x = 0; x < fr->fr_free.f_nfree; ++x,++a) {
+				if (a->a_len > largest) {
+					largest = a->a_len;
+				}
+			}
+		}
+
+		/*
 		 * Advance to next sector
 		 */
 		x = fr->fr_free.f_next;
@@ -63,6 +80,11 @@ init_block(void)
 	 * End list with a NULL
 	 */
 	*fpp = 0;
+
+	/*
+	 * Report
+	 */
+	printf(" %ld free extents, longest %ld sectors", nextent, largest);
 }
 
 /*

@@ -289,6 +289,7 @@ verify_root(void)
 		exit(1);
 	}
 	free(secbuf);
+	printf(" %ld sectors", fsroot->fs_size);
 }
 
 /*
@@ -369,6 +370,7 @@ main(int argc, char *argv[])
 	/*
 	 * Apply sanity checks on filesystem
 	 */
+	printf("vfs mount %s", namer_name);
 	verify_root();
 
 	/*
@@ -394,6 +396,7 @@ main(int argc, char *argv[])
 	/*
 	 * Start serving requests for the filesystem
 	 */
+	printf(".\n");
 	vfs_main();
 	return(0);
 }
