@@ -41,10 +41,17 @@ to play with the running system.  Or you can choose just to recompile
 interesting parts.
 
 Boot loading happens using the Multiboot standard.  The most common
-Multiboot compliant boot loader is GRUB (GRand Unified Bootloader),
-and a copy of GRUB is included in the VSTa binary distribution.  VSTa
-also works with the Free Software Foundation's version of GRUB, which
-is the recommended one.
+Multiboot compliant boot loader is GRUB (GRand Unified Bootloader).
+VSTa works with the Free Software Foundation's version of GRUB, which
+is the recommended one.  You should go over to:
+
+	http://www.gnu.org/software/grub/
+
+and get the latest stable version.  GRUB can be written onto a floppy,
+which can then be used to boot VSTa (i.e., boot GRUB off floppy, and then
+use GRUB to bootload VSTa).  GRUB can also be installed onto hard disk,
+but please note that this isn't necessary, and you can leave your hard
+disk boot setup alone and still try VSTa.  More details follow below.
 
 1. Loading the VSTa files onto your disk.
 
@@ -108,13 +115,8 @@ unsupported/historical category.
 If you're already using GRUB (or some other comparable Multiboot
 compliant loader), you can skip this.
 
-Create a GRUB boot loader floppy by doing:
-
-	(Put formatted, empty, floppy in A:)
-	cd \vsta\grub\bin_std
-	(If you don't have rawrite.exe, get it from the VSTa
-	 distribution site)
-	rawrite grub.raw a:
+Create a GRUB boot floppy using the direction provided with the GRUB
+distribution.
 
 Reboot your machine with this floppy in drive A (and your BIOS configured
 to attempt booting from floppy), and you should end up at a GRUB interactive
@@ -142,14 +144,15 @@ Assuming you have successfully booted, and you're up for converting
 to GRUB as your boot loader (it supports DOS, Windows, FreeBSD,
 NetBSD, Linux, Hurd, OS/2, and VSTa), you should now refer to the
 full instructions for setting your PC up to use GRUB as your
-bootloader.  This may be found on:
+bootloader.
 
-	http://www.uruk.org/~erich/grub
+A snapshot of a known working GRUB distribution is available at:
 
-This site also has a pointer to the FSF version of GRUB, which will
-soon become VSTa's "standard" version for booting.
+	ftp://ftp.vsta.org/grub/
 
-A snapshot of the GRUB distribution is included in /vsta/grub.
+Please use the FSF version if at all possible, since GRUB is under
+active development, and is receiving many useful bug fixes and
+enhancements.
 
 4. Kernel debugger
 
