@@ -517,6 +517,15 @@ out:
 	}
 
 	/*
+	 * We have a slot, so fill it in & return success
+	 */
+	strcpy(d->fs_name, name);
+	d->fs_clstart = o->o_file;
+	if (off > f->f_file->o_hiwrite) {
+		f->f_file->o_hiwrite = off;
+	}
+
+	/*
 	 * Update dir file's length
 	 */
 	off += sizeof(struct fs_dirent);
@@ -530,19 +539,9 @@ out:
 		}
 	}
 
-	/*
-	 * We have a slot, so fill it in & return success
-	 */
-	strcpy(d->fs_name, name);
-	d->fs_clstart = o->o_file;
-	if (off > f->f_file->o_hiwrite) {
-		f->f_file->o_hiwrite = off;
-	}
 	dirty_buf(b2);
 	sync_buf(b2);
-	if (b != b2) {
-		sync_buf(b);
-	}
+	sync_buf(b);
 	unlock_buf(b);
 	return(o);
 }
