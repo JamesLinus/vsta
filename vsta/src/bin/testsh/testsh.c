@@ -415,40 +415,41 @@ cat(char *p)
 
 /*
  * do_mount()
- *	Mount the given port number in a slot
+ *	Mount the given port in a slot
  */
 static void
 do_mount(char *p)
 {
+	char *path;
 	port_t port;
-	port_name pn;
 	int x;
 
 	if (!p || !p[0]) {
-		printf("Usage: mount <port> <path>\n");
+		printf("Usage: mount <namer-path || port> <mount-point>\n");
+	}
+
+	/*
+	 * Find the mount point argument
+	 */
+	path = strchr(p, ' ');
+	if (!path) {
+		printf("Missing mount point argument\n");
 		return;
 	}
-	while (isspace(*p)) {
-		++p;
-	}
-	pn = atoi(p);
-	port = msg_connect(pn, ACC_READ);
+
+	/*
+	 * Stick a string terminator after our port id
+	 */
+	*path = '\0';
+	path++;
+
+	port = path_open(p, ACC_READ);
 	if (port < 0) {
-		perror(p);
+		printf("Can't get connection to server\n");
 		return;
 	}
-	p = strchr(p, ' ');
-	if (!p) {
-		printf("Usage: mount <port> <path>\n");
-		return;
-	}
-	while (isspace(*p)) {
-		++p;
-	}
-	x = mountport(p, port);
-	if (x < 0) {
-		perror(p);
-	}
+	x = mountport(path, port);
+	printf("Mount returned %d\n", x);
 }
 
 /*
