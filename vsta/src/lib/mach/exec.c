@@ -24,6 +24,7 @@ execv(const char *file, char * const *argv)
 	struct aout a;
 	struct mapfile mf;
 	char *p, *args;
+	port_t port;
 
 	/*
 	 * Open the file we're going to run
@@ -96,6 +97,7 @@ execv(const char *file, char * const *argv)
 	args = p = mmap(0, plen, PROT_READ|PROT_WRITE,
 		MAP_ANON|MAP_SHARED, 0, 0L);
 	if (p == 0) {
+		close(fd);
 		return(-1);
 	}
 
@@ -131,9 +133,13 @@ execv(const char *file, char * const *argv)
 	p += cwd_len;
 
 	/*
-	 * Here we go!
+	 * Here we go!  Get the port_t for this file, and close the FDL
+	 * state for the port so we don't try to preserve it in the new
+	 * executable (where exec() has stolen it).
 	 */
-	return(exec(__fd_port(fd), &mf, args));
+	port = __fd_port(fd);
+	_fdclose(fd);
+	return(exec(port, &mf, args));
 }
 
 /*
