@@ -16,7 +16,8 @@ struct port {
 	void *p_data;		/* Per-port-type state */
 	intfun p_read,		/* Read/write/etc. functions */
 		p_write,
-		p_close;
+		p_close,
+		p_readcount;
 	__offt_fun p_seek;
 	uint p_refs;		/* # FD's mapping to this port # */
 	ulong p_pos;		/* Absolute byte offset in file */
@@ -34,5 +35,6 @@ extern int __fd_alloc(port_t);
 extern struct port *__port(int);
 extern ulong __fd_iocount(int);
 extern void __fd_set_iocount(int, ulong);
+extern int __fd_readcount(int);
 
 #endif /* _FDL_H */
