@@ -22,7 +22,7 @@ BIN=$(LAW) bin boot doc etc grub include $(LIB)
 SRCSRV=src/srv/bfs src/srv/cdfs src/srv/devnull src/srv/dos \
 	src/srv/env src/srv/mach src/srv/namer src/srv/pipe \
 	src/srv/proc src/srv/sema src/srv/swap src/srv/tmpfs \
-	src/srv/vstafs
+	src/srv/vstafs src/srv/tick
 
 # Core source distribution
 SRC=$(LAW) mkdist.mk rcs \
