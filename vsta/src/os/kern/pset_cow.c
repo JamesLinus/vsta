@@ -264,7 +264,8 @@ cow_lastref(struct pset *ps, struct perpage *pp, uint idx)
 		lock_slot(ps2, pp2);
 		deref_slot(ps2, pp2, idx);
 		unlock_slot(ps2, pp2);
+	} else {
+		free_page(pp->pp_pfn);
 	}
 	pp->pp_flags &= ~(PP_COW | PP_V);
-	free_page(pp->pp_pfn);
 }
