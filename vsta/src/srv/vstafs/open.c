@@ -213,6 +213,7 @@ dir_lookup(struct buf *b, struct fs_file *fs, char *name,
 {
 	struct buf *b2;
 	uint extent;
+	ulong left = fs->fs_len;
 
 	/*
 	 * Walk the directory entries one extent at a time
@@ -227,6 +228,7 @@ dir_lookup(struct buf *b, struct fs_file *fs, char *name,
 		for (x = 0; x < a->a_len; x += EXTSIZ) {
 			struct fs_dirent *d;
 
+			ASSERT_DEBUG(left != 0, "dir_lookup: left == 0");
 			/*
 			 * Figure out size of next buffer-full
 			 */
@@ -243,11 +245,18 @@ dir_lookup(struct buf *b, struct fs_file *fs, char *name,
 				return(0);
 			}
 			d = index_buf(b2, 0, len);
+			len = stob(len);
+
+			/*
+			 * Ignore unused trailing part of last extent
+			 */
+			len = MIN(len, left);
+			left -= len;
 
 			/*
 			 * Special case for initial data in file
 			 */
-			if (x == 0) {
+			if ((extent == 0) && (x == 0)) {
 				d = (struct fs_dirent *)
 					((char *)d + sizeof(struct fs_file));
 				len -= sizeof(struct fs_file);
