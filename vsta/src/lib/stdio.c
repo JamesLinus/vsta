@@ -233,6 +233,13 @@ setup_fp(FILE *fp)
 	}
 
 	/*
+	 * Cache whether it's a TTY
+	 */
+	if (isatty(fp->f_fd)) {
+		fp->f_flags |= _F_TTY;
+	}
+
+	/*
 	 * Flag set up
 	 */
 	fp->f_flags |= _F_SETUP;
@@ -276,6 +283,13 @@ set_read(FILE *fp)
 			if (setup_fp(fp)) {
 				return(1);
 			}
+		}
+
+		/*
+		 * Special case for interaction on stdin/stdout
+		 */
+		if ((fp == stdin) && (stdout->f_flags & _F_TTY)) {
+			fflush(stdout);
 		}
 
 		/*
