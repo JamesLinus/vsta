@@ -24,7 +24,7 @@ SRVOBJS= syscall.o malloc.o srvstr.o srvprnt.o srvopen.o srvfdl.o \
 	llist.o hash.o syslog.o printf.o ctype.o srvmisc.o assert.o \
 	srvstat.o srvstdio.o mount.o port.o statsup.o srvperm.o \
 	permsup.o startsrv.o seg.o files.o namer.o abc.o lock.o \
-	srvtime.o \
+	srvtime.o getopt.o \
 	$(MACHOBJS)
 
 .c.o:
