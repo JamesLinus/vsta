@@ -1,13 +1,11 @@
-
-OBJECTS = mkdosfs.o
+CC=gcc
+OBJECTS=mkdosfs.o
+CFLAGS=-g -I../dosfsck
 
 all: mkdosfs
 
 mkdosfs: $(OBJECTS)
-	$(CC) $(LDFLAGS) $^ -o $@
-
-.c.o:
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(LDFLAGS) -o mkdosfs $(OBJECTS)
 
 install: mkdosfs
 	mkdir -p $(SBINDIR) $(MANDIR)

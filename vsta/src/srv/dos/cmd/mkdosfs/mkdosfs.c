@@ -50,22 +50,18 @@
 #include "../version.h"
 
 #include <fcntl.h>
-#include <linux/hdreg.h>
-#include <linux/fs.h>
-#include <linux/fd.h>
-#include <endian.h>
-#include <mntent.h>
 #include <signal.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <time.h>
+#include "linux.h"
 
-#if __BYTE_ORDER == __BIG_ENDIAN
+/* #if __BYTE_ORDER == __BIG_ENDIAN */
+#if 0
 
 #include <asm/byteorder.h>
 #ifdef __le16_to_cpu
@@ -92,29 +88,16 @@
 
 #endif /* __BIG_ENDIAN */
 
-/* Use the _llseek system call directly, because there (once?) was a bug in
- * the glibc implementation of it. */
-#include <linux/unistd.h>
-#ifndef __NR__llseek
-#error _llseek system call not present
-#endif
-static _syscall5( int, _llseek, uint, fd, ulong, hi, ulong, lo,
-		  loff_t *, res, uint, wh );
-
-static loff_t llseek( int fd, loff_t offset, int whence )
-{
-    loff_t actual;
-
-    if (_llseek(fd, offset>>32, offset&0xffffffff, &actual, whence) != 0)
-	return (loff_t)-1;
-    return actual;
-}
-
 /* Constant definitions */
 
+#ifndef TRUE
 #define TRUE 1			/* Boolean constants */
 #define FALSE 0
+#endif
 
+#ifndef BLOCK_SIZE
+#define BLOCK_SIZE (512)
+#endif
 #define TEST_BUFFER_BLOCKS 16
 #define HARD_SECTOR_SIZE   512
 #define SECTORS_PER_BLOCK ( BLOCK_SIZE / HARD_SECTOR_SIZE )
@@ -142,17 +125,9 @@ cdiv (int a, int b)
 /* MS-DOS filesystem structures -- I included them here instead of
    including linux/msdos_fs.h since that doesn't include some fields we
    need */
-
-#define ATTR_RO      1		/* read-only */
-#define ATTR_HIDDEN  2		/* hidden */
-#define ATTR_SYS     4		/* system */
+#ifndef ATTR_VOLUME
 #define ATTR_VOLUME  8		/* volume label */
-#define ATTR_DIR     16		/* directory */
-#define ATTR_ARCH    32		/* archived */
-
-#define ATTR_NONE    0		/* no attribute bits */
-#define ATTR_UNUSED  (ATTR_VOLUME | ATTR_ARCH | ATTR_SYS | ATTR_HIDDEN)
-	/* attribute bits that are copied "as is" */
+#endif
 
 /* FAT values */
 #define FAT_EOF      (atari_format ? 0x0fffffff : 0x0ffffff8)
@@ -332,7 +307,9 @@ static void check_blocks (void);
 static void get_list_blocks (char *filename);
 static int valid_offset (int fd, loff_t offset);
 static int count_blocks (char *filename);
+#ifdef MOUNTED
 static void check_mount (char *device_name);
+#endif
 static void establish_params (int device_num, int size);
 static void setup_tables (void);
 static void write_tables (void);
@@ -573,7 +550,7 @@ count_blocks (char *filename)
   return (low + 1) / BLOCK_SIZE;
 }
 
-
+#ifdef MOUNTED
 /* Check to see if the specified device is currently mounted - abort if it is */
 
 static void
@@ -589,6 +566,7 @@ check_mount (char *device_name)
       die ("%s contains a mounted file system.");
   endmntent (f);
 }
+#endif
 
 
 /* Establish the geometry and media parameters for the device */
@@ -1614,7 +1592,9 @@ main (int argc, char **argv)
     die ("-c and -l are incompatible");		/* exclusive of each other! */
 
   if (!create) {
+#ifdef MOUNTED
     check_mount (device_name);	/* Is the device already mounted? */
+#endif
     dev = open (device_name, O_RDWR);	/* Is it a suitable device to build the FS on? */
     if (dev < 0)
       die ("unable to open %s");
@@ -1648,4 +1628,33 @@ main (int argc, char **argv)
      * On a MO-disk one doesn't need partitions.  The filesytem can go
      * directly to the whole disk.  Under other OSes this is known as
      * the 'superfloppy' format.  As I don't know how to find out if
-     * this is a MO disk I introduce
+     * this is a MO disk I introduce a -I (ignore) switch.  -Joey
+     */
+    if (!ignore_full_disk && (
+	(statbuf.st_rdev & 0xff3f) == 0x0300 || /* hda, hdb */
+	(statbuf.st_rdev & 0xff0f) == 0x0800 || /* sd */
+	(statbuf.st_rdev & 0xff3f) == 0x0d00 || /* xd */
+	(statbuf.st_rdev & 0xff3f) == 0x1600 )  /* hdc, hdd */
+	)
+      die ("Will not try to make filesystem on '%s'");
+
+  establish_params (statbuf.st_rdev,statbuf.st_size);	
+                                /* Establish the media parameters */
+
+  setup_tables ();		/* Establish the file system tables */
+
+  if (check)			/* Determine any bad block locations and mark them */
+    check_blocks ();
+  else if (listfile)
+    get_list_blocks (listfile);
+
+  write_tables ();		/* Write the file system tables away! */
+
+  exit (0);			/* Terminate with no errors! */
+}
+
+
+/* That's All Folks */
+/* Local Variables: */
+/* tab-width: 8     */
+/* End:             */
