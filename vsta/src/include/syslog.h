@@ -10,7 +10,7 @@
 /*
  * Main entry for reporting stuff
  */
-extern void syslog(int, char *, ...);
+extern void syslog(int, const char *, ...);
 
 /*
  * Level values
