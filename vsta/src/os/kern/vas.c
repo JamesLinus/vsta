@@ -11,7 +11,6 @@
 #include <sys/assert.h>
 #include <sys/hat.h>
 #include <sys/malloc.h>
-#include <alloc.h>
 
 /*
  * CONTAINS()
@@ -153,6 +152,7 @@ free_vas(struct vas *vas)
 		remove_pview(vas, vas->v_views->p_vaddr);
 	}
 	hat_freevas(vas);
+	FREE(vas, MT_VAS);
 }
 
 /*
