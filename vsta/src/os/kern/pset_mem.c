@@ -65,28 +65,22 @@ struct pset *
 physmem_pset(uint pfn, int npfn)
 {
 	struct pset *ps;
-	struct perpage *pp;
 	uint x;
 
 	/*
 	 * Initialize the basic fields of the pset
 	 */
-	ps = MALLOC(sizeof(struct pset), MT_PSET);
-	bzero(ps, sizeof(struct pset));
-	x = npfn * sizeof(struct perpage);
-	ps->p_perpage = MALLOC(x, MT_PERPAGE);
-	bzero(ps->p_perpage, x);
-	ps->p_len = npfn;
+	ps = alloc_pset(npfn);
 	ps->p_type = PT_MEM;
 	ps->p_ops = &psop_mem;
-	init_lock(&ps->p_lock);
-	init_sema(&ps->p_lockwait);
 
 	/*
 	 * For each page slot, put in the physical page which
 	 * corresponds to the slot.
 	 */
 	for (x = 0; x < npfn; ++x) {
+		struct perpage *pp;
+
 		pp = find_pp(ps, x);
 		pp->pp_pfn = pfn + x;
 		pp->pp_flags = PP_V;
