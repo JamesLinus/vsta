@@ -1077,3 +1077,51 @@ __signal_restore(char *p)
 
 	return(p + _NSIG);
 }
+
+/*
+ * strsignal()
+ *	Give string name for signal
+ *
+ * Note that this isn't the VSTa fault string value; it's the ASCII display
+ * of the C #define name.
+ */
+const char *
+strsignal(int sig)
+{
+	switch (sig) {
+	case SIGHUP: return("SIGHUP");
+	case SIGINT: return("SIGINT");
+	case SIGQUIT: return("SIGQUIT");
+	case SIGILL: return("SIGILL");
+	case SIGTRAP: return("SIGTRAP");
+	case SIGABRT: return("SIGABRT");
+	case SIGUNUSED: return("SIGUNUSED");
+	case SIGFPE: return("SIGFPE");
+	case SIGKILL: return("SIGKILL");
+	case SIGUSR1: return("SIGUSR1");
+	case SIGSEGV: return("SIGSEGV");
+	case SIGUSR2: return("SIGUSR2");
+	case SIGPIPE: return("SIGPIPE");
+	case SIGALRM: return("SIGALRM");
+	case SIGTERM: return("SIGTERM");
+	case SIGSTKFLT: return("SIGSTKFLT");
+	case SIGCHLD: return("SIGCHLD");
+#ifdef SIGCONT
+	case SIGCONT: return("SIGCONT");
+	case SIGSTOP: return("SIGSTOP");
+	case SIGTSTP: return("SIGTSTP");
+	case SIGTTIN: return("SIGTTIN");
+	case SIGTTOU: return("SIGTTOU");
+#endif
+	case SIGIO: return("SIGIO");
+	case SIGXCPU: return("SIGXCPU");
+	case SIGXFSZ: return("SIGXFSZ");
+	case SIGVTALRM: return("SIGVTALRM");
+	case SIGPROF: return("SIGPROF");
+	case SIGWINCH: return("SIGWINCH");
+	case SIGLOST: return("SIGLOST");
+	case SIGPWR: return("SIGPWR");
+	case SIGBUS: return("SIGBUS");
+	default: return("Unknown");
+	}
+}

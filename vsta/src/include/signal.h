@@ -107,6 +107,11 @@ extern int sigemptyset(sigset_t *),
 	sigsuspend(sigset_t *);
 
 /*
+ * Other functions
+ */
+extern const char *strsignal(int);
+
+/*
  * Internal infrastructure
  */
 extern void __signal_save(char *);
