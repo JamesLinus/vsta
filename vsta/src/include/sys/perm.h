@@ -18,4 +18,10 @@ struct prot {
 	unsigned char			/* Capabilities granted */
 		prot_bits[PERMLEN];
 };
+
+#ifdef KERNEL
+extern int perm_calc(struct perm *, int, struct prot *);
+extern void zero_ids(struct perm *, int);
+#endif
+
 #endif /* _PERM_H */
