@@ -192,6 +192,7 @@ extern void timestamp(struct directory *, time_t),
 	dir_timestamp(struct node *, time_t);
 extern int dir_set_type(struct file *, char *);
 extern void dir_readonly(struct file *f, int);
+extern ulong inum(struct node *);
 
 /*
  * Global data

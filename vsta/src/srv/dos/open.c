@@ -205,8 +205,6 @@ dos_remove(struct msg *m, struct file *f)
 	 * Try unhashing if it might be the only other reference
 	 */
 	if (n->n_refs == 2) {
-		extern uint inum();
-
 		/*
 		 * Since a closing portref needs to handshake
 		 * with the server, use a child thread to do

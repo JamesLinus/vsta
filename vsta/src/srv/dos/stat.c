@@ -95,39 +95,10 @@ cvt_time(uint date, uint time)
  * inum()
  *	Synthesize an "inode" number for the node
  */
-uint
+ulong
 inum(struct node *n)
 {
-	extern struct node *rootdir;
-
-	/*
-	 * Root dir--no cluster, just give a value of 0
-	 */
-	if (n == rootdir) {
-		return(0);
-	}
-
-	/*
-	 * Dir--use value of first cluster
-	 */
-	if (n->n_type == T_DIR) {
-		return(n->n_clust->c_clust[0]);
-	}
-
-	/*
-	 * File in root dir--again, no cluster for root dir.  Just
-	 * use cluster value 1 (they start at 2, so this is available),
-	 * and or in our slot.
-	 */
-	if (n->n_dir == rootdir) {
-		return ((1 << 16) | n->n_slot);
-	} else {
-		/*
-		 * Others--high 16 bits is cluster of file's directory,
-		 * low 16 bits is our slot number.
-		 */
-		return ((n->n_dir->n_clust->c_clust[0] << 16) | n->n_slot);
-	}
+	return((ulong)n);
 }
 
 /*
@@ -179,7 +150,7 @@ dos_stat(struct msg *m, struct file *f)
 	}
 	if (n->n_type == T_DIR) {
 		sprintf(result,
- "perm=1/1\nacc=%s\nsize=%d\ntype=d\nowner=0\ninode=%d\nmtime=%ld\n",
+ "perm=1/1\nacc=%s\nsize=%d\ntype=d\nowner=0\ninode=%U\nmtime=%ld\n",
 			dos_acc(&d), isize(n), inum(n),
 			cvt_time(d.date, d.time));
 	} else {
@@ -187,7 +158,7 @@ dos_stat(struct msg *m, struct file *f)
 		 * Otherwise look up file and get dope
 		 */
 		sprintf(result,
- "perm=1/1\nacc=%s\nsize=%d\ntype=f\nowner=0\ninode=%d\nmtime=%ld\n",
+ "perm=1/1\nacc=%s\nsize=%d\ntype=f\nowner=0\ninode=%U\nmtime=%ld\n",
 			dos_acc(&d), n->n_len, inum(n),
 			cvt_time(d.date, d.time));
 	}
