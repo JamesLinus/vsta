@@ -107,7 +107,7 @@ page_fault(ulong place_holder)
 			"page_fault: nested user");
 		t->t_uregs = f;
 	}
-	
+
 	/*
 	 * Get fault address.  Drop the high bit because the
 	 * user's 0 maps to our 0x80000000, but our vas is set
@@ -157,6 +157,8 @@ page_fault(ulong place_holder)
 			/*
 			 * Shoot him
 			 */
+			ASSERT(user_mode,
+				"page_fault: kernel ref to user vaddr");
 			selfsig(EFAULT);
 		}
 	}
