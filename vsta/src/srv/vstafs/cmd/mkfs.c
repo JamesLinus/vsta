@@ -19,6 +19,7 @@ write_header(ulong nsec)
 {
 	struct fs *f = secbuf;
 
+	bzero(f, SECSZ);
 	fseek(fp, (off_t)BASE_SEC*SECSZ, 0);
 	f->fs_magic = FS_MAGIC;
 	f->fs_size = nsec;
