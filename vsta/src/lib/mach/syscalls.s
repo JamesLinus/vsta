@@ -96,7 +96,7 @@ _notify_handler:
 	movl	%eax,c_handler		/* Save in private space */
 	movl	$asm_handler,%eax	/* Vector to assembly handler */
 	movl	%eax,4(%esp)
-	movl	$S_NOTIFY_HANDLER,%eax
+	movl	$(S_NOTIFY_HANDLER),%eax
 	int	$0xFF
 	jc	syserr
 	ret
