@@ -28,5 +28,6 @@ struct core {
 #define C_BAD 1		/* Hardware error on page */
 #define C_SYS 2		/* Page wired down for kernel use */
 #define C_WIRED 4	/* Wired for physical I/O */
+#define C_ALLOC 8	/* Allocated from free list */
 
 #endif /* _CORE_H */
