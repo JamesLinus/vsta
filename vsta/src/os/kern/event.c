@@ -263,7 +263,7 @@ ptrace_event(struct thread *t, char *event)
 #ifdef PROC_DEBUG
 	struct proc *p = t->t_proc;
 
-	if (p->p_handler) {
+	if (p->p_handler && strcmp(event, EKILL)) {
 		PTRACE_PENDING(p, PD_EVENT_ALL, event);
 	} else {
 		PTRACE_PENDING(p, PD_EVENT, event);
