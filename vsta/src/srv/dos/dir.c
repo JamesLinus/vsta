@@ -77,9 +77,8 @@ dir_init(void)
 		syslog(LOG_ERR, "dir_init: root");
 		exit(1);
 	}
+	bzero(n, sizeof(struct node));
 	n->n_type = T_DIR;
-	n->n_inum = 0L;			/* Root is inode 0 */
-	n->n_mode = 0;
 	n->n_refs = 1;			/* Always ref'ed */
 	n->n_files = hash_alloc(16);
 
