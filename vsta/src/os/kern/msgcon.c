@@ -629,7 +629,6 @@ msg_err(long arg_tran, char *arg_why, int arg_len)
 	if (get_ustr(errmsg, ERRLEN, arg_why, arg_len)) {
 		return(-1);
 	}
-	printf("msg_err '%s'\n", errmsg); dbg_enter();
 
 	/*
 	 * Validate transaction ID.   If we don't find it, this
