@@ -60,7 +60,8 @@ file_grow(struct fs_file *fs, ulong newsize)
 		/*
 		 * Tell buffer management about this incremental space
 		 */
-		if (resize_buf(newstart & ~(EXTSIZ-1), buflen, 0)) {
+		if (resize_buf(a->a_start + (a->a_len & ~(EXTSIZ-1)),
+				got, 0)) {
 			free_block(newstart, got);
 			return(1);
 		}
