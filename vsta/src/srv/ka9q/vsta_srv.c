@@ -496,6 +496,7 @@ create_conn(struct tcp_port *t)
 	bzero(c, sizeof(struct tcp_conn));
 	ll_init(&c->t_readers);
 	ll_init(&c->t_writers);
+	c->t_port = t;
 
 	return(c);
 }
