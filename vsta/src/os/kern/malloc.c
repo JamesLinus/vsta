@@ -186,6 +186,7 @@ malloc(uint size)
 	f = b->b_mem.f_forw;
 	b->b_mem.f_forw = f->f_forw;
 	f->f_forw->f_back = &b->b_mem;
+	b->b_elems -= 1;
 
 	/*
 	 * Update per-page count
