@@ -37,6 +37,15 @@
 #define PRI_CHEATED 3
 #define PRI_RT 4
 
+/*
+ * Scheduler operations for use with sched_op()
+ */
+#define SCHEDOP_SETPRIO 0
+#define SCHEDOP_GETPRIO 1
+
+/*
+ * Scheduler node structure
+ */
 struct sched {
 	struct sched *s_up;	/* Our parent node */
 	struct sched		/* For internal node, first node below us */
@@ -61,5 +70,7 @@ extern struct sched *sched_thread(struct sched *, struct thread *),
 extern void setrun( /* struct thread * */ ), swtch(void);
 extern void free_sched_node(struct sched *);
 #endif
+
+extern int sched_op(int, int);
 
 #endif /* _SCHED_H */
