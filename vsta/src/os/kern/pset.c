@@ -378,10 +378,6 @@ pset_lastref(struct pset *ps, struct perpage *pp, uint idx)
 	 * If there are still users of the pset, and the page
 	 * has unique (i.e., non-initial) contents, then create
 	 * a cache reference to it.
-	 *
-	 * Note that the policy of retaining non-modified pages
-	 * from FOD mapped files is implemented in pset_fod.c,
-	 * not here.
 	 */
 	if (ps->p_refs && (pp->pp_flags & PP_M)) {
 		pp->pp_refs = 1;

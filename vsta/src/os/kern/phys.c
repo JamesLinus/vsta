@@ -149,7 +149,7 @@ page_wire(void *arg_va, void **arg_pa, uint flags)
 	if (flags & WIRE_MACH) {
 		char *p;
 
-		p = mach_page_wire(flags, pv, pp, arg_va);
+		p = mach_page_wire(flags, pv, pp, arg_va, idx);
 		if (p) {
 			unlock_slot(ps, pp);
 			error = err(p);

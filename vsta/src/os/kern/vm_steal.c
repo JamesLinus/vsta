@@ -100,13 +100,13 @@ getbits(struct perpage *pp)
 }
 
 /*
- * unvirt()
+ * vm_unvirt()
  *	Unvirtualize all mappings for a given slot
  *
  * Frees the attach list elements as well.
  */
-static int
-unvirt(struct perpage *pp)
+int
+vm_unvirt(struct perpage *pp)
 {
 	struct atl *a, *an, **ap;
 	int flags = 0;
@@ -147,7 +147,7 @@ unvirt(struct perpage *pp)
 		 */
 		*ap = an;
 		FREE(a, MT_ATL);
-		ASSERT_DEBUG(pp->pp_refs > 0, "unvirt: underflow");
+		ASSERT_DEBUG(pp->pp_refs > 0, "vm_unvirt: underflow");
 		pp->pp_refs -= 1;
 	}
 	return(flags);
@@ -251,7 +251,7 @@ steal_master(struct pset *ps, struct perpage *pp, uint idx,
 	/*
 	 * If we can successfully steal all translations, free the memory
 	 */
-	walk_master(unvirt, ps, pp, idx);
+	walk_master(vm_unvirt, ps, pp, idx);
 	ASSERT_DEBUG((pp->pp_flags & PP_M) == 0, "steal_master: modified");
 	if (pp->pp_refs == 0) {
 		free_page(pp->pp_pfn);
@@ -374,7 +374,7 @@ do_hand(struct core *c, int trouble, intfun steal)
 	/*
 	 * Try and grab it away
 	 */
-	pp->pp_flags |= unvirt(pp);
+	pp->pp_flags |= vm_unvirt(pp);
 
 	/*
 	 * If there are refs, it can only mean the page is involved
