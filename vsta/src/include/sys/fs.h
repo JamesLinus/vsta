@@ -92,6 +92,8 @@
 #define EBALIGN "blk align"
 #define ESYMLINK "symlink"
 #define ELOOP "symlink loop"
+#define ENOTSUP "!supported"
+#define EOPNOTSUPP ENOTSUP
 
 /*
  * A stat of an entry returns a set of strings with newlines
