@@ -317,7 +317,7 @@ main(int argc, char *argv[])
 	port_t port;
 	port_name fsname;
 	struct msg msg;
-	int chan, fd, x;
+	int chan, fd, x, bootmod = 0;
 	int scrn, kbd;
 	char *namer_name;
 
@@ -346,6 +346,7 @@ main(int argc, char *argv[])
 		my_argv[5] = 0;
 		argv = my_argv;
 		argc = 5;
+		bootmod = 1;
 
 		/*
 		 * To let the lower-level boot servers (disk driver
@@ -432,8 +433,15 @@ main(int argc, char *argv[])
 	rootport = msg_port((port_name)0, &fsname);
 	x = namer_register(namer_name, fsname);
 	if (x < 0) {
-		fprintf(stderr, "DOS: can't register name\n");
+		fprintf(stderr, "DOS: can't register name: %s\n", namer_name);
 		exit(1);
+	}
+
+	/*
+	 * Boot module--also register as root filesystem
+	 */
+	if (bootmod) {
+		(void)namer_register("fs/root", fsname);
 	}
 
 	/*
