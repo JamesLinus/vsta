@@ -386,8 +386,9 @@ dump_pset(char *p)
 		ps->p_locks, &ps->p_u);
 	printf(" swap 0x%x refs %d flags 0x%x perpage 0x%x\n",
 		ps->p_swapblk, ps->p_refs, ps->p_flags, ps->p_perpage);
-	printf(" ops 0x%x lock 0x%x lockwait 0x%x\n",
-		ps->p_ops, &ps->p_lock, &ps->p_lockwait);
+	printf(" ops 0x%x lock 0x%x lockwait 0x%x cowsets 0x%x\n",
+		ps->p_ops, &ps->p_lock, &ps->p_lockwait,
+		ps->p_cowsets);
 
 	/*
 	 * Print perpage dope
