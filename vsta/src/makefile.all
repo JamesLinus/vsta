@@ -1,0 +1,20 @@
+#
+# makefile.all
+#	Common definitions for all makefiles in VSTa
+#
+ROOT=/vsta
+SRC=/vsta/src
+CC=gcc
+LD=ld
+CFLAGS=-nostdinc -I$(SRC)/include -O $(COPTS)
+LDFLAGS=-L$(SRC)/lib
+CRT0=$(SRC)/lib/crt0.o
+CRT0SRV=$(SRC)/lib/crt0srv.o
+
+all: $(OUT)
+
+clean:
+	rm -f $(OBJS)
+
+clobber: clean
+	rm -f $(OUT)
