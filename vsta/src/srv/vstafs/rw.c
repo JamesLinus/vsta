@@ -408,24 +408,22 @@ vfs_readdir(struct msg *m, struct file *f)
 		if (d->fs_clstart == 0) {
 			break;
 		}
-		if (d->fs_name[0] & 0x80) {
-			continue;
-		}
+		if ((d->fs_name[0] & 0x80) == 0) {
+			/*
+			 * Check that it'll fit.  Leave loop when it doesn't.
+			 */
+			slen = strlen(d->fs_name)+1;
+			if ((bufcnt + slen) >= len) {
+				break;
+			}
 
-		/*
-		 * Check that it'll fit.  Leave loop when it doesn't.
-		 */
-		slen = strlen(d->fs_name)+1;
-		if ((bufcnt + slen) >= len) {
-			break;
+			/*
+			 * Add name and update counters
+			 */
+			strcat(buf + bufcnt, d->fs_name);
+			strcat(buf + bufcnt, "\n");
+			bufcnt += slen;
 		}
-
-		/*
-		 * Add name and update counters
-		 */
-		strcat(buf + bufcnt, d->fs_name);
-		strcat(buf + bufcnt, "\n");
-		bufcnt += slen;
 		f->f_pos += sizeof(struct fs_dirent);
 		step -= sizeof(struct fs_dirent);
 		++d;
