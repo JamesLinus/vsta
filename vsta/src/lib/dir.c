@@ -26,6 +26,13 @@ opendir(char *path)
 	extern char *__cwd;
 
 	/*
+	 * Bogus.
+	 */
+	if (!path || !path[0]) {
+		return(0);
+	}
+
+	/*
 	 * Get private, writable copy of path.  Flatten to absolute.
 	 */
 	if (path[0] == '/') {
@@ -36,12 +43,29 @@ opendir(char *path)
 			sprintf(p, "%s/%s", __cwd, path);
 		}
 	}
+
 	if (p == 0) {
 		return(0);
 	}
 	if (__dotdot(p)) {
 		free(p);
 		return(0);
+	}
+
+	/*
+	 * All directory paths should end in "/".  Add one if
+	 * it isn't present.
+	 */
+	if (p && (p[strlen(p)-1] != '/')) {
+		char *q;
+
+		q = realloc(p, strlen(p)+2);
+		if (!q) {
+			free(p);
+			return(0);
+		}
+		p = q;
+		strcat(p, "/");
 	}
 
 	/*
