@@ -25,7 +25,7 @@ fieldval(char *statbuf, char *field)
 		 */
 		pn = strchr(p, '\n');
 		if (pn) {
-			*pn++ = '\0';
+			++pn;
 		}
 
 		/*
