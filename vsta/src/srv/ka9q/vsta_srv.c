@@ -740,11 +740,12 @@ inetfs_state(struct tcb *tcb, char old, char new)
 		break;
 	
 	case CLOSED:
-		del_tcp(tcb);
+		tcb->user = 0;
+		del_tcp(tcb); c->t_tcb = 0;
 		if (c) {
 			cleario(&c->t_readers, EIO, 0);
 			cleario(&c->t_writers, EIO, 0);
-			c->t_tcb = 0;
+			uncreate_conn(c->t_port, c);
 		}
 		nport -= 1;
 		break;
@@ -787,11 +788,15 @@ inetfs_conn(struct msg *m, struct client *cl, char *val)
 	 */
 	if (!strcmp(val, "disconnect")) {
 		c = get_conn(cl);
-		if (c->t_tcb) {
-			close_tcp(c->t_tcb);
-			c->t_tcb->user = 0;
-			c->t_tcb = 0;
+		if (c) {
+			struct tcb *tcb;
+
+			tcb = c->t_tcb;
+			if (tcb) {
+				close_tcp(tcb);
+			}
 		}
+		m->m_arg = m->m_arg1 = m->m_nseg = 0;
 		(void)msg_reply(m->m_sender, m);
 		return;
 	}
