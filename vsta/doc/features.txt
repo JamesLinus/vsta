@@ -307,3 +307,5 @@ Fixed up libgcc.a so it holds all the functions needed for floats,
 Port of dosfsck... native filesystem checking of DOS filesystems
 Fix DLL loader so short filename conversion always works (missing
 	null termination)
+Fix MGR's startup so it gives a clear message and exits when it can't
+	attach to the mouse.
