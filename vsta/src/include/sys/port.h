@@ -18,11 +18,15 @@ struct port {
 	ushort p_flags;		/* See below */
 	struct portref		/* Linked list of references to this port */
 		*p_refs;
+	sema_t p_mapsema;	/* Mutex for p_maps */
+	struct hash		/* Map file-ID -> pset */
+		*p_maps;
 };
 
 /*
  * Bits in p_flags
  */
+#define P_CLOSING 1		/* Port is shutting down */
 #define P_ISR 2			/* Port has an ISR vectored to it */
 
 /*
@@ -64,9 +68,12 @@ struct portref {
 extern struct portref *dup_port(struct portref *);
 extern void fork_ports(struct portref **, struct portref **, uint);
 extern struct portref *alloc_portref(void);
-extern int shut_client(struct portref *), shut_server(struct port *);
+extern void shut_client(struct portref *);
+extern int shut_server(struct port *);
 extern void free_portref(struct portref *);
 extern int kernmsg_send(struct portref *, int, long *);
+extern struct port *alloc_port(void);
+extern void exec_cleanup(struct port *);
 #endif
 
 #endif /* _PORT_H */
