@@ -57,11 +57,14 @@ run_queue(struct file *f)
 	/*
 	 * Send back completion to client
 	 */
+	m.m_op = FS_READ | M_READ;
 	m.m_buf = buf;
 	m.m_arg = m.m_buflen = nentry * sizeof(struct select_complete);
 	m.m_nseg = 1;
 	m.m_arg1 = 0;
-	msg_reply(f->f_sender, &m);
+	if (msg_reply(f->f_sender, &m) < 0) {
+		perror("msg_reply");
+	}
 	f->f_size = 0;
 	free(buf);
 
@@ -170,6 +173,17 @@ selfs_read(struct msg *m, struct file *f)
 	if (!LL_EMPTY(&f->f_events)) {
 		run_queue(f);
 		/* run_queue clears f->f_size */
+		return;
+	}
+
+	/*
+	 * If they only wanted to poll, complete with no
+	 * events.
+	 */
+	if (m->m_arg1 == -1) {
+		f->f_size = 0;
+		m->m_arg = m->m_arg1 = m->m_nseg = 0;
+		msg_reply(m->m_sender, m);
 		return;
 	}
 
@@ -366,6 +380,7 @@ timeout(struct file *f)
 	 */
 	ll_delete(f->f_timeq);
 	f->f_timeq = NULL;
+	f->f_size = 0;
 }
 
 /*
