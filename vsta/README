@@ -7,23 +7,23 @@ are.
 This software was written from scratch entirely by:
 
 	Andrew Valencia
-	815 Maple St.
-	San Mateo, CA  94402
-	(415)343-6758
-	vandys@cisco.com
+	P.O. Box 2928
+	Vashon, WA  98070
+	vandys@vsta.org
 
-and is copyright 1993-1998 by Andrew Valencia.  Use of this software
-is permitted under the terms listed in the file "license", which
-should accompany this file at the top level of the software
-distribution.  If it is missing for any reason, you may contact
-Andrew Valencia directly to receive a copy.
+and is copyright 1993-1998 and 2000 by Andrew Valencia.  Use of
+this software is permitted under the terms listed in the file
+"license", which should accompany this file at the top level of
+the software distribution.  If it is missing for any reason, you
+may contact Andrew Valencia directly to receive a copy.
 
-There are source files which are not original; they are identified in
-their headers, and are used and available under the terms expressed by
-the original author.
+There are source files which are not original; they are identified
+in their headers, and are used and available under the terms
+expressed by the original author.
 
 In addition to the requirements spelled out in the license, I also
-specifically require that any distribution of this software include this
-file, and the "license" file.  I have not placed those noisy copyright
-headers into each and every file, so I am counting on the Berne
-Convention and the presence of the "readme" and "license" files.
+specifically require that any distribution of this software include
+this file, and the "license" file.  I have not placed those noisy
+copyright headers into each and every file, so I am counting on
+the Berne Convention and the presence of the "readme" and "license"
+files.
