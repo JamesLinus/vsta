@@ -33,6 +33,7 @@
 #define S_PERM_CTL 26
 #define S_SET_SWAPDEV 27
 #define S_RUN_QIO 28
-#define S_HIGH S_RUN_QIO
+#define S_SET_CMD 29
+#define S_HIGH S_SET_CMD
 
 #endif /* _SYSCALL_H */
