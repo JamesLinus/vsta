@@ -4,6 +4,7 @@
  */
 #include <sys/types.h>
 #include <sys/fs.h>
+#include <mnttab.h>
 #include <stdio.h>
 #include <ctype.h>
 #include <std.h>
@@ -12,9 +13,9 @@
 #include <unistd.h>
 
 extern char *__cwd;	/* Current working dir */
-static void cd(), md(), quit(), ls(), pwd(), mount(), cat(), mysleep(),
+static void cd(), md(), quit(), ls(), pwd(), do_mount(), cat(), mysleep(),
 	sec(), null(), do_wstat(), do_fork(), get(), set(),
-	do_umount(), rm(), source();
+	do_umount(), rm(), source(), show_mount();
 extern void run(), path();
 static char *buf;	/* Utility page buffer */
 
@@ -39,11 +40,12 @@ struct {
 	"env", get,
 	"exit", quit,
 	"fork", do_fork,
+	"fstab", show_mount,
 	"get", get,
 	"ls", ls,
 	"md", md,
 	"mkdir", md,
-	"mount", mount,
+	"mount", do_mount,
 	"null", null,
 	"path", path,
 	"pwd", pwd,
@@ -58,6 +60,27 @@ struct {
 	"wstat", do_wstat,
 	0, 0
 };
+
+/*
+ * show_mount()
+ *	Riffle through mount table, display mounts
+ */
+static void
+show_mount(void)
+{
+	struct mnttab *m;
+	struct mntent *me;
+	extern struct mnttab *__mnttab;
+	extern int __nmnttab;
+
+	for (m = __mnttab; m < __mnttab+__nmnttab; ++m) {
+		printf("Mounted on %s:\n ", m->m_name);
+		for (me = m->m_entries; me; me = me->m_next) {
+			printf(" %d", me->m_port);
+		}
+		printf("\n");
+	}
+}
 
 /*
  * source()
@@ -391,11 +414,11 @@ cat(char *p)
 }
 
 /*
- * mount()
+ * do_mount()
  *	Mount the given port number in a slot
  */
 static void
-mount(char *p)
+do_mount(char *p)
 {
 	port_t port;
 	port_name pn;
