@@ -2,12 +2,14 @@
  * changed.c
  *	Tell what source files have changed
  */
+#include <stdio.h>
 #include <stdlib.h>
 #include <dirent.h>
 #include <sys/stat.h>
 
 static char buf[128];
 static char curdir[256];
+static int rflag;
 
 static void
 do_dir(DIR *d)
@@ -74,6 +76,9 @@ do_dir(DIR *d)
 		 */
 		sprintf(buf, "%s/rcs/%s", curdir, de->d_name);
 		if (access(buf, 0) < 0) {
+			if (rflag) {
+				printf("%s/%s\n", curdir, de->d_name);
+			}
 			continue;
 		}
 
@@ -87,10 +92,18 @@ do_dir(DIR *d)
 	}
 }
 
-main()
+main(int argc, char **argv)
 {
 	DIR *d;
+	int x;
 
+	for (x = 1; x < argc; ++x) {
+		if (strncmp(argv[x], "-r", 2)) {
+			fprintf(stderr, "Usage is: %s [-r]\n", argv[0]);
+			exit(1);
+		}
+		rflag = 1;
+	}
 	d = opendir(".");
 	strcpy(curdir, ".");
 	if (!d) {
