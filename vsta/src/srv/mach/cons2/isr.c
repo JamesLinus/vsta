@@ -73,7 +73,7 @@ key_event(struct screen *s, uchar c)
 		ch &= 0x1F;
 	}
 
-#ifdef DEBUG
+#ifdef KDB
 	if (ch == '\32') {
 		do_dbg_enter();
 		ctl = 0;	/* We presume they released it */
