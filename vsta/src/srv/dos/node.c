@@ -34,10 +34,11 @@ deref_node(struct node *n)
 	}
 
 	/*
-	 * Flush out dirty blocks on last close
+	 * Flush out dirty blocks on each last close
 	 */
 	if (n->n_flags & N_DIRTY) {
-		bsync();	/* XXX Should only sync this file & dir */
+		dir_setlen(n);
+		sync();
 	}
 
 	/*
