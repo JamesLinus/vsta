@@ -1,36 +1,21 @@
-CC=gcc
-LD=ld
-INCS=-I../../../../include
-CFLAGS=-O $(INCS)
-LIBS=-L../../../lib -lusr -lc
-CRT0=../../../lib/crt0.o
+COPTS=-Wall
+OBJS=fsck.o
+OUT=fsck mkfs fsdb
 
-.c.o:
-	$(CC) $(CFLAGS) -c $*.c
+include ../../../makefile.all
 
-PROGS=mkfs fsdb fsck
-all:  $(PROGS)
-
-fsck: fsck.o
+fsck: $(OBJS)
 	rm -f fsck
-	$(LD) -o fsck $(CRT0) fsck.o $(LIBS)
+	$(LD) $(LDFLAGS) -o fsck $(CRT0) $(OBJS) -lc
 
 mkfs: mkfs.o
 	rm -f mkfs
-	$(LD) -o mkfs $(CRT0) mkfs.o $(LIBS)
+	$(LD) $(LDFLAGS) -o mkfs $(CRT0) mkfs.o -lc
 
 fsdb: fsdb.o
 	rm -f fsdb
-	$(LD) -o fsdb $(CRT0) fsdb.o $(LIBS)
+	$(LD) $(LDFLAGS) -o fsdb $(CRT0) fsdb.o -lusr -lc
 
-clean:
-	rm -f *.o
-
-clobber: clean
-	rm -f mkfs fsdb fsck
-
-install: all
-	strip $(PROGS)
-	cp mkfs ../../../../bin/mkfs_vfs
-	cp fsdb ../../../../bin/fsdb_vfs
-	cp fsck ../../../../bin/fsck_vfs
+install: $(OUT)
+	strip $(OUT)
+	for x in $(OUT) ; do cp $x $(ROOT)/bin/$x_vfs ; done
