@@ -25,6 +25,7 @@ do_wstat(struct msg *m, struct prot *prot,
 {
 	char *p, *end, *field, *val = 0;
 	int len;
+	static char buf[MAXSTAT];
 
 	/*
 	 * Sanity checks
@@ -33,15 +34,17 @@ do_wstat(struct msg *m, struct prot *prot,
 		msg_err(m->m_sender, EPERM);
 		return(0);
 	}
-	if (m->m_buflen > MAXSTAT) {
+	if ((m->m_nseg != 1) || (m->m_buflen > MAXSTAT)) {
 		msg_err(m->m_sender, EINVAL);
 		return(0);
 	}
+	bcopy(m->m_buf, buf, m->m_buflen);
+	buf[MAXSTAT-1] = '\0';
 
 	/*
 	 * Get field name part
 	 */
-	field = p = m->m_buf;
+	field = p = buf;
 	end = p + m->m_buflen;
 	while ((*p != '\n') && (*p != '=') && (p < end)) {
 		++p;
@@ -79,8 +82,9 @@ do_wstat(struct msg *m, struct prot *prot,
 		 */
 		prot->prot_default = atoi(val);
 		val = strchr(val, '/');
-		if (val)
+		if (val) {
 			++val;
+		}
 
 		/*
 		 * Set access bits
