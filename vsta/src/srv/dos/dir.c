@@ -185,21 +185,19 @@ map_filename(char *file, char *f1, char *f2)
 	}
 
 	/*
+	 * If filename starts with a '.' then it has to be
+	 * a long format.
+	 */
+	if (file[0] == '.') {
+		return(1);
+	}
+
+	/*
 	 * Assemble 8.3 filename
 	 */
 	p = f1;
 	len = 0;
 	strcpy(f1, "        ");
-
-	/*
-	 * Map .<file> to _<file>
-	 * TBD: nuke this and depend on long filenames.
-	 */
-	if (*file == '.') {
-		len += 1;
-		file += 1;
-		*p++ = '_';
-	}
 
 	/*
 	 * Copy <file> part of <file>.<ext>
@@ -1241,7 +1239,15 @@ unique_filename(char *file, char *f1, char *f2, struct node *n)
 	 * filename.
 	 */
 	strcpy(f2, "   ");
-	p = strrchr(file, '.');
+	if (file[0] == '.') {
+		/*
+		 * If this file is named ".foo", it'll get mapped
+		 * to "foo~1".
+		 */
+		p = strrchr(file+1, '.');
+	} else {
+		p = strrchr(file, '.');
+	}
 	if (p) {
 		for (++p, x = 0; x < 3; ++x) {
 			c = p[x];
