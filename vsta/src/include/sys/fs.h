@@ -23,6 +23,7 @@
 #define FS_ABSREAD 150		/* Mostly for swap/paging operations */
 #define FS_ABSWRITE 151
 #define FS_FID 152		/* For caching of mapped files */
+#define FS_RENAME 153		/* Renaming of files */
 
 /*
  * How to ask if an operation is a bulk read/write
@@ -62,6 +63,7 @@
 #define EKILL "kill"
 #define EBADF "bad file"
 #define EAGAIN "again"
+#define EXDEV "cross dev"
 
 /*
  * A stat of an entry returns a set of strings with newlines
