@@ -4,19 +4,20 @@
  */
 #ifndef _PERM_H
 #define _PERM_H
+#include <sys/types.h>
 #include <sys/param.h>
 
 struct perm {
-	unsigned char perm_len;		/* # slots valid */
-	unsigned char perm_id[PERMLEN];	/* Permission values */
-	unsigned long perm_uid;		/* UID for this ability */
+	uchar perm_len;		/* # slots valid */
+	uchar perm_id[PERMLEN];	/* Permission values */
+	ulong perm_uid;		/* UID for this ability */
 };
 
 struct prot {
-	unsigned char prot_len;		/* # slots valid */
-	unsigned char prot_default;	/* Capabilities available to all */
-	unsigned char prot_id[PERMLEN];	/* Permission values */
-	unsigned char			/* Capabilities granted */
+	uchar prot_len;		/* # slots valid */
+	uchar prot_default;	/* Capabilities available to all */
+	uchar prot_id[PERMLEN];	/* Permission values */
+	uchar			/* Capabilities granted */
 		prot_bits[PERMLEN];
 };
 
