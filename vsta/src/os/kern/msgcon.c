@@ -558,6 +558,9 @@ bounce_msgs(struct port *port)
 int
 shut_server(struct port *port)
 {
+	struct portref *pr;
+	struct proc *p = curthread->t_proc;
+
 	/*
 	 * Flag that it's going down
 	 */
@@ -588,10 +591,12 @@ shut_server(struct port *port)
 	/*
 	 * Enumerate our current clients, shut them down
 	 */
-	while (port->p_refs) {
-		if (close_client(port, port->p_refs)) {
+	while (pr = port->p_refs) {
+		if (close_client(port, pr)) {
 			bounce_msgs(port);
 		}
+		ASSERT(hash_delete(p->p_prefs, (ulong)pr) == 0,
+			"shut_server: pr not hashed");
 	}
 
 	/*
