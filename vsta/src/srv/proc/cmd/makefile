@@ -20,8 +20,8 @@ ps: ps.o $(UTIL)
 	$(LD) $(LDFLAGS) -o ps $(CRT0) ps.o $(UTIL) $(LIBS)
 
 install: all
-	strip ps kill
-	cp ps kill ../../../../bin
+	strip kill
+	cp kill ../../../../bin
 
 clean:
 	rm -f *.o
