@@ -13,7 +13,7 @@ CFILES = camdata.c camutil.c camvsta.c insque.c \
 INCS = -I../../../include
 CFLAGS = -DDEBUG -D__VSTA__ $(INCS) -O
 LDFLAGS = -L../../../libc
-CRT0=../../../lib/crt0srv.o
+CRT0=../../../libc/crt0srv.o
 
 CAM_OBJS = scsicd.o scsicmn.o scsidir.o scsiseq.o camutil.o
 CAMDRV_OBJS = scsicmds.o camtimer.o camerror.o insque.o sim.o xpt.o
