@@ -107,4 +107,12 @@ extern int *__ptr_errno(void);
  */
 extern char *__map_errno(int);
 
+/*
+ * Emulation of sys_nerr/sys_errlist[]
+ */
+extern int __get_nerr(void);
+#define sys_nerr (__get_nerr())
+extern const char **__get_errlist(void);
+#define sys_errlist (__get_errlist())
+
 #endif /* _ERRNO_H */
