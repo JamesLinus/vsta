@@ -699,9 +699,8 @@ vfs_close(struct file *f)
  * do_unhash()
  *	Function to do the unhash() call from a child thread
  */
-static ulong unhash_fid;
 static void
-do_unhash(void)
+do_unhash(ulong unhash_fid)
 {
 	extern port_t rootport;
 	extern void unhash();
@@ -769,8 +768,7 @@ vfs_remove(struct msg *m, struct file *f)
 		 * with the server, use a child thread to do
 		 * the dirty work.
 		 */
-		unhash_fid = o->o_file;
-		(void)tfork(do_unhash);
+		(void)tfork(do_unhash, o->o_file);
 
 		/*
 		 * Release our ref and tell the requestor he
