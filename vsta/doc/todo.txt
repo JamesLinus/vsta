@@ -271,8 +271,9 @@ wd disk driver seems to mis-handle large I/O's.  This is masked
 	it, but for DMA, there's no real reason to enforce such
 	a cap.
 
-Need to add LBA support to wd; this is a fairly standard mechanism
-	which is really quite nice.
+X Need to add LBA support to wd; this is a fairly standard mechanism
+X 	which is really quite nice.
+	Done.  It was even easier than I expected!
 
 I have a partially completed port of mgr-0.69.  We should eventually
 	finish the port and upgrade VSTa's mgr to be current with
@@ -283,17 +284,37 @@ On the subject of partially completed ports, I also have a mostly
 	to upgrade, but I think 2.8.1 has some bug fixes in things
 	like "long long" which we may eventually want.
 
-It's basically impossible to have more shared libraries, because almost
-	any additional shared library will depend on the libc one.  This
-	isn't too hard to fix; mmap() needs to be able to understand that
-	when you try to mmap a file at a given position, and that same
-	file is already mapped there, that it should just return success.
-	Then subsequent shared libraries can just be linked against the
-	stubs of earlier ones.  This means a shared library needs to
-	declare which other libraries it needs, but I think that's OK.
+X It's basically impossible to have more shared libraries, because almost
+X 	any additional shared library will depend on the libc one.  This
+X 	isn't too hard to fix; mmap() needs to be able to understand that
+X 	when you try to mmap a file at a given position, and that same
+X 	file is already mapped there, that it should just return success.
+X 	Then subsequent shared libraries can just be linked against the
+X 	stubs of earlier ones.  This means a shared library needs to
+X 	declare which other libraries it needs, but I think that's OK.
+	Done.  libm, libregex, and libtermcap use it.
 
 The base shared library mechanism isn't flexible enough to handle an
 	open ended collection of potential shared libraries.  We should
 	use the current mechanism for a "core" set, and then support
 	PIC style shared libraries for an arbitrary number of additional
 	ones.
+
+X Now that we have a palatable nroff, we should convert all man pages
+X 	to the standard -man macro set.
+	Done.
+
+There's a long and mostly hidden bug which should be put to rest.  Dave
+	Hudson found it and recommended the right fix many moons ago.
+	The data and BSS segments are concatenated, so that if there's
+	spare room at the end of data, BSS symbols are pulled back into
+	some of this area.  The problem is that data and BSS are two
+	distinct VM regions, with distinct attributes.  If a large data
+	structure straddles them, and then is used as a kernel argument
+	(i.e., do a msg_send/msg_receive across the whole data structure),
+	you get an EFAULT, because to the kernel it looks like you're
+	trying to violate the range check of a region.
+	Fix is to change the link map to pad out data, and don't let
+	BSS symbols be pulled back into it.  This wastes some memory,
+	but it fixes the problem neatly, and it at worst wastes a
+	single page of memory.

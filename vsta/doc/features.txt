@@ -209,3 +209,21 @@ Ported the 8-bit color driver from mgr-0.69 into the VSTa MGR port.
 	Adapted it to use svgalib.  Got high res working with MGR.
 Added BSD's err/warn API's.
 Added true/false/whoami commands.
+
+1.6.4
+Added -o to MGR's "startup" command.  Lets output be written to the
+	named file.
+Added VFAT (long filename) support to DOS filesystem.
+Ported Plan 9's nroff/troff.
+Generalized system shared library support; converted libm,
+	libregex, and libtermcap.
+Allow dumping of ranges of sectors in dumpsect.
+Accomodate various flavors of RCS directory names for rcsdo.  Save quite a few
+	cycles in its operation.
+Port of PDP-11 emulator; runs V7 UNIX under VSTa!
+Avoid gcc lame inline support; -O isn't needed any more to correctly get
+	an inline compilation of getc/putc.
+Auto-flush stdout when read from an interactive stdin happens.
+Conversion of man pages to nroff -man format.
+Ported BSD's "units" command.
+vstafs, file/dir creation inherits protection of parent dir.
