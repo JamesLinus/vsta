@@ -9,13 +9,13 @@
 static char *curpath = NULL;
 
 /*
- * execvp()
+ * execvp2()
  *	Exec using search path
  *
  * No return on success; returns -1 on failure to run.
  */
 static
-execvp(char *prog, char **argv)
+execvp2(char *prog, char **argv)
 {
 	char *p, *q;
 	char path[128];
@@ -113,7 +113,7 @@ run(char *p)
 	 */
 	pid = fork();
 	if (pid == 0) {
-		x = execvp(p, argv);
+		x = execvp2(p, argv);
 		perror(p);
 		printf("Error code: %d\n", x);
 	}

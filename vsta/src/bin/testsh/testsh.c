@@ -16,7 +16,7 @@
 
 extern char *__cwd;	/* Current working dir */
 static void cd(), md(), quit(), ls(), pwd(), mount(), cat(), sleep(),
-	sec(), null(), run(), do_wstat(), do_fork(), get(), set(),
+	sec(), null(), do_wstat(), do_fork(), get(), set(),
 	do_umount(), rm(), source();
 extern void run(), path();
 static char *buf;	/* Utility page buffer */
