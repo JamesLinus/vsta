@@ -37,7 +37,7 @@ vfs_seek(struct msg *m, struct file *f)
 		msg_err(m->m_sender, EINVAL);
 		return;
 	}
-	f->f_pos = m->m_arg;
+	f->f_pos = m->m_arg+OFF_DATA;
 	m->m_buflen = m->m_arg = m->m_arg1 = m->m_nseg = 0;
 	msg_reply(m->m_sender, m);
 }
@@ -72,7 +72,7 @@ new_client(struct msg *m)
 	 */
 	f->f_file = rootdir;
 	ref_node(rootdir);
-	f->f_pos = 0L;
+	f->f_pos = OFF_DATA;
 	bcopy(perms, f->f_perms, nperms * sizeof(struct perm));
 	f->f_nperm = nperms;
 	f->f_perm = fs_perms(f->f_perms, f->f_nperm, rootdir);
@@ -203,7 +203,7 @@ loop:
 			msg_err(msg.m_sender, EINVAL);
 			break;
 		}
-		f->f_pos = msg.m_arg1;
+		f->f_pos = msg.m_arg1+OFF_DATA;
 		/* VVV fall into VVV */
 	case FS_READ:		/* Read file */
 		vfs_read(&msg, f);
@@ -214,7 +214,7 @@ loop:
 			msg_err(msg.m_sender, EINVAL);
 			break;
 		}
-		f->f_pos = msg.m_arg1;
+		f->f_pos = msg.m_arg1+OFF_DATA;
 		/* VVV fall into VVV */
 	case FS_WRITE:		/* Write file */
 		vfs_write(&msg, f);
