@@ -9,6 +9,7 @@
 #include <lib/hash.h>
 #include <stdio.h>
 #include <fd/fd.h>
+#include <sys/ports.h>
 #include <sys/assert.h>
 
 #define MAXBUF (32*1024)
@@ -19,7 +20,8 @@ extern char *strerror();
 
 static struct hash *filehash;	/* Map session->context structure */
 
-port_t fdport;	/* Port we receive contacts through */
+port_t fdport;		/* Port we receive contacts through */
+port_name fdname;	/*  ...its name */
 
 /*
  * Default protection for floppy drives:  anybody can read/write, sys
@@ -161,14 +163,12 @@ loop:
 	}
 
 	/*
-	 * If it's not a read/write, the data *should* fit in the
-	 * single buffer.
+	 * Must fit in one buffer.  XXX scatter/gather might be worth
+	 * the trouble for FS_RW() operations.
 	 */
-	if ((x > 0) && !FS_RW(msg.m_op)) {
-		if (msg.m_nseg > 0) {
-			msg_err(msg.m_sender, EINVAL);
-			goto loop;
-		}
+	if (msg.m_nseg > 1) {
+		msg_err(msg.m_sender, EINVAL);
+		goto loop;
 	}
 
 	/*
@@ -246,10 +246,18 @@ loop:
 
 /*
  * main()
- *	Startup of the keyboard server
+ *	Startup of the floppy server
  */
 main()
 {
+	int scrn, kbd;
+
+	kbd = msg_connect(PORT_KBD, ACC_READ);
+	(void)__fd_alloc(kbd);
+	scrn = msg_connect(PORT_CONS, ACC_WRITE);
+	(void)__fd_alloc(scrn);
+	(void)__fd_alloc(scrn);
+
 	/*
 	 * Allocate handle->file hash table.  8 is just a guess
 	 * as to what we'll have to handle.
@@ -259,19 +267,6 @@ main()
 		perror("file hash");
 		exit(1);
         }
-
-	/*
-	 * Init our data structures
-	 */
-	fd_init();
-
-	/*
-	 * Enable I/O for the needed range
-	 */
-	if (enable_io(FD_LOW, FD_HIGH) < 0) {
-		perror("Floppy I/O");
-		exit(1);
-	}
 
 	/*
 	 * We still have to program our own DMA.  This gives the
@@ -285,14 +280,29 @@ main()
 	}
 
 	/*
+	 * Init our data structures.  We must enable_dma() first, because
+	 * init wires a bounce buffer, and you have to be a DMA-type
+	 * server to wire memory.
+	 */
+	fd_init();
+
+	/*
+	 * Enable I/O for the needed range
+	 */
+	if (enable_io(FD_LOW, FD_HIGH) < 0) {
+		perror("Floppy I/O");
+		exit(1);
+	}
+
+	/*
 	 * Get a port for the floppy task
 	 */
-	fdport = msg_port((port_name)0);
+	fdport = msg_port((port_name)0, &fdname);
 
 	/*
 	 * Register as floppy drives
 	 */
-	if (namer_register("disk/fd", fdport) < 0) {
+	if (namer_register("disk/fd", fdname) < 0) {
 		fprintf(stderr, "FD: can't register name\n");
 		exit(1);
 	}
