@@ -196,8 +196,8 @@ free_core(void *mem)
 	/*
 	 * Dump the memory back to the operating system
 	 */
-	munmap(mem, ptob(c->c_len + 1));
 	LEAK_MEM(-(c->c_len + 1));
+	munmap(mem, ptob(c->c_len + 1));
 }
 
 /*
