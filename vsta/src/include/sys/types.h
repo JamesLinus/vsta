@@ -9,6 +9,7 @@ typedef unsigned short ushort;
 typedef unsigned char uchar;
 typedef unsigned long ulong;
 typedef unsigned long off_t;
+typedef unsigned long size_t;
 struct time {
 	ulong t_sec;
 	ulong t_usec;
