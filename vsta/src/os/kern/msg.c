@@ -367,8 +367,6 @@ msg_send(port_t arg_port, struct msg *arg_msg)
 			queue_msg(port, &sm2, SPL0);
 			pr->p_state = PS_ABWAIT;
 			p_sema_v_lock(&pr->p_iowait, PRIHI, &pr->p_lock);
-			ASSERT_DEBUG(pr->p_state == PS_ABDONE,
-				"msg_send: bad abdone");
 			break;
 		}
 
