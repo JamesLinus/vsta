@@ -47,6 +47,8 @@ extern const unsigned char *__ctab;
 #define tolower(c) (isupper(c) ? ((c) - 'A' + 'a') : c)
 #define toupper(c) (islower(c) ? ((c) - 'a' + 'A') : c)
 #define toascii(c) ((c) & 0x7F)
+#define isblank(c) (((c) == ' ') || ((c) == '\t'))
+#define isgraph(c) (((c) > ' ') && ((c) < '\177'))
 #endif /* !_CT_NOMACS */
 
 #endif /* _CTYPE_H */
