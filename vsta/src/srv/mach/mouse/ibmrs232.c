@@ -373,8 +373,7 @@ ibm_serial_parse_args(int argc, char **argv)
 	    logitech_option = 1;
 	    ibm_serial_model = RS_LOGITECH;
 	 }
-      } else
-	 break;
+      }
    }
 
    if (microsoft_option + mouse_sys_3_option + mouse_sys_5_option +
@@ -406,7 +405,7 @@ ibm_serial_initialise(int argc, char **argv)
    mouse_data.update_frequency = ibm_serial_delay_period;
 
    ibm_serial_parse_args(argc, argv);
-   ibm_serial_iobase = 0x2f0 + (ibm_serial_port_number * 0x100);
+   ibm_serial_iobase = 0x2f0 + ((1 - ibm_serial_port_number) * 0x100);
 
    /*
     * Get our hardware ports.
