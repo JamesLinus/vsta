@@ -100,6 +100,13 @@ deref_node(struct node *n)
 	free_clust(c);
 
 	/*
+	 * Free file hash if a dir
+	 */
+	if (n->n_type == T_DIR) {
+		hash_dealloc(n->n_files);
+	}
+
+	/*
 	 * Free our memory
 	 */
 	free(n);
