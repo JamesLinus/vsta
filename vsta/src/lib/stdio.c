@@ -684,3 +684,50 @@ fputs(char *s, FILE *fp)
 	}
 	return(0);
 }
+
+/*
+ * fwrite()
+ *	Write a buffer
+ *
+ * This could be sped up by noting the remaining buffer space and
+ * blasting it all in a single bcopy().  Issues would remain WRT
+ * end-of-line handling, etc.
+ */
+fwrite(void *buf, int size, int nelem, FILE *fp)
+{
+	char *p;
+	uint len, x;
+
+	p = buf;
+	len = size * nelem;
+	x = 0;
+	while (x < len) {
+		if (fputc(*p, fp)) {
+			return(x / size);
+		}
+		++p; ++x;
+	}
+	return(nelem);
+}
+
+/*
+ * fread()
+ *	Read a buffer
+ */
+fread(void *buf, int size, int nelem, FILE *fp)
+{
+	char *p;
+	uint len, x;
+	int c;
+
+	len = size * nelem;
+	x = 0;
+	while (x < len) {
+		c = fgetc(fp);
+		if (c == EOF) {
+			return(x / size);
+		}
+		*p++ = c;
+		++x;
+	}
+}
