@@ -94,7 +94,7 @@ unmapsegs(struct segref *segref)
 	int x;
 	struct seg *s;
 
-	for (x = 0; x < MSGSEGS+1; ++x) {
+	for (x = 0; x <= MSGSEGS; ++x) {
 		if ((s = segref->s_refs[x]) == 0) {
 			break;
 		}
@@ -190,7 +190,7 @@ m_to_sm(struct vas *vas, struct msg *m, struct sysmsg *sm)
 	/*
 	 * Sanity check # segments
 	 */
-	if (m->m_nseg >= MSGSEGS) {
+	if (m->m_nseg > MSGSEGS) {
 		return(err(EINVAL));
 	}
 
