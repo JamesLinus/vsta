@@ -21,7 +21,7 @@
 #endif
 
 extern int std_tnbuf;
-static void tnet_state();
+static void tnet_state(struct tcb *, int, int);
 
 struct tcb *tnet_tcb;
 tn1(argc,argv)
@@ -46,14 +46,13 @@ char *argv[];
  */
 /*ARGSUSED*/
 static void
-tnet_state(tcb,old,new)
-struct tcb *tcb;
-char old,new;
+tnet_state(struct tcb *tcb, int old, int new)
 {
 	struct telnet *tn;
 	struct session *s;
-	void t_state();
 	char *a;
+	extern void t_state();
+	extern char *password;
 
 	switch(new){
 	case ESTABLISHED:
@@ -96,6 +95,11 @@ char old,new;
 		tcb->s_upcall = t_state;
 		syslog(LOG_INFO, "Remote console: %s", s->name);
 		consess = s;
+		if (password) {
+			mode = LOGIN_MODE;
+		} else {
+			mode = CMD_MODE;
+		}
 		return;
 
 	case CLOSED:

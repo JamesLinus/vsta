@@ -1,6 +1,7 @@
 extern int mode;
 #define	CMD_MODE	1	/* Command mode */
 #define	CONV_MODE	2	/* Converse mode */
+#define LOGIN_MODE	3	/* Logging in to remote console */
 
 /* Session control structure; only one entry is used at a time */
 struct session {

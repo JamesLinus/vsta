@@ -557,6 +557,7 @@ kbread()
 	uchar c;
 	static int setup = 0;
 	char buf[256];
+	extern char *password;
 
 	if (detached) {
 		/*
@@ -621,6 +622,18 @@ kbread()
 			 */
 			tn_stdout(0);
 
+			/*
+			 * Print initial prompt for password if
+			 * we have one configured
+			 */
+			if (password) {
+				printf("Password: ");
+				fflush(stdout);
+			}
+
+			/*
+			 * Now we're ready for them!
+			 */
 			setup = 1;
 		}
 

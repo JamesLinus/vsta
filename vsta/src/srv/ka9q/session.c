@@ -1,6 +1,7 @@
 /* Session control */
 #include <stdio.h>
 #include <std.h>
+#include <syslog.h>
 #include "global.h"
 #include "config.h"
 #include "mbuf.h"
@@ -367,6 +368,7 @@ struct session *s;
 	s->type = FREE;
 	if (s == consess) {
 		consess = NULLSESSION;
+		syslog(LOG_INFO, "Remote console closed");
 	}
 }
 

@@ -21,7 +21,7 @@
 #define HOSTNAMELEN 64
 unsigned restricted_dev=1000;
 extern char *startup;	/* File to read startup commands from */
-static char *password;	/* Access password when remote */
+char *password;	/* Access password when remote */
 int detached = 0;	/* Console relinquished? */
 
 #ifdef	ASY
@@ -288,7 +288,7 @@ void
 mainloop(void)
 {
 	int c;
-	char *ttybuf;
+	char *ttybuf, *p;
 	int16 cnt;
 
 	/* Process any keyboard input */
@@ -305,15 +305,31 @@ mainloop(void)
 #endif	/* FLOW */
 		switch(mode){
 		case CMD_MODE:
-			(void)cmdparse(cmds,ttybuf);
+			(void)cmdparse(cmds, ttybuf);
 			fflush(stdout);
 			break;
 		case CONV_MODE:
-			if(current->parse != NULLFP) 
-				(*current->parse)(ttybuf,cnt);
+			if (current->parse != NULLFP)  {
+				(*current->parse)(ttybuf, cnt);
+			}
 			break;
+		case LOGIN_MODE:
+			/*
+			 * See if we have a match
+			 */
+			rip(ttybuf);
+			if (password && strcmp(ttybuf, password)) {
+				printf("Bad password\nPassword: ");
+				fflush(stdout);
+			} else {
+				mode = CMD_MODE;
+			}
 		}
-		if(mode == CMD_MODE){
+
+		/*
+		 * Prompt for next input if have reached command mode
+		 */
+		if (mode == CMD_MODE) {
 			printf(prompt);
 			fflush(stdout);
 		}
@@ -389,7 +405,7 @@ char *argv[];
 int
 cmdmode()
 {
-	if(mode != CMD_MODE){
+	if (mode != CMD_MODE) {
 		mode = CMD_MODE;
 		cooked(NULL);
 		flowdefault(0, 0);
@@ -531,11 +547,11 @@ char *argv[];
 		else
 			printf("Standard\n");
 	} else {
-		if(strcmp(argv[1],"unix") == 0)
+		if (strcmp(argv[1],"unix") == 0) {
 			unix_line_mode = 1;
-		else if(strcmp(argv[1],"standard") == 0)
+		} else if (strcmp(argv[1],"standard") == 0) {
 			unix_line_mode = 0;
-		else {
+		} else {
 			return -1;
 		}
 	}
@@ -1121,6 +1137,18 @@ char *argv[];
 
 dopassword(int argc, char **argv)
 {
+	char *p;
+
+	/*
+	 * Free any previous password
+	 */
+	if (password) {
+		free(password);
+	}
+
+	/*
+	 * Get our own copy
+	 */
 	password = strdup(argv[1]);
 	if (password == 0) {
 		printf("No memory to set password\n");
