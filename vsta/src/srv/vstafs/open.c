@@ -455,10 +455,7 @@ dir_newfile(struct file *f, char *name, int type)
 			/*
 			 * Figure out size of next buffer-full
 			 */
-			len = a->a_len - x;
-			if (len > EXTSIZ) {
-				len = EXTSIZ;
-			}
+			len = MIN(a->a_len - x, EXTSIZ);
 
 			/*
 			 * Map it in
@@ -474,7 +471,7 @@ dir_newfile(struct file *f, char *name, int type)
 			/*
 			 * Special case for initial data in file
 			 */
-			if (x == 0) {
+			if ((extent == 0) && (x == 0)) {
 				d = (struct fs_dirent *)
 					((char *)d + sizeof(struct fs_file));
 				len -= sizeof(struct fs_file);
