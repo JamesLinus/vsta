@@ -39,7 +39,7 @@ sched.c
 rand.c
 proc.c
 pview.c
-clock.c
+xclock.c
 event.c
 mmap.c
 phys.c
