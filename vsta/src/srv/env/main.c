@@ -294,8 +294,17 @@ loop:
  * main()
  *	Startup of environment manager
  */
-main()
+main(int argc, char **argv)
 {
+	char *namer_name = NULL;
+
+	/*
+	 * Accept alternate registry name
+	 */
+	if (argc > 1) {
+		namer_name = argv[1];
+	}
+
 	/*
 	 * Initialize syslog
 	 */
@@ -324,10 +333,21 @@ main()
 	/*
 	 * Register our well-known address
 	 */
-	envport = msg_port(PORT_ENV, 0);
-	if (envport < 0) {
-		syslog(LOG_ERR, "can't register name");
-		exit(1);
+	if (!namer_name) {
+		envport = msg_port(PORT_ENV, 0);
+		if (envport < 0) {
+			syslog(LOG_ERR, "can't register name");
+			exit(1);
+		}
+	} else {
+		port_name fsname;
+
+		/*
+		 * Otherwise take a dynamic one, and publish it
+		 * via namer.
+		 */
+		envport = msg_port(0, &fsname);
+		(void)namer_register(namer_name, fsname);
 	}
 
 	syslog(LOG_INFO, "environment manager started");
