@@ -34,7 +34,8 @@
 #define PRI_IDLE 0
 #define PRI_BG 1
 #define PRI_TIMESHARE 2
-#define PRI_RT 3
+#define PRI_CHEATED 3
+#define PRI_RT 4
 
 struct sched {
 	struct sched *s_up;	/* Our parent node */
