@@ -121,6 +121,9 @@ extern void clearerr(FILE *), setbuf(FILE *, char *),
 extern int printf(const char *, ...),
 	fprintf(FILE *, const char *, ...),
 	sprintf(char *, const char *, ...);
+extern int scanf(char *, ...),
+	fscanf(FILE *, char *, ...),
+	sscanf(char *, char *, ...);
 #endif
 
 /*
