@@ -130,10 +130,16 @@ vas_fault(void *vas, void *vaddr, int write)
 	 */
 	if ((pp->pp_flags & PP_COW) && write) {
 		if (wasvalid) {
+			uint pvidx;
+
 			/*
-			 * May or may not be there
+			 * May or may not be there.  If it is, remove
+			 * its reference from the per-page struct.
 			 */
-			(void)delete_atl(pp, pv, btop((ulong)vaddr));
+			pvidx = btop((ulong)vaddr - (ulong)pv->p_vaddr);
+			if (delete_atl(pp, pv, pvidx) == 0) {
+				deref_slot(ps, pp, idx);
+			}
 		}
 		cow_write(ps, pp, idx);
 		ASSERT(pp->pp_flags & PP_V, "vm_fault: lost the page 2");
