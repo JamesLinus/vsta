@@ -454,6 +454,7 @@ _idle_stack:
 trap_common:
 	/* Save all user's registers */
 	pushal
+	cld
 	PUSH_SEGS
 
 	/* Switch to kernel data segments */
@@ -498,6 +499,7 @@ _stray_intr:
 	.globl	intr_common,_interrupt
 intr_common:
 	pushal
+	cld
 	PUSH_SEGS
 	SET_KSEGS
 	call	_interrupt
