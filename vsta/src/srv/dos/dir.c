@@ -943,8 +943,23 @@ do_rename(struct file *fsrc, char *src, struct file *fdest, char *dest)
 	bcopy(dsrc->name, name, 8); bcopy(dsrc->ext, ext, 3);
 	*dsrc = dtmp;
 	bcopy(name, dsrc->name, 8); bcopy(ext, dsrc->ext, 3);
-	bdirty(handsrc); bdirty(handdest);
-	bfree(handsrc); bfree(handdest);
+
+	/*
+	 * Mark dir blocks containing entries as dirty.  Root dir
+	 * has a NULL handle; root_dirty gets flagged instead.
+	 */
+	if (handsrc) {
+		bdirty(handsrc);
+		bfree(handsrc);
+	} else {
+		root_dirty = 1;
+	}
+	if (handdest) {
+		bdirty(handdest);
+		bfree(handdest);
+	} else {
+		root_dirty = 1;
+	}
 
 	/*
 	 * File nodes are keyed under their parent dir.  Since this
