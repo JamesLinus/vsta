@@ -36,8 +36,9 @@ cls(void)
 	ulong bl, *u;
 
 	bl = BLANK;
-	for (u = (ulong *)top; u < (ulong *)bottom; ++u)
+	for (u = (ulong *)top; u < (ulong *)bottom; ++u) {
 		*u = bl;
+	}
 	cur = top;
 }
 
@@ -72,8 +73,24 @@ scrollup()
 
 	bcopy(top+(COLS*CELLSZ), top, (ROWS-1)*COLS*CELLSZ);
 	bl = BLANK;
-	for (u = (ulong *)lastl; u < (ulong *)bottom; ++u)
+	for (u = (ulong *)lastl; u < (ulong *)bottom; ++u) {
 		*u = bl;
+	}
+}
+
+/*
+ * blankline()
+ *	Blank line starting at "p"
+ */
+static void
+blankline(void *p)
+{
+	ulong *q = p;
+	uint x;
+
+	for (x = 0; x < (COLS*CELLSZ/sizeof(long)); ++x) {
+		*q++ = BLANK;
+	}
 }
 
 /*
@@ -83,8 +100,47 @@ scrollup()
 static void
 sequence(int x, int y, char c)
 {
+	char *p;
+
 	switch (c) {
-	case 'J':		/* Clear */
+	case 'L':		/* Insert line */
+		while (x-- > 0) {
+			p = cur - ((cur-top) % (COLS*CELLSZ));
+			bcopy(p, p+(COLS*CELLSZ), lastl-p);
+			blankline(p);
+		}
+		return;
+
+	case 'M':		/* Delete line */
+		while (x-- > 0) {
+			p = cur - ((cur-top) % (COLS*CELLSZ));
+			bcopy(p+(COLS*CELLSZ), p, lastl-p);
+			blankline(lastl);
+		}
+		return;
+
+	case '@':		/* Insert character */
+		while (x-- > 0) {
+			y = cur-top;
+			y = y + (COLS*CELLSZ - (y % (COLS*CELLSZ)));
+			p = cur+y;
+			bcopy(cur, cur+1, (p-cur)-1);
+			cur[0] = ' ';
+		}
+		return;
+
+	case 'P':		/* Delete character */
+		while (x-- > 0) {
+			y = cur-top;
+			y = y + (COLS*CELLSZ - (y % (COLS*CELLSZ)));
+			p = cur+y;
+			bcopy(cur+1, cur, (p-cur)-1);
+			p -= CELLSZ;
+			p[0] = ' ';
+		}
+		return;
+
+	case 'J':		/* Clear (assume arg==2) */
 		cls();
 		return;
 
@@ -114,10 +170,35 @@ do_multichar(int state, char c)
 
 	switch (state) {
 	case 1:		/* Escape has arrived */
-		if (c != '[') {
+		switch (c) {
+		case 'P':	/* Cursor down a line */
+			return(0);
+		case 'K':	/* Cursor left */
+			cur -= CELLSZ;
+			if (cur < top) {
+				cur = top;
+			}
+			return(0);
+		case 'H':	/* Cursor up */
+			cur -= (COLS*CELLSZ);
+			if (cur < top) {
+				cur += (COLS*CELLSZ);
+			}
+			return(0);
+		case 'M':	/* Cursor right */
+			cur += CELLSZ;
+			if (cur >= bottom) {
+				cur -= CELLSZ;
+			}
+			return(0);
+		case 'G':	/* Cursor home */
+			cur = top;
+			return(0);
+		case '[':	/* Extended sequence */
+			return(2);
+		default:
 			return(0);
 		}
-		return(2);
 
 	case 2:		/* Seen Esc-[ */
 		if (isdigit(c)) {
