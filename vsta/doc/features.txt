@@ -95,3 +95,16 @@ Fix bug in explicit server port closing
 Fix bug in fseek() from relative position
 Revamp mouse handler
 Add port of MGR windowing system
+
+1.5.1:
+Bug fixes for kernel preemption
+Performance: remove unneeded entries from default namespace
+First implementation of ABC, Asynchronous Buffer Cache library
+Semaphore server
+Kernel-level thread mutexes
+More MGR cleanup (less memory, slightly faster)
+vFAT entries don't kill DOS server any more
+Floating point support
+popen/pclose
+funopen/fropen/fwopen
+Ports of sc, bc, Tiny Smalltalk
