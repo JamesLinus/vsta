@@ -79,9 +79,4 @@
 #define VMAP_BASE (0x40000000)	/* Map area starts at 1 Gb */
 #define VMAP_SIZE (0x20000000)	/*  ...for 1/2 Gb */
 
-/*
- * Well-known-address of arguments
- */
-#define VADDR_ARGS ((void *)(VMAP_BASE+VMAP_SIZE))
-
 #endif /* _MACHVM_H */
