@@ -6,5 +6,9 @@ a kernel usable from GRUB, as well as the other server executables
 needed to boot VSTa.  See vsta/doc/roadmap.txt for more details
 on configuring GRUB with VSTa.
 
+Once you have read about GRUB, the menu.lst file provided in this
+directory provides some useful examples of how to set up GRUB go
+boot various operating systems, including VSTa.
+
 					Andy Valencia
 					September, 1997
