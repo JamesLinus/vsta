@@ -122,6 +122,7 @@ dump_proc(struct proc *p, int brief)
 	printf(" sema %x prefs %x nopen %d all %x handler %x\n",
 		&p->p_sema, p->p_prefs, p->p_nopen, p->p_allnext,
 		p->p_handler);
+	printf(" pgrp 0x%x\n", p->p_pgrp);
 	printf(" ports:");
 	for (x = 0; x < PROCPORTS; ++x) {
 		if (p->p_ports[x]) {
