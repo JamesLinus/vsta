@@ -476,15 +476,15 @@ dir_newfile(struct file *f, char *name, int type)
 			 * Special case for initial data in file
 			 */
 			if ((extent == 0) && (x == 0)) {
-				d = (struct fs_dirent *)
-					((char *)d + sizeof(struct fs_file));
+				d = (struct fs_dirent *)((char *)d + off);
 				len -= sizeof(struct fs_file);
 			}
 
 			/*
-			 * Look for our filename
+			 * Look for a free slot
 			 */
 			dstart = d;
+			len = MIN(len, fs->fs_len - off);
 			d = findfree(dstart, len/sizeof(struct fs_dirent));
 			if (d) {
 				off += ((char *)d - (char *)dstart);
