@@ -125,6 +125,8 @@ static void
 dump_fs(int argc, char **argv)
 {
 	struct fs *fs;
+	struct alloc *a;
+	uint x;
 
 	if (rdsec(BASE_SEC)) {
 		return;
@@ -133,6 +135,19 @@ dump_fs(int argc, char **argv)
 	printf("fs_magic 0x%lx size %ld extsize %ld free @ %ld\n",
 		fs->fs_magic, fs->fs_size, fs->fs_extsize,
 		fs->fs_free);
+	a = fs->fs_freesecs;
+	if (a->a_start) {
+		x = 0;
+		printf("Pending:");
+		while ((x < BASE_FREESECS) && a->a_start) {
+			printf(" %x..%x",
+				a->a_start,
+				a->a_start + a->a_len - 1);
+			x += 1;
+			a += 1;
+		}
+		printf("\n");
+	}
 }
 
 /*
@@ -279,6 +294,41 @@ dump_sec(int argc, char **argv)
 }
 
 /*
+ * save_sectors()
+ *	Extract the data from sector(s), dump to file
+ *
+ * Sort of a cheap-o way of lost+found, in fsdb
+ */
+static void
+save_sectors(int argc, char **argv)
+{
+	daddr_t x, low, high;
+	FILE *fp;
+
+	if (argc != 3) {
+		printf("Usage is: save <low> <high> <file>\n");
+		return;
+	}
+	(void)sscanf(argv[0], "%X", &low);
+	(void)sscanf(argv[1], "%X", &high);
+	fp = fopen(argv[2], "w");
+	if (fp == NULL) {
+		perror(argv[2]);
+		return;
+	}
+	for (x = low; x <= high; ++x) {
+		if (rdsec(x)) {
+			perror(argv[x]);
+			fclose(fp);
+			unlink(argv[2]);
+			return;
+		}
+		(void)fwrite(secbuf, SECSZ, sizeof(char), fp);
+	}
+	fclose(fp);
+}
+
+/*
  * run()
  *	Do various fsdb actions
  */
@@ -313,6 +363,10 @@ run(int argc, char **argv)
 	}
 	if (!strcmp(p, "quit") || !strcmp(p, "exit")) {
 		exit(0);
+	}
+	if (!strcmp(p, "save")) {
+		save_sectors(argc, argv);
+		return;
 	}
 	printf("Unknown command: '%s'\n", p);
 }
