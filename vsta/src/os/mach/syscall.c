@@ -8,6 +8,7 @@
  * and pack them into a proper procedure call.
  */
 #include <sys/types.h>
+#include <sys/proc.h>
 #include <sys/percpu.h>
 #include <sys/thread.h>
 #include <sys/fs.h>
@@ -26,7 +27,7 @@ extern int do_exit(), fork(), fork_thread(), enable_io(), enable_isr(),
 extern int page_wire(), page_release(), enable_dma(), time_get(),
 	time_sleep(), exec(), waits(), perm_ctl(), set_swapdev(),
 	run_qio(), set_cmd(), pageout(), getid(), unhash(),
-	time_set();
+	time_set(), ptrace(), nop();
 
 struct syscall {
 	intfun s_fun;
@@ -66,6 +67,11 @@ struct syscall {
 	{getid, 1},				/* 31 */
 	{unhash, 2},				/* 32 */
 	{time_set, 1},				/* 33 */
+#ifdef PROC_DEBUG
+	{ptrace, 2},				/* 34 */
+#else
+	{nop, 1},
+#endif
 };
 #define NSYSCALL (sizeof(syscalls) / sizeof(struct syscall))
 #define MAXARGS (6)

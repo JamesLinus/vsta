@@ -181,3 +181,163 @@ reset_uregs(struct thread *t, ulong entry_addr)
 	u->eflags = F_IF;
 	u->eip = entry_addr;
 }
+
+#ifdef PROC_DEBUG
+/*
+ * single_step()
+ *	Control state of single-stepping of current process (user mode)
+ */
+void
+single_step(int start)
+{
+	struct trapframe *u = curthread->t_uregs;
+
+	if (start) {
+		u->eflags |= F_TF;
+	} else {
+		u->eflags &= ~F_TF;
+	}
+}
+
+/*
+ * set_break()
+ *	Set/clear a code breakpoint at given address (user mode)
+ *
+ * Returns 0 for success, 1 for failure
+ */
+int
+set_break(ulong addr, int set)
+{
+	uint x;
+	struct dbg_regs *d = &curthread->t_proc->p_dbgr;
+
+	/*
+	 * Sanity
+	 */
+	if (addr == 0) {
+		return(1);
+	}
+
+	/*
+	 * Convert to user-linear address, get current status
+	 */
+	addr |= 0x80000000;
+
+	/*
+	 * Clear
+	 */
+	if (!set) {
+		/*
+		 * Scan for the register which matches the
+		 * named linear address
+		 */
+		for (x = 0; x < 4; ++x) {
+			if (d->dr[x] == addr) {
+				break;
+			}
+		}
+
+		/*
+		 * If didn't find, error out
+		 */
+		if (x >= 4) {
+			return(1);
+		}
+
+		/*
+		 * Clear it, and re-load our debug registers
+		 */
+		d->dr7 &= ~(3 << x);
+		d->dr[x] = 0;
+		reload_dr(d);
+		return(0);
+	}
+
+	/*
+	 * Set--find open slot
+	 */
+	for (x = 0; x < 4; ++x) {
+		if (d->dr[x] == 0) {
+			break;
+		}
+	}
+
+	/*
+	 * Bomb if they're all filled up
+	 */
+	if (x >= 4) {
+		return(1);
+	}
+
+	/*
+	 * Set up, and put into hardware
+	 */
+	d->dr7 |= (3 << x);
+	d->dr[x] = addr;
+	reload_dr(d);
+	return(0);
+}
+
+/*
+ * getreg()
+ *	Get value of register, based on index
+ */
+long
+getreg(long index)
+{
+	if ((index < 0) || (index >= NREG)) {
+		return(-1);
+	}
+	return(*((long *)(&curthread->t_uregs) + index));
+}
+
+/*
+ * setreg()
+ *	Set value of register, based on index
+ *
+ * Be appropriately paranoid, especially with things like the flags.
+ * Return 1 on error, 0 on success.
+ */
+int
+setreg(long index, long value)
+{
+	struct trapframe *tf;
+	ulong *lp;
+
+	if ((index < 0) || (index >= NREG)) {
+		return(-1);
+	}
+
+	/*
+	 * For convenience, point to our register set
+	 */
+	tf = curthread->t_uregs;
+	lp = (ulong *)((long *)tf + index);
+
+	/*
+	 * Flags--he can fiddle some, but protect the sensitive ones
+	 */
+	if (lp == &tf->eflags) {
+		static const int priv =
+			(F_TF|F_IF|F_IOPL|F_NT|F_RF|F_VM);
+
+		/*
+		 * Do not let him touch privved bits in either
+		 * direction.  Others he may set at will.
+		 */
+		tf->eflags = (tf->eflags & priv) | (value & ~priv);
+	}
+
+	/*
+	 * He can rewrite all the regular registers, but nothing else.
+	 */
+	if ((lp != &tf->eax) && (lp != &tf->ebx) && (lp != &tf->ecx) &&
+		(lp != &tf->edx) && (lp != &tf->edi) && (lp != &tf->esi) &&
+		(lp != &tf->esp) && (lp != &tf->ebp)) {
+	    return(1);
+	}
+	*lp = value;
+	return(0);
+}
+
+#endif /* PROC_DEBUG */

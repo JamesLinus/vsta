@@ -420,6 +420,27 @@ _uucopy:
 _nop:	ret
 
 /*
+ * reload_dr()
+ *	Load db0..3 and db7 from the "struct dbg_regs" in machreg.h
+ */
+	.globl	_reload_dr
+_reload_dr:
+	pushl	%ebx
+	movl	8(%esp),%ebx
+	movl	0(%ebx),%eax
+	movl	%eax,%db0
+	movl	4(%ebx),%eax
+	movl	%eax,%db1
+	movl	8(%ebx),%eax
+	movl	%eax,%db2
+	movl	0xC(%ebx),%eax
+	movl	%eax,%db3
+	movl	0x10(%ebx),%eax
+	movl	%eax,%db7
+	popl	%ebx
+	ret
+
+/*
  * idle_stack()
  *	Switch to an idle stack
  *
