@@ -15,6 +15,7 @@ struct percpu {
 	ulong pc_flags;			/* See below */
 	ulong pc_ticks;			/* Ticks queued for clock */
 	ulong pc_time[2];		/* HZ and seconds counting */
+	int pc_preempt;			/* Flag that preemption needed */
 };
 
 /*
@@ -27,6 +28,7 @@ struct percpu {
 #ifdef KERNEL
 extern struct percpu cpu;		/* Maps to percpu struct on each CPU */
 #define curthread cpu.pc_thread
+#define do_preempt cpu.pc_preempt
 extern uint ncpu;			/* # CPUs on system */
 extern struct percpu *nextcpu;		/* Rotor for preemption scans */
 #endif
