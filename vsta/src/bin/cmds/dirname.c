@@ -23,7 +23,14 @@ main(int argc, char **argv)
 	 */
 	p = strrchr(argv[1], '/');
 	if (p) {
-		*p = '\0';
+		/*
+		 * Map /foo -> /, but / -> (blank)
+		 */
+		if ((p == argv[1]) && p[1]) {
+			p[1] = '\0';
+		} else {
+			*p = '\0';
+		}
 	}
 
 	puts(argv[1]);
