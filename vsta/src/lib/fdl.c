@@ -632,3 +632,40 @@ __fdl_size(void)
 	}
 	return(plen);
 }
+
+/*
+ * tallyfdl()
+ *	Check to see if this is the highest valued fd, record if so
+ */
+static int
+tallyfdl(long l, struct port *port, int *highestp)
+{
+	if (l > *highestp) {
+		*highestp = l;
+	}
+	return(0);
+}
+
+/*
+ * getdtablesize()
+ *	Return size of file descriptor table
+ *
+ * Since we don't really have such a table and allocate them
+ * sparsely, we instead have to fake it up.  This routine is used
+ * primary in a loop to close all file descriptors; sometimes it
+ * is used to see how many can be open.  Thus, we return the greater
+ * of the highest open file descriptor value, and NFD.
+ */
+int
+getdtablesize(void)
+{
+	int x, highest = 0;
+
+	if (fdhash) {
+		hash_foreach(fdhash, tallyfdl, &highest);
+	}
+	if (highest < NFD) {
+		return(NFD);
+	}
+	return(highest);
+}

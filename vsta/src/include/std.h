@@ -39,6 +39,7 @@ extern void qsort(void *base, int n, unsigned size,
 		  int (*compar)(void *, void *));
 extern long strtol(const char *s, char **ptr, int base);
 extern unsigned long strtoul(const char *s, char **ptr, int base);
+extern int getdtablesize(void);
 
 /*
  * getopt() package
