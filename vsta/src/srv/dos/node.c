@@ -70,7 +70,7 @@ deref_node(struct node *n)
 		/*
 		 * If file, remove ref from dir we're within
 		 */
-		if (n->n_type == T_FILE) {
+		if ((n->n_type == T_FILE) || (n->n_type == T_SYM)) {
 			hash_delete(n->n_dir->n_files, n->n_slot);
 		} else {
 			extern struct hash *dirhash;

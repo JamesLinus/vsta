@@ -53,11 +53,11 @@ struct node {
 };
 
 /*
- * Values for n_type.  The point is that this field is at the
- * same place for both, so you can tell one from the other.
+ * Values for n_type
  */
 #define T_DIR 1		/* Directory */
 #define T_FILE 2	/* File */
+#define T_SYM 3		/* Symlink */
 
 /*
  * Bits for n_flags
@@ -190,6 +190,7 @@ extern void dos_open(struct msg *, struct file *),
 	dos_fid(struct msg *, struct file *);
 extern void timestamp(struct directory *, time_t),
 	dir_timestamp(struct file *, time_t);
+extern int dir_set_type(struct file *, char *);
 
 /*
  * Global data

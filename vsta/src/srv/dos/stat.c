@@ -205,7 +205,7 @@ dos_fid(struct msg *m, struct file *f)
 	 * arg is the inode value; arg1 is the size in pages
 	 */
 	m->m_arg = inum(n);
-	m->m_arg1 = btop(isize(n));
+	m->m_arg1 = btorp(isize(n));
 	m->m_nseg = 0;
 	msg_reply(m->m_sender, m);
 }
@@ -236,6 +236,11 @@ dos_wstat(struct msg *m, struct file *f)
 		 */
 		t = atoi(val);
 		dir_timestamp(f, t);
+	} else if (!strcmp(field, "type")) {
+		if (dir_set_type(f, val)) {
+			msg_err(m->m_sender, EINVAL);
+			return;
+		}
 	} else {
 		/*
 		 * Unsupported operation

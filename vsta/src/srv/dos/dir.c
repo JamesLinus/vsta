@@ -223,6 +223,20 @@ dir_search(struct node *n, char *f1, char *f2, struct directory *dp)
 }
 
 /*
+ * map_type()
+ *	Convert a DOS attribute into a file type
+ */
+static int
+map_type(int dos_attr)
+{
+	if (dos_attr & DA_DIR)
+		return(T_DIR);
+	if (dos_attr & DA_HIDDEN)
+		return(T_SYM);
+	return(T_FILE);
+}
+
+/*
  * dir_look()
  *	Given dir node and filename, look up entry
  */
@@ -284,7 +298,7 @@ dir_look(struct node *n, char *file)
 	if (n2 == 0) {
 		return(0);
 	}
-	n2->n_type = ((d.attr & DA_DIR) ? T_DIR : T_FILE);
+	n2->n_type = map_type(d.attr);
 	if ((n2->n_type == T_DIR) && !d.start) {
 		syslog(LOG_ERR, "null directory for '%s'", file);
 		free(n2);
@@ -557,7 +571,7 @@ dir_findslot(struct node *n, void **handlep)
 	*handlep = handle = bget(c->c_clust[c->c_nclust-1]);
 	d = bdata(handle);
 	bzero(d, clsize);
-	bdirty(handle);
+	dirty(handle);
 	return(d);
 }
 
@@ -643,7 +657,7 @@ dir_newfile(struct file *f, char *file, int isdir)
 		} else {
 			d->start = n->n_clust->c_clust[0];
 		}
-		bdirty(handle);
+		dirty(handle);
 		bfree(handle);
 	}
 out:
@@ -904,7 +918,7 @@ fix_dotdot(struct node *n, struct node *ndir)
 	 * Point to new parent dir
 	 */
 	de->start = get_clust0(ndir->n_clust);
-	bdirty(b);
+	dirty(b);
 }
 
 /*
@@ -1160,4 +1174,75 @@ cancel_rename(struct file *f)
 {
 	(void)hash_delete(rename_pending, f->f_rename_id);
 	f->f_rename_id = 0;
+}
+
+/*
+ * dir_set_type()
+ *	Set type of entry
+ *
+ * Only switching between symlinks and files is allowed.  Returns 1
+ * on error, 0 on success.
+ */
+int
+dir_set_type(struct file *f, char *newtype)
+{
+	void *handle;
+	struct directory *d;
+	struct node *n = f->f_node;
+	int ntype;
+
+	/*
+	 * Make sure desired type is recognized
+	 */
+	if (!strcmp(newtype, "f")) {
+		ntype = T_FILE;
+	} else if (!strcmp(newtype, "symlink")) {
+		ntype = T_SYM;
+	} else {
+		return(1);
+	}
+
+	/*
+	 * If type is not changing, return success on no-op
+	 */
+	if (n->n_type == ntype) {
+		return(0);
+	}
+
+	/*
+	 * Make sure node is either symlink or file
+	 */
+	if ((n->n_type != T_FILE) && (n->n_type != T_DIR)) {
+		return(1);
+	}
+
+	/*
+	 * Access dir slot
+	 */
+	d = get_dirent(n->n_dir, n->n_slot, &handle);
+	ASSERT_DEBUG(d, "dir_set_type: lost handle");
+
+	/*
+	 * Set type of node
+	 */
+	n->n_type = ntype;
+
+	/*
+	 * Update DOS version of information in directory node.  Note our
+	 * slimy use of HIDDEN to mean symlink.
+	 */
+	if (ntype == T_SYM) {
+		d->attr |= DA_HIDDEN;
+	} else {
+		d->attr &= ~DA_HIDDEN;
+	}
+
+	/*
+	 * Flag dir entry as needing a flush, and return success
+	 */
+	dirty(handle);
+	if (handle) {
+		bfree(handle);
+	}
+	return(0);
 }

@@ -86,6 +86,16 @@ dos_open(struct msg *m, struct file *f)
 	}
 
 	/*
+	 * If it's a symlink, don't let them open it
+	 * unless they have ACC_SYM specified
+	 */
+	if ((n->n_type == T_SYM) && !(m->m_arg & ACC_SYM)) {
+		msg_err(m->m_sender, ESYMLINK);
+		deref_node(n);
+		return;
+	}
+
+	/*
 	 * If they want to use the existing file, set up the
 	 * node and let them go for it.  Note that this case
 	 * MUST be !newfile, or it would have been caught above.
