@@ -41,7 +41,7 @@ cat(char *path)
 static void
 get_str(char *buf, int buflen, int echo)
 {
-	int nstar[STRLEN];
+	int nstar[UI_STRLEN];
 	int x, ret;
 	char c;
 	static char stars[] = "****";
@@ -236,7 +236,7 @@ login(struct uinfo *u)
 static void
 do_login(void)
 {
-	char acct[STRLEN], passwd[STRLEN], buf[STRLEN];
+	char acct[UI_STRLEN], passwd[UI_STRLEN], buf[UI_STRLEN];
 	char *p;
 	struct uinfo uinfo;
 
