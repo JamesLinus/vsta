@@ -1,15 +1,13 @@
 CC=gcc
 CFLAGS=-g
-OBJECTS = boot.o check.o common.o dosfsck.o fat.o file.o io.o lfn.o
+OBJECTS = boot.o check.o common.o dosfsck.o fat.o file.o vsta_io.o lfn.o
+LIBS=-lusr
 
 all: dosfsck
 
 dosfsck: $(OBJECTS)
 	rm -f dosfsck
-	$(CC) -o $@ $(LDFLAGS) $(OBJECTS)
-
-.c.o:
-	$(CC) -c $(CFLAGS) $*.c
+	$(CC) -o $@ $(LDFLAGS) $(OBJECTS) $(LIBS)
 
 install: dosfsck
 	mkdir -p $(SBINDIR) $(MANDIR)
@@ -33,14 +31,3 @@ dep:
 	sed '/\#\#\# Dependencies/q' <Makefile >tmp_make
 	$(CPP) $(CFLAGS) -MM *.c >>tmp_make
 	mv tmp_make Makefile
-
-### Dependencies
-boot.o: boot.c common.h dosfsck.h io.h boot.h
-check.o: check.c common.h dosfsck.h io.h fat.h file.h lfn.h check.h
-common.o: common.c common.h
-dosfsck.o: dosfsck.c common.h dosfsck.h io.h boot.h fat.h file.h \
- check.h
-fat.o: fat.c common.h dosfsck.h io.h check.h fat.h
-file.o: file.c common.h file.h
-io.o: io.c dosfsck.h common.h io.h
-lfn.o: lfn.c common.h io.h dosfsck.h lfn.h file.h
