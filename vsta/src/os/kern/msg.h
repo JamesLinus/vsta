@@ -16,26 +16,25 @@ inline static void
 inline_lqueue_msg(struct port *port, struct sysmsg *sm)
 {
 	sm->sm_next = 0;
-	if (port->p_tl) {
+	if (port->p_hd) {
 		/*
-		 * If we already have a tail entry then
-		 * make it point at us as the new tail
+		 * If we already have a head entry then
+		 * make the tail point at us as the new tail
 		 */ 
 		port->p_tl->sm_next = sm;
-		port->p_tl = sm;
 	} else {
 		/*
 		 * If we don't have a tail entry then we don't
 		 * have a head either so we're the new head
 		 */
 		port->p_hd = sm;
-		port->p_tl = sm;
 	}
+	port->p_tl = sm;
 	v_sema(&port->p_wait);
 }
 
 /*
- * queue_msg()
+ * inline_queue_msg()
  *	Queue a message to the given port's queue, inline version
  *
  * This routine handles all locking of the given port.
