@@ -100,3 +100,5 @@ Rethink struct core's c_long vs. c_atl fields.  They are mutually
 	connecting process.  Perhaps it would be worth adding some
 	code to handle this differently... would it be worth it
 	to regain 4 bytes per 4K (0.1%) overhead?
+
+Add check to enable_dma() for conflict in DMA channels
