@@ -334,7 +334,7 @@ main(int argc, char *argv[])
 {
 	port_name fsname;
 	int x, retries;
-	char *namer_name, *blkname;
+	char *namer_name = 0, *blkname = 0;
 
 	/*
 	 * Initialize syslog

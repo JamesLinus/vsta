@@ -116,7 +116,7 @@ bfs_readdir(struct msg *m, struct file *f)
 {
 	struct inode *i;
 	char *buf;
-	int x, len, err, ok = 1;
+	int x, len, err, ok;
 
 	/*
 	 * Make sure it's the root directory
@@ -147,8 +147,10 @@ bfs_readdir(struct msg *m, struct file *f)
 		 * Find next directory entry.  Null name means
 		 * it's an empty slot.
 		 */
+		ok = 1;
+		i = 0;
 		while (((err = (f->f_pos >= sblock->s_ndirents)) == 0)
-			&& ok) {
+				&& ok) {
 			i = ino_find(f->f_pos);
 			if ((i != NULL) && (i->i_name[0] != '\0')) {
 				ok = 0;
@@ -156,12 +158,11 @@ bfs_readdir(struct msg *m, struct file *f)
 				f->f_pos += 1;
 			}
 		}
-		ok = 1;
 
 		/*
 		 * If error or EOF, return what we have
 		 */
-		if (err) {
+		if (err || !i) {
 			break;
 		}
 
