@@ -81,6 +81,7 @@ new_client(struct msg *m)
 	f->f_pos = OFF_DATA;
 	bcopy(perms, f->f_perms, nperms * sizeof(struct perm));
 	f->f_nperm = nperms;
+	f->f_rename_id = 0;
 
 	/*
 	 * Calculate perms on root dir
@@ -130,7 +131,7 @@ dup_client(struct msg *m, struct file *fold)
 	 * possesses.  For an M_CONNECT, the message is
 	 * from the kernel, and trusted.
 	 */
-	bcopy(fold, f, sizeof(struct file));
+	*f = *fold;
 
 	/*
 	 * Hash under the sender's handle
@@ -160,6 +161,9 @@ dead_client(struct msg *m, struct file *f)
 
 	ASSERT(hash_delete(filehash, m->m_sender) == 0,
 		"dead_client: mismatch");
+	if (f->f_rename_id) {
+		cancel_rename(f);
+	}
 	vfs_close(f);
 	free(f);
 }
@@ -250,6 +254,9 @@ loop:
 		break;
 	case FS_FID:		/* File ID */
 		vfs_fid(&msg, f);
+		break;
+	case FS_RENAME:		/* Rename file */
+		vfs_rename(&msg, f);
 		break;
 	default:		/* Unknown */
 		msg_err(msg.m_sender, EINVAL);

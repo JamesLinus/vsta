@@ -136,6 +136,9 @@ struct file {
 		f_perms[PROCPERMS];
 	uint f_nperm;
 	uint f_perm;		/*  ...for the current f_file */
+	long f_rename_id;	/* Transaction # for rename() */
+	struct msg		/*  ...message for that transaction */
+		f_rename_msg;
 };
 
 /*
@@ -160,5 +163,7 @@ extern uint fs_perms(struct perm *, uint, struct openfile *);
 extern struct buf *bmap(struct buf *, struct fs_file *,
 	ulong, uint, char **, uint *);
 extern struct fs_file *getfs(struct openfile *, struct buf **);
+extern void cancel_rename(struct file *);
+extern void vfs_rename(struct msg *, struct file *);
 
 #endif /* VSTAFS_H */

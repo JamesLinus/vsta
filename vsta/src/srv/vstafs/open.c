@@ -8,6 +8,9 @@
 #include <std.h>
 #include <sys/param.h>
 #include <sys/assert.h>
+#include <hash.h>
+
+static struct hash *rename_pending;
 
 /*
  * partial_trunc()
@@ -794,4 +797,241 @@ vfs_remove(struct msg *m, struct file *f)
 	 */
 	m->m_buflen = m->m_arg = m->m_arg1 = m->m_nseg = 0;
 	msg_reply(m->m_sender, m);
+}
+
+/*
+ * get_dirent()
+ *	Look up named entry, return pointer to it
+ *
+ * On error, returns 0 and puts a string in err.  On success, returns
+ * dir entry pointer and buf for it in bp.  Buffer has been locked.
+ */
+static struct fs_dirent *
+get_dirent(struct file *f, char *name, struct buf **bpp, char **errp,
+	int create, struct openfile **op)
+{
+	struct fs_file *fs;
+	struct buf *b;
+	struct fs_dirent *de;
+	struct openfile *o;
+
+	/*
+	 * Get file header, make sure it's a directory
+	 */
+	fs = getfs(f->f_file, &b);
+	if (fs == 0) {
+		*errp = strerror();
+		return(0);
+	}
+
+	/*
+	 * Have to be in a dir
+	 */
+	if (fs->fs_type != FT_DIR) {
+		*errp = ENOTDIR;
+		return(0);
+	}
+
+	/*
+	 * Look up entry
+	 */
+	lock_buf(b);
+	o = dir_lookup(b, fs, name, &de, bpp);
+	unlock_buf(b);
+
+	/*
+	 * If not there, see about creating
+	 */
+	if ((o == 0) && create) {
+		lock_buf(b);
+		o = dir_newfile(f, name, FT_FILE);
+		if (o == 0) {
+			unlock_buf(b);
+			*errp = EINVAL;
+			return(0);
+		}
+		o = dir_lookup(b, fs, name, &de, bpp);
+		unlock_buf(b);
+		ASSERT(o, "get_dirent: can't find created file");
+	}
+
+	/*
+	 * Free any storage, bomb on the destination being a directory
+	 */
+	if (create) {
+		fs = getfs(o, &b);
+		if (fs->fs_type == FT_DIR) {
+			*errp = EISDIR;
+			return(0);
+		}
+		file_shrink(o, sizeof(struct fs_file));
+	}
+
+	/*
+	 * Give open file back, or release our hold on it
+	 */
+	if (op) {
+		*op = o;
+	} else {
+		deref_node(o);
+	}
+	return(de);
+}
+
+/*
+ * do_rename()
+ *	Given open directories and filenames, rename an entry
+ *
+ * Returns an error string or 0 for success.
+ */
+static char *
+do_rename(struct file *fsrc, char *src, struct file *fdest, char *dest)
+{
+	struct fs_dirent *desrc, *dedest;
+	struct buf *bsrc = 0, *bdest = 0;
+	struct openfile *odest;
+	char *err;
+	daddr_t blktmp;
+
+	/*
+	 * Get pointers to source and destination directory
+	 * entries.
+	 */
+	desrc = get_dirent(fsrc, src, &bsrc, &err, 0, 0);
+	if (desrc == 0) {
+		return(err);
+	}
+	dedest = get_dirent(fdest, dest, &bdest, &err, 1, &odest);
+	if (dedest == 0) {
+		unlock_buf(bsrc);
+		return(err);
+	}
+
+	/*
+	 * Swap who holds which file
+	 */
+	blktmp = desrc->fs_clstart;
+	desrc->fs_clstart = dedest->fs_clstart;
+	dedest->fs_clstart = blktmp;
+
+	/*
+	 * Mark the two directory blocks dirty, and release their locks
+	 */
+	dirty_buf(bsrc); unlock_buf(bsrc);
+	dirty_buf(bdest); unlock_buf(bdest);
+
+	/*
+	 * Delete the old one now
+	 */
+	ASSERT_DEBUG(odest->o_refs == 1, "do_rename: o_refs != 1");
+	desrc->fs_name[0] |= 0x80;
+	uncreate_file(odest);
+
+	/*
+	 * Success
+	 */
+	sync();
+	return(0);
+}
+
+/*
+ * dos_rename()
+ *	Rename one dir entry to another
+ *
+ * For move of directory, just protect against cycles and update
+ * the ".." entry in the directory after the move.
+ */
+void
+vfs_rename(struct msg *m, struct file *f)
+{
+	struct file *f2;
+	char *errstr;
+	extern int valid_fname(char *, int);
+
+	/*
+	 * Sanity
+	 */
+	if ((m->m_arg1 == 0) || !valid_fname(m->m_buf, m->m_buflen)) {
+		msg_err(m->m_sender, EINVAL);
+		return;
+	}
+
+	/*
+	 * On first use, create the rename-pending hash
+	 */
+	if (rename_pending == 0) {
+		rename_pending = hash_alloc(16);
+		if (rename_pending == 0) {
+			msg_err(m->m_sender, strerror());
+			return;
+		}
+	}
+
+	/*
+	 * Phase 1--register the source of the rename
+	 */
+	if (m->m_arg == 0) {
+		/*
+		 * Transaction ID collision?
+		 */
+		if (hash_lookup(rename_pending, m->m_arg1)) {
+			msg_err(m->m_sender, EBUSY);
+			return;
+		}
+
+		/*
+		 * Insert in hash
+		 */
+		if (hash_insert(rename_pending, m->m_arg1, f)) {
+			msg_err(m->m_sender, strerror());
+			return;
+		}
+
+		/*
+		 * Flag open file as being involved in this
+		 * pending operation.
+		 */
+		f->f_rename_id = m->m_arg1;
+		f->f_rename_msg = *m;
+		return;
+	}
+
+	/*
+	 * Otherwise it's the completion
+	 */
+	f2 = hash_lookup(rename_pending, m->m_arg1);
+	if (f2 == 0) {
+		msg_err(m->m_sender, ESRCH);
+		return;
+	}
+	(void)hash_delete(rename_pending, m->m_arg1);
+
+	/*
+	 * Do our magic
+	 */
+	errstr = do_rename(f2, f2->f_rename_msg.m_buf, f, m->m_buf);
+	if (errstr) {
+		msg_err(m->m_sender, errstr);
+		msg_err(f2->f_rename_msg.m_sender, errstr);
+	} else {
+		m->m_nseg = m->m_arg = m->m_arg1 = 0;
+		msg_reply(m->m_sender, m);
+		msg_reply(f2->f_rename_msg.m_sender, m);
+	}
+
+	/*
+	 * Clear state
+	 */
+	f2->f_rename_id = 0;
+}
+
+/*
+ * cancel_rename()
+ *	A client exit()'ed before completing a rename.  Clean up.
+ */
+void
+cancel_rename(struct file *f)
+{
+	(void)hash_delete(rename_pending, f->f_rename_id);
+	f->f_rename_id = 0;
 }
