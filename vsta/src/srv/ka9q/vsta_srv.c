@@ -1869,7 +1869,7 @@ inetfs_rcv(struct tcb *tcb, int16 cnt)
 	/*
 	 * Finally, awake anyone select()'ing for data here
 	 */
-	if (!LL_EMPTY(&c->t_selectors)) {
+	if (tcb->rcvcnt && !LL_EMPTY(&c->t_selectors)) {
 		send_select(c, &c->t_selectors, ACC_READ);
 	}
 }
