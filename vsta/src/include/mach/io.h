@@ -12,6 +12,8 @@
  */
 extern uchar inportb(int port);
 extern void outportb(int port, uchar data);
+extern ushort inportw();
+extern void outportw(int port, ushort data);
 extern void repinsw(int port, void *buffer, int count);
 extern void repoutsw(int port, void *buffer, int count);
 
