@@ -1,0 +1,71 @@
+.ll 74
+.he 'msg_send(2)'VSTa Manual'msg_send(2)'
+.fo ''%''
+.sp 2
+.bd 1
+NAME
+.br
+.ti +6
+msg_send - send messages to a server's port
+.sp
+.bd 1
+SYNOPSIS
+.br
+.in +6
+.li 3
+#include <sys/msg.h>
+
+int msg_send(port_t port, struct msg *msg);
+.sp 1
+.in -6
+.bd 1
+DESCRIPTION
+.br
+.in +6
+.ul 1
+msg_send()
+queues a message containing zero or more message buffers to
+the server connected to
+.ul 1
+port,
+which must have previously been opened by a successful
+call to
+.ul 1
+msg_connect().
+By convention, the
+.ul 1
+m_arg
+field of the
+.ul 1
+msg
+contains the number of bytes contained in the message.
+.ul 1
+m_nseg
+specifies how many segments of memory are being sent.  The
+actual segments are filled into the
+.ul 1
+m_seg[]
+array.
+.sp
+.ul 1
+msg_send()
+blocks until the server has received the message and
+completed it via
+.ul 1
+msg_reply(), msg_err(),
+or by terminating.
+.sp
+The treatment of the described segments of memory is determined by
+the
+.bd 1
+M_READ
+bit in the
+.ul 1
+m_op
+field of the message.  If this bit is clear, the requested operation
+is to send the described memory to the server.  If set, the server
+does not receive the memory, and the server's reply will be filled
+into the message segments.
+.sp
+The return value will either be -1, indicating an error, or the
+number of bytes transferred.

@@ -1,0 +1,46 @@
+.ll 74
+.he 'msg_err(2)'VSTa Manual'msg_err(2)'
+.fo ''%''
+.sp 2
+.bd 1
+NAME
+.br
+.ti +6
+msg_err - send back an error
+.sp
+.bd 1
+SYNOPSIS
+.br
+.in +6
+.li 3
+#include <sys/msg.h>
+
+int msg_err(long sender, char *errstring);
+.sp 1
+.in -6
+.bd 1
+DESCRIPTION
+.br
+.in +6
+.ul 1
+msg_err()
+is used to return an error from a server to a client.  Most
+commonly, it is used to reply with error to a request
+received via
+.ul 1
+msg_receive().
+The client sees his
+.ul 1
+msg_send()
+return a -1, and can access the
+.ul 1
+errstring
+by calling
+.ul 1
+strerror().
+.sp
+The client's connection remains functional, and a new
+request can be sent via a new
+.ul 1
+msg_send()
+call.

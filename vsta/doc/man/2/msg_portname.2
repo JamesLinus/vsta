@@ -1,0 +1,37 @@
+.ll 74
+.he 'msg_portname(2)'VSTa Manual'msg_portname(2)'
+.fo ''%''
+.sp 2
+.bd 1
+NAME
+.br
+.ti +6
+msg_portname - get name associated with port
+.sp
+.bd 1
+SYNOPSIS
+.br
+.in +6
+.li 3
+#include <sys/msg.h>
+
+port_name msg_port(port_t p);
+.sp 1
+.in -6
+.bd 1
+DESCRIPTION
+.br
+.in +6
+The
+.ul 1
+msg_portname()
+system service returns the
+.ul 1
+port_name
+associated with an open port, suitable for use in
+a later call to
+.ul 1
+msg_connect().
+It is most often used to find out if two open files
+reside on the same "filesystem", that is, under
+the same server.

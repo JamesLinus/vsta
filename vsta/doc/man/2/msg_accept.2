@@ -1,0 +1,44 @@
+.ll 74
+.he 'msg_accept(2)'VSTa Manual'msg_accept(2)'
+.fo ''%''
+.sp 2
+.bd 1
+NAME
+.br
+.ti +6
+msg_accept - accept a connection from a client
+.sp
+.bd 1
+SYNOPSIS
+.br
+.in +6
+.li 3
+#include <sys/msg.h>
+
+int msg_accept(long handle);
+.sp 1
+.in -6
+.bd 1
+DESCRIPTION
+.br
+.in +6
+The
+.ul 1
+msg_accept()
+system service is used by a server to accept an
+incoming connection from a client.  After this call,
+the client will be able to exchange messages with
+the server.
+.sp
+.ul 1
+handle
+is the value passed in
+.ul 1
+m_sender
+field of the
+.bd 1
+MSG_CONNECT
+message received by the server on its port
+using
+.ul 1
+msg_receive().
