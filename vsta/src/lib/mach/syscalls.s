@@ -7,7 +7,6 @@
  * stack.
  */
 #include <sys/syscall.h>
-#include "../../os/make/assym.h"
 
 /*
  * syserr()
