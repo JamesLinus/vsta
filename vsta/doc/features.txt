@@ -58,3 +58,20 @@ Added xargs, echo, strings
 vstafs: fix up how directories are grown
 Cleanup of pset data structure and routines
 Cleanup of adb, add :n to step over procedure calls
+
+1.4.1:
+Speed up and bug fix event delivery code
+Add support for "bt X" in kdb to backtrace an arbitrary thread
+Make FDL memory file descriptors work as a FIFO ring
+Fix a crash where a connect request is dropped due to server death
+Protect against a debugged process clearing its debugger port_t
+Networking.  /inet server, telnet daemon, remote console.
+A speed/memory tweak for tmpfs; larger single I/O as a side effect
+RCS is working (knock on wood)
+chmod() maps onto VSTa permissions (was a no-op)
+O_CHMOD supported for open() and friends
+DOS server permits switching between RO and RW permissions now
+Shadow password file
+A couple more man pages
+VSTa VM page stealing rework.  Actually seems to work! (YMMV :->)
+SCSI Tape & autosense support from Mike Larson
