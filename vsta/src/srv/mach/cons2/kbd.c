@@ -230,8 +230,7 @@ unbecome(void)
 	struct perm perm;
 
 	/*
-	 * Get root, and zero out our slots.  We don't need to
-	 * be root to delete a slot.
+	 * Zero out our slots.  Root ability not needed.
 	 */
 	PERM_NULL(&perm);
 	for (x = 1; x < PROCPERMS; ++x) {
