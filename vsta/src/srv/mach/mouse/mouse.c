@@ -204,3 +204,22 @@ mouse_read(struct msg *m, struct file *f)
 	 */
 	sleeper = m->m_sender;
 }
+
+/*
+ * mouse_update()
+ *	Mouse changes have been detected; update and wakeup
+ *
+ * This entry is used when a second thread is used to detect mouse
+ * changes.  The thread detects them, then bundles up the new state
+ * and sends it to this interface.
+ */
+void
+mouse_update(mouse_pointer_data_t *m)
+{
+	mouse_pointer_data_t *p = &mouse_data.pointer_data;
+
+	p->dx += m->dx;
+	p->dy += m->dy;
+	p->buttons = m->buttons;
+	mouse_changed();
+}

@@ -47,8 +47,8 @@ static ushort ibm_serial_delay_period = 100;
 static uint ibm_serial_update_allowed = TRUE;
 static ibm_model_t ibm_serial_model = RS_MICROSOFT;
 static port_t	ibm_serial_port;
-static uchar *buff;
-static int bufoff = 0;
+static struct ibm_serial_config *m_data;
+static port_t main_port;
 
 static struct ibm_serial_config ibm_serial_data[5] = {
 	{0x40, 0x40, 0x40, 0x00,		/* MicroSoft */
@@ -93,38 +93,31 @@ rs232_putc(uchar c)
  * Returns the number of characters read.
  */
 static int
-rs232_read(void)
+rs232_read(uchar *buf, int len)
 {
 	struct msg m;
-	int x;
 
-	m.m_op = M_READ|FS_READ;
-	m.m_buf = &buff[bufoff];
-	m.m_arg = 0;
-	m.m_buflen = IBM_SERIAL_BUFSIZ - bufoff;
+	m.m_op = M_READ | FS_READ;
+	m.m_buf = buf;
+	m.m_arg = m.m_buflen = len;
 	m.m_nseg = 1;
 	m.m_arg1 = 0;
 
-	x = msg_send(ibm_serial_port, &m);
-	if (x > 0) {
-		bufoff += x;
-	}
-	return(x);
+	return(msg_send(ibm_serial_port, &m));
 }
 
 /*
- * ibm_serial_check_status()
- *    Read in the mouse coordinates.
+ * mouse()
+ *	Process mouse events
+ *
+ * A buffer containing a single assembled mouse packet is passed
+ * in; this routine updates the position and button values.
  */
-static void
-ibm_serial_check_status(void)
+static int
+mouse(uchar *buffer, int len, mouse_pointer_data_t *p)
 {
-	char x_off, y_off, changed;
-	int i = 0, x, buttons, got_packet;
-	struct ibm_serial_config *m_data = &ibm_serial_data[ibm_serial_model];
-	uchar *buffer;
-	mouse_pointer_data_t *p = &mouse_data.pointer_data;
-	static btn_cvt[8] = {
+	char x_off, y_off;
+	static uchar btn_cvt[8] = {
 		0,
 		MOUSE_RIGHT_BUTTON,
 		MOUSE_MIDDLE_BUTTON,
@@ -135,104 +128,119 @@ ibm_serial_check_status(void)
 		MOUSE_LEFT_BUTTON | MOUSE_RIGHT_BUTTON | MOUSE_MIDDLE_BUTTON
 	};
 
-	buttons = p->buttons;
-	set_semaphore(&ibm_serial_update_allowed, FALSE);
+	switch (ibm_serial_model) {
+	case RS_MICROSOFT:	/* Microsoft */
+	default:
+		p->buttons = ((buffer[0] & 0x20) >> 5) |
+			((buffer[0] & 0x10) >> 3) |
+			((len > m_data->dmin) ?
+				((buffer[3] & 0x20) >> 3) : 0);
+		x_off = (char) (((buffer[0] & 0x03) << 6) |
+			(buffer[1] & 0x3f));
+		y_off = (char) (((buffer[0] & 0x0c) << 4) |
+			(buffer[2] & 0x3f));
+		break;
 
-	rs232_read();
-restart:
-	/*
-	 * Find a header byte
-	 */
-	while ((i < bufoff) &&
-		((buff[i] & m_data->mask0) != m_data->test0)) {
-			i++;
+	case RS_MOUSE_SYS_3:	/* Mouse Systems 3 byte */
+		p->buttons = btn_cvt[(~buffer[0]) & 0x07];
+		x_off = (char) (buffer[1]);
+		y_off = -(char) (buffer[2]);
+		break;
+
+	case RS_MOUSE_SYS_5:	/* Mouse Systems Corp 5 bytes */
+		p->buttons = btn_cvt[(~buffer[0]) & 0x07];
+		x_off = (char) (buffer[1]) + (char) (buffer[3]);
+		y_off = -((char) (buffer[2]) + (char) (buffer[4]));
+		break;
+
+	case RS_MM:		/* MM Series */
+	case RS_LOGITECH:		/* Logitech */
+		p->buttons = btn_cvt[buffer[0] & 0x07];
+		x_off = (buffer[0] & 0x10) ? buffer[1] : -buffer[1];
+		y_off = (buffer[0] & 0x08) ? -buffer[2] : buffer[2];
+		break;
 	}
 
 	/*
-	 * Read in the rest of the packet
+	 * Update the current coordinates
 	 */
-	while ((bufoff - i) >= m_data->dmin) {
-		buffer = &buff[i++];
-		x = 1;
-		got_packet = 0;
-		while (!got_packet && (i < bufoff) && (x < m_data->dmax)) {
+	p->dx += x_off;
+	p->dy -= y_off;
+}
+
+/*
+ * ibm_serial_check_status()
+ *    Read in the mouse coordinates.
+ */
+static void
+ibm_serial_check_status(uchar *buff, int len)
+{
+	static uchar pos = 0, msg[8];
+	mouse_pointer_data_t md;
+	int nevent = 0;
+
+	bzero(&md, sizeof(md));
+	while (len-- > 0) {
+		uchar c = *buff++;
+
+		/*
+		 * For body, assemble while not end of packet
+		 * and it hasn't run overlong
+		 */
+		if (pos > 0) {
 			/*
-			 * Check whether we have a data packet.  Restart
-			 * if we see the start of a new packet.
+			 * Not end.  Add to buffer if there's room.
 			 */
-			if (((buffer[x] & m_data->mask1) != m_data->test1)
-					|| buffer[x] == 0x80) {
-				if (x < m_data->dmin) {
-					goto restart;
+			if (((c & m_data->mask1) == m_data->test1) &&
+					(c != 0x80)) {
+				if (pos < m_data->dmax) {
+					msg[pos++] = c;
 				}
-				got_packet = 1;
-			} else {
+
 				/*
-				 * We've found another byte in the
-				 * middle of a packet, so let's carry on
+				 * If we've seen the end of a burst,
+				 * and there appears to be enough to
+				 * use as a packet, drop through to
+				 * process this packet.  Otherwise
+				 * keep assembling.
 				 */
-				i++, x++;
+				if ((pos < m_data->dmin) || (len > 0)) {
+					continue;
+				}
 			}
-		}
-		switch (ibm_serial_model) {
-		case RS_MICROSOFT:	/* Microsoft */
-		default:
-			buttons = ((buffer[0] & 0x20) >> 5) |
-				((buffer[0] & 0x10) >> 3) |
-				((x > m_data->dmin) ?
-					((buffer[3] & 0x20) >> 3) : 0);
-			x_off = (char) (((buffer[0] & 0x03) << 6) |
-				(buffer[1] & 0x3f));
-			y_off = (char) (((buffer[0] & 0x0c) << 4) |
-				(buffer[2] & 0x3f));
-			break;
 
-		case RS_MOUSE_SYS_3:	/* Mouse Systems 3 byte */
-			buttons = btn_cvt[(~buffer[0]) & 0x07];
-			x_off = (char) (buffer[1]);
-			y_off = -(char) (buffer[2]);
-			break;
-
-		case RS_MOUSE_SYS_5:	/* Mouse Systems Corp 5 bytes */
-			buttons = btn_cvt[(~buffer[0]) & 0x07];
-			x_off = (char) (buffer[1]) + (char) (buffer[3]);
-			y_off = -((char) (buffer[2]) + (char) (buffer[4]));
-			break;
-
-		case RS_MM:		/* MM Series */
-		case RS_LOGITECH:		/* Logitech */
-			buttons = btn_cvt[buffer[0] & 0x07];
-			x_off = (buffer[0] & 0x10) ? buffer[1] : -buffer[1];
-			y_off = (buffer[0] & 0x08) ? -buffer[2] : buffer[2];
-			break;
+			/*
+			 * End.  This is actually the first byte of the
+			 * next packet.  Feed in this packet, then fall
+			 * into start-of-packet handling.
+			 */
+			if (pos >= m_data->dmin) {
+				mouse(msg, pos, &md);
+				nevent += 1;
+			}
+			pos = 0;
 		}
 
 		/*
-		 * If they've changed, update the current coordinates
+		 * For first position, must see a packet header
 		 */
-		p->dx += x_off;
-		p->dy -= y_off;
-	}
-	changed = p->dx || p->dy || (p->buttons != buttons);
-	p->buttons = buttons;
-
-	/*
-	 * After all that, do we need to shunt our buffers about?
-	 */
-	if (i) {
-		if (bufoff - i) {
-			memmove(buff, &buff[i], bufoff - i);
+		if ((c & m_data->mask0) == m_data->test0) {
+			msg[pos++] = c;
 		}
-		bufoff -= i;
 	}
 
-	set_semaphore(&ibm_serial_update_allowed, TRUE);
-
 	/*
-	 * Notify if any change
+	 * Notify of the change
 	 */
-	if (changed) {
-		mouse_changed();
+	if (nevent > 0) {
+		struct msg m;
+
+		m.m_op = MOUSE_UPD;
+		m.m_buf = &md;
+		m.m_arg = m.m_buflen = sizeof(md);
+		m.m_nseg = 1;
+		m.m_arg1 = 0;
+		(void)msg_send(main_port, &m);
 	}
 }
 
@@ -243,13 +251,13 @@ restart:
 void
 ibm_serial_poller_entry_point(void)
 {
+	uchar buf[64];
+	int len;
+
+	main_port = msg_connect(mouse_name, MOUSE_MAGIC);
 	for (;;) {
-		ibm_serial_check_status();
-		if (ibm_serial_delay_period) {
-			__msleep(ibm_serial_delay_period);
-		} else {
-			__msleep(10);
-		}
+		len = rs232_read(buf, sizeof(buf));
+		ibm_serial_check_status(buf, len);
 	}
 }
 
@@ -316,7 +324,6 @@ ibm_serial_parse_args(int argc, char **argv)
 		mm_option = 0, logitech_option = 0;
 	int arg, arg_st;
 	char st_msg[32];
-	struct ibm_serial_config *mcfg;
 
 	/*
 	 * Check we have enough parameters
@@ -394,19 +401,22 @@ ibm_serial_parse_args(int argc, char **argv)
 		}
 	}
 
-	mcfg = &ibm_serial_data[ibm_serial_model];
+	/*
+	 * Record for all to enjoy from here on
+	 */
+	m_data = &ibm_serial_data[ibm_serial_model];
 
 	/*
 	 * Set DTR and RTS toggle to power up the mouse and reset it.  Also
 	 * establish the baud rate and the data/stop bit/parity settings.
 	 */
-	sprintf(st_msg, "baud=%d\n", mcfg->baud);
+	sprintf(st_msg, "baud=%d\n", m_data->baud);
 	wstat(ibm_serial_port, st_msg);
-	sprintf(st_msg, "databits=%d\n", mcfg->databits);
+	sprintf(st_msg, "databits=%d\n", m_data->databits);
 	wstat(ibm_serial_port, st_msg);
-	sprintf(st_msg, "stopbits=%d\n", mcfg->stopbits);
+	sprintf(st_msg, "stopbits=%d\n", m_data->stopbits);
 	wstat(ibm_serial_port, st_msg);
-	sprintf(st_msg, "parity=%s\n", mcfg->parity);
+	sprintf(st_msg, "parity=%s\n", m_data->parity);
 	wstat(ibm_serial_port, st_msg);
 	wstat(ibm_serial_port, "dtr=1\n");
 	wstat(ibm_serial_port, "rts=0\n");
@@ -418,7 +428,6 @@ ibm_serial_parse_args(int argc, char **argv)
 		ibm_serial_usage();
 	}
 }
-
 
 /*
  * ibm_serial_initialise()
@@ -439,12 +448,9 @@ ibm_serial_initialise(int argc, char **argv)
 	m->irq_number = 0;
 	m->update_frequency = ibm_serial_delay_period;
 
-	buff = (uchar *)malloc(IBM_SERIAL_BUFSIZ);
-	if (!buff) {
-		syslog(LOG_ERR, "unable to allocate data buffer");
-		exit(1);
-	}
-
+	/*
+	 * Parse mouse specific args
+	 */
 	ibm_serial_parse_args(argc, argv);
 
 	/*

@@ -36,17 +36,26 @@ mouse_new_client(struct msg *m)
 	struct file *f;
 	struct perm *perms;
 	int uperms, nperms, desired;
+	static int magic_seen;
 
 	/*
-	 *  See if they're OK to access
+	 * Magic #--allow if this is the one and only
 	 */
-	perms = (struct perm *) m->m_buf;
-	nperms = (m->m_buflen) / sizeof(struct perm);
-	uperms = perm_calc(perms, nperms, &mouse_prot);
-	desired = m->m_arg & (ACC_WRITE | ACC_READ | ACC_CHMOD);
-	if ((uperms & desired) != desired) {
-		msg_err(m->m_sender, EPERM);
-		return;
+	if ((m->m_arg == MOUSE_MAGIC) && !magic_seen) {
+		magic_seen = 1;
+		uperms = ACC_CHMOD;
+	} else {
+		/*
+		 *  See if they're OK to access
+		 */
+		perms = (struct perm *) m->m_buf;
+		nperms = (m->m_buflen) / sizeof(struct perm);
+		uperms = perm_calc(perms, nperms, &mouse_prot);
+		desired = m->m_arg & (ACC_WRITE | ACC_READ | ACC_CHMOD);
+		if ((uperms & desired) != desired) {
+			msg_err(m->m_sender, EPERM);
+			return;
+		}
 	}
 
 	/*
@@ -208,6 +217,12 @@ loop:
 		if (!mouse_check_gen(&msg, f)) {
 			mouse_read(&msg, f);
 		}
+		break;
+
+	case MOUSE_UPD:			/* Mouse position update from poll */
+		mouse_update(msg.m_buf);
+		msg.m_arg = msg.m_arg1 = msg.m_nseg = 0;
+		(void)msg_reply(msg.m_sender, &msg);
 		break;
 
 	default:			/* Unknown */

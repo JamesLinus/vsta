@@ -26,6 +26,12 @@
 #define MOUSE_MIDDLE_BUTTON  (1 << 2)
 
 /*
+ * Magic message mode and type for passing mouse updates
+ */
+#define MOUSE_MAGIC (123321)
+#define MOUSE_UPD (601)
+
+/*
  * An open file
  */
 struct file {
@@ -74,5 +80,6 @@ extern void mouse_stat(struct msg *, struct file *);
 extern void mouse_wstat(struct msg *, struct file *);
 extern void mouse_changed(void);
 extern void update_changes(void);
+extern void mouse_update(mouse_pointer_data_t *);
 
 #endif /* __VSTA_MOUSE_H__ */
