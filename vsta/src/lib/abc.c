@@ -9,6 +9,7 @@
 #include <sys/fs.h>
 #include <sys/assert.h>
 #include <sys/syscall.h>
+#include <sys/sched.h>		/* For ephemeral threads */
 #include <std.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -519,6 +520,11 @@ bg_thread(int dummy)
 	uint next = 0, want;
 	struct qio *q;
 	struct buf *b;
+
+	/*
+	 * Become ephemeral
+	 */
+	(void)sched_op(SCHEDOP_EPHEM, 0);
 
 	/*
 	 * Endless loop, serving background requests
