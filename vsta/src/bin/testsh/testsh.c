@@ -11,10 +11,11 @@
 #include <fcntl.h>
 #include <ctype.h>
 #include <unistd.h>
+#include <stat.h>
 
 extern char *__cwd;	/* Current working dir */
 static void cd(), md(), quit(), ls(), pwd(), do_mount(), cat(), mysleep(),
-	sec(), null(), do_wstat(), do_fork(), get(), set(),
+	sec(), null(), testsh_wstat(), do_fork(), get(), set(),
 	do_umount(), rm(), source(), show_mount();
 extern void run(), path();
 static char *buf;	/* Utility page buffer */
@@ -57,7 +58,7 @@ struct {
 	"sleep", mysleep,
 	"source", source,
 	"umount", do_umount,
-	"wstat", do_wstat,
+	"wstat", testsh_wstat,
 	0, 0
 };
 
@@ -209,11 +210,11 @@ do_fork(void)
 }
 
 /*
- * do_wstat()
+ * testsh_wstat()
  *	Write a stat message
  */
 static void
-do_wstat(char *p)
+testsh_wstat(char *p)
 {
 	int fd;
 	char *q;
