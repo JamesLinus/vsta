@@ -36,31 +36,15 @@ usage(void)
 
 /*
  * get_node()
- *	Look up node name from our net initialization file
+ *	Get our hostname from gethostname()
  */
 static char *
 get_node(void)
 {
-	char *p, *nm = NULL, buf[128];
-	FILE *fp;
+	static char buf[128];
 
-	if (fp = fopen(_PATH_NET, "r")) {
-		while (fgets(buf, sizeof(buf), fp)) {
-			if (!strncmp(buf, "host ", 5)) {
-				nm = buf + 5;
-				p = strchr(nm, '\n');
-				if (p) {
-					*p = '\0';
-				}
-				break;
-			}
-		}
-	}
-	fclose(fp);
-	if (!nm) {
-		return("Unknown");
-	}
-	return(nm);
+	(void)gethostname(buf, sizeof(buf));
+	return(buf);
 }
 
 /*
