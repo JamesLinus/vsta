@@ -14,6 +14,40 @@ static char *buf;		/* I/O buffer--malloc()'ed */
 #define BUFSIZE (16*1024)	/* I/O buffer size */
 
 static int errs = 0;		/* Count of errors */
+static int rflag = 0;		/* -r flag specified */
+
+/*
+ * fisdir()
+ *	Version of isdir() given file descriptor
+ */
+static int
+fisdir(int fd)
+{
+	struct stat sb;
+
+	if (fstat(fd, &sb) < 0) {
+		return(0);
+	}
+	return((sb.st_mode & S_IFMT) == S_IFDIR);
+}
+
+/*
+ * isdir()
+ *	Tell if named file is a directory
+ */
+static int
+isdir(char *n)
+{
+	int x, fd;
+
+	fd = open(n, O_READ);
+	if (fd < 0) {
+		return(0);
+	}
+	x = fisdir(fd);
+	close(fd);
+	return(x);
+}
 
 /*
  * cp_file()
@@ -24,11 +58,27 @@ cp_file(char *src, char *dest)
 {
 	int in, out, x;
 
+	/*
+	 * Access source
+	 */
 	if ((in = open(src, O_READ)) < 0) {
 		perror(src);
 		errs += 1;
 		return;
 	}
+
+	/*
+	 * If source is a directory, bomb or start recursive copy
+	 */
+	if (fisdir(in)) {
+		if (!rflag) {
+			fprintf(stderr, "%s: is a directory\n", src);
+			errs += 1;
+			return;
+		}
+		cp_recurse(src, dest);
+	}
+
 	if ((out = open(dest, O_WRITE|O_CREAT, 0666)) < 0) {
 		perror(dest);
 		errs += 1;
@@ -74,21 +124,6 @@ usage(void)
 	exit(1);
 }
 
-/*
- * isdir()
- *	Tell if named file is a directory
- */
-static int
-isdir(char *n)
-{
-	struct stat sb;
-
-	if (stat(n, &sb) < 0) {
-		return(0);
-	}
-	return((sb.st_mode & S_IFMT) == S_IFDIR);
-}
-
 main(int argc, char **argv)
 {
 	int lastdir;
@@ -102,12 +137,26 @@ main(int argc, char **argv)
 		perror("cp");
 		exit(1);
 	}
+
+	/*
+	 * Parse "-r"; allow recursive copy
+	 */
+	if ((argc > 1) && !strcmp(argv[1], "-r")) {
+		rflag = 1;
+		argc -= 1;
+		argv[1] = argv[0];
+		argv += 1;
+	}
+
+	/*
+	 * Sanity check argument count
+	 */
 	if (argc < 3) {
 		usage();
 	}
 
 	/*
-	 * Parse args.  Support both:
+	 * Parse rest of args.  Support both:
 	 *	cp <src> <dest>
 	 * and	cp <src1> <src2> ... <dest-dir>
 	 */
