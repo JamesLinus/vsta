@@ -12,16 +12,15 @@
 #include <std.h>
 #include <syslog.h>
 
-extern void fat_init(), binit(), dir_init();
-extern void dos_open(), dos_read(), dos_write(), *bdata(),
-	*bget(), dos_remove(), dos_stat(), dos_fid();
-
 int blkdev;		/* Device this FS is mounted upon */
 port_t rootport;	/* Port we receive contacts through */
 char *secbuf;		/* A sector buffer */
 struct boot bootb;	/* Image of boot sector */
 static struct hash	/* Handle->filehandle mapping */
 	*filehash;
+
+extern port_t path_open(char *, int);
+extern int __fd_alloc(port_t);
 
 /*
  * Protection for all DOSFS files: everybody can read, only
@@ -167,9 +166,10 @@ dup_client(struct msg *m, struct file *fold)
 static void
 dead_client(struct msg *m, struct file *f)
 {
-	extern void dos_close();
-
 	(void)hash_delete(filehash, m->m_sender);
+	if (f->f_rename_id) {
+		cancel_rename(f);
+	}
 	dos_close(f);
 	free(f);
 }
@@ -182,7 +182,6 @@ static void
 dos_main()
 {
 	struct msg msg;
-	seg_t resid;
 	char *buf2 = 0;
 	int x;
 	struct file *f;
@@ -233,8 +232,14 @@ loop:
 		break;
 	case M_ABORT:		/* Aborted operation */
 		/*
-		 * We're synchronous, so presumably the operation
-		 * is all done and this abort is old news.
+		 * Clear pending rename if any
+		 */
+		if (f->f_rename_id) {
+			cancel_rename(f);
+		}
+
+		/*
+		 * Other operations are sync, so they're done
 		 */
 		msg_reply(msg.m_sender, &msg);
 		break;
@@ -280,6 +285,9 @@ loop:
 	case FS_FID:		/* File ID */
 		dos_fid(&msg, f);
 		break;
+	case FS_RENAME:		/* Rename file/dir */
+		dos_rename(&msg, f);
+		break;
 	default:		/* Unknown */
 		msg_err(msg.m_sender, EINVAL);
 		break;
@@ -313,13 +321,13 @@ usage(void)
  * A DOS instance expects to start with a command line:
  *	$ dos <block class> <block instance> <filesystem name>
  */
+int
 main(int argc, char *argv[])
 {
 	port_t port;
 	port_name fsname;
-	struct msg msg;
-	int chan, fd, x;
-	char *namer_name;
+	int x;
+	char *namer_name = 0;
 
 	/*
 	 * Check arguments
@@ -409,6 +417,7 @@ main(int argc, char *argv[])
 	 * Start serving requests for the filesystem
 	 */
 	dos_main();
+	return(0);
 }
 
 /*
