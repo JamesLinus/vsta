@@ -1,22 +1,31 @@
 /*
  * main.c
  *	Main message handling
+ *
+ * This handler takes both console (output) and keyboard (input).  It
+ * also does the magic necessary to multiplex onto the multiple virtual
+ * consoles.
  */
 #include <sys/perm.h>
 #include <sys/types.h>
 #include <sys/fs.h>
 #include <sys/ports.h>
+#include <sys/syscall.h>
+#include <sys/namer.h>
 #include <hash.h>
 #include "cons.h"
 #include <stdio.h>
+#include <std.h>
 
-extern void write_string(), *malloc(), cons_stat(), cons_wstat();
-extern char *strerror();
+extern int valid_fname(void *, uint);
 
-struct hash *filehash;	/* Map session->context structure */
+static struct hash
+	*filehash;	/* Map session->context structure */
 
 port_t consport;	/* Port we receive contacts through */
-uint accgen = 0;	/* Generation counter for access */
+uint accgen = 0,	/* Generation counter for access */
+	curscreen = 0,	/* Current screen # receiving data */
+	hwscreen = 0;	/* Screen # showing on HW */
 
 /*
  * Protection for console; starts out with access for all.  sys can
@@ -28,6 +37,11 @@ struct prot cons_prot = {
 	{1},
 	{ACC_CHMOD}
 };
+
+/*
+ * Per-virtual screen state
+ */
+static struct screen screens[NVTY];
 
 /*
  * new_client()
@@ -65,6 +79,8 @@ new_client(struct msg *m)
 	 */
 	f->f_gen = accgen;
 	f->f_flags = uperms;
+	f->f_screen = ROOTDIR;
+	f->f_pos = 0;
 
 	/*
 	 * Hash under the sender's handle
@@ -134,7 +150,7 @@ dead_client(struct msg *m, struct file *f)
  * check_gen()
  *	See if the console is still accessible to them
  */
-static
+static int
 check_gen(struct msg *m, struct file *f)
 {
 	if (f->f_gen != accgen) {
@@ -145,6 +161,189 @@ check_gen(struct msg *m, struct file *f)
 }
 
 /*
+ * do_open()
+ *	Open from root to particular device
+ */
+static void
+do_open(struct msg *m, struct file *f)
+{
+	uint x;
+	struct screen *s;
+
+	/*
+	 * Must be in root
+	 */
+	if (f->f_screen != ROOTDIR) {
+		msg_err(m->m_sender, EINVAL);
+		return;
+	}
+
+	/*
+	 * Get screen number
+	 */
+	x = ((char *)m->m_buf)[0] - '0';
+	if (x >= NVTY) {
+		msg_err(m->m_sender, ESRCH);
+		return;
+	}
+
+	/*
+	 * Allocate screen memory if it isn't there already.  This should
+	 * be its first use, so init its queue structure as well.
+	 */
+	s = &screens[x];
+	if (s->s_img == 0) {
+		s->s_img = malloc(SCREENMEM);
+		if (s->s_img == 0) {
+			msg_err(m->m_sender, strerror());
+			return;
+		}
+		ll_init(&s->s_readers);
+
+		/*
+		 * Record it as off-screen initially, and start it
+		 * as blank.
+		 */
+		s->s_curimg = s->s_img;
+		bzero(s->s_img, SCREENMEM);
+	}
+
+	/*
+	 * Switch to this screen, and tell them they've succeeded.  Note
+	 * that the screen is *not* the HW one until they switch to it.
+	 */
+	f->f_screen = x;
+	m->m_arg = m->m_arg1 = m->m_nseg = 0;
+	msg_reply(m->m_sender, m);
+}
+
+/*
+ * switch_screen()
+ *	Input has arrived for a different screen; switch
+ *
+ * This routine does not flip the visual screens; it causes the
+ * pointers in our emulator to point at different buffers.
+ *
+ * If the new screen is on the hardware, we don't point at its RAM
+ * image, we ask for the hardware instead.
+ */
+static void
+switch_screen(uint new)
+{
+	struct screen *s;
+
+	/*
+	 * Save the old screen position.  The data itself isn't saved,
+	 * but the display position may have moved and we need to update
+	 * our copy.
+	 */
+	save_screen_pos(&screens[curscreen]);
+
+	/*
+	 * Set to the new one, and point the display engine at its
+	 * memory.
+	 */
+	s = &screens[curscreen = new];
+	set_screen(s->s_curimg, s->s_pos);
+}
+
+/*
+ * select_screen()
+ *	Switch hardware display to new screen #
+ */
+void
+select_screen(uint new)
+{
+	struct screen *sold = &screens[curscreen],
+		*snew = &screens[new];
+
+	/*
+	 * Don't switch to a screen which has never been opened.  Don't
+	 * bother switching to the current (it's a no-op anyway).
+	 */
+	if ((snew->s_img == 0) || (new == curscreen)) {
+		return;
+	}
+
+	/*
+	 * Dump HW image into curscreen, and set curscreen to start
+	 * doing its I/O to the RAM copy.
+	 */
+	save_screen(sold);
+	sold->s_curimg = sold->s_img;
+
+	/*
+	 * Switch to new guy, and tell him to start displaying to HW
+	 */
+	curscreen = hwscreen = new;
+	load_screen(snew);
+	snew->s_curimg = hw_screen;
+}
+
+/*
+ * do_readdir()
+ *	Read from pseudo-dir ROOTDIR
+ */
+static void
+do_readdir(struct msg *m, struct file *f)
+{
+	static char *mydir;
+	static int len;
+
+	/*
+	 * Create our "directory" just once, and hold it for further use.
+	 * This assumes we never go to three digit VTY numbers.
+	 */
+	if (mydir == 0) {
+		uint x;
+
+		/*
+		 * Get space for NVTY sequences of "%2d\n", plus '\0'
+		 */
+		mydir = malloc(3 * NVTY + 1);
+		if (mydir == 0) {
+			msg_err(m->m_sender, strerror());
+			return;
+		}
+
+		/*
+		 * Write them on the buffer
+		 */
+		mydir[0] = '\0';
+		for (x = 0; x < NVTY; ++x) {
+			sprintf(mydir + strlen(mydir), "%d\n", x);
+		}
+		len = strlen(mydir);
+	}
+
+	if (f->f_pos >= len) {
+		/*
+		 * If they have it all, return 0 count
+		 */
+		m->m_arg = m->m_nseg = 0;
+	} else {
+		/*
+		 * Otherwise give them whatever part of "mydir"
+		 * they need now.
+		 */
+		m->m_nseg = 1;
+		m->m_buf = mydir + f->f_pos;
+		m->m_buflen = len - f->f_pos;
+		if (m->m_buflen > m->m_arg) {
+			m->m_buflen = m->m_arg;
+		}
+		m->m_arg = m->m_buflen;
+		f->f_pos += m->m_arg;
+	}
+
+	/*
+	 * Send it back
+	 */
+	m->m_arg1 = 0;
+	msg_reply(m->m_sender, m);
+}
+
+/*
  * screen_main()
  *	Endless loop to receive and serve requests
  */
@@ -152,7 +351,6 @@ static void
 screen_main()
 {
 	struct msg msg;
-	seg_t resid;
 	char *buf2 = 0;
 	int x;
 	struct file *f;
@@ -204,17 +402,55 @@ loop:
 		 */
 		msg_reply(msg.m_sender, &msg);
 		break;
+
+	case FS_READ:		/* Read "directory" or keyboard */
+		if (check_gen(&msg, f)) {
+			break;
+		}
+		if (f->f_screen == ROOTDIR) {
+			do_readdir(&msg, f);
+		} else {
+			kbd_read(&msg, f);
+		}
+		break;
+
 	case FS_WRITE:		/* Write file */
 		if (check_gen(&msg, f)) {
 			break;
 		}
-		if (msg.m_buflen > 0) {
-			write_string(msg.m_buf, msg.m_buflen);
+
+		/*
+		 * If this is I/O to a different display than was
+		 * last rendered via write_string(), tell it to switch
+		 * over.
+		 */
+		if (curscreen != f->f_screen) {
+			switch_screen(f->f_screen);
 		}
-		msg.m_buflen = msg.m_arg1 = msg.m_nseg = 0;
+
+		/*
+		 * Write data
+		 */
+		if (msg.m_buflen > 0) {
+			/*
+			 * Scribble the bytes onto the display, be it
+			 * the HW or our RAM image.
+			 */
+			write_string(msg.m_buf, msg.m_buflen);
+
+			/*
+			 * If this screen is the one on the hardware,
+			 * update the HW cursor.
+			 */
+			if (curscreen == hwscreen) {
+				cursor();
+			}
+		}
 		msg.m_arg = x;
+		msg.m_buflen = msg.m_arg1 = msg.m_nseg = 0;
 		msg_reply(msg.m_sender, &msg);
 		break;
+
 	case FS_STAT:		/* Stat of file */
 		if (check_gen(&msg, f)) {
 			break;
@@ -226,6 +462,13 @@ loop:
 			break;
 		}
 		cons_wstat(&msg, f);
+		break;
+	case FS_OPEN:		/* Open particular screen device */
+		if (!valid_fname(msg.m_buf, msg.m_buflen)) {
+			msg_err(msg.m_sender, EINVAL);
+			break;
+		}
+		do_open(&msg, f);
 		break;
 	default:		/* Unknown */
 		msg_err(msg.m_sender, EINVAL);
@@ -246,10 +489,9 @@ loop:
  * main()
  *	Startup of the screen server
  */
+int
 main()
 {
-	extern void init_screen();
-
 	/*
 	 * Allocate handle->file hash table.  16 is just a guess
 	 * as to what we'll have to handle.
@@ -264,7 +506,11 @@ main()
 	 * Turn on our I/O access
 	 */
 	if (enable_io(CONS_LOW, CONS_HIGH) < 0) {
-		fprintf(stderr, "CONS: can't do I/O operations\n");
+		perror("CONS: can't do I/O operations");
+		exit(1);
+	}
+	if (enable_io(KEYBD_LOW, KEYBD_HIGH) < 0) {
+		perror("KBD: can't do I/O operations");
 		exit(1);
 	}
 
@@ -272,6 +518,15 @@ main()
 	 * Get a port for the console
 	 */
 	consport = msg_port(PORT_CONS, 0);
+	(void)namer_register("tty/cons", PORT_CONS);
+
+	/*
+	 * Tell system about our I/O vector
+	 */
+	if (enable_isr(consport, KEYBD_IRQ)) {
+		perror("Keyboard IRQ");
+		exit(1);
+	}
 
 	/*
 	 * Let screen mapping get initialized
@@ -279,7 +534,20 @@ main()
 	init_screen();
 
 	/*
+	 * Allocate memory for screen 0, the current screen.  Mark
+	 * him as currently using the hardware.
+	 */
+	screens[0].s_img = malloc(SCREENMEM);
+	if (screens[0].s_img == 0) {
+		perror("Screen #0 image");
+		exit(1);
+	}
+	screens[0].s_curimg = hw_screen;
+	ll_init(&screens[0].s_readers);
+
+	/*
 	 * Start serving requests for the filesystem
 	 */
 	screen_main();
+	return(0);
 }
