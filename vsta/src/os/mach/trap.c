@@ -153,18 +153,6 @@ page_fault(ulong place_holder)
 			f->eip = (ulong)(t->t_probe);
 		} else {
 			/*
-			 * Stack growth.  We try to grow it if it's
-			 * a "reasonable" depth below current stack.
-			 */
-			if ((l < USTACKADDR) &&
-					(l > (USTACKADDR-UMINSTACK))) {
-				if (alloc_zfod_vaddr(vas, btop(UMAXSTACK),
-					(void *)(USTACKADDR-UMAXSTACK))) {
-					goto out;
-				}
-			}
-
-			/*
 			 * Shoot him
 			 */
 			ASSERT(user_mode,
