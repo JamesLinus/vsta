@@ -7,7 +7,8 @@ OBJS= crt0.o start.o syscalls.o syscall.o mem.o io.o setjmp.o malloc.o \
 	string.o doprnt.o stdio.o printf.o tty.o ctype.o scanf.o seg.o \
 	mount.o open.o stat.o fdl.o hash.o time.o exec.o getopt.o \
 	shell.o gnufuncs.o qsort.o float.o signal.o env.o fdmem.o \
-	perm.o random.o namer.o dir.o wait.o mktemp.o grp.o pwd.o
+	perm.o random.o namer.o dir.o wait.o mktemp.o grp.o pwd.o \
+	pipe.o
 
 .c.o:
 	$(CC) $(CFLAGS) -c $*.c
