@@ -119,6 +119,7 @@ struct fs_file {
 struct openfile {
 	daddr_t o_file;		/* 1st sector of file */
 	ulong o_len;		/*  ...first extent's length */
+	ulong o_hiwrite;	/* Highest file position written */
 	uint o_refs;		/* # references */
 };
 
