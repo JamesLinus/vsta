@@ -38,10 +38,9 @@ find_prot(int node)
 void
 wd_stat(struct msg *m, struct file *f)
 {
-	char buf[MAXSTAT];
-	uint size, pextoffs, node;
+	char buf[MAXSTAT], buf2[MAXSTAT];
+	uint size, node;
 	char type;
-	struct prot *p;
 	int isdir = (f->f_node == ROOTDIR);
 
 	if (isdir) {
@@ -50,7 +49,6 @@ wd_stat(struct msg *m, struct file *f)
 		size = 0;
 		node = 0;
 		type = 'd';
-		pextoffs = 0;
 		
 		/*
 		 * Work out the dir size
@@ -67,6 +65,7 @@ wd_stat(struct msg *m, struct file *f)
 				}
 			}
 		}
+		sprintf(buf2, "irq=%d\nbaseio=0x%x\n", wd_irq, wd_baseio);
 	} else {
 		uint part, unit;
 
@@ -76,15 +75,16 @@ wd_stat(struct msg *m, struct file *f)
 		size = disks[unit].d_parts[part]->p_len;
 		size *= SECSZ;
 		type = 's';
-		pextoffs = disks[unit].d_parts[part]->p_extoffs;
+		sprintf(buf2, "pextoffs=%d\nptype=%d\n",
+			disks[unit].d_parts[part]->p_extoffs,
+			disks[unit].d_parts[part]->p_type);
 	}
-	p = find_prot(f->f_node);
 	sprintf(buf,
-		"size=%d\ntype=%c\nowner=1/1\ninode=%d\ndev=%d\n" \
-		"pextoffs=%d\nirq=%d\nbaseio=0x%x\ndma=%d\n",
-		size, type, node, wdname, pextoffs, wd_irq, wd_baseio,
-		isdir ? 0 : 1);
-	strcat(buf, perm_print(p));
+		"size=%d\ntype=%c\nowner=1/1\ninode=%d\ndev=%d\n"
+		"dma=%d\n",
+		size, type, node, wdname, isdir ? 0 : 1);
+	strcat(buf, buf2);
+	strcat(buf, perm_print(find_prot(f->f_node)));
 	m->m_buf = buf;
 	m->m_buflen = strlen(buf);
 	m->m_nseg = 1;
