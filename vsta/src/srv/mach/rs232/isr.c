@@ -56,6 +56,14 @@ rs232_isr(struct msg *m)
 		case IIR_RXTOUT:	/* Receiver ready */
 		case IIR_RXRDY:
 			c = inportb(iobase + DATA);
+#ifdef DEBUG
+			if (c == '\32') {
+				extern void dbg_enter(void);
+
+				dbg_enter();
+				break;
+			}
+#endif
 			fifo_put(inbuf, c);
 			break;
 
