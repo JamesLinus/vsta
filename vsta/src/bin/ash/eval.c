@@ -610,8 +610,9 @@ evalcommand(cmd, flags, backcmd)
 		*argv++ = sp->text;
 	*argv = NULL;
 	lastarg = NULL;
-	if (iflag && funcnest == 0 && argc > 0)
+	if (iflag && funcnest == 0 && argc > 0) {
 		lastarg = argv[-1];
+	}
 	argv -= argc;
 
 	/* Print the command if xflag is set. */
@@ -627,6 +628,17 @@ evalcommand(cmd, flags, backcmd)
 		}
 		outc('\n', &errout);
 		flushout(&errout);
+	}
+
+	/*
+	 * Record $_ for future use.  NB, this used to be at the
+	 * bottom of this function, and thus only happened for
+	 * successful commands.  However, this made it useless
+	 * for the very common case of mis-typing the short command
+	 * before the very long filename argument.
+	 */
+	if (lastarg) {
+		setvar("_", lastarg, 0);
 	}
 
 	/* Now locate the command. */
@@ -814,8 +826,6 @@ parent:	/* parent process gets here (if we forked) */
 	}
 
 out:
-	if (lastarg)
-		setvar("_", lastarg, 0);
 	popstackmark(&smark);
 }
 
