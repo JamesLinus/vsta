@@ -45,6 +45,7 @@ extern char *mach_page_wire(uint flags, struct pview *pv,
 #define MAP_PRIVATE (8)		/* copy-on-write */
 #define MAP_SHARED (16)		/* share same memory */
 #define MAP_PHYS (32)		/* talk to physical memory */
+#define MAP_NODEST (64)		/* leave memory segment across exec() */
 
 /*
  * Physical DMA support stuff
