@@ -18,7 +18,8 @@ static uint rootsize;		/* # bytes in root dir data */
 static int root_dirty = 0;	/*  ...needs to be flushed to disk */
 static struct directory		/* Root dir contents */
 	*rootdirents;
-static uint cldirs;		/* # dir entries in a cluster */
+static uint cldirs,		/* # dir entries in a cluster */
+	clshift;		/*  ...# bits to shift this value */
 struct hash *dirhash;		/* Maps dirs to nodes */
 static struct hash
 	*rename_pending;	/* Tabulate pending renames */
@@ -59,6 +60,7 @@ void
 dir_init(void)
 {
 	struct node *n;
+	uint x;
 
 	/*
 	 * Main hash for directories
@@ -107,6 +109,9 @@ dir_init(void)
 	 * Precalculate
 	 */
 	cldirs = clsize/sizeof(struct directory);
+	for (x = cldirs-1; x; x >>= 1) {
+		clshift += 1;
+	}
 }
 
 /*
@@ -272,12 +277,29 @@ map_type(int dos_attr)
 /*
  * get_inum()
  *	Calculate inode value from containing dir and dir entry offset
+ *
+ * While not apparent, generating an inode number is both more important
+ * and harder than it appears.  Because inode numbers are used by both
+ * executable page caching as well as utilities like du, they need to
+ * be unique, even after file close.
+ *
+ * So you can't use, say, the "struct node" address as it.  After the file
+ * closes, the node gets free()'ed, and will pretty likely be reused for
+ * a new open file.  But if it was, say, "du", then this would look like
+ * the same file with a different name (hard links).  And thus "du" would
+ * ignore the file, and report strangely small values.  This happened.
+ *
+ * Another "easy" fix is to use the storage address of the first block
+ * of a file.  The problem is with zero-length files, which need an inode
+ * number before they have any contents.  In UFS, the inode block is
+ * allocated whether there's file contents or not, but this is not the
+ * case in DOS.  So we're left with the directory entry itself, which
+ * is what we use to create an inode value with the needed properties.
  */
 static uint
 get_inum(struct node *dir, int idx)
 {
 	claddr a;
-	static int dirent_per_cl = 0, dirent_shift;
 
 	/*
 	 * Root isn't a "real" cluster, so just use 0 base on entry offset
@@ -287,19 +309,15 @@ get_inum(struct node *dir, int idx)
 	}
 
 	/*
-	 * Calculate this once
+	 * Get the cluster address of the cluster holding this
+	 * directory entry.
 	 */
-	if (dirent_per_cl == 0) {
-		uint x;
+	a = get_clust(dir->n_clust, idx / cldirs);
 
-		dirent_per_cl = clsize / sizeof(struct directory);
-		for (x = dirent_per_cl; x; x >>= 1) {
-			dirent_shift += 1;
-		}
-	}
-
-	a = get_clust(dir->n_clust, idx / dirent_per_cl);
-	return ((a << dirent_shift) | (idx % dirent_per_cl));
+	/*
+	 * Offset it by the entry index within that cluster
+	 */
+	return ((a << clshift) | (idx % cldirs));
 }
 
 /*
@@ -381,12 +399,6 @@ dir_look(struct node *n, char *file)
 	n2->n_flags = 0;	/* Not dirty to start */
 	n2->n_dir = n; ref_node(n);
 	n2->n_slot = x;
-
-	/*
-	 * Assign the inode number now.  The upper 16 bits are
-	 * the allocated cluster of the containing dir (0 for root),
-	 * the lower are the offset of this file's dir entry.
-	 */
 	n2->n_inum = get_inum(n, x);
 
 	if (n2->n_type == T_DIR) {

@@ -87,10 +87,11 @@ struct directory {
 	char name[8];		/* file name */
 	char ext[3];		/* file extension */
 	uint attr:8;		/* attribute byte */
-	uchar reserved[10];	/* DOS reserved */
+	uchar reserved[8];	/* DOS reserved */
+	uint startHi:16;	/* starting cluster (hi 16 bits, FAT32) */
 	uint time:16;		/* time stamp */
 	uint date:16;		/* date stamp */
-	uint start:16;		/* starting cluster number */
+	uint start:16;		/* starting cluster (low 16 bits) */
 	uint size:32;		/* size of the file */
 };
 
