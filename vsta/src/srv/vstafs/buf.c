@@ -16,6 +16,9 @@
 #include <lib/llist.h>
 #include <lib/hash.h>
 #include <std.h>
+#ifdef DEBUG
+#include <stdio.h>
+#endif
 
 static uint bufsize;		/* # sectors held in memory currently */
 static struct hash *bufpool;	/* Hash daddr_t -> buf */
@@ -86,7 +89,11 @@ check_span(long key, void *data, void *arg)
 
 	d = (daddr_t)arg;
 	b = data;
-	ASSERT((d < key) || (d >= (key + b->b_nsec)), "check_span: overlap");
+	if ((d >= key) && (d < (key + b->b_nsec))) {
+		fprintf(stderr, "overlap: %ld resides in %ld len %d\n",
+			d, key, b->b_nsec);
+		ASSERT(0, "check_span: overlap");
+	}
 	return(0);
 }
 #endif /* DEBUG */
