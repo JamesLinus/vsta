@@ -192,14 +192,19 @@ dos_remove(struct msg *m, struct file *f)
 	}
 
 	/*
-	 * Throw away his storage
-	 */
-	clust_setlen(n->n_clust, 0L);
-
-	/*
 	 * Ask dir routines to remove
 	 */
 	dir_remove(n);
+
+	/*
+	 * Throw away his storage, mark him as already cleaned
+	 */
+	clust_setlen(n->n_clust, 0L);
+	n->n_flags |= N_DEL;
+
+	/*
+	 * Done with node
+	 */
 	deref_node(n);
 
 	/*
