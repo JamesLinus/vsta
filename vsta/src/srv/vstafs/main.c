@@ -138,7 +138,7 @@ dup_client(struct msg *m, struct file *fold)
 	 * possesses.  For an M_CONNECT, the message is
 	 * from the kernel, and trusted.
 	 */
-	*f = *fold;
+	bcopy(fold, f, sizeof(struct file));
 
 	/*
 	 * Hash under the sender's handle

@@ -128,7 +128,14 @@ struct openfile {
 	ulong o_len;		/*  ...first extent's length */
 	ulong o_hiwrite;	/* Highest file position written */
 	uint o_refs;		/* # references */
+	uchar o_flags;		/* Flags */
 };
+
+/*
+ * Bits in o_flags
+ */
+#define O_DELETED	(0x01)	/* Delete on last close */
+#define O_HASHED	(0x02)	/* Might be hashed (hint) */
 
 /*
  * Our per-client data structure

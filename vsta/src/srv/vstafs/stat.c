@@ -159,11 +159,13 @@ void
 vfs_fid(struct msg *m, struct file *f)
 {
 	struct fs_file *fs;
+	struct openfile *o;
 
 	/*
 	 * Only *files* get an ID (and thus can be mapped shared)
 	 */
-	fs = getfs(f->f_file, 0);
+	o = f->f_file;
+	fs = getfs(o, 0);
 	if (fs->fs_type == FT_DIR) {
 		msg_err(m->m_sender, EINVAL);
 		return;
@@ -176,4 +178,9 @@ vfs_fid(struct msg *m, struct file *f)
 	m->m_arg1 = btop(fs->fs_len);
 	m->m_nseg = 0;
 	msg_reply(m->m_sender, m);
+
+	/*
+	 * Flag that this file may be hashed
+	 */
+	o->o_flags |= O_HASHED;
 }

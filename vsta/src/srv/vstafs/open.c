@@ -928,6 +928,15 @@ vfs_close(struct file *f)
 	ASSERT_DEBUG(o, "vfs_close: no openfile");
 	if (o->o_refs == 1) {
 		/*
+		 * If delete pending, do it now
+		 */
+		if (o->o_flags & O_DELETED) {
+			uncreate_file(o);
+			sync_bufs(0);
+			return;
+		}
+
+		/*
 		 * Files are extended with a length which reflects
 		 * the extent pre-allocation.  On final close, we
 		 * trim this pre-allocated space back, and update
@@ -1172,7 +1181,12 @@ vfs_remove(struct msg *m, struct file *f)
 		/*
 		 * Try unhashing if it might be the only other reference
 		 */
-		if (o->o_refs == 2) {
+		if ((o->o_refs == 2) && (o->o_flags & O_HASHED)) {
+			/*
+			 * Clear hint
+			 */
+			o->o_flags &= ~O_HASHED;
+
 			/*
 			 * Since a closing portref needs to handshake
 			 * with the server, use a child thread to do
@@ -1189,23 +1203,21 @@ vfs_remove(struct msg *m, struct file *f)
 		}
 
 		/*
-		 * Can't be any other users
-		 */
-		if (o->o_refs > 1) {
-			err = EBUSY;
-			goto out;
-		}
-
-		/*
 		 * Patch this file out of the chain
 		 */
 		*revp = fs->fs_prev;
 		dirty_buf(brevp, 0);
 
 		/*
-		 * Zap the blocks
+		 * Zap the blocks, or mark zap pending
 		 */
-		uncreate_file(o); o = 0;
+		if (o->o_refs > 1) {
+			o->o_flags |= O_DELETED;
+			deref_node(o);
+		} else {
+			uncreate_file(o);
+		}
+		o = 0;
 
 		/*
 		 * Move to next, unless we're done
@@ -1394,9 +1406,13 @@ do_rename(struct file *fsrc, char *src, struct file *fdest, char *dest)
 	/*
 	 * Delete the old one now
 	 */
-	ASSERT_DEBUG(odest->o_refs == 1, "do_rename: o_refs != 1");
 	desrc->fs_name[0] |= 0x80;
-	uncreate_file(odest);
+	if (odest->o_refs == 1) {
+		uncreate_file(odest);
+	} else {
+		odest->o_flags |= O_DELETED;
+		deref_node(odest);
+	}
 
 	/*
 	 * Success
@@ -1463,7 +1479,7 @@ vfs_rename(struct msg *m, struct file *f)
 		 * pending operation.
 		 */
 		f->f_rename_id = m->m_arg1;
-		f->f_rename_msg = *m;
+		bcopy(m, &f->f_rename_msg, sizeof(struct msg));
 		return;
 	}
 

@@ -96,6 +96,7 @@ alloc_node(daddr_t d)
 	o->o_len = len;
 	o->o_hiwrite = fslen;
 	o->o_refs = 1;
+	o->o_flags = 0;
 	return(o);
 }
 
