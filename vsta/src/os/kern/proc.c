@@ -119,6 +119,7 @@ bootproc(struct boot_task *b)
 	init_sema(&t->t_msgwait);
 	t->t_proc = p;
 	init_sema(&t->t_evq); set_sema(&t->t_evq, 1);
+	t->t_state = TS_SLEEP;	/* -> RUN in setrun() */
 
 	/*
 	 * The vas for the proc
@@ -328,6 +329,7 @@ fork_thread(voidfun f)
 	t->t_err[0] = '\0';
 	t->t_runq = sched_thread(p->p_runq, t);
 	t->t_uregs = 0;
+	t->t_state = TS_SLEEP;
 
 	/*
 	 * Add new guy to the proc's list
@@ -387,8 +389,7 @@ fork(void)
 	 */
 	tnew->t_kstack = malloc(KSTACK_SIZE);
 	tnew->t_flags = told->t_flags;
-	tnew->t_hd = tnew->t_tl = tnew;
-	tnew->t_next = 0;
+	tnew->t_hd = tnew->t_tl = tnew->t_next = 0;
 	tnew->t_wchan = 0;
 	tnew->t_intr = 0;
 	init_sema(&tnew->t_msgwait);
@@ -397,7 +398,7 @@ fork(void)
 	tnew->t_usrcpu = tnew->t_syscpu = 0L;
 	tnew->t_evsys[0] = tnew->t_evproc[0] = '\0';
 	init_sema(&tnew->t_evq); set_sema(&tnew->t_evq, 1);
-	tnew->t_state = TS_RUN;
+	tnew->t_state = TS_SLEEP;	/* -> RUN in setrun() */
 	tnew->t_ustack = (void *)USTACKADDR;
 
 	/*
