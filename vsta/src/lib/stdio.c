@@ -1065,3 +1065,20 @@ setlinebuf(FILE *fp)
 {
 	setvbuf(fp, (char *)NULL, _IOLBF, 0);
 }
+
+/*
+ * funopen()
+ *	Open FILE with user callbacks for the actual I/O
+ */
+FILE *
+funopen(void *cookie, intfun readfn, intfun writefn,
+	void *seekfn, intfun closefn)
+{
+	FILE *fp;
+	int fd;
+	extern int _fdcall();
+
+	fd = _fdcall(cookie, readfn, writefn, seekfn, closefn);
+	fp = fdopen(fd, "r+");
+	return(fp);
+}
