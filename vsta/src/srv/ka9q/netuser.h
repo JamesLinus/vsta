@@ -42,9 +42,9 @@ struct connection {
 #define SMTP_PORT	25	/* Mail port */
 #define FINGER_PORT     79      /* Finger port */
 
-int32 aton(),resolve();
-char *inet_ntoa(),*psocket();
-long htol();
+extern int32 aton(char *), resolve(char *);
+extern char *inet_ntoa(int32), *psocket(struct socket *), *err2str(int);
+extern long htol(char *);
 
 #ifdef	STDIO_H
 FILE	*myopen();

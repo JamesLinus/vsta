@@ -8,8 +8,7 @@
 
 /* Allocate mbuf with associated buffer of 'size' bytes */
 struct mbuf *
-alloc_mbuf(size)
-register int16 size;
+alloc_mbuf(int16 size)
 {
 	register struct mbuf *bp;
 
@@ -30,8 +29,7 @@ register int16 size;
  * Return pointer to next mbuf in packet chain
  */
 struct mbuf *
-free_mbuf(bp)
-register struct mbuf *bp;
+free_mbuf(struct mbuf *bp)
 {
 	register struct mbuf *bp1 = NULLBUF;
 
@@ -48,8 +46,7 @@ register struct mbuf *bp;
  * if any
  */
 struct mbuf *
-free_p(bp)
-register struct mbuf *bp;
+free_p(struct mbuf *bp)
 {
 	struct mbuf *abp;
 
@@ -61,8 +58,7 @@ register struct mbuf *bp;
 	return abp;
 }		
 /* Free entire queue of packets (of mbufs) */
-free_q(q)
-struct mbuf **q;
+free_q(struct mbuf **q)
 {
 	register struct mbuf *bp;
 
@@ -72,8 +68,7 @@ struct mbuf **q;
 
 /* Count up the total number of bytes in an mbuf */
 int16
-len_mbuf(bp)
-register struct mbuf *bp;
+len_mbuf(struct mbuf *bp)
 {
 	int cnt;
 
@@ -86,8 +81,7 @@ register struct mbuf *bp;
 }
 /* Count up the number of packets in a queue */
 int16
-len_q(bp)
-register struct mbuf *bp;
+len_q(struct mbuf *bp)
 {
 	register int cnt;
 
@@ -96,9 +90,7 @@ register struct mbuf *bp;
 	return cnt;
 }
 /* Trim mbuf to specified length by lopping off end */
-trim_mbuf(bpp,length)
-struct mbuf **bpp;
-int16 length;
+trim_mbuf(struct mbuf **bpp, int16 length)
 {
 	register int16 tot = 0;
 	register struct mbuf *bp;
@@ -137,11 +129,7 @@ int16 length;
  * number of bytes actually duplicated.
  */
 int16
-dup_p(hp,bp,offset,cnt)
-struct mbuf **hp;
-register struct mbuf *bp;
-register int16 offset;
-register int16 cnt;
+dup_p(struct mbuf **hp, struct mbuf *bp, int16 offset, int16 cnt)
 {
 	register struct mbuf *cp;
 	int16 tot;
@@ -180,9 +168,7 @@ register int16 cnt;
 }
 /* Copy first 'cnt' bytes of packet into a new, single mbuf */
 struct mbuf *
-copy_p(bp,cnt)
-register struct mbuf *bp;
-register int16 cnt;
+copy_p(struct mbuf *bp, int16 cnt)
 {
 	register struct mbuf *cp;
 	register char *wp;
@@ -205,10 +191,7 @@ register int16 cnt;
  * bytes actually pulled off
  */
 int16
-pullup(bph,buf,cnt)
-struct mbuf **bph;
-char *buf;
-int16 cnt;
+pullup(struct mbuf **bph, char *buf, int16 cnt)
 {
 	register struct mbuf *bp;
 	int16 n,tot;
@@ -235,9 +218,7 @@ int16 cnt;
 }
 /* Append mbuf to end of mbuf chain */
 void
-append(bph,bp)
-struct mbuf **bph;
-struct mbuf *bp;
+append(struct mbuf **bph, struct mbuf *bp)
 {
 	register struct mbuf *p;
 
@@ -260,9 +241,7 @@ struct mbuf *bp;
  * This operation is the logical inverse of pullup(), hence the name.
  */
 struct mbuf *
-pushdown(bp,size)
-register struct mbuf *bp;
-int16 size;
+pushdown(struct mbuf *bp, int16 size)
 {
 	register struct mbuf *nbp;
 
@@ -287,9 +266,7 @@ int16 size;
 }
 /* Append packet to end of packet queue */
 void
-enqueue(q,bp)
-struct mbuf **q;
-struct mbuf *bp;
+enqueue(struct mbuf **q, struct mbuf *bp)
 {
 	register struct mbuf *p;
 	char i_state;
@@ -309,10 +286,9 @@ struct mbuf *bp;
 }
 /* Unlink a packet from the head of the queue */
 struct mbuf *
-dequeue(q)
-register struct mbuf **q;
+dequeue(struct mbuf **q)
 {
-	register struct mbuf *bp;
+	struct mbuf *bp;
 	char i_state;
 
 	if(q == NULLBUFP)
@@ -328,13 +304,11 @@ register struct mbuf **q;
 
 /* Copy user data into an mbuf */
 struct mbuf *
-qdata(data,cnt)
-char *data;
-int16 cnt;
+qdata(char *data, int1 6cnt)
 {
-	register struct mbuf *bp;
+	struct mbuf *bp;
 
-	if((bp = alloc_mbuf(cnt)) == NULLBUF)
+	if ((bp = alloc_mbuf(cnt)) == NULLBUF)
 		return NULLBUF;
 	memcpy(bp->data,data,(int)cnt);
 	bp->cnt = cnt;
@@ -342,10 +316,7 @@ int16 cnt;
 }
 /* Copy mbuf data into user buffer */
 int16
-dqdata(bp,buf,cnt)
-struct mbuf *bp;
-char *buf;
-unsigned cnt;
+dqdata(struct mbuf *bp, char *buf, unsigned int cnt)
 {
 	unsigned n,tot;
 	struct mbuf *bp1;
@@ -366,8 +337,7 @@ unsigned cnt;
 }
 /* Pull a 32-bit integer in host order from buffer in network byte order */
 int32
-pull32(bpp)
-struct mbuf **bpp;
+pull32(struct mbuf **bpp)
 {
 	int32 rval;
 	char buf[4];
@@ -392,8 +362,7 @@ struct mbuf **bpp;
 }
 /* Pull a 16-bit integer in host order from buffer in network byte order */
 int16
-pull16(bpp)
-struct mbuf **bpp;
+pull16(struct mbuf **bpp)
 {
 	int16 rval;
 	char buf[2];
@@ -412,8 +381,7 @@ struct mbuf **bpp;
 }
 /* Pull single character from mbuf */
 char
-pullchar(bpp)
-struct mbuf **bpp;
+pullchar(struct mbuf **bpp)
 {
 	char c;
 
@@ -424,9 +392,7 @@ struct mbuf **bpp;
 }
 /* Put a long in host order into a char array in network order */
 char *
-put32(cp,x)
-register char *cp;
-int32 x;
+put32(char *cp, int32 x)
 {
 	*cp++ = x >> 24;
 	*cp++ = x >> 16;
@@ -436,9 +402,7 @@ int32 x;
 }
 /* Put a short in host order into a char array in network order */
 char *
-put16(cp,x)
-register char *cp;
-int16 x;
+put16(char *cp, int16 x)
 {
 	*cp++ = x >> 8;
 	*cp++ = x;
