@@ -55,7 +55,7 @@ reader(int dummy)
 		m.m_nseg = 1;
 		m.m_buf = &sc;
 		m.m_arg = m.m_buflen = sizeof(sc);
-		m.m_arg1 = 10*1000;
+		m.m_arg1 = -1;
 		x = msg_send(port, &m);
 		printf("Returned %d\n", x);
 		if (x > 0) {
