@@ -7,7 +7,13 @@ LIBS= -lc
 .c.o:
 	$(CC) $(CFLAGS) -c $*.c
 
-all: test args cat id ls swapd rm cp sleep mkdir pwd kill mv
+all: test args cat id ls swapd rm cp sleep mkdir pwd kill mv stat dumpsect
+
+stat: stat.o
+	$(LD) $(LDFLAGS) -o stat ../../libc/crt0.o stat.o -lc
+
+dumpsect: dumpsect.o
+	$(LD) $(LDFLAGS) -o dumpsect ../../libc/crt0.o dumpsect.o -lc
 
 mv: mv.o
 	$(LD) $(LDFLAGS) -o mv ../../libc/crt0.o mv.o -lc
