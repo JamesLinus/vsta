@@ -58,7 +58,7 @@ dump_thread2(struct thread *t, int brief)
 	printf("  probe %x err %s usr/sys %d/%d evq %x eng %x\n",
 		t->t_probe,
 		t->t_err[0] ? t->t_err : "<none>",
-		t->t_syscpu, t->t_usrcpu,
+		t->t_usrcpu, t->t_syscpu,
 		&t->t_evq, t->t_eng);
 }
 
