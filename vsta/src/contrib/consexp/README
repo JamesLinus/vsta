@@ -1,0 +1,5 @@
+This is an adaptation by Eddie McCreary of a version of
+vsta/src/srv/mach/cons2, with handling of various extended display
+attributes.  cons2's conversion to VT-100 support has caused it to
+diverge somewhat from this source base, but the two may ultimately be
+merged and become the single standard console server.

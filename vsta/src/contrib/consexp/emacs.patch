@@ -1,0 +1,666 @@
+*** 1.1	2001/10/16 20:00:28
+--- ./ansi.c	2001/10/17 01:26:08
+***************
+*** 192,200 ****
+  }
+  
+  ansiopen()
+  {
+! #if     V7 | USG | BSD
+          register char *cp;
+          char *getenv();
+  
+          if ((cp = getenv("TERM")) == NULL) {
+--- 192,200 ----
+  }
+  
+  ansiopen()
+  {
+! #if     V7 | USG | BSD | VSTA
+          register char *cp;
+          char *getenv();
+  
+          if ((cp = getenv("TERM")) == NULL) {
+*** 1.1	2001/10/16 20:02:53
+--- ./bind.c	2001/10/17 01:26:12
+***************
+*** 610,618 ****
+  	register int status;	/* return status */
+  	static char fspec[NSTRING];	/* full path spec to search */
+  	char *getenv();
+  
+! #if	((MSDOS | AMIGA) & (LATTICE | AZTEC | MSC)) | V7 | USG | BSD
+  
+  	if (hflag) {
+  		home = getenv("HOME");
+  		if (home != NULL) {
+--- 610,618 ----
+  	register int status;	/* return status */
+  	static char fspec[NSTRING];	/* full path spec to search */
+  	char *getenv();
+  
+! #if	((MSDOS | AMIGA) & (LATTICE | AZTEC | MSC)) | V7 | USG | BSD | VSTA
+  
+  	if (hflag) {
+  		home = getenv("HOME");
+  		if (home != NULL) {
+*** 1.1	2001/10/16 20:07:06
+--- ./epath.h	2001/10/17 01:26:16
+***************
+*** 68,72 ****
+--- 68,82 ----
+  	"sys$sysdevice:[vmstools]"
+  };
+  #endif
+  
++ #if	VSTA
++ {
++ 	"emacs.rc",
++ 	"emacs.hlp",
++ 	"/vsta/etc/",
++ 	"/vsta/lib/",
++ 	""
++ };
++ #endif
++ 
+  #define	NPNAMES	(sizeof(pathname)/sizeof(char *))
+*** 1.1	2001/10/16 20:07:39
+--- ./estruct.h	2001/10/17 01:26:20
+***************
+*** 29,40 ****
+  #define ST520   0                       /* ST520, TOS                   */
+  #define MSDOS   0                       /* MS-DOS                       */
+  #define V7      0                       /* V7 UN*X or Coherent or BSD4.2*/
+  #define	BSD	0			/* UNIX BSD 4.2	and ULTRIX	*/
+! #define	USG	1			/* UNIX system V		*/
+  #define VMS     0                       /* VAX/VMS                      */
+  #define CPM     0                       /* CP/M-86                      */
+  #define	FINDER	0			/* Macintosh OS			*/
+  
+  /*	Compiler definitions			*/
+  #define MWC86   0	/* marc williams compiler */
+  #define	LATTICE	0	/* Lattice 2.14 thruough 3.0 compilers */
+--- 29,41 ----
+  #define ST520   0                       /* ST520, TOS                   */
+  #define MSDOS   0                       /* MS-DOS                       */
+  #define V7      0                       /* V7 UN*X or Coherent or BSD4.2*/
+  #define	BSD	0			/* UNIX BSD 4.2	and ULTRIX	*/
+! #define	USG	0			/* UNIX system V		*/
+  #define VMS     0                       /* VAX/VMS                      */
+  #define CPM     0                       /* CP/M-86                      */
+  #define	FINDER	0			/* Macintosh OS			*/
++ #define	VSTA	1			/* VSTa OS			*/
+  
+  /*	Compiler definitions			*/
+  #define MWC86   0	/* marc williams compiler */
+  #define	LATTICE	0	/* Lattice 2.14 thruough 3.0 compilers */
+***************
+*** 81,90 ****
+  #define DEBUGM	1	/* Global SPELL mode triggers macro debugging	*/
+  #define	VISMAC	0	/* update display during keyboard macros	*/
+  #define	CTRLZ	0	/* add a ^Z at end of files under MSDOS only	*/
+  
+! #define	REVSTA	0	/* Status line appears in reverse video		*/
+! #define	COLOR	0	/* color commands and windows			*/
+  
+  #define	FILOCK	0	/* file locking under unix BSD 4.2		*/
+  #define	ISRCH	1	/* Incremental searches like ITS EMACS		*/
+  #define	WORDPRO	1	/* Advanced word processing features		*/
+--- 82,91 ----
+  #define DEBUGM	1	/* Global SPELL mode triggers macro debugging	*/
+  #define	VISMAC	0	/* update display during keyboard macros	*/
+  #define	CTRLZ	0	/* add a ^Z at end of files under MSDOS only	*/
+  
+! #define	REVSTA	1	/* Status line appears in reverse video		*/
+! #define	COLOR	1	/* color commands and windows			*/
+  
+  #define	FILOCK	0	/* file locking under unix BSD 4.2		*/
+  #define	ISRCH	1	/* Incremental searches like ITS EMACS		*/
+  #define	WORDPRO	1	/* Advanced word processing features		*/
+***************
+*** 241,249 ****
+  
+  #define	BELL	0x07			/* a bell character		*/
+  #define	TAB	0x09			/* a tab character		*/
+  
+! #if	V7 | USG | BSD
+  #define	PATHCHR	':'
+  #else
+  #define	PATHCHR	';'
+  #endif
+--- 242,250 ----
+  
+  #define	BELL	0x07			/* a bell character		*/
+  #define	TAB	0x09			/* a tab character		*/
+  
+! #if	V7 | USG | BSD | VSTA
+  #define	PATHCHR	':'
+  #else
+  #define	PATHCHR	';'
+  #endif
+*** 1.1	2001/10/16 20:09:08
+--- ./file.c	2001/10/17 01:26:26
+***************
+*** 337,345 ****
+  #if     FINDER
+          while (cp1!=&fname[0] && cp1[-1]!=':' && cp1[-1]!='\\'&&cp1[-1]!='/')
+                  --cp1;
+  #endif
+! #if     V7 | USG | BSD
+          while (cp1!=&fname[0] && cp1[-1]!='/')
+                  --cp1;
+  #endif
+          cp2 = &bname[0];
+--- 337,345 ----
+  #if     FINDER
+          while (cp1!=&fname[0] && cp1[-1]!=':' && cp1[-1]!='\\'&&cp1[-1]!='/')
+                  --cp1;
+  #endif
+! #if     V7 | USG | BSD | VSTA
+          while (cp1!=&fname[0] && cp1[-1]!='/')
+                  --cp1;
+  #endif
+          cp2 = &bname[0];
+*** 1.1	2001/10/16 20:09:16
+--- ./fileio.c	2001/10/17 01:26:28
+***************
+*** 53,61 ****
+  #if	MSDOS & CTRLZ
+  	fputc(26, ffp);		/* add a ^Z at the end of the file */
+  #endif
+  	
+! #if     V7 | USG | BSD | (MSDOS & (LATTICE | MSC))
+          if (fclose(ffp) != FALSE) {
+                  mlwrite("Error closing file");
+                  return(FIOERR);
+          }
+--- 53,61 ----
+  #if	MSDOS & CTRLZ
+  	fputc(26, ffp);		/* add a ^Z at the end of the file */
+  #endif
+  	
+! #if     V7 | USG | VSTA | BSD | (MSDOS & (LATTICE | MSC))
+          if (fclose(ffp) != FALSE) {
+                  mlwrite("Error closing file");
+                  return(FIOERR);
+          }
+*** 1.1	2001/10/16 20:11:35
+--- ./makefile	2001/10/17 01:26:32
+***************
+*** 1,11 ****
+! CC=gcc
+! CFLAGS=-O
+! LIBS=-ltermcap -lc
+  
+! OFILES=		ansi.o basic.o bind.o buffer.o display.o file.o \
+  		fileio.o hp150.o line.o lock.o main.o random.o region.o \
+  		search.o spawn.o tcap.o termio.o vt52.o window.o word.o \
+  		exec.o eval.o isearch.o input.o
+  
+! emacs:		$(OFILES)
+! 		$(CC) -o emacs $(OFILES) $(LIBS)
+--- 1,13 ----
+! OUT=emacs
+! 
+! include ../../../makefile.all
+  
+! LIBS=-ltermcap -lc
+! LDFLAGS=-L/vsta/lib
+! OBJS=		ansi.o basic.o bind.o buffer.o display.o file.o \
+  		fileio.o hp150.o line.o lock.o main.o random.o region.o \
+  		search.o spawn.o tcap.o termio.o vt52.o window.o word.o \
+  		exec.o eval.o isearch.o input.o
+  
+! emacs:		$(OBJS)
+! 		$(CC) -o emacs $(OBJS) $(LDFLAGS) $(LIBS)
+*** 1.1	2001/10/16 20:14:07
+--- ./search.c	2001/10/17 01:26:36
+***************
+*** 1148,1156 ****
+  #if	LATTICE
+  			movmem(--mcptr, rtpcm++, sizeof (MC));
+  #endif
+  
+! #if	MWC86 | AZTEC | MSC | VMS | USG | BSD | V7
+  			*rtpcm++ = *--mcptr;
+  #endif
+  		}
+  		rtpcm->mc_type = MCNIL;
+--- 1148,1156 ----
+  #if	LATTICE
+  			movmem(--mcptr, rtpcm++, sizeof (MC));
+  #endif
+  
+! #if	MWC86 | AZTEC | MSC | VMS | USG | BSD | V7 | VSTA
+  			*rtpcm++ = *--mcptr;
+  #endif
+  		}
+  		rtpcm->mc_type = MCNIL;
+*** 1.1	2001/10/16 20:14:24
+--- ./spawn.c	2001/10/17 01:26:40
+***************
+*** 32,40 ****
+  extern  int     newmode[3];                     /* In "termio.c"        */
+  extern  short   iochan;                         /* In "termio.c"        */
+  #endif
+  
+! #if     V7 | USG | BSD
+  #include        <signal.h>
+  extern int vttidy();
+  #endif
+  
+--- 32,40 ----
+  extern  int     newmode[3];                     /* In "termio.c"        */
+  extern  short   iochan;                         /* In "termio.c"        */
+  #endif
+  
+! #if     V7 | USG | BSD | VSTA
+  #include        <signal.h>
+  extern int vttidy();
+  #endif
+  
+***************
+*** 54,62 ****
+  #if     AMIGA
+          long newcli;
+  #endif
+  
+! #if     V7 | USG | BSD
+          register char *cp;
+          char    *getenv();
+  #endif
+  
+--- 54,62 ----
+  #if     AMIGA
+          long newcli;
+  #endif
+  
+! #if     V7 | USG | BSD | VSTA
+          register char *cp;
+          char    *getenv();
+  #endif
+  
+***************
+*** 103,111 ****
+  	TTkopen();
+          sgarbf = TRUE;
+          return(TRUE);
+  #endif
+! #if     V7 | USG | BSD
+          movecursor(term.t_nrow, 0);             /* Seek to last line.   */
+          TTflush();
+          TTclose();                              /* stty to old settings */
+          if ((cp = getenv("SHELL")) != NULL && *cp != '\0')
+--- 103,111 ----
+  	TTkopen();
+          sgarbf = TRUE;
+          return(TRUE);
+  #endif
+! #if     V7 | USG | BSD | VSTA
+          movecursor(term.t_nrow, 0);             /* Seek to last line.   */
+          TTflush();
+          TTclose();                              /* stty to old settings */
+          if ((cp = getenv("SHELL")) != NULL && *cp != '\0')
+***************
+*** 269,277 ****
+          }
+          sgarbf = TRUE;
+          return (TRUE);
+  #endif
+! #if     V7 | USG | BSD
+          if ((s=mlreply("!", line, NLINE)) != TRUE)
+                  return (s);
+          TTputc('\n');                /* Already have '\r'    */
+          TTflush();
+--- 269,277 ----
+          }
+          sgarbf = TRUE;
+          return (TRUE);
+  #endif
+! #if     V7 | USG | BSD | VSTA
+          if ((s=mlreply("!", line, NLINE)) != TRUE)
+                  return (s);
+          TTputc('\n');                /* Already have '\r'    */
+          TTflush();
+***************
+*** 375,383 ****
+  		fclose(fp);
+  		s = TRUE;
+  	}
+  #endif
+! #if     V7 | USG | BSD
+          TTputc('\n');                /* Already have '\r'    */
+          TTflush();
+          TTclose();                              /* stty to old modes    */
+  	strcat(line,">");
+--- 375,383 ----
+  		fclose(fp);
+  		s = TRUE;
+  	}
+  #endif
+! #if     V7 | USG | BSD | VSTA 
+          TTputc('\n');                /* Already have '\r'    */
+          TTflush();
+          TTclose();                              /* stty to old modes    */
+  	strcat(line,">");
+***************
+*** 483,491 ****
+  	TTkopen();
+          sgarbf = TRUE;
+  	s = TRUE;
+  #endif
+! #if     V7 | USG | BSD
+          TTputc('\n');                /* Already have '\r'    */
+          TTflush();
+          TTclose();                              /* stty to old modes    */
+  	strcat(line," <fltinp >fltout");
+--- 483,491 ----
+  	TTkopen();
+          sgarbf = TRUE;
+  	s = TRUE;
+  #endif
+! #if     V7 | USG | BSD | VSTA
+          TTputc('\n');                /* Already have '\r'    */
+          TTflush();
+          TTclose();                              /* stty to old modes    */
+  	strcat(line," <fltinp >fltout");
+*** 1.1	2001/10/16 20:14:46
+--- ./tcap.c	2001/10/17 01:26:46
+***************
+*** 35,42 ****
+--- 35,46 ----
+  extern char     *tgoto();
+  #if	COLOR
+  extern	int	tcapfcol();
+  extern	int	tcapbcol();
++ 
++ int cfcolor = -1;
++ int cbcolor = -1;
++ 
+  #endif
+  
+  #define TCAPSLEN 315
+  char tcapbuf[TCAPSLEN];
+***************
+*** 114,121 ****
+--- 118,126 ----
+          CE = tgetstr("ce", &p);
+          UP = tgetstr("up", &p);
+  	SE = tgetstr("se", &p);
+  	SO = tgetstr("so", &p);
++ 
+  	if (SO != NULL)
+  		revexist = TRUE;
+  
+          if(CL == NULL || CM == NULL || UP == NULL)
+***************
+*** 158,197 ****
+  }
+  
+  tcapeeop()
+  {
+!         putpad(CL);
+  }
+  
+  tcaprev(state)		/* change reverse video status */
+  
+  int state;		/* FALSE = normal video, TRUE = reverse video */
+  
+  {
+  	static int revstate = FALSE;
+  	if (state) {
+  		if (SO != NULL)
+  			putpad(SO);
+  	} else
+  		if (SE != NULL)
+  			putpad(SE);
+  }
+  
+  tcapcres()	/* change screen resolution */
+- 
+  {
+  	return(TRUE);
+  }
+  
+  #if	COLOR
+! tcapfcol()	/* no colors here, ignore this */
+  {
+  }
+  
+! tcapbcol()	/* no colors here, ignore this */
+  {
+  }
+  #endif
+  
+  tcapbeep()
+  {
+  	ttputc(BEL);
+--- 163,262 ----
+  }
+  
+  tcapeeop()
+  {
+! #if	COLOR
+! 	tcapfcol(gfcolor);
+! 	tcapbcol(gbcolor);
+! #endif
+!         ttputc(ESC);
+!         ttputc('[');
+!         ttputc('J');
+! /* edm: orig        putpad(CL); */
+  }
+  
+  tcaprev(state)		/* change reverse video status */
+  
+  int state;		/* FALSE = normal video, TRUE = reverse video */
+  
+  {
+  	static int revstate = FALSE;
++ #if	COLOR
++ 	int ftmp, btmp;		/* temporaries for colors */
++ #endif
+  	if (state) {
+  		if (SO != NULL)
+  			putpad(SO);
+  	} else
+  		if (SE != NULL)
+  			putpad(SE);
++ 
++ #if	COLOR
++ 	if (state == FALSE) {
++ 		ftmp = cfcolor;
++ 		btmp = cbcolor;
++ 		cfcolor = -1;
++ 		cbcolor = -1;
++ 		tcapfcol(ftmp);
++ 		tcapbcol(btmp);
++ 	}
++ #endif
+  }
+  
+  tcapcres()	/* change screen resolution */
+  {
+  	return(TRUE);
+  }
+  
+  #if	COLOR
+! tcapfcol(color)
+! int color;
+  {
++ /* set foreground color AF=\E[3%dm */
++ 
++ 	if(cfcolor == color)
++ 		return;
++ 
++ 	ttputc(ESC);
++ 	ttputc('[');
++ 	tcapparm(color+30);
++ 	ttputc('m');
++ 
++ 	cfcolor = color;
+  }
+  
+! tcapbcol(color)
+! int color;
+  {
++ /* set background color AB=\E[4%dm */
++ 
++ 	if(cbcolor == color)
++ 		return;
++ 		
++ 	ttputc(ESC);
++ 	ttputc('[');
++ 	tcapparm(color+40);
++ 	ttputc('m');
++ 
++ 	cbcolor = color;
+  }
+  #endif
++ 
++ tcapparm(n)
++ register int    n;
++ {
++         register int q,r;
++ 
++         q = n/10;
++         if (q != 0) {
++ 		r = q/10;
++ 		if (r != 0) {
++ 			ttputc((r%10)+'0');
++ 		}
++ 		ttputc((q%10) + '0');
++         }
++         ttputc((n%10) + '0');
++ }
+  
+  tcapbeep()
+  {
+  	ttputc(BEL);
+*** 1.1	2001/10/16 20:14:57
+--- ./termio.c	2001/10/17 01:26:48
+***************
+*** 58,66 ****
+  #if RAINBOW
+  #include "rainbow.h"
+  #endif
+  
+! #if	USG			/* System V */
+  #include	<signal.h>
+  #include	<termios.h>
+  struct	termios	otermio;	/* original terminal characteristics */
+  struct	termios	ntermio;	/* charactoristics to use inside */
+--- 58,66 ----
+  #if RAINBOW
+  #include "rainbow.h"
+  #endif
+  
+! #if	USG | VSTA			/* System V */
+  #include	<signal.h>
+  #include	<termios.h>
+  struct	termios	otermio;	/* original terminal characteristics */
+  struct	termios	ntermio;	/* charactoristics to use inside */
+***************
+*** 148,156 ****
+  	rg.h.dl = 0;		/* set it OFF */
+  	intdos(&rg, &rg);	/* go for it! */
+  #endif
+  
+! #if	USG
+  	tcgetattr(0, &otermio),
+  	ntermio.c_iflag = 0;		/* setup new settings */
+  	ntermio.c_oflag = 0;
+  	ntermio.c_cflag = otermio.c_cflag;
+--- 148,156 ----
+  	rg.h.dl = 0;		/* set it OFF */
+  	intdos(&rg, &rg);	/* go for it! */
+  #endif
+  
+! #if	USG | VSTA
+  	tcgetattr(0, &otermio),
+  	ntermio.c_iflag = 0;		/* setup new settings */
+  	ntermio.c_oflag = 0;
+  	ntermio.c_cflag = otermio.c_cflag;
+***************
+*** 215,223 ****
+  	rg.h.dl = 1;		/* set it ON */
+  	intdos(&rg, &rg);	/* go for it! */
+  #endif
+  
+! #if	USG
+  	tcsetattr(1, TCSANOW, &otermio);
+  #endif
+  
+  #if     V7 | BSD
+--- 215,223 ----
+  	rg.h.dl = 1;		/* set it ON */
+  	intdos(&rg, &rg);	/* go for it! */
+  #endif
+  
+! #if	USG | VSTA
+  	tcsetattr(1, TCSANOW, &otermio);
+  #endif
+  
+  #if     V7 | BSD
+***************
+*** 267,275 ****
+          Put_Char(c);                    /* fast video */
+  #endif
+  
+  
+! #if     V7 | USG | BSD
+          fputc(c, stdout);
+  #endif
+  }
+  
+--- 267,275 ----
+          Put_Char(c);                    /* fast video */
+  #endif
+  
+  
+! #if     V7 | USG | BSD | VSTA 
+          fputc(c, stdout);
+  #endif
+  }
+  
+***************
+*** 311,319 ****
+  
+  #if     MSDOS
+  #endif
+  
+! #if     V7 | USG | BSD
+          fflush(stdout);
+  #endif
+  }
+  
+--- 311,319 ----
+  
+  #if     MSDOS
+  #endif
+  
+! #if     V7 | USG | BSD | VSTA
+          fflush(stdout);
+  #endif
+  }
+  
+***************
+*** 407,415 ****
+  	c = rg.h.al;		/* grab the char */
+  	return(c & 255);
+  #endif
+  
+! #if     V7 | USG | BSD
+          return(127 & fgetc(stdin));
+  #endif
+  }
+  
+--- 407,415 ----
+  	c = rg.h.al;		/* grab the char */
+  	return(c & 255);
+  #endif
+  
+! #if     V7 | USG | BSD | VSTA
+          return(127 & fgetc(stdin));
+  #endif
+  }
+  

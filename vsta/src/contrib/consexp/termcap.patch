@@ -1,0 +1,23 @@
+*** termcap	Fri Dec  6 16:48:48 1996
+--- /mnt/win_d/vsta/lib/termcap	Sun Sep 30 00:31:28 2001
+***************
+*** 14,20 ****
+  	:AL=\E[%dL:al=\E[L:\
+  	:DL=\E[%dM:dl=\E[M:\
+  	:IC=\E[%d@:ic=\E[@:\
+! 	:DC=\E[%dP:dc=\E[P:
+  
+  #
+  # MGR Windowing system terminal emulation
+--- 14,24 ----
+  	:AL=\E[%dL:al=\E[L:\
+  	:DL=\E[%dM:dl=\E[M:\
+  	:IC=\E[%d@:ic=\E[@:\
+! 	:DC=\E[%dP:dc=\E[P:\
+! 	:AF=\E[3%dm:AB=\E[4%dm:\
+! 	:Co#8:pa#64: 
+! 
+! 
+  
+  #
+  # MGR Windowing system terminal emulation
