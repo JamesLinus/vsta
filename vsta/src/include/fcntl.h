@@ -35,5 +35,6 @@ extern int open(const char *, int, ...), close(int),
 	close(int), mkdir(const char *),
 	unlink(const char *);
 extern off_t lseek(int fd, off_t offset, int whence);
+extern int fionread(int fd);
 
 #endif /* _FCNTL_H */
