@@ -8,7 +8,7 @@
 
 extern void dump_phys(), dump_virt(), dump_procs(), dump_pset(),
 	dump_instr(), trace(), trapframe(), dump_vas(), dump_port(),
-	dump_pview(), dump_thread(), dump_ref(), reboot();
+	dump_pview(), dump_thread(), dump_ref(), reboot(), memleaks();
 extern void dbg_inport(), dbg_outport();
 static void quit(), calc(), set(), set_mem();
 extern int get_num();
@@ -29,6 +29,7 @@ struct {
 	"dp", dump_phys,
 	"dv", dump_virt,
 	"inport", dbg_inport,
+	"memleaks", memleaks,
 	"outport", dbg_outport,
 	"port", dump_port,
 	"proc", dump_procs,

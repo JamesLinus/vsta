@@ -9,6 +9,8 @@
 #include <mach/pte.h>
 #include <sys/assert.h>
 #include <sys/vm.h>
+#define MALLOC_INTERNAL
+#include <sys/malloc.h>
 
 #define DBG_PAGES (4)
 #define VOFF (NBPG-1)
@@ -128,4 +130,104 @@ maploc(ulong off, uint size, int phys)
 	}
 	return(dbg_utl + (off & VOFF));
 }
+
+/*
+ * dump_buck()
+ *	Dump out change from old to new bucket state
+ */
+static void
+dump_buck(struct bucket *n, struct bucket *o)
+{
+	printf("%d byte pool: ", n->b_size);
+	if (n->b_elems < o->b_elems) {
+		printf("lost %d elems", o->b_elems - n->b_elems);
+	} else {
+		printf("gained %d elems", n->b_elems - o->b_elems);
+	}
+	if (n->b_pages != o->b_pages) {
+		if (n->b_pages < o->b_pages) {
+			printf(", lost %d pages", o->b_pages - n->b_pages);
+		} else {
+			printf(", gained %d pages", n->b_pages - o->b_pages);
+		}
+	}
+	printf("\n");
+}
+
+#ifdef DEBUG
+/*
+ * dump_usage()
+ *	Tell about changes in usage by memory type
+ */
+static void
+dump_usage(void)
+{
+	static ulong on_alloc[MALLOCTYPES];
+	int x;
+	extern ulong n_alloc[];
+	extern char *n_allocname[];
+
+	for (x = 0; x < MALLOCTYPES; ++x) {
+		if (n_alloc[x] != on_alloc[x]) {
+			if (n_alloc[x] > on_alloc[x]) {
+				printf("Gained %d type %s\n",
+					n_alloc[x] - on_alloc[x],
+					n_allocname[x]);
+			} else {
+				printf("Lost %d type %s\n",
+					on_alloc[x] - n_alloc[x],
+					n_allocname[x]);
+			}
+		}
+	}
+	bcopy(n_alloc, on_alloc, sizeof(on_alloc));
+}
+#endif
+
+/*
+ * memleaks()
+ *	Scan for memory leaks
+ */
+void
+memleaks(void)
+{
+	static struct bucket obuckets[PGSHIFT];
+	struct bucket *b, *b2;
+	static ulong ofreemem;
+	int x;
+	extern ulong freemem;
+
+	/*
+	 * Global system memory
+	 */
+	if (ofreemem != freemem) {
+		if (ofreemem > freemem) {
+			printf("Lost %d pages\n", ofreemem - freemem);
+		} else {
+			printf("Gained %d pages\n", freemem - ofreemem);
+		}
+		ofreemem = freemem;
+	}
+
+	/*
+	 * malloc() pools
+	 */
+	b = buckets;
+	b2 = obuckets;
+	for (x = 0; x < PGSHIFT; ++x,++b,++b2) {
+		if ((b->b_elems != b2->b_elems) ||
+				(b->b_pages != b2->b_pages)) {
+			dump_buck(b, b2);
+		}
+	}
+	bcopy(buckets, obuckets, sizeof(buckets));
+
+#ifdef DEBUG
+	/*
+	 * Tell about type usage
+	 */
+	dump_usage();
+#endif
+}
+
 #endif /* KDB */
