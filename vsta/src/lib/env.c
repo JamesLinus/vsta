@@ -7,9 +7,10 @@
  */
 #include <std.h>
 #include <fcntl.h>
+#include <sys/fs.h>
+#include <sys/ports.h>
 
 extern char *rstat();
-extern int wstat();
 
 /*
  * getenv()
@@ -111,63 +112,75 @@ setenv(char *name, char *val)
  * setenv_init()
  *	Initialize environment
  *
- * Usually called after a fork to establish a new base and
+ * Usually called after a login to establish a new base and
  * copy-on-write node.  Returns 0 on success, -1 on failure.
  */
 setenv_init(char *base)
 {
 	char buf[80];
 	int fd;
+	port_t port;
+	char *p, *q;
 
 	/*
-	 * If we have a new base, move down to it creating
-	 * path elements as needed.
+	 * Connect afresh to the server
+	 */
+	port = msg_connect(PORT_ENV, ACC_READ);
+	if (port < 0) {
+		return(-1);
+	}
+
+	/*
+	 * Throw away the current /env mount
+	 */
+	umount("/env", -1);
+
+	/*
+	 * Mount our new /env point
+	 */
+	if (mountport("/env", port) < 0) {
+		return(-1);
+	}
+
+	/*
+	 * Put home in root or where specified
 	 */
 	if (base) {
-		char *p, *q;
-
-		/*
-		 * Trim leading '/'s, add prefix /env and suffix
-		 * "#".
-		 */
 		while (base[0] == '/') {
 			++base;
 		}
 		sprintf(buf, "/env/%s/#", base);
-
-		/*
-		 * Skip first two slashes (from above; they should
-		 * definitely exist)
-		 */
-		p = strchr(buf, '/');
-		p = strchr(p, '/');
-		++p;
-
-		/*
-		 * mkdir successive elements
-		 */
-		do {
-			p = strchr(p, '/');
-			if (p) {
-				*p = '\0';
-			}
-			if ((fd = open(buf, O_READ)) < 0) {
-				if (mkdir(buf) < 0) {
-					return(-1);
-				}
-			} else {
-				close(fd);
-			}
-			if (p) {
-				*p++ = '/';
-			}
-		} while(p);
-		return(0);
+	} else {
+		sprintf(buf, "/env/#");
 	}
 
 	/*
-	 * Otherwise use wstat() to move to our own environment node
+	 * Skip first two slashes (from above; they should
+	 * definitely exist)
 	 */
-	fd = open("/env", O_READ);
-	return(wstat(__fd_port(fd), "fork"));
+	p = strchr(buf, '/');
+	p = strchr(p, '/');
+	++p;
+
+	/*
+	 * mkdir successive elements
+	 */
+	do {
+		p = strchr(p, '/');
+		if (p) {
+			*p = '\0';
+		}
+		if ((fd = open(buf, O_READ)) < 0) {
+			if (mkdir(buf) < 0) {
+				return(-1);
+			}
+		} else {
+			close(fd);
+		}
+		if (p) {
+			*p++ = '/';
+		}
+	} while(p);
+
+	return(0);
 }
