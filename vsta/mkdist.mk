@@ -56,13 +56,13 @@ ED=src/bin/ports/emacs src/bin/ports/ed src/bin/ports/vim \
 	src/bin/ports/vim-5.7
 
 # Games
-FUN=src/bin/ports/backgamm
+FUN=src/bin/ports/backgamm src/bin/ports/chess-5.00
 
 # "bc" calculator
 BC=src/bin/ports/bc
 
-# GNU zip
-GZIP=src/bin/ports/gzip
+# GNU zip and friends
+GZIP=src/bin/ports/gzip src/bin/ports/unzip
 
 # "sc" spreadsheet
 SC=src/bin/ports/sc
