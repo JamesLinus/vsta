@@ -155,4 +155,6 @@ struct disk {
 		d_parts[NPART];
 };
 
+extern int get_offset(int, ulong, ulong *, uint *);
+
 #endif /* _WD_H */
