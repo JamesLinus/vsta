@@ -78,5 +78,3 @@ mouse_wstat(struct msg * m, struct file * f)
    m->m_buflen = m->m_nseg = m->m_arg = m->m_arg1 = 0;
    msg_reply(m->m_sender, m);
 }
-
-

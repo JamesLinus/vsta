@@ -194,7 +194,3 @@ logitech_bus_initialise(int argc, char **argv)
    printf("Logitech Bus mouse detected and installed.\n");
    return (0);
 }
-
-
-
-

@@ -210,7 +210,3 @@ ms_bus_initialise(int argc, char **argv)
    printf("Microsoft Bus mouse detected and installed.\n");
    return (0);
 }
-
-
-
-

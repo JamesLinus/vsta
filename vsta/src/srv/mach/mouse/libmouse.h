@@ -45,5 +45,3 @@ extern int mouse_set_bounds(ushort x1, ushort y1, ushort x2, ushort y2);
 extern int mouse_set_update_freq(int freq);
 
 #endif /* __VSTA_LIBMOUSE_H__ */
-
-

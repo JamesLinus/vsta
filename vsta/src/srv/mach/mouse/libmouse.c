@@ -284,6 +284,3 @@ mouse_get_update_freq(int *freq)
    return(mouse_read(&dummy0,&dummy1,&dummy1,freq,
 		     &dummy1,&dummy1,&dummy1,&dummy1));
 }
-
-
-

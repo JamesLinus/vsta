@@ -49,12 +49,3 @@ extern void ms_bus_coordinates(ushort x, ushort y);
 extern void ms_bus_bounds(ushort x1, ushort y1, ushort x2, ushort y2);
  
 #endif /* __MOUSE_MS_BUS_H__ */
-
- 
-
-
-
-
-
-
-

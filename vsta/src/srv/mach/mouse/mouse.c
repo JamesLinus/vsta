@@ -194,5 +194,3 @@ mouse_initialise(int argc, char **argv) {
       exit(1);
    }
 }
-
-

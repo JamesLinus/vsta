@@ -76,4 +76,3 @@ extern void mouse_stat(struct msg *m, struct file *f);
 extern void mouse_wstat(struct msg *m, struct file *f);
 
 #endif /* __VSTA_MOUSE_H__ */
-

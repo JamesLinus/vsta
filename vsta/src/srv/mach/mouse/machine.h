@@ -31,6 +31,3 @@ __asm__ __volatile__ ("xchgl %2, %0\n"
 }
 
 #endif /* __MACHINE_H__ */
-
-
-

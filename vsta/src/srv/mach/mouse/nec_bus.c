@@ -296,7 +296,3 @@ pc98_bus_initialise(int argc, char **argv)
    }
    return (0);
 }
-
-
-
-

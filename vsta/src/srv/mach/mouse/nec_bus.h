@@ -27,12 +27,3 @@ extern void pc98_bus_bounds(ushort x1, ushort y1, ushort x2, ushort y2);
 extern void pc98_bus_update_period(ushort period);
 
 #endif /* __MOUSE_BUS_NEC_H__ */
-
-
-
-
-
-
-
-
-

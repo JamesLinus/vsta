@@ -42,12 +42,3 @@ extern void logitech_bus_coordinates(ushort x, ushort y);
 extern void logitech_bus_bounds(ushort x1, ushort y1, ushort x2, ushort y2);
  
 #endif /* __MOUSE_LOGITECH_BUS_H__ */
-
- 
-
-
-
-
-
-
-
