@@ -122,8 +122,20 @@ fillbuf(FILE *fp)
 	/*
 	 * On error, leave flag (hard errors) and return
 	 */
-	if (x <= 0) {
-		fp->f_flags |= ((x == 0) ? _F_EOF : _F_ERR);
+	if (x == 0) {
+		/*
+		 * Once EOF, always EOF
+		 */
+		fp->f_flags |= _F_EOF;
+		return(1);
+	} else if (x < 0) {
+		/*
+		 * Errors stick, except for interrupted I/O,
+		 * which is mostly, by nature, transient.
+		 */
+		if (strcmp(strerror(), "intr")) {
+			fp->f_flags |= _F_ERR;
+		}
 		return(1);
 	}
 
