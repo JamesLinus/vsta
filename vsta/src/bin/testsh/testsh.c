@@ -389,6 +389,21 @@ quit(void)
 static void
 cd(char *p)
 {
+	static char *home = 0;
+	extern char *getenv();
+
+	if (!p || !p[0]) {
+		if (home == 0) {
+			p = getenv("HOME");
+			if (p == 0) {
+				printf("No HOME set\n");
+				return;
+			}
+			home = p;
+		} else {
+			p = home;
+		}
+	}
 	while (isspace(*p)) {
 		++p;
 	}
