@@ -21,7 +21,7 @@
 #include "../mach/locore.h"
 #include "pset.h"
 
-extern void setrun(), dup_stack();
+extern void setrun();
 extern struct sched sched_root;
 extern lock_t runq_lock;
 
@@ -294,7 +294,7 @@ allocpid(void)
  *	Launch a new thread within the same process
  */
 pid_t
-fork_thread(voidfun f)
+fork_thread(voidfun f, ulong arg)
 {
 	struct proc *p = curthread->t_proc;
 	struct thread *t;
@@ -332,7 +332,7 @@ fork_thread(voidfun f)
 	 */
 	t->t_kstack = MALLOC(KSTACK_SIZE, MT_KSTACK);
 	t->t_ustack = ustack;
-	dup_stack(curthread, t, f);
+	dup_stack(curthread, t, f, arg);
 
 	/*
 	 * Initialize
@@ -377,7 +377,7 @@ init_proc(void)
 	int x;
 
 	init_sema(&pid_sema);
-	pid_hash = hash_alloc(NPROC/4);
+	pid_hash = hash_alloc(32);
 	for (b = boot_tasks, x = 0; x < nboot_task; ++b, ++x) {
 		bootproc(b);
 	}
@@ -447,7 +447,7 @@ fork(void)
 	 * Duplicate stack now that we have a viable thread/proc
 	 * structure.
 	 */
-	dup_stack(told, tnew, 0);
+	dup_stack(told, tnew, 0, 0);
 
 	/*
 	 * Now that we're ready, make PID known globally
