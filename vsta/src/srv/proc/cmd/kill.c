@@ -1,7 +1,9 @@
-#include <sys/fs.h>
-#include <fcntl.h>
+/*
+ * kill.c
+ *	Kill utility, delivers events via proc filesystem
+ */
+#include "ps.h"
 #include <stdio.h>
-#include <stdlib.h>
 
 int
 main(int argc, char **argv)
@@ -11,6 +13,25 @@ main(int argc, char **argv)
 	uint elen = strlen(event);
 	char path[32];
 
+	/*
+	 * Usage
+	 */
+	if (argc < 2) {
+		fprintf(stderr,
+			"Usage is: %s [-event] <pid> [ <pid>...]\n",
+			argv[0]);
+		exit(1);
+	}
+
+	/*
+	 * Get access to /proc
+	 */
+	mount_procfs();
+
+	/*
+	 * Walk list of events and PIDs, delivering last event to
+	 * last PID
+	 */
 	for (x = 1; x < argc; ++x) {
 		if (argv[x][0] == '-') {
 			event = argv[x]+1;

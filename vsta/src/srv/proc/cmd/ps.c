@@ -1,8 +1,14 @@
+/*
+ * ps.c
+ *	Report process status
+ */
+#include "ps.h"
 #include <dirent.h>
-#include <stdlib.h>
-#include <sys/fs.h>
-#include <fcntl.h>
 
+/*
+ * sort()
+ *	Tell qsort() to sort by PID value
+ */
 static int
 sort(void *v1, void *v2)
 {
@@ -21,17 +27,23 @@ main(int argc, char **argv)
 	int nelem = 0;
 	int i;
 	
+	/*
+	 * Set up, get ready to read through list of all processes
+	 */
+	mount_procfs();
 	d = opendir("/proc");
-	if (d == 0) {
-		perror("/proc");
+	if (d == 0)
 		exit(1);
-	}
 
 	pids = malloc(space * sizeof(pid_t));
 	if (pids == 0) {
 		perror("malloc");
 		exit(1);
 	}
+
+	/*
+	 * Read list
+	 */
 	while (de = readdir(d)) {
 		if (!strcmp(de->d_name, "kernel")) {
 			continue;
@@ -49,8 +61,14 @@ main(int argc, char **argv)
 	}
 	closedir(d);
 
+	/*
+	 * Sort by PID
+	 */
 	qsort((void *)pids, nelem, sizeof(pid_t), sort);
 
+	/*
+	 * Now dump them
+	 */
 	for (i = 0; i < nelem; i++) {
 		char path[32];
 		char status[128];
