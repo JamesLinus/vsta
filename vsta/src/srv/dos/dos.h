@@ -15,6 +15,7 @@
 #include <sys/types.h>
 #include <sys/msg.h>
 #include <time.h>
+#include <abc.h>
 
 #define SECSZ (512)		/* Bytes in a sector */
 
@@ -130,7 +131,13 @@ struct boot {
  */
 #define NCACHE (80)
 extern uint clsize;
+#define CLSIZE (bootb.clsize)
 #define BLOCKSIZE (clsize)
+
+/*
+ * Mapping between cluster numbers and underlying byte offsets
+ */
+#define BOFF(clnum) (((clnum) - 2) * CLSIZE + data0)
 
 /*
  * Values for FAT slots.  These are FAT16 values; FAT12 values are
@@ -159,13 +166,6 @@ extern void free_clust(struct clust *);
 extern void fat_sync(void);
 extern int clust_setlen(struct clust *, ulong);
 extern uint get_clust0(struct clust *);
-
-/*
- * Block cache
- */
-extern void *bget(int), *bdata(void *), bdirty(void *);
-extern void binit(void), bsync(void), bfree(void *);
-extern void *bget_empty(int);
 
 /*
  * Other routines
@@ -202,5 +202,6 @@ extern int blkdev;
 extern struct boot bootb;
 extern uint dirents;
 extern struct node *rootdir;
+extern ulong data0;
 
 #endif /* _DOS_H */

@@ -125,7 +125,6 @@ fat_init(void)
 	x = bootb.psect0 + (bootb.psect1 << 8);
 	data0 = bootb.nrsvsect + (bootb.nfat * bootb.fatlen) +
 		(dirents * sizeof(struct directory))/SECSZ;
-	data0 *= SECSZ;
 
 	/*
 	 * Calculate # clusters for files given total sectors and
@@ -134,7 +133,7 @@ fat_init(void)
 	if (x > 0) {
 		nclust = (x * SECSZ) / clsize;
 	} else {
-		nclust = ((bootb.bigsect * SECSZ) - data0) / clsize;
+		nclust = (bootb.bigsect - data0) / bootb.clsize;
 	}
 
 	/*

@@ -3,7 +3,7 @@ LD= ld
 INCS= -I../../../include
 CFLAGS= -Wall -DDEBUG $(INCS) -O
 LDFLAGS= -L../../lib
-OBJS= main.o fat.o block.o node.o dir.o open.o rw.o stat.o
+OBJS= main.o fat.o node.o dir.o open.o rw.o stat.o
 LIBS= -lusr -lc_s
 
 all: dos

@@ -32,7 +32,7 @@ static void
 ddirty(void *handle)
 {
 	if (handle) {
-		bdirty(handle);
+		dirty_buf(handle, 0);
 	} else {
 		root_dirty = 1;
 	}
@@ -46,7 +46,7 @@ static void
 dfree(void *handle)
 {
 	if (handle) {
-		bfree(handle);
+		unlock_buf(handle);
 	}
 }
 
@@ -212,12 +212,14 @@ dir_search(struct node *n, char *f1, char *f2, struct directory *dp)
 		/*
 		 * Get next block
 		 */
-		handle = bget(c->c_clust[cluster]);
+		handle = find_buf(BOFF(c->c_clust[cluster]),
+			CLSIZE, ABC_FILL);
 		if (!handle) {
 			/* I/O error? */
 			return(-1);
 		}
-		d = bdata(handle);
+		lock_buf(handle);
+		d = index_buf(handle, 0, CLSIZE);
 
 		/*
 		 * Search directory block
@@ -226,7 +228,7 @@ dir_search(struct node *n, char *f1, char *f2, struct directory *dp)
 		if (x >= 0) {
 			*dp = d[x];
 		}
-		bfree(handle);
+		unlock_buf(handle);
 		if (x >= 0) {
 			return(x + (cldirs * cluster));
 		}
@@ -384,12 +386,14 @@ dir_empty(struct node *n)
 		/*
 		 * Get next block
 		 */
-		handle = bget(c->c_clust[cluster]);
+		handle = find_buf(BOFF(c->c_clust[cluster]),
+			CLSIZE, ABC_FILL);
 		if (!handle) {
 			/* I/O error? */
 			return(0);
 		}
-		d = bdata(handle);
+		lock_buf(handle);
+		d = index_buf(handle, 0, CLSIZE);
 
 		/*
 		 * Search directory block
@@ -407,7 +411,7 @@ dir_empty(struct node *n)
 			 * so it's empty.
 			 */
 			if (c == 0) {
-				bfree(handle);
+				unlock_buf(handle);
 				return(1);
 			}
 
@@ -421,10 +425,10 @@ dir_empty(struct node *n)
 			/*
 			 * Oops.  Found a file.  Not empty.
 			 */
-			bfree(handle);
+			unlock_buf(handle);
 			return(0);
 		}
-		bfree(handle);
+		unlock_buf(handle);
 	}
 	return(1);
 }
@@ -457,15 +461,17 @@ get_dirent(struct node *n, uint idx, void **handlep)
 
 	/*
 	 * Others require that we figure out which cluster
-	 * is needed and bget() it.
+	 * is needed and getit.
 	 */
 	c = n->n_clust;
 	clnum = idx / cldirs;
 	if (clnum >= c->c_nclust) {
 		return(0);
 	}
-	*handlep = handle = bget(c->c_clust[clnum]);
-	d = bdata(handle);
+	*handlep = handle =
+		find_buf(BOFF(c->c_clust[clnum]), CLSIZE, ABC_FILL);
+	lock_buf(handle);
+	d = index_buf(handle, 0, CLSIZE);
 	return (d + (idx % cldirs));
 }
 
@@ -511,7 +517,7 @@ dir_remove(struct node *n)
  *	Find an open slot in the directory
  *
  * Returns a struct directory pointer on success, else 0.  The handle
- * is either 0 for root, or a bget() handle for the cluster containing
+ * is either 0 for root, or a get handle for the cluster containing
  * the directory entry.
  */
 static struct directory *
@@ -545,15 +551,16 @@ dir_findslot(struct node *n, void **handlep)
 		/*
 		 * Get next cluster of directory entries
 		 */
-		handle = bget(c->c_clust[x]);
+		handle = find_buf(BOFF(c->c_clust[x]), CLSIZE, ABC_FILL);
 		if (!handle) {
 			return(0);
 		}
+		lock_buf(handle);
 
 		/*
 		 * Scan
 		 */
-		d = bdata(handle);
+		d = index_buf(handle, 0, CLSIZE);
 		endd = d+cldirs;
 		for ( ; d < endd; ++d) {
 			ch = (d->name[0] & 0xFF);
@@ -562,7 +569,7 @@ dir_findslot(struct node *n, void **handlep)
 				return(d);
 			}
 		}
-		bfree(handle);
+		unlock_buf(handle);
 	}
 
 	/*
@@ -578,8 +585,10 @@ dir_findslot(struct node *n, void **handlep)
 	/*
 	 * Zero block, return pointer to base
 	 */
-	*handlep = handle = bget(c->c_clust[c->c_nclust-1]);
-	d = bdata(handle);
+	*handlep = handle = find_buf(BOFF(c->c_clust[c->c_nclust-1]),
+		CLSIZE, ABC_FILL);
+	lock_buf(handle);
+	d = index_buf(handle, 0, CLSIZE);
 	bzero(d, clsize);
 	ddirty(handle);
 	return(d);
@@ -649,8 +658,9 @@ dir_newfile(struct file *f, char *file, int isdir)
 		/*
 		 * Put "." first, ".." second, and zero out the rest
 		 */
-		handle = bget(c->c_clust[0]);
-		d = bdata(handle);
+		handle = find_buf(BOFF(c->c_clust[0]), CLSIZE, ABC_FILL);
+		lock_buf(handle);
+		d = index_buf(handle, 0, CLSIZE);
 		bzero(d, clsize);
 		bcopy(".       ", d->name, sizeof(d->name));
 		bcopy("   ", d->ext, sizeof(d->ext));
@@ -677,7 +687,7 @@ out:
 		ddirty(dirhandle);
 	}
 	if (dirhandle) {
-		bfree(dirhandle);
+		unlock_buf(dirhandle);
 	}
 	if (error) {
 		return(0);

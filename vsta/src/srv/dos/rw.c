@@ -38,21 +38,20 @@ do_write(struct clust *c, uint pos, char *buf, uint cnt)
 		 * Map current block
 		 */
 		blk = pos / BLOCKSIZE;
-		if ((boff == 0) && (step == BLOCKSIZE)) {
-			handle = bget_empty(c->c_clust[blk]);
-		} else {
-			handle = bget(c->c_clust[blk]);
-		}
+		handle = find_buf(BOFF(c->c_clust[blk]), CLSIZE,
+			((boff == 0) && (step == BLOCKSIZE)) ? 0 : ABC_FILL);
 		if (!handle) {
 			return(1);
 		}
+		lock_buf(handle);
 
 		/*
 		 * Copy data, mark buffer dirty, free it
 		 */
-		memcpy((char *)bdata(handle)+boff, buf+bufoff, step);
-		bdirty(handle);
-		bfree(handle);
+		memcpy(index_buf(handle, 0, CLSIZE) + boff,
+			buf + bufoff, step);
+		dirty_buf(handle, 0);
+		unlock_buf(handle);
 
 		/*
 		 * Advance counters
@@ -292,15 +291,20 @@ dos_read(struct msg *m, struct file *f)
 		 */
 		blk = f->f_pos / BLOCKSIZE;
 		ASSERT_DEBUG(blk < c->c_nclust, "dos_read: bad blk");
-		handle = bget(c->c_clust[blk]);
+		handle = find_buf(BOFF(c->c_clust[blk]), CLSIZE, ABC_FILL);
 		if (!handle) {
 			free(buf);
 			msg_err(m->m_sender, strerror());
 			return;
 		}
-		bcopy((char *)bdata(handle)+boff, buf+x, step);
+		lock_buf(handle);
+		if ((blk + 1) < c->c_nclust) {
+			(void)find_buf(BOFF(c->c_clust[blk + 1]),
+				CLSIZE, ABC_FILL | ABC_BG);
+		}
+		bcopy(index_buf(handle, 0, CLSIZE) + boff, buf + x, step);
 		f->f_pos += step;
-		bfree(handle);
+		unlock_buf(handle);
 
 		/*
 		 * Advance to next chunk

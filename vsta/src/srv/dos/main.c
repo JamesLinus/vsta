@@ -6,11 +6,13 @@
 #include <sys/fs.h>
 #include <sys/perm.h>
 #include <sys/namer.h>
+#include <sys/syscall.h>
 #include <hash.h>
 #include <stdio.h>
 #include <fcntl.h>
 #include <std.h>
 #include <syslog.h>
+#include <fdl.h>
 
 int blkdev;			/* Device this FS is mounted upon */
 port_t rootport;		/* Port we receive contacts through */
@@ -19,7 +21,6 @@ struct boot bootb;		/* Image of boot sector */
 static struct hash *filehash;	/* Handle->filehandle mapping */
 
 extern port_t path_open(char *, int);
-extern int __fd_alloc(port_t);
 
 /*
  * Protection for all DOSFS files: everybody can read, only
@@ -417,7 +418,12 @@ main(int argc, char *argv[])
 	 * Init our data structures
 	 */
 	fat_init();
-	binit();
+	port = clone(__fd_port(blkdev));
+	if (port < 0) {
+		perror("clone: blkdev");
+		exit(1);
+	}
+	init_buf(port, NCACHE);
 	dir_init();
 
 	/*
@@ -435,7 +441,7 @@ main(int argc, char *argv[])
 void
 sync(void)
 {
-	bsync();
+	sync_bufs(0);
 	root_sync();
 	fat_sync();
 }
