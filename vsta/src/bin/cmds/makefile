@@ -151,3 +151,4 @@ ascii: ascii.o
 install: all
 	strip $(OUT)
 	cp $(OUT) $(ROOT)/bin
+	cp man.sh $(ROOT)/bin/man
