@@ -649,3 +649,38 @@ setbuf(FILE *fp, char *buf)
 	fp->f_bufsz = BUFSIZ;
 	fp->f_cnt = 0;
 }
+
+/*
+ * puts()
+ *	Put a string, add a newline
+ */
+puts(char *s)
+{
+	char c;
+
+	while (c = *s++) {
+		if (fputc(c, stdout) == EOF) {
+			return(EOF);
+		}
+	}
+	if (fputc('\n', stdout) == EOF) {
+		return(EOF);
+	}
+	return(0);
+}
+
+/*
+ * fputs()
+ *	Put a string, no tailing newline (in the string already, probably)
+ */
+fputs(char *s, FILE *fp)
+{
+	char c;
+
+	while (c = *s++) {
+		if (fputc(c, fp) == EOF) {
+			return(EOF);
+		}
+	}
+	return(0);
+}
