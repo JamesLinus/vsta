@@ -250,7 +250,7 @@ findent(struct fs_dirent *d, uint nent, char *name)
 		/*
 		 * No more entries in file
 		 */
-		if (d->fs_clstart == 0) {
+		if (d->fs_name[0] == 0) {
 			return(0);
 		}
 

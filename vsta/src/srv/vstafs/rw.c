@@ -418,10 +418,10 @@ vfs_readdir(struct msg *m, struct file *f)
 		/*
 		 * Skip deleted, bail when there are no more entries
 		 */
-		if (d->fs_clstart == 0) {
+		if (d->fs_name[0] == 0) {
 			break;
 		}
-		if ((d->fs_name[0] & 0x80) == 0) {
+		if (d->fs_clstart && ((d->fs_name[0] & 0x80) == 0)) {
 			/*
 			 * Check that it'll fit.  Leave loop when it doesn't.
 			 */
