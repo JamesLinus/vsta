@@ -379,3 +379,14 @@ alloc_pgrp(void)
 	init_sema(&pg->pg_sema);
 	return(pg);
 }
+
+/*
+ * notify_handler()
+ *	Register handler for notify() events
+ */
+int
+notify_handler(voidfun handler)
+{
+	curthread->t_proc->p_handler = handler;
+	return(0);
+}

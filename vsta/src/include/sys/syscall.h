@@ -44,7 +44,8 @@
 #define S_PTRACE 34
 #define S_MSG_PORTNAME 35
 #define S_PSTAT 36
-#define S_HIGH S_PSTAT
+#define S_NOTIFY_HANDLER 37
+#define S_HIGH S_NOTIFY_HANDLER
 
 /*
  * Some syscall prototypes
@@ -68,6 +69,7 @@ extern int pageout(void);
 extern int unhash(port_t arg_port, long arg_fid);
 extern int time_set(struct time *arg_time);
 extern int ptrace(pid_t pid, port_name name);
+extern int notify_handler(voidfun);
 
 #endif /* __ASM__ */
 
