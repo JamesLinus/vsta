@@ -189,7 +189,6 @@ iodone(void *tran, int result)
 	 */
 	if (!upyet) {
 		extern char *secbuf;
-		extern int configed[];
 
 		/*
 		 * "tran" is just our unit #, casted

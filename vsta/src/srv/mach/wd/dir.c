@@ -9,7 +9,6 @@
 #define MAXDIRIO (1024)		/* Max # bytes in one dir read */
 
 extern struct disk disks[];
-extern int configed[];
 
 /*
  * add_ent()
