@@ -22,7 +22,7 @@ xtoi(char *p)
 	unsigned int val = 0;
 	char c;
 
-	while (c = *p++) {
+	while ((c = *p++)) {
 		if (isdigit(c)) {
 			val = val*16 + (c - '0');
 		} else if (isxdigit(c)) {
@@ -230,7 +230,7 @@ getnum(char *p, uint *valp)
 	expr_pos = expr_line = buf;
 	buf[127] = '\0';
 	strncpy(buf, p, 127);
-	for (q = buf; c = *q; ++q) {
+	for (q = buf; (c = *q); ++q) {
 		if (isalnum(c) || (c == '+') || (c == '-') ||
 				(c == '_'))
 			continue;

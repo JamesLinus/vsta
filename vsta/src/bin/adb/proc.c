@@ -39,6 +39,7 @@ sendhim(int op, ulong *args)
 			perror("Listen for slave");
 			exit(1);
 		}
+		m.m_op &= MSG_MASK;
 		if (m.m_op != M_CONNECT) {
 			printf("Unexpected message type %d\n", m.m_op);
 			exit(1);
@@ -127,7 +128,7 @@ read_procmem(ulong addr, int size)
 	args[0] = addr;
 	args[1] = 0;
 	if ((sendhim(PD_RDMEM, args) < 0) || args[1]) {
-		printf("Read error at addr 0x%x\n", addr);
+		printf("Read error at addr 0x%lx\n", addr);
 		return(0);
 	}
 	l = args[0];
@@ -387,7 +388,7 @@ clear_breakpoint(void *addr)
 	 * Complain on bogosity
 	 */
 	if (x >= MAX_BPOINT) {
-		printf("No breakpoint at 0x%x\n", (ulong)addr);
+		printf("No breakpoint at 0x%lx\n", (ulong)addr);
 		return;
 	}
 
@@ -429,9 +430,9 @@ dump_breakpoints(void)
 	printf("Current breakpoints:\n");
 	for (x = 0; x < MAX_BPOINT; ++x) {
 		if (bpoints[x]) {
-			printf(" %s (0x%x)\n",
+			printf(" %s (0x%lx)\n",
 				nameval((ulong)bpoints[x]),
-				bpoints[x]);
+				(ulong)bpoints[x]);
 		}
 	}
 }

@@ -449,7 +449,7 @@ io_server(struct tnserv *tn)
 			notify(0, tn->tn_tcp_tid, "kill");
 			_exit(1);
 		}
-		switch (m.m_op) {
+		switch (m.m_op & MSG_MASK) {
 
 		case FS_READ:
 			p_lock(&readq_lock);

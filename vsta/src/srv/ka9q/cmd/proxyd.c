@@ -400,7 +400,7 @@ serve_slave(struct client *cl)
 		 * clearing the m_op field; out master is watching
 		 * this and will free the message at that point.
 		 */
-		if (mp->m_op == M_ABORT) {
+		if ((mp->m_op & MSG_MASK) == M_ABORT) {
 			do_reply(cl->c_sender, 0);
 			mp->m_op = 0;
 			continue;
@@ -409,7 +409,7 @@ serve_slave(struct client *cl)
 		/*
 		 * A remote peer disconnected
 		 */
-		if (mp->m_op == M_DISCONNECT) {
+		if ((mp->m_op & MSG_MASK) == M_DISCONNECT) {
 			q_free(cm);
 			free_cl(cl);
 			_exit(0);
@@ -502,7 +502,7 @@ free_cl(struct client *cl)
 	struct msg *mp;
 	struct cmsg *cm;
 
-	while (cm = cl->c_next) {
+	while ((cm = cl->c_next)) {
 		cl->c_next = cm->c_next;
 		mp = &cm->c_msg;
 		if (mp->m_nseg) {
@@ -565,7 +565,7 @@ serve_clients(void)
 		/*
 		 * Proxy it based on message type
 		 */
-		switch (mp->m_op) {
+		switch (mp->m_op & MSG_MASK) {
 		case M_DUP:
 			{
 			struct client *newcl;
@@ -598,7 +598,7 @@ serve_clients(void)
 			do {
 				notify(0, cl->c_pid, "wakeup");
 				__msleep(100);
-			} while (mp->m_op == M_ABORT);
+			} while ((mp->m_op & MSG_MASK) == M_ABORT);
 			free(mp);
 			break;
 
@@ -648,7 +648,7 @@ serve_client(port_t clport)
 	/*
 	 * The first message has to be the path to attach
 	 */
-	if (mp->m_op != FS_OPEN) {
+	if ((mp->m_op & MSG_MASK) != FS_OPEN) {
 		cleanup();
 		exit(1);
 	}
@@ -666,7 +666,7 @@ serve_client(port_t clport)
 	/*
 	 * Tell them we're happy
 	 */
-	printf("Reply to 0x%x\n", mp->m_sender);
+	printf("Reply to 0x%lx\n", mp->m_sender);
 	do_reply(mp->m_sender, 0);
 
 	/*

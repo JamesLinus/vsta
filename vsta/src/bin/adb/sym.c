@@ -194,7 +194,7 @@ nameval(ulong val)
 	 * If did find anything, just return hex number
 	 */
 	if (!closename) {
-		sprintf(buf, "0x%x", val);
+		sprintf(buf, "0x%lx", val);
 	} else {
 		/*
 		 * Otherwise give them name + offset
@@ -202,7 +202,7 @@ nameval(ulong val)
 		if (closest == val) {
 			strcpy(buf, closename);
 		} else {
-			sprintf(buf, "%s+0x%x", closename,
+			sprintf(buf, "%s+0x%lx", closename,
 				val - closest);
 		}
 	}
@@ -255,7 +255,7 @@ dump_syms(void)
 
 	for (x = 0; x < nsym; ++x) {
 		s = &symtab[x];
-		printf("%s=%x\t", s->s_name, s->s_val);
+		printf("%s=%lx\t", s->s_name, s->s_val);
 	}
 	printf("\n");
 }

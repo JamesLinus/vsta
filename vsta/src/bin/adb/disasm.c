@@ -803,9 +803,9 @@ static char *db_index_reg_16[8] = {
 };
 
 static char *db_reg[3][8] = {
-	"%al",  "%cl",  "%dl",  "%bl",  "%ah",  "%ch",  "%dh",  "%bh",
-	"%ax",  "%cx",  "%dx",  "%bx",  "%sp",  "%bp",  "%si",  "%di",
-	"%eax", "%ecx", "%edx", "%ebx", "%esp", "%ebp", "%esi", "%edi"
+	{"%al",  "%cl",  "%dl",  "%bl",  "%ah",  "%ch",  "%dh",  "%bh"},
+	{"%ax",  "%cx",  "%dx",  "%bx",  "%sp",  "%bp",  "%si",  "%di"},
+	{"%eax", "%ecx", "%edx", "%ebx", "%esp", "%ebp", "%esi", "%edi"}
 };
 
 static char *db_seg_reg[8] = {

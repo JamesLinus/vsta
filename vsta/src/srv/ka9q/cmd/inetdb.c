@@ -30,17 +30,17 @@ static struct {
 	char *c_name;	/* Name of command */
 	cmdfun c_fn;	/* Function to process the command */
 } cmdtab[] = {
-	".", my_dot,
-	"exit", my_exit,
-	"open", my_open,
-	"quit", my_exit,
-	"read", my_read,
-	"sleep", my_sleep,
-	"stat", my_stat,
-	"term", my_term,
-	"write", my_write,
-	"wstat", my_wstat,
-	0, 0
+	{".", my_dot},
+	{"exit", my_exit},
+	{"open", my_open},
+	{"quit", my_exit},
+	{"read", my_read},
+	{"sleep", my_sleep},
+	{"stat", my_stat},
+	{"term", my_term},
+	{"write", my_write},
+	{"wstat", my_wstat},
+	{0, 0},
 };
 
 /*

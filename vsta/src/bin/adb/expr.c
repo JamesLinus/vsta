@@ -161,8 +161,8 @@ yyparse(void)
     register char *yys;
     extern char *getenv();
 
-    if (yys = getenv("YYDEBUG"))
-    {
+    yys = getenv("YYDEBUG");
+    if (yys) {
         yyn = *yys;
         if (yyn >= '0' && yyn <= '9')
             yydebug = yyn - '0';
@@ -178,10 +178,12 @@ yyparse(void)
     *yyssp = yystate = 0;
 
 yyloop:
-    if (yyn = yydefred[yystate]) goto yyreduce;
+    yyn = yydefred[yystate];
+    if (yyn) goto yyreduce;
     if (yychar < 0)
     {
-        if ((yychar = yylex()) < 0) yychar = 0;
+	yychar = yylex();
+        if (yychar < 0) yychar = 0;
 #if YYDEBUG
         if (yydebug)
         {
@@ -193,8 +195,9 @@ yyloop:
         }
 #endif
     }
-    if ((yyn = yysindex[yystate]) && (yyn += yychar) >= 0 &&
-            yyn <= YYTABLESIZE && yycheck[yyn] == yychar)
+    yyn = yysindex[yystate];
+    if (yyn && ((yyn += yychar) >= 0) &&
+            (yyn <= YYTABLESIZE) && (yycheck[yyn] == yychar))
     {
 #if YYDEBUG
         if (yydebug)

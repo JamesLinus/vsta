@@ -312,7 +312,8 @@ start(char *args)
 	}
 	if (ptrace(corepid, pn) < 0) {
 		perror("ptrace attach");
-		printf("Couldn't attach to %d on 0x%x\n", corepid, pn);
+		printf("Couldn't attach to %lu on 0x%x\n",
+			(ulong)corepid, pn);
 		exit(1);
 	}
 	wait_exec();
@@ -558,8 +559,8 @@ main(int argc, char **argv)
 		 */
 		if (ptrace(corepid, pn) < 0) {
 			perror("ptrace: attach");
-			printf("Can't attach PID %d to 0x%x\n",
-				corepid, pn);
+			printf("Can't attach PID %ld to 0x%x\n",
+				(ulong)corepid, (uint)pn);
 			exit(1);
 		}
 	}

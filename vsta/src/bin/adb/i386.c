@@ -37,11 +37,11 @@ dump_regs(void)
 	struct trapframe t;
 
 	getregs(&t);
-	printf("eip 0x%x (%s) eflags %s\n",
+	printf("eip 0x%lx (%s) eflags %s\n",
 		t.eip, nameval(t.eip), flagnames(t.eflags));
-	printf(" eax 0x%x ebx 0x%x ecx 0x%x edx 0x%x esi 0x%x edi 0x%x\n",
+	printf(" eax 0x%lx ebx 0x%lx ecx 0x%lx edx 0x%lx esi 0x%lx edi 0x%lx\n",
 		t.eax, t.ebx, t.ecx, t.edx, t.esi, t.edi);
-	printf(" esp 0x%x ebp 0x%x\n",
+	printf(" esp 0x%lx ebp 0x%lx\n",
 		t.esp, t.ebp);
 }
 
@@ -98,7 +98,7 @@ backtrace(void)
 		if (s.s_eip == 0)
 			break;
  		loc = nameval(eip);
- 		if (p = strchr(loc, '+')) {
+ 		if ((p = strchr(loc, '+'))) {
  			*p = '\0';
 		}
  		printf("%s(", loc);
@@ -138,7 +138,7 @@ backtrace(void)
 			} else {
 				val = 0;
 			}
- 			printf("%s0x%x", x ? ", " : "", val);
+ 			printf("%s0x%lx", x ? ", " : "", val);
 		}
 
 		/*
