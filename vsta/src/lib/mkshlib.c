@@ -310,8 +310,7 @@ generate_stubs(void)
 "%s:	movl	__addr_%s,%%eax\n"
 "	testl	%%eax,%%eax\n"
 "	je	1f\n"
-"	addl	$%d,%%eax\n"
-"	jmp	0(%%eax)\n"
+"	jmp	%d(%%eax)\n"
 "1:	call	__load_%s\n"
 "	jmp	%s\n",
 				sym, sym, libname, x * sizeof(ulong),
