@@ -429,7 +429,8 @@ dir_newfile(struct file *f, char *name, int type)
 	 */
 	off = sizeof(struct fs_file);
 	for (extent = 0; extent < fs->fs_nblk; ++extent) {
-		uint x, len;
+		uint x;
+		ulong len;
 		struct alloc *a = &fs->fs_blks[extent];
 
 		/*
@@ -455,6 +456,7 @@ dir_newfile(struct file *f, char *name, int type)
 				goto out;
 			}
 			d = index_buf(b2, 0, len);
+			len = stob(len);
 
 			/*
 			 * Special case for initial data in file
@@ -468,14 +470,13 @@ dir_newfile(struct file *f, char *name, int type)
 			/*
 			 * Look for our filename
 			 */
-			dstart = d =
-				findfree(d, len/sizeof(struct fs_dirent));
+			dstart = d;
+			d = findfree(dstart, len/sizeof(struct fs_dirent));
 			if (d) {
 				off += ((char *)d - (char *)dstart);
 				goto out;
 			}
 			off += len;
-
 		}
 	}
 
@@ -483,19 +484,19 @@ dir_newfile(struct file *f, char *name, int type)
 	 * No luck with existing blocks.  Use bmap() to map in some
 	 * more storage.
 	 */
+	ASSERT_DEBUG(off == fs->fs_len, "dir_newfile: off/len skew");
 	{
 		uint dummy;
 
 		b2 = bmap(b, fs, fs->fs_len, sizeof(struct fs_dirent),
 			(char **)&d, &dummy);
+		if (b2 == b) {
+			fs = index_buf(b, 0, 1);
+		}
 	}
 	if (b2 == 0) {
 		err = 1;
-		goto out;
 	}
-	ASSERT_DEBUG(off >= sizeof(struct fs_dirent),
-		"dir_newfile: bad growth");
-
 out:
 	/*
 	 * On error, release germinal file allocation, return 0
@@ -512,6 +513,8 @@ out:
 	if (off > fs->fs_len) {
 		fs->fs_len = off;
 		dirty_buf(b);
+	} else if (fs->fs_len > off) {
+		file_shrink(f->f_file, off);
 	}
 
 	/*
