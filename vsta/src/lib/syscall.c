@@ -202,3 +202,15 @@ yield(void)
 	sched_op(SCHEDOP_YIELD, 0);
 	return(0);
 }
+
+/*
+ * fork()
+ *	Keep a tally count, so we can know when we're a new process
+ */
+uint fork_tally;
+int
+fork(void)
+{
+	fork_tally += 1;
+	return(_fork());
+}
