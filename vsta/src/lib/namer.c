@@ -136,6 +136,7 @@ namer_find(char *buf)
 			 */
 			bcopy(buf, wdbuf, p-buf);
 			wdbuf[p-buf] = '\0';
+			++p;
 		} else {
 			strcpy(wdbuf, buf);
 		}
