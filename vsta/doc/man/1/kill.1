@@ -1,0 +1,37 @@
+.TH "KILL" "1" "" "" "Commands"
+.SH "NAME"
+kill \- kill processes
+.SH "SYNTAX"
+kill [\fI-e <event>\fR] [\fI-p <pid>\fR] [\fI-t <tid>\fR] [\fI-g\fR] [\fIPIDs...\fR]
+.SH "DESCRIPTION"
+\fBkill\fR is used to send events to processes and groups of processes.
+.SH "OPTIONS"
+.TP
+\fB-e <event>\fR
+The named event string (default: "kill") will be used as the
+event to deliver.
+.TP 
+\fB\-g\fR
+The signal is sent to the process group to which the given
+PID belongs.
+.TP
+\fB-p <pid>\fR
+The named process ID is the target.  The currently specified
+event (either the default "kill" or a preceding \fI-e\fP
+switch) is delivered to the process.  If a preceding \fI-t\fP
+switch is active, only the specified thread within this
+process is affected.
+.TP
+\fB-t <tid>\fR
+A specific thread within the process (whose ID is specified
+by a subsequent \fB-p\fR argument) is the target of the signal.
+Without this, sending a signal to a PID will result in the
+signal being delivered to each thread within that process.
+.TP
+\fB<pid>\fR
+After the switches, further arguments are taken as process
+ID's, and are treated each as if a \fB-p\fR switch had
+been placed before them.
+.LP 
+.SH "SEE ALSO"
+.BR ps(1)

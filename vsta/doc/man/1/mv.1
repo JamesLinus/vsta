@@ -1,0 +1,16 @@
+.TH "MV" "1" "" "" "Commands"
+.SH "NAME"
+mv \- move files
+.SH "SYNTAX"
+mv \fIsrc\fR [\fIsrc\fR ...] \fIdest\fR
+.SH "DESCRIPTION"
+The mv command moves single or several files or directories from one location to another. If a single file or directory is moved and the last element of the destination isn't a directory, it is moved and renamed to that. So mv can be used to rename files.
+.SH "EXAMPLES"
+mv foo.c bar/ \- will move the file foo.c into the bar directory
+.PP 
+mv foo.c foo.h bar/ \- will move the files foo.c and foo.h into the bar directory
+.PP 
+mv foo.c bar.c \- this will rename foo.c to bar.c
+.SH "SEE ALSO"
+.BR cp(1),
+.BR rm(1)

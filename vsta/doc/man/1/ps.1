@@ -1,0 +1,31 @@
+.TH "PS" "1" "" "" "Commands"
+.SH "NAME"
+ps \- list processes
+.SH "SYNTAX"
+ps
+.SH "DESCRIPTION"
+ps gives a snapshot of the current processes.
+.LP 
+The different columns are:
+.TP 
+PID:
+The process ID of the process.
+.TP 
+CMD:
+Command name of the process.
+.TP 
+STATE:
+Either SLP, ONPROC or RUN. SLP means the process is sleeping,
+ONPROC means it has threads on a CPU and RUN means it has runnable threads.
+If a process has multiple threads, the state will be ONPROC if any of the
+threads is on a CPU, otherwise RUN if any of the threads is waiting to
+run on a CPU.
+.TP 
+NTHREAD:
+Number of threads under process
+.TP 
+USR/SYS:
+The first value is the total CPU time used in user mode. Then after the / is the total CPU time used in kernel.
+.TP 
+ID:
+The ID the process is running as.

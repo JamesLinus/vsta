@@ -1,0 +1,19 @@
+.TH "FSTAB" "1" "" "Dave Hudson" "Commands"
+.SH "NAME"
+fstab \- read the current mount table
+.SH "SYNTAX"
+fstab [\fIoption\fP][\-f | \-p]
+.SH "DESCRIPTION"
+Utility to read the current mount table. Based on an idea from Andy Valencia's testsh builtin command "fstab".
+.SH "OPTIONS"
+.LP 
+.TP 
+\fB\-f\fR
+List the mounted ports by file descriptor.
+.TP 
+\fB\-p\fR
+List the mounted ports by "portname" number.
+.SH "AUTHORS"
+Dave Hudson <dave@humbug.demon.co.uk>
+.SH "SEE ALSO"
+.BR mount(1)
