@@ -3,9 +3,12 @@
 #	Common definitions for all makefiles in VSTa
 #
 ROOT=/vsta
-SRC=/vsta/src
+SRC=/vandys/vsta/src
+AS=as
 CC=gcc
+CPP=cpp
 LD=ld
+STRIP=strip
 CFLAGS=-nostdinc -I$(SRC)/include -O $(COPTS)
 LDFLAGS=-L$(SRC)/lib
 CRT0=$(SRC)/lib/crt0.o
@@ -14,7 +17,7 @@ CRT0SRV=$(SRC)/lib/crt0srv.o
 all: $(OUT)
 
 clean:
-	rm -f $(OBJS)
+	rm -f $(OBJS) $(EXTRA_CLEAN)
 
 clobber: clean
-	rm -f $(OUT)
+	rm -f $(OUT) $(EXTRA_CLOBBER)
