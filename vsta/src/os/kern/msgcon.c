@@ -280,16 +280,12 @@ msg_connect(port_name arg_port, int arg_mode)
 	}
 
 	/*
-	 * If error, need to back out the open.  Otherwise move port
-	 * state to PS_IODONE and let it go into service
+	 * If no error, move port state to PS_IODONE and let
+	 * it go into service
 	 */
-	if (error) {
-		p_sema(&name_sema, PRIHI); holding_hash = 1;
-		hash_delete(portnames, arg_port);
-	} else {
+	if (error == 0) {
 		p->p_open[slot] = pr;
 		error = slot;
-
 		pr = 0;		/* So not freed below */
 		slot = -1;
 	}
