@@ -376,8 +376,8 @@ dump_pset(char *p)
 			printf("...\n");
 			break;
 		}
-		printf("  pfn 0x%x lock 0x%x refs %d",
-			pp->pp_pfn, pp->pp_lock, pp->pp_refs);
+		printf("  pfn 0x%x lock 0x%x refs %d atl 0x%x",
+			pp->pp_pfn, pp->pp_lock, pp->pp_refs, pp->pp_atl);
 		if (f & PP_V) printf(" VALID");
 		if (f & PP_COW) printf(" COW");
 		if (f & PP_SWAPPED) printf(" SWAPPED");
