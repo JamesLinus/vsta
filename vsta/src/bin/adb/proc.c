@@ -9,6 +9,7 @@
 #include "map.h"
 
 extern port_t dbg_port;
+extern struct map coremap;
 
 /*
  * sendhim()
@@ -109,12 +110,21 @@ ulong
 read_procmem(ulong addr, int size)
 {
 	ulong args[2];
+	uchar c;
+	ushort w;
+	ulong l;
 
-	args[0] = addr & ~(sizeof(long)-1);
+	args[0] = addr;
 	args[1] = 0;
 	if ((sendhim(PD_RDMEM, args) < 0) || args[1]) {
 		printf("Read error at addr 0x%x\n", addr);
 		return(0);
 	}
-	return(args[0]);
+	l = args[0];
+	switch (size) {
+	case 1: c = *(char *)&l;
+	case 2: w = *(ushort *)&l;
+	case 4: return(l);
+	}
+	return(0);
 }
