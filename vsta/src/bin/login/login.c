@@ -214,9 +214,11 @@ login(struct uinfo *u)
 	}
 
 	/*
-	 * Create our own signal group
+	 * Create our own signal group.  Tell our TTY.
 	 */
 	(void)setsid();
+	(void)sprintf(buf, "pgrp=%lu\n", getpid());
+	(void)wstat(__fd_port(1), buf);
 
 	/*
 	 * Launch their shell with a leading '-' in argv[0] to flag
