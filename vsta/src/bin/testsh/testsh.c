@@ -2,8 +2,11 @@
  * main.c
  *	Main routines for test shell
  */
+#define STAND
 #include <sys/types.h>
+#ifdef STAND
 #include <sys/ports.h>
+#endif
 #include <sys/fs.h>
 #include <stdio.h>
 #include <ctype.h>
@@ -566,6 +569,7 @@ do_cmd(str)
  */
 main(void)
 {
+#ifdef STAND
 	int scrn, kbd;
 
 	kbd = msg_connect(PORT_KBD, ACC_READ);
@@ -573,6 +577,7 @@ main(void)
 	scrn = msg_connect(PORT_CONS, ACC_WRITE);
 	(void)__fd_alloc(scrn);
 	(void)__fd_alloc(scrn);
+#endif
 
 	buf = malloc(NBPG);
 	if (buf == 0) {
