@@ -6,6 +6,7 @@
 #include <sys/fs.h>
 
 extern pid_t _getid(int);
+char *strerror(void);
 
 char __err[ERRLEN] = "";	/* Latest error string */
 int _errno = 0;			/* Simulation for POSIX errno */
@@ -32,9 +33,18 @@ msg_err(long port, char *errmsg)
  */
 notify(long pid, long tid, char *event)
 {
+	int x;
 	extern int _notify();
+	extern void __msleep();
 
-	return(_notify(pid, tid, event, strlen(event)));
+	for (;;) {
+		x = _notify(pid, tid, event, strlen(event));
+		if ((x >= 0) || strcmp(strerror(), EAGAIN)) {
+			return(x);
+		}
+		__msleep(40);
+
+	}
 }
 
 /*
@@ -83,7 +93,7 @@ abort(void)
  * errors.
  */
 char *
-strerror()
+strerror(void)
 {
 	/*
 	 * This is a bit of a hack - we would include <errno.h>, but there
