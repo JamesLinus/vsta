@@ -130,11 +130,13 @@ boot_regs(struct thread *t, struct boot_task *b)
 	u->ess = GDT_UDATA|PRIV_USER;
 
 	/*
-	 * esp must lie within data segment, so point at last
-	 * word at top of stack.
+	 * Leave a 0 on the stack to indicate to crt0 that there
+	 * are no args.  Leave an extra word so that even once
+	 * it has been popped the esp register will always remain
+	 * within the stack region.
 	 */
 	u->ebp =
-	u->esp = (USTACKADDR+UMINSTACK) - sizeof(ulong);
+	u->esp = (USTACKADDR+UMINSTACK) - 2*sizeof(ulong);
 	u->eflags = F_IF;
 
 	/*
