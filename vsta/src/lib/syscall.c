@@ -5,11 +5,13 @@
 #include <sys/types.h>
 #include <sys/fs.h>
 
+char __err[ERRLEN];	/* Latest error string */
+
 /*
  * msg_err()
  *	Count string length, then invoke system call
  *
- * It's a lot harder to do in kernel mode, so do it in the system
+ * It's a lot harder to do in kernel mode, so count length in the system
  * call layer.
  */
 msg_err(long port, char *errmsg)
@@ -63,16 +65,41 @@ abort(void)
 
 /*
  * strerror()
- *	Get string error from kernel
+ *	Get error string
+ *
+ * The error string comes from one of two places; if __err[] is
+ * empty, we query the kernel.  Otherwise we use its current value.
+ * This allows us to set a system error from the C library.  Since
+ * we emulate much of what is traditionally kernel functionality in
+ * the C library, it is necessary for us to be able to set "system"
+ * errors.
  */
 char *
 strerror(void)
 {
-	static char err[ERRLEN];
 
-	err[0] = '\0';
-	if ((_strerror(err) < 0) || !err[0]) {
-		strcpy(err, "unknown error");
+	if (__err[0] == '\0') {
+		printf("Get from kern\n");
+		if ((_strerror(__err) < 0) || !__err[0]) {
+			strcpy(__err, "unknown error");
+		}
 	}
-	return(err);
+	printf("Err is %s\n", __err);
+	return(__err);
+}
+
+/*
+ * __seterr()
+ *	Set error string to given value
+ *
+ * Used by internals of C library to set our error without involving
+ * the kernel.
+ */
+__seterr(char *p)
+{
+	if (strlen(p) >= ERRLEN) {
+		abort();
+	}
+	strcpy(__err, p);
+	return(-1);
 }
