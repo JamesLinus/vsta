@@ -146,21 +146,100 @@ drop_root(void)
 	zero_ids(&perm, 1);
 	perm.perm_len = 0;
 	PERM_DISABLE(&perm);
-	(void)perm_ctl(1, &perm, (void *)0);
+	(void)perm_ctl(0, &perm, (void *)0);
 }
 
 /*
  * add_root()
  *	Turn on our root capability
+ *
+ * Tries to switch it on for slot 1 and 0.  In our initial
+ * environment, slot 0 will hold a sys.sys ID, and slot 1
+ * our root.  To maximize the number of slots availbale for
+ * emulating other users, we move it back to slot 0.
  */
 static void
 add_root(void)
 {
 	struct perm perm;
+	static int init;
 
 	zero_ids(&perm, 1);
 	perm.perm_len = 0;
-	(void)perm_ctl(1, &perm, (void *)0);
+	if (!init) {
+		/*
+		 * Turn on root at slot 1.  With that capability,
+		 * build the same thing in slot 0.  Then null out
+		 * slot 1; from here on, our root capability lives
+		 * in slot 0 only.
+		 */
+		(void)perm_ctl(1, &perm, (void *)0);
+		(void)perm_ctl(0, &perm, (void *)0);
+		PERM_NULL(&perm);
+		(void)perm_ctl(1, &perm, (void *)0);
+		init = 1;
+	} else {
+		(void)perm_ctl(0, &perm, (void *)0);
+	}
+}
+
+/*
+ * become()
+ *	Take on a client's identity
+ *
+ * Used to let the TTY server send signals without compromising
+ * security by sending signals to any arbitrary target.  By
+ * becoming the same identity as the client who initialized
+ * the process group, we can't signal anyone that the client
+ * couldn't have signaled in the first place.
+ */
+static void
+become(struct file *who)
+{
+	int x, idx;
+	struct perm *perm;
+
+	/*
+	 * Become root so we can arbitrarily assign ID's
+	 */
+	add_root();
+
+	/*
+	 * Walk each capability slot.  For each active one,
+	 * clone its capability into our active set.
+	 */
+	for (x = 0, idx = 1; (x < PROCPERMS) && (idx < PROCPERMS); ++x) {
+		perm = &who->f_perms[x];
+		if (PERM_ACTIVE(perm)) {
+			(void)perm_ctl(idx, perm, (void *)0);
+			idx += 1;
+		}
+	}
+
+	/*
+	 * Disable our root capability for now
+	 */
+	drop_root();
+}
+
+/*
+ * unbecome()
+ *	Slough off all our forged capabilities
+ */
+static void
+unbecome(void)
+{
+	int x;
+	struct perm perm;
+
+	/*
+	 * Get root, and zero out our slots.  We don't need to
+	 * be root to delete a slot.
+	 */
+	PERM_NULL(&perm);
+	for (x = 1; x < PROCPERMS; ++x) {
+		(void)perm_ctl(x, &perm, (void *)0);
+	}
 }
 
 /*
@@ -171,19 +250,19 @@ add_root(void)
  * one node.
  */
 static void
-send_sig(pid_t pid, char *event)
+send_sig(struct screen *s, char *event)
 {
 	char buf[128];
 	int fd;
 
-	add_root();
-	(void) sprintf(buf, "//fs/proc:%lu/notepg", pid);
+	become(s->s_pgrp_lead);
+	(void) sprintf(buf, "//fs/proc:%lu/notepg", s->s_pgrp);
 	fd = open(buf, O_WRITE);
 	if (fd >= 0) {
 		(void)write(fd, event, strlen(event));
 		close(fd);
 	}
-	drop_root();
+	unbecome();
 }
 
 /*
@@ -204,10 +283,10 @@ kbd_enqueue(struct screen *s, uint c)
 	 */
 	if (s->s_isig && s->s_pgrp) {
 		if (c == s->s_intr) {
-			send_sig(s->s_pgrp, "intr");
+			send_sig(s, "intr");
 			return;
 		} else if (c == s->s_quit) {
-			send_sig(s->s_pgrp, "abort");
+			send_sig(s, "abort");
 			return;
 		}
 	}
