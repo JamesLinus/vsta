@@ -36,7 +36,7 @@ libc_s.a: $(OBJS) $(CRT)
 # All shared libraries must be processed at once, as mkshlib assigns
 # addresses as it processes each.
 mklibs: mkshlib $(SHLIBIN) shlib.o
-	mkshlib $(DBS)
+	./mkshlib $(DBS)
 	rm -f mklibs
 	touch mklibs
 
