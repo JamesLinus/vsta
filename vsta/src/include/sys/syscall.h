@@ -47,7 +47,8 @@
 #define S_NOTIFY_HANDLER 37
 #define S_SCHED_OP 38
 #define S_SETSID 39
-#define S_HIGH S_SETSID
+#define S_MUTEX_THREAD 40
+#define S_HIGH S_MUTEX_THREAD
 
 /*
  * Some syscall prototypes
@@ -75,6 +76,7 @@ extern int notify_handler(voidfun);
 
 #ifndef KERNEL
 extern int notify(pid_t, pid_t, char *);
+extern int mutex_thread(pid_t);
 #endif
 
 /*

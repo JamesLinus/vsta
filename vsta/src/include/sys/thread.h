@@ -41,6 +41,7 @@ struct thread {
 	struct percpu		/* CPU running on for TS_ONPROC */
 		*t_eng;
 	struct fpu *t_fpu;	/* Saved FPU state, if any */
+	sema_t t_mutex;		/* Sema for thread coordination */
 };
 
 /*

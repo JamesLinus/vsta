@@ -52,6 +52,9 @@
  */
 #define SCHEDOP_SETPRIO 0
 #define SCHEDOP_GETPRIO 1
+#define SCHEDOP_YIELD 2
+
+#ifdef KERNEL
 
 /*
  * Scheduler node structure.
@@ -74,7 +77,6 @@ struct sched {
 	uint s_refs;		/* # references to this node */
 };
 
-#ifdef KERNEL
 extern struct sched *sched_thread(struct sched *, struct thread *),
 	*sched_node(struct sched *);
 extern void setrun( /* struct thread * */ ), swtch(void);
