@@ -666,12 +666,13 @@ main(int argc, char **argv)
 	init_screen(vid_type);
 
 	/*
-	 * Initialize signal state for all screens.
+	 * Initialize state for all screens.
 	 */
 	for (i = 0, s = screens; i < NVTY; ++i, ++s) {
 		s->s_intr = '\3';	/* ^C */
 		s->s_quit = '\34';	/* ^\ */
 		s->s_isig = 1;
+		s->s_xkeys = 1;
 		ll_init(&s->s_readers);
 		ll_init(&s->s_selectors);
 	}

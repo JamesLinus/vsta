@@ -157,7 +157,9 @@ cursor_key(struct screen *s, uchar c)
 			(!numtoggle && shift))) {
 		kbd_enqueue(s, shifted[c]);
 	} else {
-		enqueue_string(s, cp);
+		if (s->s_xkeys) {
+			enqueue_string(s, cp);
+		}
 	}
 	return 1;
 }
@@ -209,7 +211,7 @@ function_key(struct screen *s, uchar c)
 	default:
 		return 0;
 	}
-	if (p) {
+	if (p && s->s_xkeys) {
 		enqueue_string(s, p);
 	}
 	return(1);

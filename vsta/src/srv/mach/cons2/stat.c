@@ -49,10 +49,10 @@ cons_stat(struct msg *m, struct file *f)
 
 		sprintf(buf,
 "size=%d\ntype=c\nowner=0\ninode=%d\nrows=%d\ncols=%d\ngen=%d\n"
-"quit=%d\nintr=%d\npgrp=%lu\nisig=%d\n",
+"quit=%d\nintr=%d\npgrp=%lu\nisig=%d\nxkeys=%d\n",
 			s->s_nbuf, f->f_screen, ROWS, COLS, s->s_gen,
 			s->s_quit, s->s_intr, (ulong)(s->s_pgrp),
-			s->s_isig);
+			s->s_isig, s->s_xkeys);
 	}
 	strcat(buf, perm_print(&cons_prot));
 	m->m_buf = buf;
@@ -137,6 +137,8 @@ cons_wstat(struct msg *m, struct file *f)
 		 * Look for event keys?
 		 */
 		s->s_isig = f->f_isig = (atoi(val) != 0);
+	} else if (!strcmp(field, "xkeys")) {
+		s->s_xkeys = atoi(val) != 0;
 	} else {
 		/*
 		 * Not a field we support...

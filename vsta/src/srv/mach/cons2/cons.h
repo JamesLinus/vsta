@@ -51,7 +51,8 @@ struct screen {
 	ushort s_hd, s_tl;	/*  ...circularly buffered */
 	uint s_nbuf;		/*  ...amount buffered */
 	char s_quit, s_intr;	/* Signal keys */
-	uchar s_isig;		/*  ...do they generate sigs now? */
+	uchar s_isig,		/*  ...do they generate sigs now? */
+		s_xkeys;	/* Emulate func and arrow keys? */
 	pid_t s_pgrp;		/* Process group to signal */
 	struct file		/* Client who opened the pgrp */
 		*s_pgrp_lead;
