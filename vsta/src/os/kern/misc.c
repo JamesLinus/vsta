@@ -404,11 +404,11 @@ getid(int which)
  *	Assertion failure in kernel
  */
 void
-assfail(char *msg, char *file, uint line)
+assfail(const char *msg, const char *file, int line)
 {
 	printf("Assertion failed line %d file %s\n",
 		line, file);
-	panic(msg, 0);
+	panic((char *)msg, 0);
 }
 
 /*
