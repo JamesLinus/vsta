@@ -103,6 +103,7 @@ free_pset(struct pset *ps)
 				*pp = p->p_cowsets;
 				break;
 			}
+			pp = &p->p_cowsets;
 		}
 		ASSERT(p, "free_pset: lost cow");
 		v_lock(&ps2->p_lock, SPL0);
