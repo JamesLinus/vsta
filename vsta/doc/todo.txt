@@ -150,3 +150,10 @@ Definitely a problem with free_proc() letting go of the root of our
 	its own root page table--the one we use to boot will suffice,
 	I think.  idle_stack(), once fixed, needs to be called before
 	we ever call free_proc().
+	*** Hmm, further thoughts.  If we had an idle_vas(), we could
+	safely abandon a per-process address space without hitting
+	the tedium of losing the stack (and thus all local variables).
+	The kernel view is stable, so we could idle_vas(), free_proc(),
+	and proceed at our leisure.
+	Definitely steal that initial root page table--it should be
+	nearly right already.
