@@ -147,6 +147,23 @@ map_filename(char *file, char *f1, char *f2)
 }
 
 /*
+ * bcmp()
+ *	Compare, binary style
+ */
+static int
+bcmp(const void *s1, const void *s2, unsigned int n)
+{
+	const char *p = s1, *q = s2;
+
+	while (n-- > 0) {
+		if (*p++ != *q++) {
+			return(1);
+		}
+	}
+	return(0);
+}
+
+/*
  * search_dir()
  *	Search an array of "struct directory"s for a filename
  */

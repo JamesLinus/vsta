@@ -48,8 +48,8 @@ do_write(struct clust *c, uint pos, char *buf, uint cnt)
 		/*
 		 * Copy data, mark buffer dirty, free it
 		 */
-		memcpy(index_buf(handle, 0, CLSIZE) + boff,
-			buf + bufoff, step);
+		bcopy(buf + bufoff, index_buf(handle, 0, CLSIZE) + boff,
+			step);
 		dirty_buf(handle, 0);
 		unlock_buf(handle);
 

@@ -159,7 +159,7 @@ dup_client(struct msg *m, struct file *fold)
 	/*
 	 * Bulk copy
 	 */
-	*f = *fold;
+	bcopy(fold, f, sizeof(*f));
 
 	/*
 	 * Hash under the sender's handle
