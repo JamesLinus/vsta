@@ -551,6 +551,13 @@ dup2(int oldfd, int newfd)
 	struct port *port;
 
 	/*
+	 * Short circuit a special, simple case
+	 */
+	if (oldfd == newfd) {
+		return(0);
+	}
+
+	/*
 	 * Get pointer to current port
 	 */
 	port = __port(oldfd);
