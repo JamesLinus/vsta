@@ -6,6 +6,8 @@
 
 #ifdef SERIAL
 
+#include "locore.h"
+
 /*
  * 1 for COM1, 0 for COM2 (bleh)
  */
