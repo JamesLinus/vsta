@@ -104,7 +104,10 @@ start_library(char *name)
 		exit(1);
 	}
 	curlib = strdup(name);
-	printf("Library %s @ 0x%lx\n", curlib, lib_base);
+	printf("Library %s ", curlib);
+	if (!stubs) {
+		printf("@ 0x%lx\n", lib_base);
+	}
 
 	/*
 	 * Generate the <lib>, <lib>.shl and <lib>.tmp versions of name
@@ -125,6 +128,9 @@ start_library(char *name)
 	 * Feed in the symbols from the -r input
 	 */
 	objfile(curinput);
+	if (stubs) {
+		printf("has %d symbols.\n", nobj_syms);
+	}
 }
 
 /*
