@@ -102,6 +102,7 @@ mmap(caddr_t addr, ulong len, int prot, int flags,
 		 * Get a physical pset, create a view, map it in.
 		 */
 		ps = physmem_pset(btop(addr), btorp(len));
+		ps->p_flags |= PF_SHARED;
 		pv = alloc_pview(ps);
 		pv->p_prot = PROT_MMAP;
 		vaddr = attach_pview(vas, pv);
