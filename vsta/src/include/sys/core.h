@@ -7,26 +7,19 @@
 #include <sys/types.h>
 
 /*
- * For enumerating current mappings of a physical page
- */
-struct atl {
-	struct pview *a_pview;
-	uint a_idx;
-	struct atl *a_next;
-};
-
-/*
  * Per-physical-page information
  */
 struct core {
-	uchar c_flags;		/* Flags */
-	uchar c_pad[3];		/* Padding */
+	ushort c_flags;		/* Flags */
+	ushort c_psidx;		/* Index into pset */
 	union {
-		struct atl *_c_atl;	/* List of mappings */
-		ulong _c_long;		/* Word of storage when C_SYS */
-	} c_u;
-#define c_atl c_u._c_atl
-#define c_long c_u._c_long
+	struct pset *_c_pset;	/* Pset page is used under */
+	ulong _c_long;		/* Word of storage when C_SYS */
+	struct core *_c_free;	/* Free list link when free */
+	} _c_u;
+#define c_pset _c_u._c_pset
+#define c_long _c_u._c_long
+#define c_free _c_u._c_free
 };
 
 /*
@@ -34,13 +27,5 @@ struct core {
  */
 #define C_BAD 1		/* Hardware error on page */
 #define C_SYS 2		/* Page wired down for kernel use */
-
-#ifdef KERNEL
-/*
- * Routines for manipulating attach lists
- */
-void atl_add(int, struct pview *, uint);
-void atl_del(int, struct pview *, uint);
-#endif
 
 #endif /* _CORE_H */

@@ -12,6 +12,15 @@
 #include <sys/mutex.h>
 
 /*
+ * For enumerating current mappings of a physical page
+ */
+struct atl {
+	struct pview *a_pview;
+	uint a_idx;
+	struct atl *a_next;
+};
+
+/*
  * Per-page-slot information.  The per-physical-page information is
  * a "struct core", in core.h.  This one describes a virtual page
  * slot within a pset.
@@ -21,6 +30,7 @@ struct perpage {
 	uchar pp_lock;		/* Locking bits */
 	ushort pp_refs;		/* # views active through this slot */
 	uint pp_pfn;		/* When valid, physical page # */
+	struct atl *pp_atl;	/* List of views of this page */
 };
 
 /*
@@ -47,8 +57,7 @@ struct psetops {
 	intfun psop_fillslot,		/* Fill slot with contents */
 		psop_writeslot,		/* Write slot to destination */
 		psop_init,		/* Called once on setup */
-		psop_deinit,		/*  ...on close */
-		psop_unrefslot;		/* Remove a reference to slot */
+		psop_deinit;		/*  ...on close */
 };
 
 /*
@@ -64,15 +73,13 @@ struct pset {
 	ushort p_locks;		/* # pages with PP_LOCK */
 	union {
 		struct pset *_p_cow;	/* Set we COW from if PT_COW */
-		struct {
-			struct portref *_p_pr;	/* Do FS ops here if PT_FILE */
-			struct pview *_p_view;
-		} p_s1;
+		struct portref *_p_pr;	/* Do FS ops here if PT_FILE */
 	} p_u;
 	ulong p_swapblk;	/* Block # on swapdev */
 #define p_cow p_u._p_cow
-#define p_pr p_u.p_s1._p_pr
-#define p_view p_u.p_s1._p_view
+#define p_pr p_u._p_pr
+	struct pset		/* List of sets which COW from us */
+		*p_cowsets;
 	ushort p_refs;		/* # views using this set */
 	ushort p_flags;		/* Flag bits */
 	struct perpage		/* Our array of per-page-slot data */
@@ -107,6 +114,12 @@ extern struct pset *alloc_pset_zfod(uint);
 extern struct pview *alloc_pview(struct pset *);
 extern struct pset *copy_pset(struct pset *);
 extern struct pset *physmem_pset(uint, int);
+extern void add_atl(struct perpage *, struct pview *, uint);
+extern int delete_atl(struct perpage *, struct pview *, uint);
+extern void cow_write(struct pset *, struct perpage *, uint);
+extern void ref_slot(struct pset *, struct perpage *, uint),
+	deref_slot(struct pset *, struct perpage *, uint);
+extern void set_core(uint, struct pset *, uint);
 #endif /* KERNEL */
 
 #endif /* _PSET_H */
