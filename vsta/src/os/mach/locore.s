@@ -72,16 +72,29 @@ _sti:	sti
  * atomic inc/dec
  *	Lock prefix probably not even needed for uP
  */
-	.globl	_ATOMIC_INC,_ATOMIC_DEC
+	.globl	_ATOMIC_INC,_ATOMIC_DEC,_ATOMIC_INCL,_ATOMIC_DECL
 _ATOMIC_INC:
+_ATOMIC_INCL:
 	movl	4(%esp),%eax
 	lock
 	incl	(%eax)
 	ret
 _ATOMIC_DEC:
+_ATOMIC_DECL:
 	movl	4(%esp),%eax
 	lock
 	decl	(%eax)
+	ret
+	.globl	_ATOMIC_INCW,_ATOMIC_DECW
+_ATOMIC_INCW:
+	movl	4(%esp),%eax
+	lock
+	incw	(%eax)
+	ret
+_ATOMIC_DECW:
+	movl	4(%esp),%eax
+	lock
+	decw	(%eax)
 	ret
 
 /*
