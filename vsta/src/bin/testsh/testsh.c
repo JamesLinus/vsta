@@ -15,7 +15,7 @@
 #include <unistd.h>
 
 extern char *__cwd;	/* Current working dir */
-static void cd(), md(), quit(), ls(), pwd(), mount(), cat(), sleep(),
+static void cd(), md(), quit(), ls(), pwd(), mount(), cat(), mysleep(),
 	sec(), null(), do_wstat(), do_fork(), get(), set(),
 	do_umount(), rm(), source();
 extern void run(), path();
@@ -55,7 +55,7 @@ struct {
 	"run", run,
 	"sector", sec,
 	"set", set,
-	"sleep", sleep,
+	"sleep", mysleep,
 	"source", source,
 	"umount", do_umount,
 	"wstat", do_wstat,
@@ -278,11 +278,11 @@ sec(char *p)
 }
 
 /*
- * sleep()
+ * mysleep()
  *	Pause the requested amount of time
  */
 static void
-sleep(char *p)
+mysleep(char *p)
 {
 	struct time tm;
 
