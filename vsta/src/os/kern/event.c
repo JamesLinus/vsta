@@ -112,8 +112,8 @@ notifypg(struct proc *p, char *event)
 		while (*lp == 0)
 			++lp;
 		l[x] = *lp++;
-		x -= 1;
 	}
+	printf("sig pg %d members at 0x%x\n", nelem, l); dbg_enter();
 
 	/*
 	 * Release the semaphores, then go about trying to
