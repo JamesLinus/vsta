@@ -20,5 +20,6 @@ struct rmap {
 extern void rmap_init(struct rmap *, uint);
 extern uint rmap_alloc(struct rmap *, uint);
 extern void rmap_free(struct rmap *, uint, uint);
+extern int rmap_grab(struct rmap *, uint, uint);
 
 #endif /* _RMAP_H */
