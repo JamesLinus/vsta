@@ -55,7 +55,7 @@ struct syscall {
 	{strerror, 1},				/* 15 */
 	{notify, 4},				/* 16 */
 	{clone, 1},				/* 17 */
-	{page_wire, 2},				/* 18 */
+	{page_wire, 3},				/* 18 */
 	{page_release, 1},			/* 19 */
 	{enable_dma, 0},			/* 20 */
 	{time_get, 1},				/* 21 */

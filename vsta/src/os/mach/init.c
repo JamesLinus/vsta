@@ -222,16 +222,6 @@ init_machdep(void)
 	memsegs[1].m_base = (void *)(K*K);
 	memsegs[1].m_len = size_ext;
 
-#ifndef BOUNCE_BUF
-	/*
-	 * Cap at 15 megs until we get a bounce buffer set up for
-	 * our ISA bus DMA devices (sigh).
-	 */
-	if (size_ext > 15*K*K) {
-		memsegs[1].m_len = 15*K*K;
-	}
-#endif
-
 	/*
 	 * Point heap at first byte beyond _end; it will almost
 	 * certainly be advanced past boot tasks next, but this

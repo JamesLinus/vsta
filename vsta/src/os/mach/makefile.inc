@@ -44,6 +44,9 @@ dbgtrace.o: ../mach/dbgtrace.c
 dbgio.o: ../mach/dbgio.c
 	$(CC) $(CFLAGS) -c ../mach/dbgio.c
 
+vm.o: ../mach/vm.c
+	$(CC) $(CFLAGS) -c ../mach/vm.c
+
 MACHOBJS=locore.o init.o mutex.o hat.o dbg.o isr.o trap.o \
 	machproc.o syscall.o dbg_ibm.o dbg_ser.o disasm.o \
-	dbgmem.o dbgtrace.o dbgio.o
+	dbgmem.o dbgtrace.o dbgio.o vm.o
