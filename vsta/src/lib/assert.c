@@ -3,6 +3,7 @@
  *	Supporting routines for the ASSERT/ASSERT_DEBUG macros
  */
 #include <stdio.h>
+#include <syslog.h>
 
 /*
  * assfail()
@@ -11,8 +12,13 @@
 void
 assfail(const char *msg, const char *file, int line)
 {
-	fprintf(stderr, "Assertion failed in file %s, line %d\n",
-		file, line);
-	fprintf(stderr, "Fatal error: %s\n", msg);
+	if (__logopt) {
+		syslog(LOG_EMERG, "Assertion failed %s/%d: %s",
+			file, line, msg);
+	} else {
+		fprintf(stderr, "Assertion failed in file %s, line %d\n",
+			file, line);
+		fprintf(stderr, "Fatal error: %s\n", msg);
+	}
 	abort();
 }

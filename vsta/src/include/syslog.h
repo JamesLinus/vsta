@@ -47,4 +47,9 @@ extern void syslog(int, const char *, ...),
 #define LOG_NEWS (7)
 #define LOG_LOCAL (8)
 
+/*
+ * "Hidden" variable
+ */
+extern int __logopt;
+
 #endif /* _SYSLOG_H */

@@ -7,8 +7,9 @@
 #include <stdio.h>
 #include <std.h>
 
-static char *id;		/* Name os process posting message */
-static int logopt, logfacil;	/* Logging options & facility */
+static char *id;	/* Name os process posting message */
+int __logopt;		/* Logging options */
+static int logfacil;	/* Logging facility */
 
 /*
  * levelmsg()
@@ -38,7 +39,7 @@ void
 openlog(char *ident, int opt, int facil)
 {
 	id = strdup(ident);
-	logopt = opt;
+	__logopt = opt;
 	logfacil = facil;
 }
 
@@ -54,7 +55,7 @@ pidstr(void)
 	static ulong pid;
 	static char str[16];
 
-	if ((logopt & LOG_PID) == 0) {
+	if ((__logopt & LOG_PID) == 0) {
 		return("");
 	}
 	if (pid == 0) {
