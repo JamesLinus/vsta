@@ -16,7 +16,7 @@ extern void *malloc(unsigned int), *realloc(void *, unsigned int);
 extern void *calloc(unsigned int, unsigned int);
 extern void free(void *);
 extern char *strerror( /* ... */ );
-extern int fork(void), tfork(voidfun);
+extern int fork(void), vfork(void), tfork(voidfun);
 extern long __cwd_size(void);
 extern void __cwd_save(char *);
 extern char *__cwd_restore(char *);
@@ -43,8 +43,6 @@ extern long strtol(const char *s, char **ptr, int base);
 extern unsigned long strtoul(const char *s, char **ptr, int base);
 extern int getdtablesize(void);
 extern int system(const char *);
-extern uid_t getuid(void);
-extern gid_t getgid(void);
 
 /*
  * GNU C has managed to change this one the last three times I moved
