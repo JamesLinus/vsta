@@ -78,6 +78,11 @@ free_pset(struct pset *ps)
 			 */
 			free_page(pp->pp_pfn);
 		}
+
+		/*
+		 * Release our swap space
+		 */
+		free_swap(ps->p_swapblk, ps->p_len);
 	}
 
 	/*
@@ -104,6 +109,12 @@ free_pset(struct pset *ps)
 		 * Remove our reference from him
 		 */
 		deref_pset(ps2);
+
+	/*
+	 * Need to disconnect from our server on mapped files
+	 */
+	} else if (ps->p_type == PT_FILE) {
+		(void)shut_client(ps->p_pr);
 	}
 
 	/*
@@ -367,7 +378,6 @@ alloc_pset_zfod(uint pages)
 	struct pset *ps;
 	uint swapblk;
 	extern struct psetops psop_zfod;
-	extern uint alloc_swap();
 
 	/*
 	 * Get backing store first
@@ -384,6 +394,26 @@ alloc_pset_zfod(uint pages)
 	ps->p_ops = &psop_zfod;
 	ps->p_swapblk = swapblk;
 
+	return(ps);
+}
+
+/*
+ * alloc_pset_fod()
+ *	Allocate a fill-on-demand pset with all invalid pages
+ */
+struct pset *
+alloc_pset_fod(struct portref *pr, uint pages)
+{
+	struct pset *ps;
+	extern struct psetops psop_fod;
+
+	/*
+	 * Allocate pset, set it for our pset type
+	 */
+	ps = alloc_pset(pages);
+	ps->p_type = PT_FILE;
+	ps->p_ops = &psop_fod;
+	ps->p_pr = pr;
 	return(ps);
 }
 
@@ -573,4 +603,44 @@ ref_slot(struct pset *ps, struct perpage *pp, uint idx)
 pset_deinit(struct pset *ps)
 {
 	return(0);
+}
+
+/*
+ * alloc_pset_cow()
+ *	Allocate a COW pset in terms of another
+ */
+struct pset *
+alloc_pset_cow(struct pset *psold, uint off, uint len)
+{
+	struct pset *ps;
+	uint swapblk;
+	extern struct psetops psop_cow;
+
+	ASSERT_DEBUG(psold->p_type != PT_COW, "pset_cow: cow of cow");
+
+	/*
+	 * Get swap for our pages.  We get all the room we'll need
+	 * if all pages are written.
+	 */
+	swapblk = alloc_swap(len);
+	if (swapblk == 0) {
+		return(0);
+	}
+	ps = alloc_pset(len);
+	ps->p_off = off;
+	ps->p_swapblk = swapblk;
+	ps->p_type = PT_COW;
+	ps->p_cow = psold;
+	ps->p_ops = &psop_cow;
+
+	/*
+	 * Attach to the underlying pset
+	 */
+	ref_pset(psold);
+	p_lock(&psold->p_lock, SPL0);
+	ps->p_cowsets = psold->p_cowsets;
+	psold->p_cowsets = ps;
+	v_lock(&psold->p_lock, SPL0);
+
+	return(ps);
 }
