@@ -78,7 +78,7 @@ __fd_port(int fd)
 	struct port *port;
 
 	if ((port = __port(fd)) == 0) {
-		return(-1);
+		return(__seterr(EBADF));
 	}
 	return(port->p_port);
 }
