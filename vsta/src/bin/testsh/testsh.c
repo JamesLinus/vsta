@@ -12,7 +12,7 @@
 #include <ctype.h>
 
 extern char *__cwd;	/* Current working dir */
-static void cd(), md(), quit(), ls(), pwd(), mount(), cat();
+static void cd(), md(), quit(), ls(), pwd(), mount(), cat(), sleep();
 
 /*
  * Table of commands
@@ -31,8 +31,29 @@ struct {
 	"mount", mount,
 	"pwd", pwd,
 	"quit", quit,
+	"sleep", sleep,
 	0, 0
 };
+
+/*
+ * sleep()
+ *	Pause the requested amount of time
+ */
+static void
+sleep(char *p)
+{
+	struct time tm;
+
+	if (!p || !p[0]) {
+		printf("Usage: sleep <secs>\n");
+		return;
+	}
+	time_get(&tm);
+	printf("Time now: %d sec / %d usec\n", tm.t_sec, tm.t_usec);
+	tm.t_sec += atoi(p);
+	time_sleep(&tm);
+	printf("Back from sleep\n");
+}
 
 /*
  * md()
