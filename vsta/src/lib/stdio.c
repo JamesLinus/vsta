@@ -369,6 +369,7 @@ fputc(int c, FILE *fp)
 	*(fp->f_pos) = c;
 	fp->f_pos += 1;
 	fp->f_cnt += 1;
+	fp->f_flags |= _F_DIRTY;
 
 	/*
 	 * If line-buffered and newline or unbuffered, flush
