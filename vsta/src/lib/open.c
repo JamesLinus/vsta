@@ -10,6 +10,7 @@
 #include <mnttab.h>
 #include <fcntl.h>
 #include <alloc.h>
+#include <pwd.h>
 
 #define MAXLINK (16)	/* Max levels of symlink to follow */
 #define MAXSYMLEN (128)	/*  ...max length of one element */
@@ -341,6 +342,81 @@ try_open(port_t newfile, char *file, int mask, int mode)
 }
 
 /*
+ * do_home()
+ *	Rewrite ~ to $HOME, and ~foo to foo's home dir
+ *
+ * Result is returned in a malloc()'ed buffer on success, 0 on failure
+ */
+static char *
+do_home(char *in)
+{
+	char *p, *q, *name, *name_end;
+
+	/*
+	 * Find end of element, either first '/' or end of string.
+	 * If '/', create private copy of name, null-terminated.
+	 */
+	p = strchr(in, '/');
+	if (p == 0) {
+		name = in;
+		name_end = in + strlen(in);
+	} else {
+		name = alloca((p - in) + 1);
+		bcopy(in, name, p - in);
+		name[p - in] = '\0';
+		name_end = p;
+	}
+
+	if (!strcmp(name, "~")) {
+		static char *home;
+
+		/*
+		 * ~ -> $HOME.  Cache it for speed on reuse.
+		 */
+		if (home == 0) {
+			home = getenv("HOME");
+		}
+		p = home;
+	} else {
+		struct passwd *pw;
+
+		/*
+		 * ~name -> $HOME for "name"
+		 */
+
+
+		/*
+		 * Look it up in the password database
+		 */
+		pw = getpwnam(name+1);
+		if (pw) {
+			p = pw->pw_dir;
+		} else {
+			p = 0;
+		}
+	}
+
+	/*
+	 * If didn't find ~name's home or $HOME, return 0
+	 */
+	if (p == 0) {
+		return(0);
+	}
+
+	/*
+	 * malloc() result, assemble our replacement part and
+	 * rest of original path
+	 */
+	q = malloc(strlen(p) + strlen(name_end) + 1);
+	if (q == 0) {
+		return(0);
+	}
+	sprintf(q, "%s%s", p, name_end);
+	printf("Ret: %s\n", q);
+	return(q);
+}
+
+/*
  * open()
  *	Open a file
  */
@@ -349,7 +425,7 @@ open(const char *file, int mode, ...)
 {
 	int x, len, mask;
 	port_t newfile;
-	char buf[MAXPATH], *p;
+	char buf[MAXPATH], *p, *home_buf;
 	struct mnttab *mt, *match = 0;
 	struct mntent *me;
 
@@ -376,6 +452,18 @@ open(const char *file, int mode, ...)
 	mode = mapmode(mode);
 
 	/*
+	 * Rewrite ~
+	 */
+	if (file[0] == '~') {
+		home_buf = do_home((char *)file);
+		if (home_buf) {
+			file = home_buf;
+		}
+	} else {
+		home_buf = 0;
+	}
+
+	/*
 	 * See where to start.  We always have to copy the string
 	 * because "__dotdot" is going to write it, and the supplied
 	 * string might be const, and thus perhaps not writable.
@@ -386,6 +474,13 @@ open(const char *file, int mode, ...)
 		sprintf(buf, "%s/%s", __cwd, file);
 	}
 	p = buf;
+
+	/*
+	 * Free $HOME processing buffer now that we've used it
+	 */
+	if (home_buf) {
+		free(home_buf);
+	}
 
 	/*
 	 * Remove ".."s
