@@ -119,6 +119,7 @@ resume(void)
 	/*
 	 * Switch to root page tables for the new process
 	 */
+	ASSERT_DEBUG(p->p_vas->v_hat.h_cr3 != 0, "resume: cr3 NULL");
 	set_cr3(p->p_vas->v_hat.h_cr3);
 
 	/*
