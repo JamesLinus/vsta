@@ -3,6 +3,7 @@
  *	Routines for printing permission/protection structures
  */
 #include <sys/perm.h>
+#include <sys/fs.h>
 #include <std.h>
 #include <string.h>
 
@@ -122,4 +123,72 @@ parse_perm(struct perm *p, char *s)
 		s = sn;
 	}
 	p->perm_len = len;
+}
+
+/*
+ * protstr()
+ *	Create a string of protection access details from an "acc" stat field
+ *
+ * Creates a string of the form rights_level1.rights_level2.rights_level3
+ * Returns a pointer to the protection string that was passed as a parameter
+ */
+char *
+protstr(char *pr_str, char *acc_str)
+{
+	char *p = acc_str;
+	int first_time = 1;
+	int x;
+
+	while (p) {
+		/*
+		 * Handle separating dot
+		 */
+		if (!first_time) {
+			strcat(pr_str, ".");
+		}
+		
+		/*
+		 * Get and output the protection flags
+		 */
+		x = atoi(p);
+		if (x & ACC_READ) {
+			strcat(pr_str, "r");
+			x &= ~ACC_READ;
+		}
+		if (x & ACC_WRITE) {
+			strcat(pr_str, "w");
+			x &= ~ACC_WRITE;
+		}
+		if (x & ACC_EXEC) {
+			strcat(pr_str, "x");
+			x &= ~ACC_EXEC;
+		}
+		if (x & ACC_CREATE) {
+			strcat(pr_str, "t");
+			x &= ~ACC_CREATE;
+		}
+		if (x & ACC_DIR) {
+			strcat(pr_str, "d");
+			x &= ~ACC_DIR;
+		}
+		if (x & ACC_CHMOD) {
+			strcat(pr_str, "c");
+			x &= ~ACC_CHMOD;
+		}
+		if (x) {
+			sprintf(&pr_str[strlen(pr_str)], "|0x%x", x);
+		}
+
+		/*
+		 * Find the next (if any) separator
+		 */
+		p = strchr(p, '/');
+		if (p) {
+			p++;
+		}
+
+		first_time = 0;
+	}
+
+	return(pr_str);
 }
