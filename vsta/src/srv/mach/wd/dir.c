@@ -154,9 +154,20 @@ wd_open(struct msg *m, struct file *f)
 			continue;
 		}
 		if (!strcmp(part->p_name, p)) {
+			/*
+			 * Honor the intersection of what they're
+			 * requesting and what they're allowed
+			 * to have.
+			 */
+			f->f_flags &= m->m_arg;
+
+			/*
+			 * Here's their file
+			 */
 			f->f_node = MKNODE(unit, x);
 			m->m_nseg = m->m_arg = m->m_arg1 = 0;
 			msg_reply(m->m_sender, m);
+
 			return;
 		}
 	}

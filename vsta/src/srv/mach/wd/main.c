@@ -73,7 +73,9 @@ new_client(struct msg *m)
 	}
 
 	/*
-	 * Fill in fields.
+	 * Fill in fields.  We grant everything they could ask for
+	 * here, and trim it to their requested mode when they
+	 * open a particular entry.
 	 */
 	bzero(f, sizeof(*f));
 	f->f_sender = m->m_sender;
