@@ -387,3 +387,5 @@ _errx
 _warn
 _warnc
 _warnx
+_realpath
+_gettimeofday

@@ -854,3 +854,51 @@ rmdir(const char *olddir)
 	}
 	return(unlink(olddir));
 }
+
+#ifndef SRV
+/*
+ * realpath()
+ *	Fill in absolute path to file
+ */
+int
+realpath(char *in, char *out)
+{
+	char *p;
+	int len;
+
+	/*
+	 * Collapse "." and ".." elements
+	 */
+	strcpy(out, in);
+	if (__dotdot(out)) {
+		return(-1);
+	}
+
+	/*
+	 * Collapse ~/ and ~<name>/...
+	 */
+	if (out[0] == '~') {
+		p = do_home(out);
+		if (p == NULL) {
+			return(-1);
+		}
+		strcpy(out, p);
+		free(p);
+	}
+
+	/*
+	 * If it's still not absolute, prepend CWD
+	 */
+	if (out[0] != '/') {
+		len = strlen(__cwd);
+		bcopy(out, out + (len+1), strlen(out)+1);
+		bcopy(__cwd, out, len);
+		out[len] = '/';
+	}
+
+	/*
+	 * Success
+	 */
+	return(0);
+}
+#endif

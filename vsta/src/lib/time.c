@@ -1533,3 +1533,20 @@ timegm(struct tm *tmp)
 {
 	return(time1(tmp, gmtsub, 0L));
 }
+
+/*
+ * gettimeofday()
+ *	Yet another way to ask "what time is it?"
+ *
+ * Timezone is ignored.
+ */
+int
+gettimeofday(struct timeval *tv, const char *tz)
+{
+	struct time t;
+
+	time_get(&t);
+	tv->tv_sec = t.t_sec;
+	tv->tv_usec = t.t_usec;
+	return(0);
+}
