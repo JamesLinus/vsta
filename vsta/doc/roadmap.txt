@@ -119,7 +119,7 @@ prompt.  For a default installation, you could now enter:
 	module= /vsta/boot/cons
 	module= /vsta/boot/namer
 	module= /vsta/boot/wd d0:readp
-	module= /vsta/boot/dos -p disk/wd:wd0_dos0 fs/root
+	module= /vsta/boot/dos -d //disk/wd:wd0_dos0 -n fs/root
 	module= /vsta/boot/init
 	boot
 
