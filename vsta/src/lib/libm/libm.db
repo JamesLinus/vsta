@@ -1,0 +1,65 @@
+#
+# Shared library of math support
+#
+library libm.a
+___exp__D hidden
+___exp__E hidden
+___log__D hidden
+___log__L hidden
+__load hidden
+__load_libc hidden
+__mmap_shl hidden
+__notify hidden
+__notify_shl hidden
+_acos
+_acosh
+_asin
+_asinh
+_atan
+_atan2
+_atanh
+_cabs
+_cbrt
+_ceil
+_copysign
+_cos
+_cosh
+_drem
+_erf
+_erfc
+_exp
+_expm1
+_finite
+_floor
+_fmod
+_frexp
+_gamma
+_hypot
+_isnan
+_j0
+_j1
+_jn
+_ldexp
+_lgamma
+_log
+_log10
+_log1p
+_logb
+_msg_connect_shl hidden
+_msg_disconnect_shl hidden
+_msg_port_shl hidden
+_msg_send_shl hidden
+_munmap_shl hidden
+_pow
+_rint
+_scalb
+_sin
+_sinh
+_sqrt
+_strerror_shl hidden
+_tan
+_tanh
+_y0
+_y1
+_yn
+_z_abs
