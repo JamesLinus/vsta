@@ -372,6 +372,7 @@ ls(char *path)
 	char **v = 0;
 	int nelem;
 	struct stat st;
+	char buf[_NAMLEN];
 
 	if (stat(path, &st)) {
 		perror("stat failed");
@@ -439,46 +440,59 @@ ls(char *path)
 	 */
 	nelem = 0;
 	while ((de = readdir(d))) {
+		char *s, **sv;
+		int fd;
+
+		/*
+		 * Do ls -l format
+		 */
 		if (lflag) {
 			ls_l(de);
 			continue;
 		}
-		if (aflag == 0 && de->d_name[0] == '.') {
+
+		/*
+		 * Ignore "hidden" unless -a
+		 */
+		if (!aflag && (de->d_name[0] == '.')) {
 			continue;
 		}
+
+		/*
+		 * Read in the stat string for the entry
+		 */
+		fd = open(de->d_name, O_RDONLY);
+		if (fd < 0) {
+			perror(de->d_name);
+			continue;
+		}
+		s = rstat(__fd_port(fd), (char *)0);
+		close(fd);
+		if (s == 0) {
+			perror(de->d_name);
+			continue;
+		}
+		sv = explode(s);
+		if (sv == 0) {
+			perror(de->d_name);
+			continue;
+		}
+
+		/*
+		 * Ok, we're going to have another entry;
+		 * make room for it in our vector of names.
+		 */
 		nelem += 1;
 		v = realloc(v, sizeof(char *)*(nelem+1));
 		if (v == 0) {
 			perror("ls");
 			exit(1);
-		} else {
-			char *s, **sv;
-			int fd;
-			extern char *rstat();
-
-
-			/*
-			 * Read in the stat string for the entry
-			 */
-			fd = open(de->d_name, O_RDONLY);
-			if (fd < 0) {
-				perror(de->d_name);
-				return;
-			}
-			s = rstat(__fd_port(fd), (char *)0);
-			close(fd);
-			if (s == 0) {
-				perror(de->d_name);
-				return;
-			}
-			sv = explode(s);
-			if (sv == 0) {
-				perror(de->d_name);
-				return;
-			}
-			v[nelem-1]=malloc(sizeof(char)*256);
-			sprintf(v[nelem-1], "%s", printname(de->d_name, fld(sv, "acc", 0), fld(sv, "type", "f")));
 		}
+
+		sprintf(buf, "%s",
+			printname(de->d_name, fld(sv, "acc", 0),
+				fld(sv, "type", "f")));
+		v[nelem-1] = strdup(buf);
 	}
 	closedir(d);
 
