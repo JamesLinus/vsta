@@ -9,10 +9,13 @@
  * compiler - if you compile using gcc and use the "-S" switch you'll
  * see what I mean :-)
  */
- 
 #include <mach/setjmp.h>
 #include <mach/machreg.h>
 #include <mach/vm.h>
+#include <sys/percpu.h>
+#include <sys/thread.h>
+
+extern int cpfail(void);
 
 /*
  * set_cr0()
@@ -329,13 +332,16 @@ inline static int
 copyin(void *uaddr, void *sysaddr, uint nbyte)
 {
 	register int retval;
+	struct thread *t = curthread;
 	extern int __copyin();
 
+	t->t_probe = cpfail;
 	__asm__ __volatile__ (
 		"call ___copyin\n\t"
 		: "=a" (retval)
 		: "S" (uaddr), "D" (sysaddr), "c" (nbyte)
 		: "si", "di", "cx");
+	t->t_probe = 0;
 	return(retval);
 }
 
@@ -350,13 +356,16 @@ inline static int
 copyout(void *uaddr, void *sysaddr, uint nbyte)
 {
 	register int retval;
+	struct thread *t = curthread;
 	extern int __copyout();
 
+	t->t_probe = cpfail;
 	__asm__ __volatile__ (
 		"call ___copyout\n\t"
 		: "=a" (retval)
 		: "S" (sysaddr), "D" (uaddr), "c" (nbyte)
 		: "si", "di", "cx");
+	t->t_probe = 0;
 	return(retval);
 }
 
