@@ -49,11 +49,6 @@ main(int argc, char **argv)
 	 * Simple constants
 	 */
 	CONST(GDT_KDATA);
-	CONST(GDT_KTEXT);
-	CONST(GDT_UDATA);
-	CONST(GDT_UTEXT);
-	CONST(NBPG);
-	CONST(PGSHIFT);
 	CONST(CR0_EM);
 	CONST(CR0_TS);
 
@@ -69,13 +64,6 @@ main(int argc, char **argv)
 	OFF(r, r[0].edx, R_EDX);
 	OFF(r, r[0].ecx, R_ECX);
 	OFF(r, r[0].eax, R_EAX);
-
-	/*
-	 * Thread fields
-	 */
-	OFF(t, t.t_uregs, T_UREGS);
-	OFF(t, t.t_kregs, T_KREGS);
-	OFF(t, t.t_kstack, T_KSTACK);
 
 	/*
 	 * Per-CPU fields
