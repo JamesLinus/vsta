@@ -116,7 +116,7 @@ queue(struct msg *m, struct file *f)
  *	Add this entry to the list of entries
  */
 static int
-add_dirent(struct openfile *o, char *buf)
+add_dirent(ulong key, struct openfile *o, char *buf)
 {
 	sprintf(buf + strlen(buf), "%u\n", o->o_iname);
 	return(0);
