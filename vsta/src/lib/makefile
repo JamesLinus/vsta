@@ -79,7 +79,7 @@ startsrv.o: start.c
 
 USROBJS= llist.o hash.o permsup.o permpr.o statsup.o \
 	files.o rmap.o passwd.o ids.o assert.o mem.o \
-	sema.o lock.o abc.o
+	sema.o lock.o abc.o startsrv.o
 
 libusr.a: $(USROBJS)
 	rm -f libusr.a
