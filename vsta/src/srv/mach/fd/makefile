@@ -4,7 +4,7 @@ INCS= -I../include -I..
 CFLAGS= -DDEBUG $(INCS) -g
 LDFLAGS= -L../libc -L../lib
 OBJS= main.o rw.o stat.o dir.o
-LIBS= ../namer/libnamer.a -lc -lusr
+LIBS= -lusr -lc
 
 all: fd
 .c.o:
