@@ -46,14 +46,6 @@ key_event(struct screen *s, uchar c)
 	uchar ch;
 
 	/*
-	 * Function keys--ALT-F1 and so forth switch screens
-	 */
-	if (alt && ((c >= F1) && (c <= F10))) {
-		select_screen(c-F1);
-		return;
-	}
-
-	/*
 	 * Look up in right table for current state
 	 */
  	if (capstoggle) {
@@ -292,6 +284,14 @@ kbd_isr(struct msg *m)
 	strobe = inportb(KEYBD_CTL);
 	outportb(KEYBD_CTL, strobe|KEYBD_ENABLE);
 	outportb(KEYBD_CTL, strobe);
+
+	/*
+	 * Function keys--ALT-F1 and so forth switch screens
+	 */
+	if (alt && ((data >= F1) && (data <= F10))) {
+		select_screen(data - F1);
+		return;
+	}
 
   	/*
  	 * Winnow out various special keys.  The routines will fiddle
