@@ -733,8 +733,11 @@ dir_look(struct node *n, char *file)
 		return(0);
 	}
 	n2->n_type = map_type(d.attr);
+
+	/*
+	 * Root dir of a FAT-32 filesystem has a cluster number of 0
+	 */
 	if ((n2->n_type == T_DIR) && !START(&d)) {
-		syslog(LOG_ERR, "null directory for '%s'", file);
 		free(n2);
 		return(0);
 	}
@@ -1658,7 +1661,7 @@ tree_contains(struct node *tree, struct node *n)
 	while (n != tree) {
 		/*
 		 * Look up next node upwards.  Done when get same value
-		 * (loop at root) or NULL (shouldn't happen?)
+		 * (loop at root) or NULL (top of FAT-32 root)
 		 */
 		nprev = n;
 		n = dir_look(nprev, "..");
