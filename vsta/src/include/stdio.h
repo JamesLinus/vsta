@@ -88,8 +88,8 @@ extern FILE *fopen(const char *fname, const char *mode),
 	*freopen(const char *, const char *, FILE *),
 	*fdopen(int, const char *);
 extern int fclose(FILE *),
-	fread(void *, int, int, FILE *),
-	fwrite(const void *, int, int, FILE *),
+	fread(void *buf, int size, int nelem, FILE *fp),
+	fwrite(const void *buf, int size, int nelem, FILE *fp),
 	feof(FILE *), ferror(FILE *),
 	fileno(FILE *), ungetc(int, FILE *);
 extern off_t fseek(FILE *, off_t, int), ftell(FILE *);
