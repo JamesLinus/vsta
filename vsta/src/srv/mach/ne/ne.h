@@ -172,6 +172,7 @@ struct file {
 #define NODE_CONNECT(n) (n & 0xF)		/* Connection in unit */
 #define MKNODE(unit, connect) ((((unit) & 0xFF) << 4) | (connect))
 
+#define PKT_BUFSIZE 2048
 struct adapter {
 	int a_base;	/* base I/O address */
 	int a_irq;	/* interrupt */
@@ -181,10 +182,10 @@ struct adapter {
 	int a_ba;	/* byte addr in buffer ram of inc pkt */
 	struct prhdr a_ph;	/* hardware header of incoming packet */
 	struct ether_header a_eh;	/* header of incoming packet */
-	char a_pktbuf[2048];	/* packet buffer for incoming packet */
+	char *a_pktbuf;	/* packet buffer for incoming packet */
 };
 
-extern void ne_send_up(char *, int);
+extern int ne_send_up(char *, int, int);
 extern void ne_rw(struct msg *, struct file *),
 	ne_init(struct adapter *),
 	ne_configure(struct adapter *),
@@ -205,5 +206,6 @@ extern int tx_busy[];
 extern struct prot ne_prot;
 extern ulong dropped;
 extern struct llist readers, writers[];
+extern void *pak_pool;
 
 #endif /* _NE_H */

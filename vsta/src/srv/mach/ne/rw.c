@@ -12,6 +12,16 @@
 #endif
 
 #define ntohs(x) ((((x) & 0xFF) << 8) | (((x) >> 8) & 0xFF))
+#define MAXQUEUE (64)		/* Max packets we buffer for our clients */
+
+/*
+ * Queued data for later readers
+ */
+struct bufq {
+	void *q_buf;
+	int q_len;
+	struct llist *q_queue;
+};
 
 /*
  * Busy/waiter flags
@@ -21,6 +31,9 @@ struct llist writers[NNE];	/* Who's waiting on each unit */
 struct llist readers;		/* Who's waiting */
 struct llist files;
 ulong dropped;			/* # packets without reader */
+static struct llist rxqueue;	/* Queued receive packets */
+static int nrxqueue;		/*  ...# in queue */
+void *pak_pool;			/* Packet memory for queueing receive */
 
 /*
  * run_queue()
@@ -75,6 +88,7 @@ rw_init(void)
 		ll_init(&writers[unit]);
 	}
 	ll_init(&readers);
+	ll_init(&rxqueue);
 }
 
 /*
@@ -151,7 +165,37 @@ ne_read(struct msg *m, struct file *f)
 		msg_err(m->m_sender, strerror());
 		return;
 	}
-	f->f_msg = *m;
+	bcopy(m, &f->f_msg, sizeof(struct msg));
+
+	/*
+	 * If there's queued packets, run through them
+	 */
+	if (nrxqueue) {
+		struct llist *l = LL_NEXT(&rxqueue);
+		struct bufq *q = l->l_data;
+
+		/*
+		 * If we pushed it up, free the resources
+		 */
+		if (!ne_send_up(q->q_buf, q->q_len, 1)) {
+			/*
+			 * Put the packet body on our local pool
+			 */
+			*(void **)q->q_buf = pak_pool;
+			pak_pool = q->q_buf;
+
+			/*
+			 * Delete us from the rxqueue list
+			 */
+			ll_delete(l);
+			free(q);
+
+			/*
+			 * And update the length of that list
+			 */
+			nrxqueue -= 1;
+		}
+	}
 }
 
 /*
@@ -162,20 +206,24 @@ ne_read(struct msg *m, struct file *f)
  * readers and return packet if a matching type is found.  If none is
  * found, the packet is dropped.
  * len is length of packet data, excluding header, type and checksum.
+ *
+ * Returns 0 if buffer may be reused; 1 if a it will be held and
+ * free()'ed later.
  */
-void
-ne_send_up(char *buf, int len)
+int
+ne_send_up(char *buf, int len, int retrans)
 {
 	struct llist *l, *ln;
 	struct ether_header *eh;
 	ushort etype;
 	int sent;
+	struct bufq *q;
 
 	/*
 	 * Fast discard for null packets
 	 */
 	if (len == 0) {
-		return;
+		return(0);
 	}
 
 	/*
@@ -237,9 +285,39 @@ ne_send_up(char *buf, int len)
 	}
 
 	/*
-	 * Tally drops
+	 * It was consumed; let him continue with the buffer.
 	 */
-	if (sent == 0) {
-		dropped += 1;
+	if (sent) {
+		return(0);
 	}
+
+	/*
+	 * If this is already in our queue, don't bother re-queueing
+	 */
+	if (retrans) {
+		return(1);
+	}
+
+	/*
+	 * Nobody consumed it; make a copy unless we're too far
+	 * ahead.
+	 */
+	if (nrxqueue > MAXQUEUE) {
+		dropped += 1;
+		return(0);
+	}
+
+	/*
+	 * Queue it.
+	 */
+	nrxqueue += 1;
+	q = malloc(sizeof(struct bufq));
+	q->q_buf = buf;
+	q->q_len = len;
+	q->q_queue = ll_insert(&rxqueue, q);
+
+	/*
+	 * We're keeping it.
+	 */
+	return(1);
 }

@@ -12,6 +12,7 @@
 #include <mach/io.h>
 #include <llist.h>
 #include <time.h>
+#include <std.h>
 #include "ne.h"
 
 #define ETHER_MIN_LEN	60	/* KLUDGE: should be defined elsewhere */
@@ -139,6 +140,11 @@ ne_init(struct adapter *ap)
 	int nec;
 	int val,i;
 	unsigned short boarddata[16];
+
+	/*
+	 * Get initial buffer
+	 */
+	ap->a_pktbuf = malloc(PKT_BUFSIZE);
 
 	nec = ap->a_base;
 
@@ -275,8 +281,9 @@ ne_start(struct adapter *ap, struct file *f)
 	}
 
 	/* Wait till done, then shutdown feature */
-	while ((inportb(nec+ds0_isr) & DSIS_RDC) == 0)
+	while ((inportb(nec+ds0_isr) & DSIS_RDC) == 0) {
 		yield();
+	}
 	outportb(nec+ds0_isr, DSIS_RDC);
 	outportb(nec+ds_cmd, cmd);		/* ??? */
 
@@ -342,7 +349,23 @@ nerecv(struct adapter *ap)
 
 	/* don't forget checksum! */
 	/* len -= sizeof(struct ether_header) + sizeof(long); */
-	ne_send_up(ap->a_pktbuf, len);
+
+	/*
+	 * If the upper level wants to hold onto it (queueing for
+	 * its clients), get another buffer
+	 */
+	if (ne_send_up(ap->a_pktbuf, len, 0)) {
+		/*
+		 * Use our private packet pool if possible,
+		 * otherwise get more from malloc().
+		 */
+		if (!pak_pool) {
+			ap->a_pktbuf = malloc(PKT_BUFSIZE);
+		} else {
+			ap->a_pktbuf = pak_pool;
+			pak_pool = *(void **)pak_pool;
+		}
+	}
 }
 
 /*
