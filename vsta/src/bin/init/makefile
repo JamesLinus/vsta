@@ -2,8 +2,9 @@ CC= gcc
 LD= ld
 CFLAGS= -O -I../../include
 LDFLAGS= -L../../libc
-LIBS= -lc
+LIBS= -lc_s
 OBJS= init.o
+CRT0= ../../libc/crt0srv.o
 
 .c.o:
 	$(CC) $(CFLAGS) -c $*.c
@@ -11,7 +12,7 @@ OBJS= init.o
 all: init
 
 init: $(OBJS)
-	$(LD) $(LDFLAGS) -e start -o init ../../libc/crt0srv.o $(OBJS) -lc
+	$(LD) $(LDFLAGS) -e start -o init $(CRT0) $(OBJS) $(LIBS)
 
 clean:
 	rm -f *.o
