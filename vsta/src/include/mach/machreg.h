@@ -34,6 +34,14 @@ struct trapframe {
 #define NREG (sizeof(struct trapframe) / sizeof(ulong))
 
 /*
+ * When the registers are pushed with the "pusha" instruction, this
+ * is the resulting format.
+ */
+struct pushaframe {
+	ulong edi, esi, ebp, esp, ebx, edx, ecx, eax;
+};
+
+/*
  * Tell if given descriptor is from user mode
  */
 #define USERMODE(tf) ((tf)->ecs & 0x3)
