@@ -32,7 +32,7 @@ struct thread {
 		*t_hd, *t_tl,
 		*t_next;	/* List of threads under a process */
 	jmp_buf t_qsav;		/* Vector for interrupting p_sema */
-	voidfun t_probe;	/* When probing user memory */
+	intfun t_probe;		/* When probing user memory */
 	char t_err[ERRLEN];	/* Error from last syscall */
 	ulong t_syscpu,		/* Ticks in system and user mode */
 		t_usrcpu;
