@@ -47,6 +47,7 @@ extern void deref_exitgrp(struct exitgrp *);
 extern void noparent_exitgrp(struct exitgrp *);
 extern void post_exitgrp(struct exitgrp *, struct proc *, int);
 extern struct exitst *wait_exitgrp(struct exitgrp *, int);
+extern pid_t parent_exitgrp(struct exitgrp *);
 
 #else
 
