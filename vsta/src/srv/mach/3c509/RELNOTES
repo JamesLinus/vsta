@@ -1,0 +1,32 @@
+This is the release info for the 3c509 driver for VSTa.
+Version 0.1 (20010203)
+
+
+This is a driver for the 3Com Etherlink III (3c509) series of network cards.
+Altough it should work with all revisions and all kind of interfaces (tp, bnc,
+aui), it has only been tested with a 3c509b with TP connection.
+Much of the code is borrowed from the linux 3c509 driver. I didn't have a
+hardware programming manual for the board so that was the only way. Other
+snippits are from the VSTa ne2000 driver.
+
+Also included is a small program to send/recieve raw ethernet frames. I used it
+during the debugging. Maybe someone else will find it useful (not likely =)).
+It's in ethsak.c. Compile as usual or something.
+
+The driver tries to autodetect the io/irq, and i think it'll always succeed,
+but if it wont, you are pretty much toasted. You could probably try to hardcode
+in the correct io/irq, but no guarantees =).
+
+We who made this driver are:
+Kristoffer Brånemyr (ztion@swipnet.se) (Coding)
+Erik Dalen (erik@jpl.nu) (Guidance to the VSTa interiours and moral support)
+
+We are both members of ACG (Amiga Computer Group).
+
+Things to do:
+	Very badly commented...
+	May not be very optimized
+
+Otherwise it seems to function pretty well.
+
+/Kristoffer
