@@ -76,6 +76,8 @@ static int
 static uchar kbchars[32];
 static uint nkbchar, kbhd, kbtl;
 
+static void timechange(char *);
+
 extern int32 next_tick(void);
 extern char *startup, *config, *userfile, *Dfile, *hosts, *mailspool;
 extern char *mailqdir, *mailqueue, *routeqdir, *alias, *netexe;
@@ -95,7 +97,7 @@ kick(uint idx)
 {
 	pid_t tid = daemons[idx].d_tid;
 
-	if (gettid() != tid) {
+	if (tid && (gettid() != tid)) {
 		(void)notify(0, tid, "recalc");
 	}
 }
@@ -275,6 +277,14 @@ fileinit(char *argv0)
 			routeqdir = cp;
 		}
 	}
+
+	/*
+	 * Set up a handler for our "wakeup call", register our TID.
+	 * This isn't the right routine, but it's about the right time,
+	 * so what the heck.
+	 */
+	notify_handler(timechange);
+
 }
 
 /*
@@ -394,11 +404,6 @@ timewatcher(void)
 	struct time tm, tm2;
 
 	/*
-	 * Set up a handler for our "wakeup call", register our TID
-	 */
-	notify_handler(timechange);
-
-	/*
 	 * Endless server loop
 	 */
 	target = 0;
@@ -515,7 +520,9 @@ conswatcher(void)
 void
 detach_kbio(void)
 {
-	kick(cons_idx);
+	if (cons_idx >= 0) {
+		kick(cons_idx);
+	}
 }
 
 /*
