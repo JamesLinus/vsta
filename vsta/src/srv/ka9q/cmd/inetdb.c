@@ -322,26 +322,27 @@ my_dot(char *p)
 int
 main(int argc, char **argv)
 {
-	char buf[128];
+	char *path, buf[128];
 
 	/*
 	 * Access the named file
 	 */
 	if (argc < 2) {
-		printf("Usage is: %s <path>\n", argv[0]);
-		exit(1);
+		path = "net/inet:tcp/clone";
+	} else {
+		path = argv[1];
 	}
-	if (argv[1][0] == '/') {
-		fd = open(argv[1], O_RDWR);
+	if (path[0] == '/') {
+		fd = open(path, O_RDWR);
 		if (fd < 0) {
-			perror(argv[1]);
+			perror(path);
 			exit(1);
 		}
 		port = __fd_port(fd);
 	} else {
-		port = path_open(argv[1], ACC_READ | ACC_WRITE);
+		port = path_open(path, ACC_READ | ACC_WRITE);
 		if (port < 0) {
-			perror(argv[1]);
+			perror(path);
 			exit(1);
 		}
 	}
