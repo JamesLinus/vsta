@@ -55,7 +55,7 @@ struct syscall {
 	{time_sleep, 1},			/* 22 */
 	{do_dbg_enter, 0},			/* 23 */
 	{exec, 3},				/* 24 */
-	{waits, 1},				/* 25 */
+	{waits, 2},				/* 25 */
 	{perm_ctl, 3},				/* 26 */
 	{set_swapdev, 1},			/* 27 */
 	{run_qio, 0},				/* 28 */
