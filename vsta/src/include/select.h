@@ -21,7 +21,7 @@
  */
 #define FDBITS (sizeof(uint) * NBBY)
 
-typedef struct {
+typedef struct fd_set {
 	uint _fds[FD_SETSIZE / FDBITS];
 } fd_set;
 
