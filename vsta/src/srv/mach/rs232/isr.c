@@ -2,14 +2,13 @@
  * isr.c
  *	Handler for interrupt events
  */
-#include <sys/msg.h>
-#include <sys/types.h>
 #include "rs232.h"
 #include "fifo.h"
 
 extern uint iobase;
 extern int txwaiters, rxwaiters;
 extern struct fifo *inbuf, *outbuf;
+extern uchar dtr, dsr, rts, cts, dcd, ri;
 
 int txbusy;		/* UART sending data right now? */
 
@@ -22,7 +21,7 @@ rs232_isr(struct msg *m)
 {
 	for (;;) {
 		uchar why;
-		char c;
+		uchar c;
 
 		/*
 		 * Decode next reason
@@ -41,7 +40,11 @@ rs232_isr(struct msg *m)
 		 * Modem state, just clear
 		 */
 		case IIR_MLSC:
-			(void)inportb(iobase + MSR);
+			c = inportb(iobase + MSR);
+			dsr = (c & MSR_DSR) ? 1 : 0;
+			cts = (c & MSR_CTS) ? 1 : 0;
+			dcd = (c & MSR_DCD) ? 1 : 0;
+			ri = (c & MSR_RI) ? 1 : 0;
 			break;
 
 		/*
@@ -97,27 +100,6 @@ start_tx(void)
 }
 
 /*
- * rs232_baud()
- *	Set baud rate
- *
- * Not really an ISR'ish thing, but it's the best place I could find.
- */
-void
-rs232_baud(int baud)
-{
-	uint bits;
-
-	if (baud == 0) {
-		return;
-	}
-	bits = COMBRD(baud);
-	outportb(iobase + CFCR, CFCR_DLAB);
-	outportb(iobase + BAUDHI, (bits >> 8) & 0xFF);
-	outportb(iobase + BAUDLO, bits & 0xFF);
-	outportb(iobase + CFCR, CFCR_8BITS);
-}
-
-/*
  * rs232_enable()
  *	Enable rs232 interrupts
  */
@@ -138,6 +120,9 @@ rs232_enable(void)
 	 * Start with port set up for hard-wired RS-232
 	 */
 	outportb(iobase + MCR, MCR_DTR|MCR_RTS|MCR_IENABLE);
+	dtr = 1;
+	rts = 1;
+	rs232_getinsigs();
 
 	/*
 	 * Allow all interrupt sources

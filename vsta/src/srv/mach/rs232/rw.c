@@ -5,7 +5,6 @@
  * We violate the internals of the FIFO structure, but all in the
  * name of efficiency.
  */
-#include <sys/msg.h>
 #include <llist.h>
 #include <sys/assert.h>
 #include <sys/seg.h>
@@ -65,8 +64,6 @@ rs232_write(struct msg *m, struct file *fl)
 	 * Kick UART awake if he's not doing anything currently
 	 */
 	if (!txbusy) {
-		extern void start_tx();
-
 		start_tx();
 	}
 
@@ -228,11 +225,46 @@ rs232_read(struct msg *m, struct file *fl)
 }
 
 /*
+ * dequeue_rx()
+ *	New data has arrived, feed the readers
+ */
+void
+dequeue_rx(void)
+{
+	struct msg m;
+	struct llist *l;
+	struct file *fl;
+
+	/*
+	 * If there's a waiter, just let'em have it
+	 */
+	l = read_q.l_forw;
+	ASSERT_DEBUG(l != &read_q, "rs232 dequeue_rx: skew");
+
+	/*
+	 * Extract the waiter from the list
+	 */
+	fl = l->l_data;
+	ll_delete(l);
+	rxwaiters -= 1;
+
+	/*
+	 * Cobble together a pseudo-message, and re-post the
+	 * request.
+	 */
+	m.m_sender = fl->f_sender;
+	m.m_arg = fl->f_count;
+	fl->f_count = 0;
+	fl->f_sender = 0;
+	rs232_read(&m, fl);
+}
+
+/*
  * rs232_init()
  *	Set up our read queue structure once
  */
 void
-rs232_init()
+rs232_init(void)
 {
 	ll_init(&read_q);
 	ll_init(&write_q);
@@ -264,40 +296,5 @@ abort_io(struct file *f)
 			return;
 		}
 	}
-	ASSERT_DEBUG(0, "abort_io: missing tran");
-}
-
-/*
- * dequeue_rx()
- *	New data has arrived, feed the readers
- */
-void
-dequeue_rx(void)
-{
-	struct msg m;
-	struct llist *l;
-	struct file *fl;
-
-	/*
-	 * If there's a waiter, just let'em have it
-	 */
-	l = read_q.l_forw;
-	ASSERT_DEBUG(l != &read_q, "dequeue_rx: skew");
-
-	/*
-	 * Extract the waiter from the list
-	 */
-	fl = l->l_data;
-	ll_delete(l);
-	rxwaiters -= 1;
-
-	/*
-	 * Cobble together a pseudo-message, and re-post the
-	 * request.
-	 */
-	m.m_sender = fl->f_sender;
-	m.m_arg = fl->f_count;
-	fl->f_count = 0;
-	fl->f_sender = 0;
-	rs232_read(&m, fl);
+	ASSERT_DEBUG(0, "rs232 abort_io: missing tran");
 }

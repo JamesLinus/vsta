@@ -3,7 +3,7 @@ LD= ld
 INCS= -I../../../include
 CFLAGS= -DDEBUG $(INCS) -O
 LDFLAGS= -L../../../libc
-OBJS= fifo.o main.o rw.o isr.o stat.o
+OBJS= fifo.o main.o rw.o isr.o stat.o control.o
 LIBS= -lusr -lc
 CRT0= ../../../libc/crt0.o
 

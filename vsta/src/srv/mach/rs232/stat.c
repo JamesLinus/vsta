@@ -6,15 +6,22 @@
 #include <sys/perm.h>
 #include <sys/fs.h>
 #include "rs232.h"
+#include "fifo.h"
 
 extern char *perm_print();
 
 extern struct prot rs232_prot;
 extern uint accgen;
+extern int irq, iobase;
+extern int baud, databits, stopbits, parity;
+extern uchar dsr, dtr, cts, rts, dcd, ri;
+extern struct fifo *inbuf, *outbuf;
+
+static char parity_names[5][5] = {"none", "even", "odd", "zero", "one"};
 
 /*
  * rs232_stat()
- *	Do stat
+ *	Do stat requests
  */
 void
 rs232_stat(struct msg *m, struct file *f)
@@ -25,9 +32,20 @@ rs232_stat(struct msg *m, struct file *f)
 		msg_err(m->m_sender, EPERM);
 		return;
 	}
+	rs232_getinsigs();
 	sprintf(buf,
-	 "size=0\ntype=c\nowner=0\ninode=0\ngen=%d\n", accgen);
-	strcat(buf, perm_print(&rs232_prot));
+		"size=0\ntype=c\nowner=0\ninode=0\ngen=%d\n%s" \
+		"baseio=0x%x\nirq=%d\n" \
+		"baud=%d\ndatabits=%d\nstopbits=%s\nparity=%s\n" \
+		"dsr=%d\ndtr=%d\ncts=%d\nrts=%d\ndcd=%d\nri=%d\n" \
+		"inbuf=%d\noutbuf=%d\n",
+		accgen, perm_print(&rs232_prot),
+		iobase, irq,
+		baud, databits,
+		(stopbits == 1 ? "1" : (databits == 5 ? "1.5" : "2")),
+		parity_names[parity],
+		dsr, dtr, cts, rts, dcd, ri,
+		inbuf->f_cnt, outbuf->f_cnt);
 	m->m_buf = buf;
 	m->m_arg = m->m_buflen = strlen(buf);
 	m->m_nseg = 1;
@@ -37,7 +55,7 @@ rs232_stat(struct msg *m, struct file *f)
 
 /*
  * rs232_wstat()
- *	Allow writing of supported stat messages
+ *	Allow writing of supported stat messages - rather a lot of them :-)
  */
 void
 rs232_wstat(struct msg *m, struct file *f)
@@ -53,7 +71,23 @@ rs232_wstat(struct msg *m, struct file *f)
 	/*
 	 * Process each kind of field we can write
 	 */
-	if (!strcmp(field, "gen")) {
+	if (!strcmp(field, "rts")) {
+		/*
+		 * Set the RTS state - default is to enabled
+		 */
+		int newrts;
+		
+		newrts = val ? atoi(val) : 1;
+		rs232_setrts(newrts);
+	} else if (!strcmp(field, "dtr")) {
+		/*
+		 * Set the DTR state - default is to enabled
+		 */
+		int newdtr;
+		
+		newdtr = val ? atoi(val) : 1;
+		rs232_setdtr(newdtr);
+	} else if (!strcmp(field, "gen")) {
 		/*
 		 * Set access-generation field
 		 */
@@ -64,13 +98,69 @@ rs232_wstat(struct msg *m, struct file *f)
 		}
 		f->f_gen = accgen;
 	} else if (!strcmp(field, "baud")) {
-		int baud;
+		/*
+		 * Set the connection baud rate
+		 */
+		int brate;
 
-		baud = atoi(val ? val : "9600");
-		rs232_baud(baud);
+		brate = val ? atoi(val) : 9600;
+		rs232_baud(brate);
+	} else if (!strcmp(field, "databits")) {
+		/*
+		 * Set the number of data bits
+		 */
+		int dbits;
+
+		dbits = val ? atoi(val) : 8;
+		if (dbits < 5 || dbits > 8) {
+			/*
+			 * Not a value we support - fail!
+			 */
+			msg_err(m->m_sender, EINVAL);
+			return;
+		}
+		rs232_databits(dbits);
+	} else if (!strcmp(field, "stopbits")) {
+		/*
+		 * Set the number of stop bits
+		 */
+		int sbits;
+
+		if (!strcmp(val, "2") || !strcmp(val, "1.5")) {
+			sbits = 2;
+		} else if (!strcmp(val, "1")) {
+			sbits = 1;
+		} else {
+			/*
+			 * Not a value we support - fail!
+			 */
+			msg_err(m->m_sender, EINVAL);
+			return;
+		}
+		rs232_stopbits(sbits);
+	} else if (!strcmp(field, "parity")) {
+		/*
+		 * Set the type of parity to be used
+		 */
+		int i, ptype = -1;
+
+		for (i = 0; i < 5; i++) {
+			if (!strcmp(val, parity_names[i])) {
+				ptype = i;
+				break;
+			}
+		}
+		if (ptype == -1) {
+			/*
+			 * Not a value we support - fail!
+			 */
+			msg_err(m->m_sender, EINVAL);
+			return;
+		}
+		rs232_parity(ptype);
 	} else {
 		/*
-		 * Not a field we support...
+		 * Not a field we support - fail!
 		 */
 		msg_err(m->m_sender, EINVAL);
 		return;

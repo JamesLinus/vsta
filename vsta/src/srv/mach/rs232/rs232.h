@@ -8,39 +8,50 @@
  * and the Berkeley Software Distribution.
  */
 #include <sys/types.h>
+#include <sys/msg.h>
 
 #define RS232_MAXBUF (1024)	/* # bytes buffered from/to serial port */
+#define RS232_STDSUPPORT (4)	/* Support 4 standard PC ports, com1-com4 */
 
 /*
- * Maximum range of I/O ports used, IRQ, and so forth
+ * Maximum range of I/O ports used
  */
-#define RS232_HIGH(base) (base+6)
-#define RS232_IRQ(com) (3 + (1 - (com)))
+#define RS232_HIGH(base) (base+7)
 
 /*
  * Structure for per-connection operations
  */
 struct file {
-	int f_sender;	/* Sender of current operation */
-	uint f_gen;	/* Generation of access */
-	uint f_flags;	/* User access bits */
-	uint f_count;	/* # bytes wanted for current op */
-	void *f_buf;	/* Buffer for current write */
+	int f_sender;		/* Sender of current operation */
+	uint f_gen;		/* Generation of access */
+	uint f_flags;		/* User access bits */
+	uint f_count;		/* Number of bytes wanted for current op */
+	void *f_buf;		/* Buffer for current write */
 };
 
 /*
- * I/O base.  In PC-ese, COM1 -> IOBASE(0), COM2 -> IOBASE(1)
+ * 16 bit baud rate divisor (lower byte in dca_data, upper in dca_ier)
  */
-#define IOBASE(com) (0x2F8 + (1-(com))*0x100)
-
-/* 16 bit baud rate divisor (lower byte in dca_data, upper in dca_ier) */
 #define	COMBRD(x)	(1843200 / (16*(x)))
 
-/* Receive/transmit data here, also baud low */
+/*
+ * Parity constants
+ */
+#define PARITY_NONE	0x0
+#define PARITY_EVEN	0x1
+#define PARITY_ODD	0x2
+#define PARITY_ZERO	0x3	
+#define PARITY_ONE	0x4
+
+/*
+ * Receive/transmit data here, also baud low
+ */
 #define DATA (0)
 #define BAUDLO (0)
 
-/* interrupt enable register, also baud high */
+/*
+ * interrupt enable register, also baud high
+ */
 #define IER (1)
 #define BAUDHI (1)
 #define	IER_ERXRDY	0x1
@@ -48,7 +59,9 @@ struct file {
 #define	IER_ERLS	0x4
 #define	IER_EMSC	0x8
 
-/* interrupt identification register */
+/*
+ * interrupt identification register
+ */
 #define IIR (2)
 #define	IIR_IMASK	0xf
 #define	IIR_RXTOUT	0xc
@@ -59,7 +72,9 @@ struct file {
 #define	IIR_MLSC	0x0
 #define	IIR_FIFO_MASK	0xc0	/* set if FIFOs are enabled */
 
-/* fifo control register */
+/*
+ * fifo control register
+ */
 #define FIFO (2)
 #define	FIFO_ENABLE	0x01
 #define	FIFO_RCV_RST	0x02
@@ -70,7 +85,9 @@ struct file {
 #define	FIFO_TRIGGER_8	0x80
 #define	FIFO_TRIGGER_14	0xc0
 
-/* character format control register */
+/*
+ * character format control register
+ */
 #define CFCR (3)
 #define	CFCR_DLAB	0x80
 #define	CFCR_SBREAK	0x40
@@ -85,7 +102,9 @@ struct file {
 #define	CFCR_6BITS	0x01
 #define	CFCR_5BITS	0x00
 
-/* modem control register */
+/*
+ * modem control register
+ */
 #define MCR (4)
 #define	MCR_LOOPBACK	0x10
 #define	MCR_IENABLE	0x08
@@ -93,7 +112,9 @@ struct file {
 #define	MCR_RTS		0x02
 #define	MCR_DTR		0x01
 
-/* line status register */
+/*
+ * line status register
+ */
 #define LSR (5)
 #define	LSR_RCV_FIFO	0x80
 #define	LSR_TSRE	0x40
@@ -105,7 +126,9 @@ struct file {
 #define	LSR_RXRDY	0x01
 #define	LSR_RCV_MASK	0x1f
 
-/* modem status register */
+/*
+ * modem status register
+ */
 #define MSR (6)
 #define	MSR_DCD		0x80
 #define	MSR_RI		0x40
@@ -115,5 +138,39 @@ struct file {
 #define	MSR_TERI	0x04
 #define	MSR_DDSR	0x02
 #define	MSR_DCTS	0x01
+
+/*
+ * Function prototypes for rw.c
+ */
+extern void rs232_write(struct msg *m, struct file *fl);
+extern void dequeue_tx(void);
+extern void rs232_read(struct msg *m, struct file *fl);
+extern void dequeue_rx(void);
+void rs232_init(void);
+void abort_io(struct file *f);
+
+/*
+ * Prototypes for isr.c
+ */
+extern void rs232_isr(struct msg *m);
+extern void start_tx(void);
+extern void rs232_enable(void);
+
+/*
+ * Prototypes for control.c
+ */
+extern void rs232_baud(int baud);
+extern void rs232_databits(int dbits);
+extern void rs232_stopbits(int sbits);
+extern void rs232_parity(int ptype);
+extern void rs232_setdtr(int newdtr);
+extern void rs232_setrts(int newrts);
+extern void rs232_getinsigs(void);
+
+/*
+ * Prototypes for stat.c
+ */
+extern void rs232_stat(struct msg *m, struct file *f);
+extern void rs232_wstat(struct msg *m, struct file *f);
 
 #endif /* _RS232_H */
