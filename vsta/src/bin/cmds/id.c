@@ -4,11 +4,21 @@
  */
 #include <sys/param.h>
 #include <sys/perm.h>
+#include <pwd.h>
 
-main()
+main(int argc, char **argv)
 {
-	int x, y, disabled, printed = 0;
+	int x, disabled, printed = 0, nflag;
 	struct perm perm;
+
+	/*
+	 * If -n, print numeric only
+	 */
+	if ((argc > 1) && !strncmp(argv[1], "-n", 2)) {
+		nflag = 1;
+	} else {
+		nflag = 0;
+	}
 
 	/*
 	 * Get ID and print
@@ -48,20 +58,31 @@ main()
 		 */
 		if (PERM_LEN(&perm) == 0) {
 			printf("<root>");
-		} else {
+		} else if (nflag) {
+			int y;
+
 			for (y = 0; y < PERM_LEN(&perm); ++y) {
 				if (y > 0) {
 					printf(".");
 				}
 				printf("%d", perm.perm_id[y]);
 			}
+		} else {
+			printf("%s", cvt_id(perm.perm_id, perm.perm_len));
 		}
 
 		/*
 		 * Print UID tag if present
 		 */
 		if (perm.perm_uid) {
-			printf("(%d)", perm.perm_uid);
+			struct passwd *pw;
+
+			pw = getpwuid(perm.perm_uid);
+			if (pw && !nflag) {
+				printf("(%s)", pw->pw_name);
+			} else {
+				printf("(%d)", perm.perm_uid);
+			}
 		}
 
 		/*
