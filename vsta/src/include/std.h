@@ -33,6 +33,8 @@ extern uint sleep(uint);
 extern int chdir(const char *);
 extern void *bsearch(const void *key, const void *base, size_t nmemb,
 		     size_t size, int (*compar)(const void *, const void *));
+extern long strtol(const char *s, char **ptr, int base);
+extern unsigned long strtoul(const char *s, char **ptr, int base);
 
 /*
  * getopt() package
