@@ -166,3 +166,41 @@ KA9Q and proxyd now work for open/close/read/write/stat.  So distributed
 Implement support for ISA bus limitation "bounce buffers".
 Use bounce buffers in our two ISA DMA drivers--SCSI and floppy disk.
 Fix a nasty race condition in vstafs.
+
+1.6.3
+FAT-32 support.
+Fix race condition in parallel threads faulting same vaddr.
+Fix bug in execvp which would sometimes hose the last argument
+M_TIME is gone.  RIP.
+Add select() emulation.  select() is supported by ka9q/networking,
+	MGR terminals, and the console(s).
+Fix bug in grep(1), which used the wrong value of O_RDONLY.
+Fix crash when fork()'ing while another thread is blocked in
+	a msg_connect attempt.
+Fix hang when quitting MGR (had to hit a key on the terminal to
+	actually let it exit).
+MGR's $HOME/mgr.rc file now works... example in /vsta/guest.
+Port of ctags.
+Cleaned up MGR's "resetwin" command.
+Implemented ephemeral threads to support alarm(), SIGCHLD, ABC, etc.
+	See sched_op().
+Implemented ANSI C atexit().
+Low-level VSTa event handler API, handle_event() from <event.h>
+Fix crash when m_to_sm() fails, but a segment cleanup is attempted anyway.
+DOS now maps ".<file>" to "_<file".  Renamed sh.profile to _shrc,
+	rh.rc to _rhrc, mgr.rc to _mgrrc.  _exrc for vim remains the same.
+Re-org of makefile structure; creation of global makefile.all.
+Move a bunch of binary ports to a new vsta/src/bin/ports subdir.
+Create a vsta/src/include, which holds the RCS-managed versions.
+	The "make install" phase copies header files to their
+	place in vsta/include.
+POSIX signal emulation.  This is all the signal set handling stuff
+	beyond the basic signal() API (which has existed for a while).
+User and system CPU times of getrusage() are now filled in.
+clock_t and clock() are now supported.
+A <linux.h> has some stuff useful for porting Linux programs.
+testsh wouldn't wait and retry to connect with the console.  In some
+	scenarios, this would put it in an endless silent tight loop.
+Added a fionread() to <fcntl.h> to provide the ioctl FIONREAD function.
+Ported zmodem rz/sz.  Not working exactly right just yet....
+Ported svgalib and jpeg6b.  Got some of the svgalib demo apps working.
