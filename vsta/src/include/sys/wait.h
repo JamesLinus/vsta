@@ -23,6 +23,11 @@ struct exitst {
  */
 #define _W_EV (0x10000)		/* Process died on event */
 
+/*
+ * System call function protoype
+ */
+extern int waits(struct exitst *, int);
+
 #ifdef KERNEL
 #include <sys/mutex.h>
 
