@@ -48,8 +48,8 @@ id: id.o
 cat: cat.o
 	$(LD) $(LDFLAGS) -o cat ../../libc/crt0.o cat.o -lc
 
-test: test.o
-	$(LD) $(LDFLAGS) -o test ../../libc/crt0.o test.o -lc
+test: test.o operator.o
+	$(LD) $(LDFLAGS) -o test ../../libc/crt0.o test.o operator.o -lc
 
 args: args.o
 	$(LD) $(LDFLAGS) -o args ../../libc/crt0.o args.o -lc
