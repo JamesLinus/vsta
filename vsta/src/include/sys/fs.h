@@ -26,6 +26,13 @@
 #define FS_RENAME 153		/* Renaming of files */
 
 /*
+ * Messages to facilitate handling of device specific commands and
+ * automatic error/fault recovery
+ */
+#define DEV_READ 200
+#define DEV_WRITE 201
+
+/*
  * How to ask if an operation is a bulk read/write
  */
 #define FS_RW(op) (((op) == FS_READ) || ((op) == FS_WRITE) || \
@@ -46,23 +53,42 @@
  * Standard error strings
  */
 #define EPERM "perm"
+#define ENOENT "no file"
 #define ESRCH "no entry"
-#define EINVAL "invalid"
-#define E2BIG "too big"
-#define ENOMEM "no mem"
-#define EBUSY "busy"
-#define ENOSPC "no space"
-#define ENOTDIR "not dir"
-#define EEXIST "exists"
+#define EINTR "intr"
 #define EIO "io err"
 #define ENXIO "no io"
+#define E2BIG "too big"
+#define ENOEXEC "exec fmt"
+#define EBADF "bad file"
+#define ECHILD "no child"
+#define EAGAIN "again"
+#define EWOULDBLOCK EAGAIN
+#define ENOMEM "no mem"
+#define EACCES "access"
 #define EFAULT "fault"
-#define EINTR "intr"
+#define ENOTBLK "not blk dev"
+#define EBUSY "busy"
+#define EEXIST "exists"
+#define ENODEV "not dev"
+#define ENOTDIR "not dir"
+#define EISDIR "is dir"
+#define EINVAL "invalid"
+#define ENFILE "file tab ovfl"
+#define EMFILE "too many files"
+#define ENOTTY "not tty"
+#define ETXTBSY "txt file busy"
+#define EFBIG "file too large"
+#define ENOSPC "no space"
+#define ESPIPE "ill seek"
+#define EROFS "RO fs"
+#define EMLINK "too many links"
+#define EPIPE "broken pipe"
+#define EDOM "math domain"
+#define ERANGE "math range"
 #define EMATH "math"
 #define EILL "ill instr"
 #define EKILL "kill"
-#define EBADF "bad file"
-#define EAGAIN "again"
 #define EXDEV "cross dev"
 #define EISDIR "is dir"
 
