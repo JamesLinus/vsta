@@ -20,7 +20,7 @@ void
 tmpfs_stat(struct msg *m, struct file *f)
 {
 	char buf[MAXSTAT];
-	int len;
+	uint len, owner;
 	struct openfile *o;
 
 	/*
@@ -46,14 +46,16 @@ tmpfs_stat(struct msg *m, struct file *f)
 		for (l = LL_NEXT(&files); l != &files; l = LL_NEXT(l)) {
 			len += 1;
 		}
+		owner = 0;
 	} else {
 		/*
 		 * File--its byte length
 		 */
 		len = o->o_len;
+		owner = o->o_owner;
 	}
-	sprintf(buf, "size=%d\ntype=%c\nowner=1/1\ninode=%ud\n",
-		len, f->f_file ? 'd' : 'f', o);
+	sprintf(buf, "size=%d\ntype=%c\nowner=%d\ninode=%ud\n",
+		len, f->f_file ? 'f' : 'd', owner, o);
 	strcat(buf, perm_print(&o->o_prot));
 	m->m_buf = buf;
 	m->m_arg = m->m_buflen = strlen(buf);

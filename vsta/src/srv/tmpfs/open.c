@@ -105,10 +105,11 @@ dir_newfile(struct file *f, char *name)
 	 */
 	p = &o->o_prot;
 	bzero(p, sizeof(*p));
-	p->prot_len = f->f_perms[0].perm_len;
+	p->prot_len = PERM_LEN(&f->f_perms[0]);
 	bcopy(f->f_perms[0].perm_id, p->prot_id, PERMLEN);
 	p->prot_bits[p->prot_len-1] =
 		ACC_READ|ACC_WRITE|ACC_CHMOD;
+	o->o_owner = f->f_perms[0].perm_uid;
 	return(o);
 }
 
@@ -193,7 +194,7 @@ tmpfs_open(struct msg *m, struct file *f)
 		 * Move to new node
 		 */
 		f->f_file = o; o->o_refs += 1;
-		f->f_perm = ACC_READ|ACC_WRITE;
+		f->f_perm = ACC_READ|ACC_WRITE|ACC_CHMOD;
 		m->m_nseg = m->m_arg = m->m_arg1 = 0;
 		msg_reply(m->m_sender, m);
 		return;
@@ -219,7 +220,7 @@ tmpfs_open(struct msg *m, struct file *f)
 	 * Move to this file
 	 */
 	f->f_file = o; o->o_refs += 1;
-	f->f_perm = m->m_arg;
+	f->f_perm = m->m_arg | (x & ACC_CHMOD);
 	m->m_nseg = m->m_arg = m->m_arg1 = 0;
 	msg_reply(m->m_sender, m);
 }
@@ -246,6 +247,7 @@ void
 tmpfs_remove(struct msg *m, struct file *f)
 {
 	struct openfile *o;
+	uint x;
 
 	/*
 	 * Have to be in root dir
@@ -261,6 +263,15 @@ tmpfs_remove(struct msg *m, struct file *f)
 	o = dir_lookup(m->m_buf);
 	if (o == 0) {
 		msg_err(m->m_sender, ESRCH);
+		return;
+	}
+
+	/*
+	 * Check permission
+	 */
+	x = perm_calc(f->f_perms, f->f_nperm, &o->o_prot);
+	if ((x & (ACC_WRITE|ACC_CHMOD)) == 0) {
+		msg_err(m->m_sender, EPERM);
 		return;
 	}
 

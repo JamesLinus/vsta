@@ -28,6 +28,7 @@ struct openfile {
 	struct llist *o_entry;	/* Link into list of names in filesystem */
 	struct prot o_prot;	/* Protection of file */
 	uint o_refs;		/* # references */
+	uint o_owner;		/* Owner UID */
 };
 
 /*
