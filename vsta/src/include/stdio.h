@@ -13,7 +13,7 @@
 typedef struct __file {
 	ushort f_flags;			/* See below */
 	ushort f_fd;			/* File descriptor we use */
-	char *f_buf, *f_pos;		/* Buffer */
+	uchar *f_buf, *f_pos;		/* Buffer */
 	int f_bufsz, f_cnt;		/*  ...size, bytes queued */
 	struct __file			/* List of all open files */
 		*f_next, *f_prev;
