@@ -1,0 +1,18 @@
+The files in this directory tree are nroff source using the -man macro
+set.  During "make install", they are processed into text output and
+this output is placed in the binary distribution.
+
+Because there is not an acceptable open source nroff command (groff
+is a bloated C++ program, and Plan 9's is not open source), this approach
+was adopted so that the installed VSTa system could display man pages
+without requiring the presence of an nroff.  If you want to process
+man pages for yourself, you will need to go get access to the Plan 9
+source (it's pretty easy to get), after which you may contact me
+directly to get the patches I applied in porting to VSTa.
+
+I would welcome pointers to a pure C, small and efficient implementation
+of nroff which was available under a suitable open source license.
+
+Andy Valencia
+vandys@vsta.org
+Thu Oct 25 19:22:21 2001 GMT
