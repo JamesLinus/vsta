@@ -412,7 +412,6 @@ do_home(char *in)
 		return(0);
 	}
 	sprintf(q, "%s%s", p, name_end);
-	printf("Ret: %s\n", q);
 	return(q);
 }
 
