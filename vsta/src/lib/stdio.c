@@ -58,6 +58,13 @@ static void
 del_list(FILE **hd, FILE *fp)
 {
 	/*
+	 * Ignore those which were never active
+	 */
+	if (fp->f_next == 0) {
+		return;
+	}
+
+	/*
 	 * Last entry
 	 */
 	if (fp->f_next == fp) {
@@ -450,6 +457,7 @@ fopen(char *name, char *mode)
 	fp->f_pos = fp->f_buf;
 	fp->f_bufsz = BUFSIZ;
 	fp->f_cnt = 0;
+	fp->f_next = 0;
 
 	/*
 	 * Insert in "all files" list
@@ -483,8 +491,12 @@ fclose(FILE *fp)
 	 * Close fd, free buffer space
 	 */
 	err |= close(fp->f_fd);
-	free(fp->f_buf);
-	free(fp);
+	if (fp->f_buf) {
+		free(fp->f_buf);
+	}
+	if ((fp < &__iob[0]) || (fp >= &__iob[3])) {
+		free(fp);
+	}
 
 	return(err);
 }
@@ -583,4 +595,57 @@ fgets(char *buf, int len, FILE *fp)
 	}
 	*p++ = '\0';
 	return(buf);
+}
+
+/*
+ * ferror()
+ *	Tell if there's an error on the buffered file
+ */
+ferror(FILE *fp)
+{
+ 	return (fp->f_flags & _F_ERR);
+}
+
+/*
+ * feof()
+ *	Tell if at end of media
+ */
+feof(FILE *fp)
+{
+ 	return (fp->f_flags & _F_EOF);
+}
+
+/*
+ * fileno()
+ *	Return file descriptor value
+ */
+fileno(FILE *fp)
+{
+	return (fp->f_fd);
+}
+
+/*
+ * clearerr()
+ *	Clear error state on file
+ */
+void
+clearerr(FILE *fp)
+{
+	fp->f_flags &= ~(_F_EOF|_F_ERR);
+}
+
+/*
+ * setbuf()
+ *	Set buffering for file
+ */
+void
+setbuf(FILE *fp, char *buf)
+{
+	if (buf == 0) {
+		fp->f_flags |= _F_UNBUF;
+		return;
+	}
+	fp->f_pos = fp->f_buf = buf;
+	fp->f_bufsz = BUFSIZ;
+	fp->f_cnt = 0;
 }
