@@ -83,11 +83,11 @@ int p_sema_v_lock(sema_t *, pri_t, lock_t *);
 /*
  * Atomic increment/decrement.  Sometimes saves you a full lock operation.
  */
-extern void ATOMIC_INCW(ushort *);
-extern void ATOMIC_DECW(ushort *);
-extern void ATOMIC_INCL(ulong *);
-extern void ATOMIC_DECL(ulong *);
-extern void ATOMIC_INC(uint *);
-extern void ATOMIC_DEC(uint *);
+extern void ATOMIC_INCW(volatile ushort *);
+extern void ATOMIC_DECW(volatile ushort *);
+extern void ATOMIC_INCL(volatile ulong *);
+extern void ATOMIC_DECL(volatile ulong *);
+extern void ATOMIC_INC(volatile uint *);
+extern void ATOMIC_DEC(volatile uint *);
 
 #endif /* _MUTEX_H */
