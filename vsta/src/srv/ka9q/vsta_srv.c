@@ -148,7 +148,7 @@ msg_to_mbuf(struct msg *m)
 		}
 		s = &m->m_seg[x];
 		mtmp->data = s->s_buf;
-		mtmp->size = s->s_buflen;
+		mtmp->cnt = mtmp->size = s->s_buflen;
 		append(&mb, mtmp);
 	}
 	return(mb);
@@ -1033,6 +1033,7 @@ inetfs_read(struct msg *m, struct client *cl)
 		msg_err(m->m_sender, ENOMEM);
 		return;
 	}
+	cl->c_msg = *m;
 	inetfs_rcv(c->t_tcb, 0);
 }
 
@@ -1490,6 +1491,7 @@ show_port(long port, struct tcp_port *t, int arg)
 			listlen(&c->t_readers),
 			listlen(&c->t_writers));
 	}
+	return(0);
 }
 
 /*
