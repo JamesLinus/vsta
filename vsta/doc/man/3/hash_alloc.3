@@ -1,0 +1,36 @@
+.TH HASH_ALLOC 3
+.SH NAME
+hash_alloc \- allocate a hash data structure
+.SH SYNOPSIS
+.B #include <hash.h>
+.br
+.B struct hash *hash_alloc(int hashsize);
+.SH DESCRIPTION
+The
+.I hash_alloc()
+function allocates a hash data structure of the size given by
+.I hashsize. 
+For purposes of efficiency,
+.ul 1
+hashsize
+is rounded up to the next power of two.
+.ul 1
+hashsize
+should be chosen with some idea of the number of entries to
+be contained within the hash data structure; if a hash size
+of 8 is chosen and 100 entries are stored in the hash table,
+the average access time will involve one hash lookup and
+a walk of length 6 on the collision chain for that hash value.
+.PP
+.SH RETURN VALUE
+On success, a
+.ul 1
+struct hash
+pointer is returned.  Otherwise NULL.
+.SH SEE ALSO
+.BR hash_dealloc (3),
+.BR hash_insert (3),
+.BR hash_delete (3),
+.BR hash_lookup (3),
+.BR hash_foreach (3),
+.BR hash_size (3)

@@ -1,0 +1,22 @@
+.TH HASH_LOOKUP 3
+.SH NAME
+hash_lookup \- look up a node based on its key
+.SH SYNOPSIS
+.B #include <hash.h>
+.br
+.B void *hash_lookup(struct hash *h, long key);
+.SH DESCRIPTION
+.I hash_lookup()
+is used to lookup the value of the h_data pointer of an entry with the key
+.I key 
+in the hash
+.I h.
+.SH RETURN VALUE
+Returns the value of the h_data pointer on success. If the struct h doesn't exist or the key isn't found 0 is returned.
+.SH SEE ALSO
+.BR hash_alloc (3),
+.BR hash_dealloc (3),
+.BR hash_insert (3),
+.BR hash_delete (3),
+.BR hash_foreach (3),
+.BR hash_size (3)

@@ -1,0 +1,33 @@
+.TH HASH_INSERT 3
+.SH NAME
+hash_insert \- insert a new key/value pair into the hash
+.SH SYNOPSIS
+.B #include <hash.h>
+.br
+.B int hash_insert(struct hash *h, long key, void *val);
+.SH DESCRIPTION
+.ul 1
+hash_insert()
+inserts a new key specified by
+.ul 1
+key
+into the hash
+.ul 1
+h.
+It key is mapped to the value
+.ul 1
+val.
+It is illegal to insert a key when that key value
+is already present in the hash table.
+.SH RETURN VALUE
+Returns 1 on error and 0 on success.
+.SH BUGS
+At least when compiled for DEBUG, the hash library should check
+for duplicate insertions and abort().
+.SH SEE ALSO
+.BR hash_alloc (3),
+.BR hash_dealloc (3),
+.BR hash_delete (3),
+.BR hash_lookup (3),
+.BR hash_foreach (3),
+.BR hash_size (3)

@@ -1,0 +1,21 @@
+.TH HASH_SIZE 3
+.SH NAME
+hash_size \- tell how many elements are stored in a hash
+.SH SYNOPSIS
+.B #include <hash.h>
+.br
+.B uint hash_size(struct hash *h);
+.SH DESCRIPTION
+.ul 1
+hash_size()
+returns the number of distinct key/value pairs stored
+in this hash data structure.
+.SH RETURN VALUE
+The size of the hash.
+.SH SEE ALSO
+.BR hash_alloc (3),
+.BR hash_dealloc (3),
+.BR hash_insert (3),
+.BR hash_delete (3),
+.BR hash_lookup (3),
+.BR hash_foreach (3)

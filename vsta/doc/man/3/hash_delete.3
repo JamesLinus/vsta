@@ -1,0 +1,25 @@
+.TH HASH_DELETE 3
+.SH NAME
+hash_delete \- remove node from hash
+.SH SYNOPSIS
+.B #include <hash.h>
+.br
+.B int hash_delete(struct hash *h, long key);
+.SH DESCRIPTION
+.ul 1
+hash_delete()
+deletes the entry with the key
+.ul 1
+key
+from the hash
+.ul 1
+h.
+.SH RETURN VALUE
+Returns 1 if the key is not found and 0 on success.
+.SH SEE ALSO
+.BR hash_alloc (3),
+.BR hash_dealloc (3),
+.BR hash_insert (3),
+.BR hash_lookup (3),
+.BR hash_foreach (3),
+.BR hash_size (3)

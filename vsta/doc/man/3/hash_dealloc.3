@@ -1,0 +1,23 @@
+.TH HASH_DEALLOC 3
+.SH NAME
+hash_dealloc \- free up entire hash structure
+.SH SYNOPSIS
+.B #include <hash.h>
+.br
+.B void hash_dealloc(struct hash *h);
+.SH DESCRIPTION
+The
+.I hash_dealloc()
+function frees the memory of a hash data structure, including all
+its internal state.  After calling
+.I hash_dealloc(),
+the pointer
+.I h
+should no longer be referenced.
+.SH SEE ALSO
+.BR hash_alloc (3),
+.BR hash_insert (3),
+.BR hash_delete (3),
+.BR hash_lookup (3),
+.BR hash_foreach (3),
+.BR hash_size (3)

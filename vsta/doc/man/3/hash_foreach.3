@@ -1,0 +1,32 @@
+.TH HASH_FOREACH 3
+.SH NAME
+hash_foreach \- enumerate each entry in the hash, invoking a function
+.SH SYNOPSIS
+.B #include <hash.h>
+.br
+.B "f(long h_key, void *h_data, void *arg);"
+.br
+.B "void hash_foreach(struct hash *h, intfun f, void *arg);"
+.SH DESCRIPTION
+.ul 1
+hash_foreach()
+walks through the hash
+.ul 1
+h
+and executes the function
+.ul 1
+f
+for each entry. It is executed with the key and val pointer as
+inserted by the previous call to
+.ul 1
+hash_insert,
+along with the provided
+.ul 1
+arg.
+.SH SEE ALSO
+.BR hash_alloc (3),
+.BR hash_dealloc (3),
+.BR hash_insert (3),
+.BR hash_delete (3),
+.BR hash_lookup (3),
+.BR hash_size (3)
