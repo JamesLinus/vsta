@@ -13,15 +13,14 @@
 #include <fcntl.h>
 #include <stat.h>
 
-int bflag, eflag, nflag, sflag, tflag, vflag;
-int rval;
-char *filename;
+static int bflag, eflag, nflag, sflag, tflag, vflag;
+static int rval;
+static char *filename;
 
-void cook_args(), cook_buf(), raw_args(), raw_cat();
+static void cook_args(), cook_buf(), raw_args(), raw_cat();
 
-main(argc, argv)
-	int argc;
-	char **argv;
+int
+main(int argc, char **argv)
 {
 	extern int optind;
 	int ch;
@@ -67,7 +66,7 @@ main(argc, argv)
 	exit(rval);
 }
 
-void
+static void
 cook_args(argv)
 	char **argv;
 {
@@ -92,7 +91,7 @@ cook_args(argv)
 	} while (*argv);
 }
 
-void
+static void
 cook_buf(fp)
 	FILE *fp;
 {
@@ -156,9 +155,8 @@ cook_buf(fp)
 	}
 }
 
-void
-raw_args(argv)
-	char **argv;
+static void
+raw_args(char **argv)
 {
 	int fd;
 
@@ -182,9 +180,8 @@ raw_args(argv)
 	} while (*argv);
 }
 
-void
-raw_cat(rfd)
-	int rfd;
+static void
+raw_cat(int rfd)
 {
 	int nr, nw, off, wfd;
 	static int bsize;
@@ -193,18 +190,21 @@ raw_cat(rfd)
 
 	wfd = fileno(stdout);
 	if (!buf) {
-		if (fstat(wfd, &sbuf)) {
+		if (fstat(wfd, &sbuf) < 0) {
 			perror(filename);
+			return;
 		}
 		bsize = MAX(sbuf.st_blksize, 1024);
 		if (!(buf = malloc((uint)bsize))) {
 			perror("malloc");
+			return;
 		}
 	}
 	while ((nr = read(rfd, buf, bsize)) > 0) {
 		for (off = 0; off < nr; nr -= nw, off += nw) {
 			if ((nw = write(wfd, buf + off, nr)) < 0) {
 				perror("stdout");
+				return;
 			}
 		}
 	}

@@ -134,7 +134,13 @@ cp_file(char *src, char *dest)
 		return;
 	}
 	while ((x = read(in, buf, BUFSIZE)) > 0) {
-		write(out, buf, x);
+		if (write(out, buf, x) < 0) {
+			perror(dest);
+			errs++;
+			close(out);
+			close(in);
+			return;
+		}
 	}
 	close(out);
 	close(in);
