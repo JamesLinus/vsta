@@ -23,11 +23,12 @@ struct qio {
 /*
  * Queue an I/O to the I/O daemon
  */
-void qio(struct qio *);
+extern void qio(struct qio *);
 
 /*
- * Allocate a qio structure
+ * Allocate/free a qio structure
  */
-struct qio *alloc_qio(void);
+extern struct qio *alloc_qio(void);
+extern void free_qio(struct qio *);
 
 #endif /* _QIO_H */
