@@ -9,6 +9,7 @@
  */
 #include <dos/dos.h>
 #include <std.h>
+#include <sys/param.h>
 #include <sys/assert.h>
 
 extern int blkdev;	/* Our disk */
@@ -183,7 +184,7 @@ clust_setlen(struct clust *c, ulong newlen)
 	/*
 	 * Figure out how many clusters are needed now
 	 */
-	newclust = newlen / clsize;
+	newclust = roundup(newlen, clsize) / clsize;
 
 	/*
 	 * If no change in allocation, just return success
@@ -349,4 +350,52 @@ free_clust(struct clust *c)
 		free(c->c_clust);
 	}
 	free(c);
+}
+
+/*
+ * fat_sync()
+ *	Sync out the FAT to disk
+ *
+ * Both copies are updated; if the first copy can not be written
+ * successfully, the second is left alone and the server aborts.
+ */
+void
+fat_sync(void)
+{
+	/*
+	 * Not dirty--no work
+	 */
+	if (!fat_dirty) {
+		return;
+	}
+
+	/*
+	 * Seek to start of FATs, write them out
+	 */
+	lseek(blkdev, 1 * SECSZ, 0);
+	if (fat12) {
+		int x;
+
+		fat16_fat12(fat, fat12, fatlen);
+		x = write(blkdev, fat12, fat12len);
+		if (x!= fat12len) {
+			perror("fat12");
+			printf("Write of FAT12 #1 failed, ret %d\n", x);
+			exit(1);
+		}
+		if (write(blkdev, fat12, fat12len) != fat12len) {
+			perror("fat12");
+			printf("Write of FAT12 #2 failed\n");
+			exit(1);
+		}
+	} else {
+		if (write(blkdev, fat, fatlen) != fatlen) {
+			printf("Write of FAT #1 failed\n");
+			exit(1);
+		}
+		if (write(blkdev, fat, fatlen) != fatlen) {
+			printf("Write of FAT #2 failed\n");
+			exit(1);
+		}
+	}
 }
