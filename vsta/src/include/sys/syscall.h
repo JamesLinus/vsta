@@ -71,6 +71,7 @@ extern int unhash(port_t arg_port, long arg_fid);
 extern int time_set(struct time *arg_time);
 extern int ptrace(pid_t pid, port_name name);
 extern int notify_handler(voidfun);
+extern int setsid(void);
 
 #ifndef KERNEL
 extern int notify(pid_t, pid_t, const char *);
