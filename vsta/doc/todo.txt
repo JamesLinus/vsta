@@ -208,16 +208,20 @@ Need to set up message operation interruption so even a completely
 	interrupt operation without blocking ; client should be able
 	to disconnect without blocking.  DMA is a special case.
 
-DOS file ID is OK for purposes of caching executables, but hoses things
-	like "du" which want to know if a particular file is a link to
-	one which has already been examined.  Well no, you can't have
-	hard links under DOS, but you still need to return a unique
-	per-file ID.  Blk # of first cluster would be OK, except that
-	zero-length files don't have any blocks, so what ID do they
-	get?  We used to use the cluster # of the containing dir OR'ed
-	in with the directory slot, but this caused the ID to change
-	on a rename.  It was then impossible to unhash a renamed a.out
-	which was kernel cached.
+X DOS file ID is OK for purposes of caching executables, but hoses things
+X 	like "du" which want to know if a particular file is a link to
+X 	one which has already been examined.  Well no, you can't have
+X 	hard links under DOS, but you still need to return a unique
+X 	per-file ID.  Blk # of first cluster would be OK, except that
+X 	zero-length files don't have any blocks, so what ID do they
+X 	get?  We used to use the cluster # of the containing dir OR'ed
+X 	in with the directory slot, but this caused the ID to change
+X 	on a rename.  It was then impossible to unhash a renamed a.out
+X 	which was kernel cached.
+	-- Fixed.  You're pretty much stuck with containing dir
+	cluster #, plus dir entry.  To deal with caching, you simply
+	have to uncache the executable before moving it (which the
+	DOS server does for you).
 
 Time to do a new level of path walk optimization.  chdir() should try
 	to hold an open port_t on the cwd, to spare walking the prefix
@@ -232,3 +236,40 @@ And for a *really* big change, FS_OPEN2 should be done; it takes the
 	than feeding path elements one at a time.  Return should
 	indicate success, or how far down before the error occurred (for
 	ESYMLINK, for instance).
+
+There's more than one race condition left in exit.  The "last" flag,
+	when "false", doesn't give much protection.  Imagine a thread
+	exit()'ing, and it isn't "last".  But it's preempted, and
+	the last thread exits during this preemption.  So the process
+	will be scrubbed before the "!last" thread finishes, which
+	breaks at least the way the scheduling data structures are
+	cleaned up.
+
+Also, again in do_exit(), there are definite problems with free'ing
+	memory during the exit path.  In cases where memory moves back
+	into the system pool, the thread can block with its data
+	structures partially destroyed.  Bad.
+
+SIGCHLD emulation is done with a second (ephemeral) thread.  This is fine,
+	except that this second thread needs to wait on the kernel
+	for child completions, and then needs to feed them into the
+	POSIX waitpid() emulation.  But this code isn't thread safe,
+	so you might race with the main thread.  It also malloc()'s
+	data for such completions, and malloc() isn't thread safe either.
+
+On the issue of SIGCHLD, perhaps it really is time to make libc thread
+	safe?
+
+There needs (after all) to be a hook for voluntary shutdown.  DOS and
+	VSTa filesystems don't need it, and I want to minimize the
+	dependencies (OS's in general, and VSTa in particular, do
+	tend to crash...).  But the "clean" flag if we ever do a BSD
+	filesystem would need to use this hook.
+
+wd disk driver seems to mis-handle large I/O's.  This is masked
+	because it currently has a MAXIO parameter which defends
+	it, but for DMA, there's no real reason to enforce such
+	a cap.
+
+Need to add LBA support to wd; this is a fairly standard mechanism
+	which is really quite nice.
