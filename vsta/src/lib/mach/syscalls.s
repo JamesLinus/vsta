@@ -191,7 +191,7 @@ _notify_handler:
 	movl	%eax,c_handler		/* Save in private space */
 	pushl	%ebx			/* Single arg via EBX register */
 	movl	$asm_handler,%ebx	/* Vector to assembly handler */
-	movl	$(S_NOTIFY_HANDLER),%eax
+	movl	$(S_NOTIFY_HANDLER + 0x80),%eax
 	ENTCALL
 	popl	%ebx
 	ENTTAIL
