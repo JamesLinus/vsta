@@ -406,3 +406,24 @@ cfgetospeed(struct termios *t)
 {
 	return(t->c_ospeed);
 }
+
+/*
+ * cfsetispeed()
+ *	Set TTY input baud rate
+ */
+int
+cfsetispeed(struct termios *t, ulong speed)
+{
+	t->c_ispeed = speed;
+	return(0);
+}
+
+/*
+ * cfsetospeed()
+ *	Set TTY output baud rate
+ */
+cfsetospeed(struct termios *t, ulong speed)
+{
+	t->c_ospeed = speed;
+	return(0);
+}
