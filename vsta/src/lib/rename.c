@@ -11,6 +11,12 @@
 #include <std.h>
 
 /*
+ * Not reentrant XXX
+ */
+static int srcfd = -1, destfd = -1;
+static char *srcent, *destent;
+
+/*
  * getpath()
  *	Access named path, return various parts of it
  *
@@ -77,7 +83,7 @@ msg(int fd, int type, int arg, char *buf)
 	 */
 	m.m_op = type;
 	m.m_arg = arg;
-	m.m_arg1 = 0;
+	m.m_arg1 = getpid();
 	m.m_nseg = 1;
 	m.m_buf = buf;
 	m.m_buflen = strlen(buf)+1;
@@ -89,6 +95,20 @@ msg(int fd, int type, int arg, char *buf)
 }
 
 /*
+ * request()
+ *	Send off the request
+ */
+static void
+request(void)
+{
+	/*
+	 * Send a message requesting a rename start
+	 */
+	(void)msg(srcfd, FS_RENAME, 0, srcent);
+	_exit(0);
+}
+
+/*
  * rename()
  *	Request rename of object within a server
  */
@@ -97,9 +117,7 @@ rename(char *src, char *dest)
 {
 	int err;
 	char *p;
-	int srcfd = -1, destfd = -1;
 	port_name srcname, destname;
-	char *srcent, *destent;
 
 	/*
 	 * Explode src/dest paths into needed elements
@@ -122,11 +140,13 @@ rename(char *src, char *dest)
 	}
 
 	/*
-	 * Send a message requesting a rename start
+	 * Launch a thread to start the request.  We will do the
+	 * matching rename.
 	 */
-	if (msg(srcfd, FS_RENAME, 0, srcent)) {
-		err = -1;
-		goto out;
+	if (tfork(request) < 0) {
+		return(-1);
+	} else {
+		__msleep(10);	/* Let'em get set */
 	}
 
 	/*
