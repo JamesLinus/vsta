@@ -46,6 +46,7 @@ sema_stat(struct msg *m, struct file *f)
 		 * File--queue length
 		 */
 		len = (o->o_count < 0) ? (- o->o_count) : 0;
+		owner = o->o_owner;
 	}
 	sprintf(buf, "size=%d\ntype=%c\nowner=%d\ninode=%lu\n",
 		len, o ? 'f' : 'd', owner, (ulong)o);
