@@ -6,7 +6,7 @@
  *
  * This lets us emulate a Linux-like environment when porting these tools
  * to non-Linux OS's.
- * Created by Andy Valencia, 12/2000
+ * Created by Andy Valencia, 12/2000, for VSTa
  */
 
 /*
@@ -17,7 +17,7 @@
 #include <sys/types.h>
 
 #define llseek lseek		/* Map long offset type to standard */
-typedef off_t loff_t;		/*  ...TBD: > 4Gig support */
+typedef unsigned long long loff_t;
 
 typedef unsigned char __u8;	/* Some Linux type names */
 typedef unsigned short __u16;
@@ -44,8 +44,8 @@ typedef signed char __s8;
 #define DELETED_FLAG DN_DEL
 
 /* Names for dot and dotdot */
-#define MSDOS_DOT (".")
-#define MSDOS_DOTDOT ("..")
+#define MSDOS_DOT    (".          ")
+#define MSDOS_DOTDOT ("..         ")
 
 /* VSTa doesn't have any limit, so we just pick a value here */
 #define PATH_MAX (1024)
