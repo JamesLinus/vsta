@@ -22,7 +22,8 @@ extern int msg_port(), msg_connect(), msg_accept(), msg_send(),
 extern int exit(), fork(), fork_thread(), enable_io(), enable_isr(),
 	mmap(), munmap(), strerror(), notify(), clone();
 extern int page_wire(), page_release(), enable_dma(), time_get(),
-	time_sleep();
+	time_sleep(), exec();
+static int do_dbg_enter();
 
 struct syscall {
 	intfun s_fun;
@@ -51,9 +52,26 @@ struct syscall {
 	{enable_dma, 0},			/* 20 */
 	{time_get, 1},				/* 21 */
 	{time_sleep, 1},			/* 22 */
+	{do_dbg_enter, 0},			/* 23 */
+	{exec, 3},				/* 24 */
 };
 #define NSYSCALL (sizeof(syscalls) / sizeof(struct syscall))
 #define MAXARGS (6)
+
+/*
+ * do_dbg_enter()
+ *	Enter debugger on DEBUG kernel, otherwise EINVAL
+ */
+static
+do_dbg_enter(void)
+{
+#ifdef DEBUG
+	dbg_enter();
+	return(0);
+#else
+	return(err(EINVAL));
+#endif
+}
 
 /*
  * syscall()
