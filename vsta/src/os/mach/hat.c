@@ -151,9 +151,9 @@ hat_addtrans(struct pview *pv, void *va, uint pfn, int prot)
 	if (!(*root & PT_V)) {
 		uint pg;
 
-		pt = malloc(NBPG);
+		pg = alloc_page();
+		pt = (pte_t *)ptov(ptob(pg));
 		bzero(pt, NBPG);
-		pg = btop(vtop(pt));
 		*root = (pg << PT_PFNSHIFT) | PT_V|PT_W|PT_U;
 		pv->p_vas->v_hat.h_l1segs |=
 			(1L << (L1IDX(va)*H_L1SEGS / NPTPG));
