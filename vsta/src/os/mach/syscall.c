@@ -27,7 +27,7 @@ extern int do_exit(), fork(), fork_thread(), enable_io(), enable_isr(),
 extern int page_wire(), page_release(), enable_dma(), time_get(),
 	time_sleep(), exec(), waits(), perm_ctl(), set_swapdev(),
 	run_qio(), set_cmd(), pageout(), getid(), unhash(),
-	time_set(), ptrace(), nop();
+	time_set(), ptrace(), nop(), msg_portname();
 
 struct syscall {
 	intfun s_fun;
@@ -72,6 +72,7 @@ struct syscall {
 #else
 	{nop, 1},
 #endif
+	{msg_portname, 1},			/* 35 */
 };
 #define NSYSCALL (sizeof(syscalls) / sizeof(struct syscall))
 #define MAXARGS (6)

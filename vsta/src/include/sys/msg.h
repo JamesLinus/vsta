@@ -68,6 +68,7 @@ int msg_err(long, char *, int);		/* Request had error */
 #else
 int msg_err(long, char *);		/* Stub does the strlen() */
 #endif
+int msg_portname(port_t);		/* Get port_name for port */
 
 /*
  * Extended descriptions for routines

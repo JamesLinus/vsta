@@ -42,7 +42,8 @@
 #define S_UNHASH 32
 #define S_TIME_SET 33
 #define S_PTRACE 34
-#define S_HIGH S_PTRACE
+#define S_MSG_PORTNAME 35
+#define S_HIGH S_MSG_PORTNAME
 
 /*
  * Some syscall prototypes
