@@ -62,7 +62,7 @@ new_client(struct msg *m, uint len)
 	perms = (struct perm *)m->m_buf;
 	nperms = len/sizeof(struct perm);
 	uperms = perm_calc(perms, nperms, &swap_prot);
-	if ((uperms & m->m_arg) != uperms) {
+	if ((uperms & m->m_arg) != m->m_arg) {
 		msg_err(m->m_sender, EPERM);
 		return;
 	}
@@ -245,7 +245,7 @@ loop:
  * main()
  *	Startup of swap support
  */
-main(int argc, char *argv[])
+main()
 {
 #ifdef DEBUG
 	{ port_t kbd, cons;
@@ -256,6 +256,11 @@ main(int argc, char *argv[])
 	  __fd_alloc(cons);
 	}
 #endif
+	/*
+	 * Our name, always
+	 */
+	(void)set_cmd("swap");
+
 	/*
 	 * Allocate data structures we'll need
 	 */
