@@ -13,7 +13,7 @@ trap.c
 machproc.c
 syscall.c
 
-kernel:
+kern:
 main.c
 vm_fault.c
 vm_steal.c
