@@ -1,0 +1,34 @@
+.ll 74
+.he 'munmap(2)'VSTa Manual'munmap(2)'
+.fo ''%''
+.sp 2
+.bd 1
+NAME
+.br
+.ti +6
+munmap - remove object from process address space
+.sp
+.bd 1
+SYNOPSIS
+.br
+.in +6
+.li 3
+#include <sys/mman.h>
+
+int munmap(void *vaddr, ulong len);
+.sp 1
+.in -6
+.bd 1
+DESCRIPTION
+.br
+.in +6
+.ul 1
+munmap()
+removes an object previously attached via
+.ul 1
+mmap().
+The entire object existing at
+.ul 1
+vaddr
+is removed; it is not possible to invalidate individual pages
+of an address space object.

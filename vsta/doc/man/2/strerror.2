@@ -1,0 +1,39 @@
+.ll 74
+.he 'strerror(2)'VSTa Manual'strerror(2)'
+.fo ''%''
+.sp 2
+.bd 1
+NAME
+.br
+.ti +6
+strerror - return VSTa error string
+.sp
+.bd 1
+SYNOPSIS
+.br
+.in +6
+.li 3
+#include <sys/misc.h>
+
+int strerror(char *err);
+.sp 1
+.in -6
+.bd 1
+DESCRIPTION
+.br
+.in +6
+.ul 1
+strerror()
+returns the VSTa error strong associated with the most recent
+failing system call.
+.sp
+.in -6
+.bd 1
+NOTES
+.br
+.in +6
+.ul 1
+strerror()
+undertakes some magic before invoking the kernel interface
+so that errors generated from C library functions will
+also appear to be "kernel" errors.
