@@ -30,16 +30,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-#ifndef PATH_DEF
-#define PATH_DEF "/vsta/lib/termcap"
-#endif
-
 #define	BUFSIZ		1024
 #define MAXHOP		32	/* max number of tc= indirections */
 #define	PBUFSIZ		512	/* max length of filename path */
 #define	PVECSIZ		32	/* max number of names in path */
 
 #include <ctype.h>
+#include <paths.h>
 
 /*
  * termcap - routines for dealing with the terminal capability data base
@@ -69,8 +66,7 @@ static char *termcap, *termpath, *home;
 /*
  * Get an entry for terminal name in buffer bp from the termcap file.
  */
-tgetent(bp, name)
-	char *bp, *name;
+tgetent(char *bp, char *name)
 {
 	register char *p;
 	register char *cp;
@@ -86,7 +82,7 @@ tgetent(bp, name)
 	if (termcap == 0) {
 		termcap = getenv("TERMCAP");
 		if (termcap == 0) {
-			termcap = PATH_DEF;
+			termcap = _PATH_TERMCAP;
 		}
 		termpath = getenv("TERMPATH");
 		home = getenv("HOME");
@@ -115,7 +111,7 @@ tgetent(bp, name)
 				strcpy(pathbuf, home);	/* $HOME first */
 				*p++ = '/';
 			}	/* if no $HOME look in current directory */
-			strncpy(p, PATH_DEF, PBUFSIZ - (p - pathbuf));
+			strncpy(p, _PATH_TERMCAP, PBUFSIZ - (p - pathbuf));
 		}
 	} else {		/* user-defined name in TERMCAP */
 		strncpy(pathbuf, cp, PBUFSIZ);	/* still can be tokenized */
@@ -158,8 +154,7 @@ tgetent(bp, name)
  * variable pvec.  Terminal entries may not be broken across files.  Parse is
  * very rudimentary; we just notice escaped newlines.
  */
-tfindent(bp, name)
-	char *bp, *name;
+tfindent(char *bp, char *name)
 {
 	register char *cp;
 	register int c;
@@ -224,7 +219,7 @@ nextfile:
  * entries to say "like an HP2621 but doesn't turn on the labels".
  * Note that this works because of the left to right scan.
  */
-tnchktc()
+tnchktc(void)
 {
 	register char *p, *q;
 	char tcname[16];	/* name of similar terminal */
@@ -274,8 +269,7 @@ tnchktc()
  * against each such name.  The normal : terminator after the last
  * name (before the first field) stops us.
  */
-tnamatch(np)
-	char *np;
+tnamatch(char *np)
 {
 	register char *Np, *Bp;
 
@@ -302,8 +296,7 @@ tnamatch(np)
  * into the termcap file in octal.
  */
 static char *
-tskip(bp)
-	register char *bp;
+tskip(register char *bp)
 {
 
 	while (*bp && *bp != ':')
@@ -321,8 +314,7 @@ tskip(bp)
  * a # character.  If the option is not found we return -1.
  * Note that we handle octal numbers beginning with 0.
  */
-tgetnum(id)
-	char *id;
+tgetnum(char *id)
 {
 	register int i, base;
 	register char *bp = tbuf;
@@ -354,8 +346,7 @@ tgetnum(id)
  * of the buffer.  Return 1 if we find the option, or 0 if it is
  * not given.
  */
-tgetflag(id)
-	char *id;
+tgetflag(char *id)
 {
 	register char *bp = tbuf;
 
@@ -381,8 +372,7 @@ tgetflag(id)
  * No checking on area overflow.
  */
 char *
-tgetstr(id, area)
-	char *id, **area;
+tgetstr(char *id, char **area)
 {
 	register char *bp = tbuf;
 
@@ -406,9 +396,7 @@ tgetstr(id, area)
  * string capability escapes.
  */
 static char *
-tdecode(str, area)
-	register char *str;
-	char **area;
+tdecode(register char *str, char **area)
 {
 	register char *cp;
 	register int c;

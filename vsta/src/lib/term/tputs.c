@@ -17,10 +17,7 @@
  * The number of affected lines is affcnt, and the routine
  * used to output one character is outc.
  */
-tputs(cp, affcnt, outc)
-	register char *cp;
-	int affcnt;
-	int (*outc)();
+tputs(register char *cp, int affcnt, int (*outc)())
 {
 	if (cp == 0)
 		return;

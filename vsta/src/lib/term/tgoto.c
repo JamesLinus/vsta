@@ -67,9 +67,7 @@ char	*BC;
  * all other characters are ``self-inserting''.
  */
 char *
-tgoto(CM, destcol, destline)
-	char *CM;
-	int destcol, destline;
+tgoto(char *CM, int destcol, int destline)
 {
 	static char result[MAXRETURNSIZE];
 	static char added[10];
