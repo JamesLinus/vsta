@@ -66,16 +66,51 @@ extern struct portref
 	*swapdev;		/* To tell when it's been enabled */
 
 /*
+ * getbits()
+ *	Unvirtualize all mappings for a given slot
+ *
+ * Frees the attach list elements as well.
+ */
+static int
+getbits(struct perpage *pp)
+{
+	struct atl *a;
+	struct pview *pv;
+	struct vas *vas;
+	int flags = 0;
+
+	for (a = pp->pp_atl; a; a = a->a_next) {
+
+		/*
+		 * No VAS == cached view, ignore
+		 */
+		pv = a->a_pview;
+		vas = pv->p_vas;
+		if (!vas) {
+			continue;
+		}
+
+		/*
+		 * Reap ref/mod bits from HAT, which clears them
+		 * at that level.
+		 */
+		flags |= hat_getbits(pv,
+			(char *)pv->p_vaddr + ptob(a->a_idx));
+	}
+	return(flags);
+}
+
+/*
  * unvirt()
  *	Unvirtualize all mappings for a given slot
  *
  * Frees the attach list elements as well.
  */
-static uint
+static int
 unvirt(struct perpage *pp)
 {
 	struct atl *a, *an, **ap;
-	uint flags = 0;
+	int flags = 0;
 
 	ap = &pp->pp_atl;
 	for (a = *ap; a; a = an) {
@@ -120,11 +155,14 @@ unvirt(struct perpage *pp)
 }
 
 /*
- * steal_master()
- *	Handle stealing of pages from master copy of COW
+ * walk_master()
+ *	Apply a function to each appropriate master COW page slot
+ *
+ * The resulting bits are placed back into pp_flags.  The "fn" may
+ * delete HAT translations as we assemble pp_flags.
  */
-steal_master(struct pset *ps, struct perpage *pp, uint idx,
-	int trouble, intfun steal)
+static void
+walk_master(intfun fn, struct pset *ps, struct perpage *pp, uint idx)
 {
 	struct pset *ps2;
 	struct perpage *pp2;
@@ -133,7 +171,7 @@ steal_master(struct pset *ps, struct perpage *pp, uint idx,
 	/*
 	 * First handle direct references
 	 */
-	pp->pp_flags |= unvirt(pp);
+	pp->pp_flags |= (*fn)(pp);
 
 	/*
 	 * Walk each potential COW reference to our slot
@@ -158,31 +196,65 @@ steal_master(struct pset *ps, struct perpage *pp, uint idx,
 
 		/*
 		 * Examine the page slot indicated.  Again, lock with
-		 * care as we're going rather backwards.
+		 * care as we're going rather backwards.  We back off
+		 * if we would have hit deadlock.
 		 */
 		idx2 = idx - ps2->p_off;
 		pp2 = find_pp(ps2,  idx2);
-		if (!clock_slot(ps2, pp2)) {
-			if (pp2->pp_flags & PP_COW) {
-				pp->pp_flags |= unvirt(pp2);
-				if (pp2->pp_refs == 0) {
-					pp2->pp_flags &= ~(PP_COW|PP_V|PP_R);
-					pp->pp_refs -= 1;
-				}
-			}
-			unlock_slot(ps2, pp2);
-		} else {
+		if (clock_slot(ps2, pp2)) {
 			v_lock(&ps2->p_lock, SPL0);
+			continue;
 		}
+
+		/*
+		 * We process only pages associated with
+		 * the COW set here.  Pages are otherwise
+		 * normal data pages.
+		 */
+		if (pp2->pp_flags & PP_COW) {
+			ASSERT_DEBUG(pp2->pp_refs, "steal_master: pp2 !refs");
+
+			pp->pp_flags |= (*fn)(pp2);
+			if (pp2->pp_refs == 0) {
+				pp2->pp_flags &= ~(PP_COW|PP_V|PP_R);
+				pp->pp_refs -= 1;
+			}
+
+		}
+		unlock_slot(ps2, pp2);
+	}
+}
+
+/*
+ * steal_master()
+ *	Handle stealing of pages from master copy of COW
+ */
+steal_master(struct pset *ps, struct perpage *pp, uint idx,
+		int trouble, intfun steal)
+{
+	/*
+	 * Accumulate state of modification without tearing
+	 * anything down.  This gives us an approximation of
+	 * the page's state.
+	 */
+	walk_master(getbits, ps, pp, idx);
+
+	/*
+	 * If we don't want to steal it yet, just clear ref bit (COW master
+	 * can't be modified!)
+	 */
+	ASSERT_DEBUG((pp->pp_flags & PP_M) == 0, "steal_master: modified");
+	if (!(*steal)(pp->pp_flags, trouble)) {
+		pp->pp_flags &= ~(PP_R);
+		return;
 	}
 
 	/*
-	 * If he successfully stole all translations and
-	 * things are getting tight, go ahead and take the memory
+	 * If we can successfully steal all translations, free the memory
 	 */
-	ASSERT_DEBUG((pp->pp_flags & PP_M) == 0,
-		"steal_master: file modified");
-	if ((pp->pp_refs == 0) && (*steal)(pp->pp_flags, trouble)) {
+	walk_master(unvirt, ps, pp, idx);
+	ASSERT_DEBUG((pp->pp_flags & PP_M) == 0, "steal_master: modified");
+	if (pp->pp_refs == 0) {
 		free_page(pp->pp_pfn);
 		pp->pp_flags &= ~(PP_R|PP_V);
 	}
@@ -201,7 +273,6 @@ do_hand(struct core *c, int trouble, intfun steal)
 	struct perpage *pp;
 	uint idx, pgidx;
 	int slot_held;
-	extern void iodone_unlock();
 
 	/*
 	 * No point fussing over inactive pages, eh?
@@ -275,6 +346,35 @@ do_hand(struct core *c, int trouble, intfun steal)
 	 * page state.  Take away all translations so our notion will
 	 * remain correct until we release the page slot.
 	 */
+	pp->pp_flags |= getbits(pp);
+
+	/*
+	 * See if we'd like to take a shot at stealing this page
+	 */
+	if (!(*steal)(pp->pp_flags, trouble)) {
+		/*
+		 * Nope, we don't want it yet.  If trouble's brewing,
+		 * schedule an async flush of the dirty page.
+		 */
+		if (trouble && (pp->pp_flags & PP_M)) {
+			(*(ps->p_ops->psop_writeslot))(ps,
+				pp, idx, iodone_unlock);
+			pp->pp_flags &= ~(PP_M);
+			slot_held = 0;	/* Released in iodone_unlock */
+		}
+
+		/*
+		 * Clear the
+		 * ref bits so we can estimate usage in the future
+		 * when things get tight.
+		 */
+		pp->pp_flags &= ~(PP_R);
+		goto out;
+	}
+
+	/*
+	 * Try and grab it away
+	 */
 	pp->pp_flags |= unvirt(pp);
 
 	/*
@@ -289,27 +389,19 @@ do_hand(struct core *c, int trouble, intfun steal)
 	 * If any trouble, see if this page is should be
 	 * stolen.
 	 */
-	if (!(pp->pp_flags & PP_M) &&
-			(*steal)(pp->pp_flags, trouble)) {
+	if (!(pp->pp_flags & PP_M)) {
 		/*
 		 * Yup.  Take it away.
 		 */
 		free_page(pp->pp_pfn);
 		pp->pp_flags &= ~(PP_V|PP_R);
-	} else if (trouble && (pp->pp_flags & PP_M) && swapdev) {
-		/*
-		 * It's dirty, and we're interested in getting
-		 * some memory soon.  Start cleaning pages.
-		 */
-		pp->pp_flags &= ~PP_M;
-		(*(ps->p_ops->psop_writeslot))(ps, pp, idx, iodone_unlock);
-		slot_held = 0;	/* Released in iodone_unlock */
 	} else {
 		/*
-		 * Leave it alone.  Clear REF bit so we can
-		 * estimate its use in the future.
+		 * It's dirty, so clean and free
 		 */
-		pp->pp_flags &= ~PP_R;
+		ASSERT_DEBUG(swapdev, "do_hand: !swapdev");
+		(*(ps->p_ops->psop_writeslot))(ps, pp, idx, iodone_free);
+		slot_held = 0;	/* Released in iodone_free */
 	}
 out:
 	if (slot_held) {
