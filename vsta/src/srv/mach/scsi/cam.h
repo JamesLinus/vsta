@@ -159,6 +159,7 @@ struct	cam_scsiio_ccb {
 /*
  * Private data...
  */
+	struct	scsi_reqsns_data snsdata;	/* AUTOSENSE data */
 /*
  * XPT/SIM data.
  */
@@ -172,9 +173,8 @@ struct	cam_scsiio_ccb {
 	struct	cam_sg_elem *sg_base;		/* SG list base addr. */
 	uint16	sg_next;			/* next SG element */
 	uint16	sg_max;				/* # SG elements */
+	uint32	sg_resid;			/* residual w/in SG element */
 	struct	cam_sg_elem sg_element;		/* working SG area */
-	uint32	bresid;				/* current buffer's resid */
-	uint32	bcount;				/* total # bytes transferred */
 	uint32	lbaddr;				/* logical block address */
 };
 
@@ -267,6 +267,9 @@ typedef	union cam_ccb CCB;
 
 #define CAM_SIM_QFRZN          	0x40	/* The SIM queue is frozen w/this err */
 #define CAM_AUTOSNS_VALID      	0x80	/* Autosense data valid for target */
+
+#define	CAM_CCB_STATUS(_ccb)	\
+	((_ccb)->header.cam_status & ~(CAM_SIM_QFRZN | CAM_AUTOSNS_VALID))
 
 /*
  * Defines for the XPT function codes.
@@ -367,17 +370,6 @@ typedef struct cam_sim_entry {
 } CAM_SIM_ENTRY;
 
 /*
- * The cam_conftbl[] is used by the XPT/configuration_driver to call routines
- * and pass CAM parameters between them e.g. the Path ID contained in the CCB
- * created by the peripheral driver is used to index into the cam_conftbl[].
- * The entry point for the selected SIM, sim_action() is called with a pointer
- * to the CCB as an argument. 
- */
-struct	cam_conftbl {
-	CAM_SIM_ENTRY *sim_entry;
-};
-
-/*
  * The CAM EDT table, this structure contains the device information for
  * all the devices, SCSI ID and LUN, for all the SCSI busses in the system.
  */
@@ -393,6 +385,7 @@ typedef struct cam_edt_entry {
 #define	CAM_MAX_LUN		7		/* maximum LUN */
 #define	CAM_NLUNS		8		/* max. # of LUNs/target */
 
+#ifdef	_XXX_
 /*
  * CAM status.
  */
@@ -428,6 +421,8 @@ typedef struct cam_edt_entry {
 #define	CAM_CDB_RECEIVED	0x3D		/* SCSI CDB Received */
 #define	CAM_LUN_ENABLED		0x3E		/* LUN Already Enabled */
 #define	CAM_BUS_BUSY		0x3F		/* SCSI bus Busy */
+
+#endif	/*_XXX_*/
 
 /**
  ** SIM structures.
@@ -494,28 +489,43 @@ struct	cam_pdev_header {			/* peripheral device type */
 	uint8	type;				/* peripheral type */
 	enum	cam_pdrv_classes class;		/* peripheral driver class */
 	CAM_DEV	devid;				/* device ID */
+	uint32	blklen;				/* logical block length */
 	char	*name;				/* device name */
+	char	vendor_id[9];			/* Vendor ID */
+	char	prod_id[17];			/* Product ID */
+	char	prod_rev[5];			/* Product Revision */
 	void	*osd;				/* OSD storage */
 	union	cam_pdevice *next;		/* next link in the chain */
 };
 
 struct	cam_pdisk {				/* peripheral disk */
 	struct	cam_pdev_header header;
-	uint32	blklen;				/* logical block length */
 	uint32	nblocks;			/* number of blocks */
 	void	*partitions;			/* partition table */
 	uchar	removable;			/* is media removable? */
 };
 
+struct	cam_ptape {				/* peripheral tape */
+	struct	cam_pdev_header header;
+	uint32	flags;				/* see ptape.c */
+	struct	cam_ptape_mode {
+		int	mdset;			/* mode set? */
+		int	neotfm;			/* # filemarks for EOT */
+		int	density;		/* density code */
+		uint32	blklen;			/* fixed block length */
+		uint16	devspc;			/* device specific */
+	} modes[CAM_MAX_TAPE_MODES];
+};
+
 struct	cam_pgen {				/* generic */
 	struct	cam_pdev_header header;
-	uint32	blklen;				/* logical block length */
 	uint32	nblocks;			/* number of blocks */
 };
 
 union	cam_pdevice {				/* peripheral device */
 	struct	cam_pdev_header header;
 	struct	cam_pdisk disk;			/* disk driver */
+	struct	cam_ptape tape;			/* tape driver */
 	struct	cam_pgen generic;		/* generic driver */
 };
 
@@ -551,8 +561,8 @@ union	cam_pdevice {				/* peripheral device */
 /**
  ** External data declarations.
  **/
-extern	struct cam_conftbl cam_conftbl[];
-extern	long cam_nconftbl_entries;
+extern	CAM_SIM_ENTRY **cam_conftbl;
+extern	int cam_nconftbl_entries;
 extern	struct cam_bus_entry *cam_edt;
 extern	uint32 cam_debug_flags;
 
@@ -569,7 +579,12 @@ long	xpt_bus_deregister(long path_id);
 long	xpt_async(long opcode, long path_id, long target_id, long lun,
 	          void *buffer_ptr, long data_cnt);
 void	cam_error(uint32 flags, char *myname, char *fmt, ...);
+void	cam_info(uint32 flags, char *fmt, ...);
 void	cam_debug(uint32 when, char *myname, char *fmt, ...);
+void	cam_print_sense(void (*prfcn)(), uint32 flags,
+	                struct scsi_reqsns_data *snsdata);
+int	cam_check_error(char *myname, char *msg, long rtn_status,
+	                int unsigned cam_status, int unsigned scsi_status);
 void	cam_fmt_ccb_header(long fcn_code, CAM_DEV devid, uint32 cam_flags,
 	                   CCB *ccb);
 void	cam_fmt_cdb6(long opcode, long lun, long length,
@@ -577,14 +592,19 @@ void	cam_fmt_cdb6(long opcode, long lun, long length,
 void	cam_fmt_cdb10(long opcode, long lun, uint32 lbaddr, long length,
 	              long control, struct scsi_cdb10 *cdb);
 long	unsigned cam_get_sg_xfer_len(CAM_SG_ELEM *sg_list, int sg_count);
-void	cam_sitohi32(unsigned char *si, uint32 *hi);
+void	cam_si32tohi32(unsigned char *si, uint32 *hi);
+void	cam_si24tohi32(unsigned char *si, uint32 *hi);
+void	cam_hi32tosi24(uint32 hi, unsigned char *si);
 long	cam_cntuio(CCB *ccb);
 long	cam_start_scsiio(CAM_DEV devid, CCB *ccb,
 	                 void (*completion)(), uint32 cam_flags);
-long	cam_start_rwio(struct cam_request *request, uint32 cam_flags,
-	               void *sg_list, long unsigned sg_count, CCB **pccb);
+long	cam_start_rwio(struct cam_request *request, CCB **pccb);
 void	cam_fmt_inquiry_ccb(CAM_DEV devid, struct scsi_inq_data *inq_data,
 	                    CCB *ccb);
+void	cam_fmt_mode_select_ccb(CAM_DEV devid, int pf, int sp, int prmlst_len,
+	                        unsigned char *selbuf, CCB *ccb);
+void	cam_fmt_mode_sense_ccb(CAM_DEV devid, int dbd, int pc, int pg_code,
+	                       int alloc_len, unsigned char *snsbuf, CCB *ccb);
 void	cam_fmt_reqsns_ccb(CAM_DEV devid, struct scsi_reqsns_data *reqsns_data,
 	                    CCB *ccb);
 void	cam_fmt_rdcap_ccb(CAM_DEV devid, struct scsi_rdcap_data *rdcap_data,
@@ -593,6 +613,7 @@ void	cam_fmt_tur_ccb(CAM_DEV devid, CCB *ccb);
 void	cam_fmt_prevent_ccb(CAM_DEV devid, int prevent, CCB *ccb);
 void	cam_fmt_rewind_ccb(CAM_DEV devid, CCB *ccb);
 void	cam_fmt_wfm_ccb(CAM_DEV devid, int nfm, CCB *ccb);
+void	cam_fmt_space_ccb(CAM_DEV devid, int code, long count, CCB *ccb);
 void	cam_fmt_read_toc_ccb(CAM_DEV devid,
 	                     struct scsi_read_toc_data *read_toc_data,
 	                     int start, int alloc_length, CCB *ccb);
@@ -604,6 +625,14 @@ void	cam_fmt_play_audio_tkindx_ccb(CAM_DEV devid, long start_track,
 	                              long end_index, CCB *ccb);
 long	cam_inquire(CAM_DEV devid, struct scsi_inq_data *inq_data,
                     char unsigned *cam_status, char unsigned *scsi_status);
+long	cam_reqsns(CAM_DEV devid, struct scsi_reqsns_data *reqsns_data, 
+                   char unsigned *cam_status, char unsigned *scsi_status);
+long	cam_mode_select(CAM_DEV devid, int pf, int sp, int prmlst_len,
+	                unsigned char *selbuf,
+	                unsigned char *cam_status, unsigned char *scsi_status);
+long	cam_mode_sense(CAM_DEV devid, int dbd, int pc, int pg_code,
+	               int alloc_len, unsigned char *snsbuf,
+	               unsigned char *cam_status, unsigned char *scsi_status);
 long	cam_read_capacity(CAM_DEV devid, struct scsi_rdcap_data *rdcap_data,
 	                  char unsigned *cam_status,
 	                  char unsigned *scsi_status);
@@ -615,10 +644,16 @@ long	cam_rewind(CAM_DEV devid, char unsigned *cam_status,
 	           char unsigned *scsi_status);
 long	cam_wfm(CAM_DEV devid, int nfm, char unsigned *cam_status,
 	        char unsigned *scsi_status);
+long	cam_space(CAM_DEV devid, int code, long count,
+	          char unsigned *cam_status, char unsigned *scsi_status,
+	          struct scsi_reqsns_data *snsdata);
+void	cam_iodone(struct cam_request *request);
 void	cam_complete(CCB *ccb);
 long	cam_ccb_wait(CCB *ccb);
+bool	cam_get_msg(struct msg *msg);
 long	cam_mk_sg_list(void *proto, int count,
 	               CAM_SG_ELEM **sg_list, uint16 *sg_count);
+uint32	cam_get_sgbcount(CAM_SG_ELEM *sg_list, uint16 sg_count);
 void	sim_complete(struct sim_bus *bus_info, CCB *ccb);
 long	sim_action(CCB *ccb, struct sim_bus *bus_info);
 CCB	*sim_get_active_ccb(struct sim_bus *bus_info, int target, int tag);
@@ -628,6 +663,7 @@ long	cam_enable_io(int low, int high);
 long	cam_enable_isr(int intr, long arg, void (*handler)());
 long	cam_page_wire(void *va, void **pa, int *handle);
 long	cam_page_release(int handle);
+void	cam_sleep(int sec);
 void	cam_msleep(int ms);
 void	cam_timer_thread(void), cam_proc_timer(void);
 #else
@@ -638,7 +674,7 @@ long	xpt_action(), xpt_bus_register(), xpt_bus_deregister(), xpt_async();
 void	cam_error(), cam_debug();
 void	cam_fmt_ccb_header(), cam_fmt_cdb6();
 void	cam_fmt_inquiry_ccb(), cam_fmt_rdcap(), cam_fmt_tur_ccb();
-void	cam_fmt_rewind_ccb(); cam_fmt_wfm_ccb();
+void	cam_fmt_rewind_ccb(), cam_fmt_wfm_ccb();
 void	cam_fmt_read_toc_ccb();
 long	cam_start_scsiio(), cam_inquire(), cam_tur();
 long	cam_rewind(), cam_wfm();

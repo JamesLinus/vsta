@@ -1,5 +1,5 @@
 /*
- * pdisk.c - VSTa specific CAM peripheral disk code.
+ * pdisk.c - peripheral disk driver.
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,10 +12,7 @@
 #include <mach/dpart.h>
 #include "cam.h"
 
-extern	struct hash *cam_filehash;	/* Map session->context structure */
 extern	struct prot cam_prot;		/* top level protection */
-extern	union cam_pdevice *cam_pdevices;/* the peripheral device table */
-extern	union cam_pdevice *cam_last_pdevice;
 
 /*
  * Function prototypes.
@@ -23,8 +20,8 @@ extern	union cam_pdevice *cam_last_pdevice;
 #ifdef	__STDC__
 static	long pdisk_open(struct cam_file *file, char *name);
 static	long pdisk_close(struct cam_file *file);
-static	long pdisk_rwio(struct cam_request *request, int cam_flags,
-	                void *sg_list, uint16 sg_count);
+static	long pdisk_rwio(struct cam_request *request);
+static	long pdisk_ioctl(struct cam_file *file, long cmdval, void *cmdargs);
 static	void pdisk_complete(register CCB *ccb);
 #endif
 
@@ -32,9 +29,7 @@ static	void pdisk_complete(register CCB *ccb);
  * Peripheral disk driver operations.
  */
 struct	cam_pdev_ops pdisk_ops = {
-	pdisk_open,
-	pdisk_close,
-	pdisk_rwio
+	pdisk_open, pdisk_close, pdisk_rwio, pdisk_ioctl
 };
 
 /*
@@ -116,12 +111,15 @@ static	long pdisk_close(struct cam_file *file)
 	char	unsigned cam_status, scsi_status;
 	static	char *myname = "pdisk_close";
 /*
- * Allow media removal.
+ * Prevent media removal.
  */
-	status = cam_prevent(file->devid, FALSE, &cam_status, &scsi_status);
-	if((status != CAM_SUCCESS) || (cam_status != CAM_REQ_CMP) ||
-	   (scsi_status != SCSI_GOOD)) 
-		cam_error(0, myname, "can't prevent media removal");
+	if(file->pdev->disk.removable) {
+		status = cam_prevent(file->devid, FALSE, &cam_status,
+		                     &scsi_status);
+		if((status != CAM_SUCCESS) || (cam_status != CAM_REQ_CMP) ||
+		   (scsi_status != SCSI_GOOD)) 
+			cam_error(0, myname, "can't allow media removal");
+	}
 
 	return(CAM_SUCCESS);
 }
@@ -144,8 +142,8 @@ again:
 	                               &cam_status, &scsi_status);
 	if((rtn_status == CAM_SUCCESS) && (cam_status == CAM_REQ_CMP) &&
 	   (scsi_status == SCSI_GOOD)) {
-		cam_sitohi32(rdcap_data.lbaddr, &pdev->disk.nblocks);
-		cam_sitohi32(rdcap_data.blklen, &pdev->disk.blklen);
+		cam_si32tohi32(rdcap_data.lbaddr, &pdev->disk.nblocks);
+		cam_si32tohi32(rdcap_data.blklen, &pdev->header.blklen);
 	} else {
 		if(retry++ < 1)
 			goto again;
@@ -156,7 +154,7 @@ again:
  * Use default values.
  */
 		pdev->disk.nblocks = 0;
-		pdev->disk.blklen = CAM_BLKSIZ;
+		pdev->header.blklen = CAM_BLKSIZ;
 	}
 }
 
@@ -202,7 +200,7 @@ void	pdisk_read_part_table(union cam_pdevice *pdev)
 /*
  * Allocate an I/O buffer for the partition table.
  */
-	if((buffer = cam_alloc_mem(pdev->disk.blklen, NULL, 0)) == NULL) {
+	if((buffer = cam_alloc_mem(pdev->header.blklen, NULL, 0)) == NULL) {
 		cam_error(0, myname, "can't allocate I/O buffer");
 		pdev->disk.partitions = NULL;
 		cam_free_mem(parts, 0);
@@ -212,7 +210,7 @@ void	pdisk_read_part_table(union cam_pdevice *pdev)
  * Initialize the "whole" disk partition first.
  */
 	dpart_init_whole(pdev->header.name, CAM_TARGET(pdev->header.devid),
-	                 pdev->disk.blklen, &cam_prot, parts);
+	                 pdev->header.blklen, &cam_prot, parts);
 /*
  * Now go and initialize the physical partition structures.
  */
@@ -226,10 +224,12 @@ again:
 		request.devid = pdev->header.devid;
 		request.file = NULL;
 		request.pdev = pdev;
-		request.offset = start * pdev->disk.blklen;
-		status = cam_start_rwio(&request, CAM_DIR_IN, (void *)buffer,
-		                        pdev->disk.blklen, &ccb);
-		if(status != CAM_SUCCESS) {
+		request.offset = start * pdev->header.blklen;
+		request.status = CAM_SUCCESS;
+		request.cam_flags = CAM_DIR_IN;
+		request.sg_list = (void *)buffer;
+		request.sg_count = pdev->header.blklen;
+		if((status = cam_start_rwio(&request, &ccb)) != CAM_SUCCESS) {
 			cam_error(0, myname, "sector read error");
 			break;
 		}
@@ -273,13 +273,14 @@ again:
 /*
  * pdisk_rwio - read/write common code.
  */
-static	long pdisk_rwio(struct cam_request *request, int cam_flags,
-	                void *sg_list, uint16 sg_count)
+static	long pdisk_rwio(struct cam_request *request)
 {
 	struct	cam_file *file = request->file;
-	ulong	blkoff;
+	void	*sg_list = request->sg_list;
+	uint16	sg_count = request->sg_count;
+	ulong	blkoff, max;
+	uint32	blklen, sg_length;
 	uint	blkcnt;
-	uint32	blklen;
 	long	status;
 	int	i;
 	static	char *myname = "pdisk_rwio";
@@ -289,29 +290,43 @@ static	long pdisk_rwio(struct cam_request *request, int cam_flags,
 /*
  * Convert the file position into a block offset.
  */
-	blklen = file->pdev->disk.blklen;
+	blklen = file->pdev->header.blklen;
 	if(dpart_get_offset((struct part **)file->pdev->disk.partitions,
 	                    CAM_PARTITION(file->devid),
 	                    file->position / blklen,
 	                    &blkoff, &blkcnt) != 0) {
+cam_info(0, "pdisk_rwio: past EOP, position = %d", file->position);
 		return(CAM_ENOSPC);
 	}
+	max = blkcnt * blklen;
 /*
- * Check alignment of request.
+ * Check alignment of request. Trim the transfer count, if necessary.
  */
 	if(file->position & (blklen - 1))
 		return(CAM_EBALIGN);
-	if(!(cam_flags & CAM_SG_VALID)) {
+	if(!(request->cam_flags & CAM_SG_VALID)) {
 		if(sg_count & (blklen - 1))
 			return(CAM_EBALIGN);
+		if(sg_count > max) {
+cam_info(0, "pdisk_rwio: trimming !SG cnt from %d to %d", sg_count, max);
+			sg_count = max;
+		}
 	} else {
-		for(i = 0; i < sg_count; i++)
-			if(((CAM_SG_ELEM *)sg_list)[i].sg_length & (blklen - 1))
+		for(i = 0; i < sg_count; i++) {
+			sg_length = ((CAM_SG_ELEM *)sg_list)[i].sg_length;
+			if(sg_length & (blklen - 1))
 				return(CAM_EBALIGN);
+			if(sg_length > max) {
+cam_info(0, "pdisk_rwio: trimming SG len from %d to %d", sg_length, max);
+				((CAM_SG_ELEM *)sg_list)[i].sg_length = max;
+				max = 0;
+			} else
+				max -= sg_length;
+		}
 	}
 
-	request->offset = blkoff * file->pdev->disk.blklen;
-	status = cam_start_rwio(request, cam_flags, sg_list, sg_count, NULL);
+	request->offset = blkoff * file->pdev->header.blklen;
+	status = cam_start_rwio(request, NULL);
 
 	return(status);
 }
@@ -325,3 +340,21 @@ static	void pdisk_complete(register CCB *ccb)
 	cam_complete(ccb);
 	xpt_ccb_free(ccb);
 }
+
+/*
+ * pdisk_ioctl - ioctl processing.
+ */
+static	long pdisk_ioctl(struct cam_file *file, long cmdval, void *cmdargs)
+{
+	switch(cmdval) {
+	case CAM_EXEC_IOCCB:
+	 	if(xpt_action((CCB *)cmdargs) != CAM_SUCCESS)
+			return(CAM_EIO);
+		cam_ccb_wait((CCB *)cmdargs);
+		break;
+	default:
+		return(CAM_ENXIO);
+	}
+	return(CAM_SUCCESS);
+}
+

@@ -83,7 +83,6 @@ dup_client(struct msg *m, struct hash *table, struct cam_file *fold)
 	 * Fill in fields.  Simply duplicate old file.
 	 */
 	*f = *fold;
-	f->flags |= CAM_FILE_COPY;
 
 	/*
 	 * Hash under the sender's handle

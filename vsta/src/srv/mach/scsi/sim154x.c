@@ -6,6 +6,7 @@
 #include <syslog.h>
 #include <mach/param.h>
 #include "cam.h"
+#include "sim.h"
 #include "scsi.h"
 
 /*
@@ -244,7 +245,7 @@ struct	sim154x_adaptor {
 		int	unsigned addr_map[SIM154X_NSGPACCB];
 		struct	sim154x_bounce_info bounce_info[SIM154X_NSGPACCB];
 		int	sg_count;
-	} sg_info[SIM154X_NMBX];
+	} *sg_info;
 	struct	sim_bus bus_info;		/* generic bus information */
 	short	unsigned ioport;		/* I/O port address */
 	char	unsigned intr_level;		/* interrupt level */
@@ -265,6 +266,7 @@ struct	sim154x_adaptor_inq {			/* adaptor inquiry */
 /*
  * Board ID's.
  */
+#define	SIM154X_ID_154XA	0x41
 #define	SIM154X_ID_154XC	0x44
 #define	SIM154X_ID_154XCF	0x45
 
@@ -314,7 +316,7 @@ static	long sim154x_rm_sg_list(CCB *ccb, struct sim154x_adaptor *adaptor,
 	                        int index);
 static	int sim154x_probe(short unsigned ioport);
 long	sim154x_start(CCB *ccb);
-long	sim154x_init(long path_id);
+long	sim154x_hbainit(long path_id);
 long	sim154x_action(CCB *ccb);
 #endif
 
@@ -325,6 +327,11 @@ long	sim154x_action(CCB *ccb);
 char	unsigned inportb(int portid);
 void	outportb(int portid, unsigned char value);
 #endif
+
+/*
+ * SIM entry points.
+ */
+CAM_SIM_ENTRY sim154x_entry = { sim154x_hbainit, sim154x_action };
 
 /*
  * sim154x_get_adaptor - get the adaptor pointer associated w/ 'path_id'.
@@ -374,9 +381,9 @@ int	index;
 	}
 
 	adp_sg_list = adaptor->sg_list[index];
-	addr_map = adaptor->sg_info[index].addr_map;
-	bounce_info = adaptor->sg_info[index].bounce_info;
 	adp_sg_info = &adaptor->sg_info[index];
+	addr_map = adp_sg_info->addr_map;
+	bounce_info = adp_sg_info->bounce_info;
 	adp_sg_info->sg_count = 0;
 
 	for(i = 0; i < cam_sg_count; i++, cam_sg_list++) {
@@ -796,11 +803,15 @@ CCB	*ccb;
 		SIM154X_SET_INT24(accb->data_len, length);
 /*
  * For commands that don't involve any data transfer (eg, TUR), the
- * host adaptor doesn't want an SG opcode.
+ * host adaptor doesn't want an SG opcode. Older adaptors don't
+ * support residual data length returned.
  */
-		if(length > 0)
-			accb->opcode = SIM154X_INIR_BOTH_ACCB;
-		else
+		if(length > 0) {
+			if(adaptor->brdid == SIM154X_ID_154XA)
+				accb->opcode = SIM154X_INIR_SG_ACCB;
+			else
+				accb->opcode = SIM154X_INIR_BOTH_ACCB;
+		} else
 			accb->opcode = SIM154X_INIR_ACCB;
 		dir = 0;
 		if(ccb->header.cam_flags & CAM_DIR_IN)
@@ -930,73 +941,92 @@ long	irq, adn;
  */
 	ccb->scsiio.scsi_status = accb->tarstat;
 	ccb->header.cam_status = cam_status;
-	ccb->scsiio.resid = SIM154X_GET_INT24(accb->data_len);
-/*
- *  Call sim_complete() to finish the I/O processing.
- */
-	CAM_DEBUG(CAM_DBG_MSG, myname, "target = %d", target);
-	sim_complete(&adaptor->bus_info, ccb);
+	if(adaptor->brdid == SIM154X_ID_154XA) {
+		if((ccb->scsiio.scsi_status == SCSI_GOOD) &&
+		   (cam_status == CAM_REQ_CMP))
+			ccb->scsiio.resid = 0;
+		else
+			ccb->scsiio.resid = SIM154X_GET_INT24(accb->data_len);
+	} else
+		ccb->scsiio.resid = SIM154X_GET_INT24(accb->data_len);
 /*
  * Finished with the mailbox and the Adaptec CCB, release them.
  */
 	mbi->cmdsts = 0;
 	accb->scsi_cmdlen = 0;
-	
+/*
+ *  Call sim_complete() to finish the I/O processing.
+ */
+	CAM_DEBUG(CAM_DBG_MSG, myname, "target = %d", target);
+	sim_complete(&adaptor->bus_info, ccb);
+
 	CAM_DEBUG_FCN_EXIT(myname, CAM_SUCCESS);
 }
 
 /*
- * sim154x_init - Adaptec 154x initialization code.
+ * sim154x_dvrinit - driver initialization function.
  */
-long	sim154x_init(path_id)
+void	sim154x_dvrinit(sdp)
+struct	sim_driver *sdp;
+{
+	int	i;
+	static	char *myname = "sim154x_dvrinit";
+
+	if(sim154x_adaptors != NULL)
+		return;
+/*
+ * Allocate storage for an adaptor structure.
+ */
+	if((sim154x_adaptors = cam_alloc_mem(NBPG, NULL, NBPG)) == NULL) {
+		cam_error(0, myname, "adaptor structure allocation error");
+		return;
+	}
+/*
+ * Wire down and determine the physical address for the adaptors
+ * array.
+ */
+	if(cam_page_wire(sim154x_adaptors, (void **)&sim154x_adaptors_pa,
+	                 &sim154x_adaptors_handle) != CAM_SUCCESS) {
+		cam_error(0, myname, "can't wire down adaptors structure");
+		return;
+	}
+/*
+ * Enable I/O for the needed range.
+ */
+	if(cam_enable_io(SIM154X_LOW, SIM154X_HIGH) != CAM_SUCCESS) {
+		cam_error(0, myname, "enable I/O error");
+		return;
+	}
+/*
+ * Try to register each possible HBA.
+ */
+	for(i = 0; i < SIM154X_NADDRS; i++)
+		(void)xpt_bus_register(&sim154x_entry);
+}
+
+/*
+ * sim154x_hbainit - Adaptec 154x initialization code.
+ */
+long	sim154x_hbainit(path_id)
 long	path_id;
 {
 	struct	sim154x_adaptor *adaptor;
 	struct	sim_target *target_info;
-	int	i, adn, brdid, intr_level, dma_level, status = CAM_SUCCESS;
+	int	adn, brdid, intr_level, dma_level, status = CAM_SUCCESS;
+	int	i, size;
 	uint32	accb_pa;
 	short	unsigned ioport;
 	struct	sim154x_mbxinit mbxinit;
 	struct	sim154x_ext_bios ext_bios;
 	struct	sim154x_enbl_mbif enbl_mbif;
-	static	char *myname = "sim154x_init";
+	static	char *myname = "sim154x_hbainit";
 	long	sim154x_start();
 
 	CAM_DEBUG_FCN_ENTRY(myname);
 
 	if(sim154x_nadaptors >= SIM154X_MAX_ADAPTORS) {
 		cam_error(0, myname, "not enough adaptor structures");
-		return(CAM_ENMFILE);
-	}
-
-	if(sim154x_adaptors == NULL) {
-/*
- * Allocate storage for an adaptor structure.
- */
-		sim154x_adaptors = cam_alloc_mem(NBPG, NULL, NBPG);
-		if(sim154x_adaptors == NULL) {
-			cam_error(0, myname,
-			          "adaptor structure allocation error");
-			return(CAM_ENOMEM);
-		}
-/*
- * Wire down and determine the physical address for the adaptors
- * array.
- */
-		if(cam_page_wire(sim154x_adaptors,
-		                 (void **)&sim154x_adaptors_pa,
-		                 &sim154x_adaptors_handle) != CAM_SUCCESS) {
-			cam_error(0, myname,
-			          "can't wire down adaptors structure");
-			return(CAM_ENOMEM);
-		}
-/*
- * Enable I/O for the needed range.
- */
-		if(cam_enable_io(SIM154X_LOW, SIM154X_HIGH) != CAM_SUCCESS) {
-			cam_error(0, myname, "enable I/O error");
-			status = CAM_EIO;
-		}
+		status = CAM_ENMFILE;
 	}
 
 	if(status == CAM_SUCCESS) {
@@ -1035,6 +1065,11 @@ long	path_id;
 		adaptor->bus_info.bus_flags = 0;
 		adaptor->bus_info.last_target = CAM_MAX_TARGET;
 		adaptor->bus_info.start = sim154x_start;
+		size = sizeof(struct sim154x_sg_info) * SIM154X_NMBX;
+		if((adaptor->sg_info = cam_alloc_mem(size, NULL, 0)) == NULL) {
+			cam_error(0, myname, "S/G info. allocation error");
+			return(CAM_ENOMEM);
+		}
 /*
  * Reset the adaptor.
 		(void)sim154x_adaptor_reset(adaptor, SIM154X_SRST);
@@ -1066,9 +1101,8 @@ long	path_id;
 		   	                   NULL, 0, (unsigned char *)&ext_bios,
 		   	                   sizeof(struct sim154x_ext_bios));
 		    if(ext_bios.lock_code != 0) {
-			syslog(LOG_INFO,
-			       "SCSI/CAM: unlocking mailbox on adaptor %d\n",
-			       path_id);
+			cam_info(0, "SCSI/CAM: unlocking mailbox on adaptor %d",
+			         path_id);
 			enbl_mbif.disabled = 0;
 			enbl_mbif.lock_code = ext_bios.lock_code;
 			(void)sim154x_exec_cmd(ioport, SIM154X_ENBL_MBIF,
@@ -1131,9 +1165,9 @@ long	path_id;
 	}
 
 	if(status == CAM_SUCCESS) {
-		syslog(LOG_INFO,
-		       "%s on bus %d, port 0x%x, IRQ %d, DMAC %d\n",
-		       "Adaptec 154x", path_id, ioport, intr_level, dma_level);
+		cam_info(0, "Adaptec 154x on bus %d, port 0x%x, "
+		         "IRQ %d, DMAC %d", path_id, ioport,
+		         intr_level, dma_level);
 		sim154x_nadaptors++;
 	}
 

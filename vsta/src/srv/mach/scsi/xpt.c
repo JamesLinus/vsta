@@ -31,6 +31,53 @@ void	xpt_ccb_free(CCB *ccb)
 }
 
 /*
+ * xpt_bus_register - register a SIM driver.
+ */
+long	xpt_bus_register(CAM_SIM_ENTRY *cse)
+{
+	long	path_id;
+	int	i, size;
+	static	char *myname = "xpt_bus_register";
+/*
+ * Add the input CAM_SIM_ENTRY to the configuration table, if necessary.
+ */
+	for(i = 0; i < cam_nconftbl_entries; i++)
+		if(cam_conftbl[i] == cse)
+			break;
+	if(i >= cam_nconftbl_entries) {
+		size = (cam_nconftbl_entries + 1) * sizeof(CAM_SIM_ENTRY);
+		cam_conftbl = cam_alloc_mem(size, (void *)cam_conftbl, 0);
+		if(cam_conftbl == NULL) {
+			cam_error(0, myname, "config table allocation error");
+			return(-1);
+		}
+		cam_conftbl[cam_nconftbl_entries++] = cse;
+	}
+/*
+ * Call the sim_init() function.
+ */
+	path_id = cam_max_path_id;
+	if((*cse->sim_init)(path_id) != CAM_SUCCESS) {
+		return(-1);
+	}
+/*
+ * Expand the CAM EDT table. Initialize the new entry.
+ */
+	size = (cam_max_path_id + 1) * sizeof(struct cam_bus_entry);
+	cam_edt = cam_alloc_mem(size, (void *)cam_edt, 0);
+	if(cam_edt == NULL) {
+		cam_error(0, myname, "EDT allocation error");
+		return(-1);
+	}
+	cam_edt[path_id].sim_entry = cse;
+	cam_edt[path_id].devices = NULL;
+	cam_edt[path_id].ndevices = 0;
+
+	cam_max_path_id++;
+	return(path_id);
+}
+
+/*
  * Xpt_action - dispatch to the appropriate SIM action function based on
  * the contents of the input CCB.
  */
@@ -111,26 +158,11 @@ long	xpt_init(void)
 
 	CAM_DEBUG_FCN_ENTRY(myname);
 
-	cam_max_path_id = 0;
-	for(i = 0; i < cam_nconftbl_entries; i++) {
-		status = (*cam_conftbl[i].sim_entry->sim_init)(cam_max_path_id);
-		if(status != CAM_SUCCESS) {
-			cam_error(0, myname, "error initializing SIM %d", i);
-			continue;
-		}
-		path_id = cam_max_path_id++;
-		size = cam_max_path_id * sizeof(struct cam_bus_entry);
-		cam_edt = cam_alloc_mem(size, (void *)cam_edt, 0);
-		if(cam_edt == NULL) {
-			cam_error(0, myname, "EDT allocation error");
-			return(CAM_ENOMEM);
-			break;
-		}
-
-		cam_edt[path_id].sim_entry = cam_conftbl[i].sim_entry;
-		cam_edt[path_id].devices = NULL;
-		cam_edt[path_id].ndevices = 0;
-	}
+/*
+ * Call the configuration driver to initialize the statically
+ * linked SIM drivers.
+ */
+	ccfdv_init();
 
 	edt = cam_edt;
 	for(path_id = 0; path_id < cam_max_path_id; path_id++, edt++) {
@@ -188,8 +220,8 @@ long	xpt_init(void)
 			strcat(idbuf, " ");
 			strncat(idbuf, (char *)inq_data.prod_id,
 			        sizeof(inq_data.prod_id));
-			syslog(LOG_INFO, "SCSI device [%d/%d/%d] %s\n",
-			       path_id, target, lun, idbuf);
+			cam_info(0, "SCSI device [%d/%d/%d] %s",
+			         path_id, target, lun, idbuf);
 		}
 	    }
 	}
