@@ -10,9 +10,7 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <std.h>
-#ifdef DEBUG
-#include <sys/ports.h>
-#endif
+#include <syslog.h>
 
 extern void fat_init(), binit(), dir_init();
 extern void dos_open(), dos_read(), dos_write(), *bdata(),
@@ -304,7 +302,7 @@ loop:
 static void
 usage(void)
 {
-	printf("Usage is: dos -p <portname> <portpath> <fsname>\n");
+	printf("Usage is: dos -p <portpath> <fsname>\n");
 	printf(" or: dos <filepath> <fsname>\n");
 	exit(1);
 }
@@ -322,15 +320,7 @@ main(int argc, char *argv[])
 	struct msg msg;
 	int chan, fd, x;
 	char *namer_name;
-#ifdef DEBUG
-	int scrn, kbd;
 
-	kbd = msg_connect(PORT_KBD, ACC_READ);
-	(void)__fd_alloc(kbd);
-	scrn = msg_connect(PORT_CONS, ACC_WRITE);
-	(void)__fd_alloc(scrn);
-	(void)__fd_alloc(scrn);
-#endif
 	/*
 	 * Check arguments
 	 */
@@ -341,8 +331,7 @@ main(int argc, char *argv[])
 			exit(1);
 		}
 		namer_name = argv[2];
-	} else if (argc == 5) {
-		port_name blkname;
+	} else if (argc == 4) {
 		int retries;
 
 		/*
@@ -352,11 +341,7 @@ main(int argc, char *argv[])
 			usage();
 		}
 		for (retries = 10; retries > 0; retries -= 1) {
-			port = -1;
-			blkname = namer_find(argv[2]);
-			if (blkname >= 0) {
-				port = msg_connect(blkname, ACC_READ|ACC_WRITE);
-			}
+			port = path_open(argv[2], ACC_READ|ACC_WRITE);
 			if (port < 0) {
 				sleep(1);
 			} else {
@@ -364,23 +349,16 @@ main(int argc, char *argv[])
 			}
 		}
 		if (port < 0) {
-			printf("DOS: couldn't connect to block device.\n");
+			syslog(LOG_ERR,
+				"DOS: couldn't connect to block device.\n");
 			exit(1);
 		}
-		if (mountport("/mnt", port) < 0) {
-			perror("/mnt");
-			exit(1);
-		}
-		if (chdir("/mnt") < 0) {
-			perror("chdir /mnt");
-			exit(1);
-		}
-		blkdev = open(argv[3], O_RDWR);
+		blkdev = __fd_alloc(port);
 		if (blkdev < 0) {
-			perror(argv[3]);
+			perror(argv[2]);
 			exit(1);
 		}
-		namer_name = argv[4];
+		namer_name = argv[3];
 	} else {
 		usage();
 	}
@@ -404,7 +382,7 @@ main(int argc, char *argv[])
 		exit(1);
 	}
 	if (read(blkdev, secbuf, SECSZ) != SECSZ) {
-		printf("Can't read dos boot block\n");
+		syslog(LOG_ERR, "Can't read dos boot block\n");
 		exit(1);
 	}
 	bcopy(secbuf, &bootb, sizeof(bootb));
@@ -416,7 +394,7 @@ main(int argc, char *argv[])
 	rootport = msg_port((port_name)0, &fsname);
 	x = namer_register(namer_name, fsname);
 	if (x < 0) {
-		fprintf(stderr, "DOS: can't register name: %s\n", namer_name);
+		syslog(LOG_ERR, "DOS: can't register name: %s\n", namer_name);
 		exit(1);
 	}
 

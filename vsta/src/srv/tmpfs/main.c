@@ -9,9 +9,7 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <std.h>
-#ifdef DEBUG
-#include <sys/ports.h>
-#endif
+#include <syslog.h>
 
 #define NCACHE (16)	/* Roughly, # clients */
 
@@ -172,7 +170,7 @@ loop:
 	 */
 	x = msg_receive(rootport, &msg);
 	if (x < 0) {
-		perror("tmpfs: msg_receive");
+		syslog(LOG_ERR, "tmpfs: msg_receive");
 		goto loop;
 	}
 
@@ -275,15 +273,6 @@ main(int argc, char *argv[])
 	port_name fsname;
 	char *namer_name;
 	int x;
-#ifdef DEBUG
-	int scrn, kbd;
-
-	kbd = msg_connect(PORT_KBD, ACC_READ);
-	(void)__fd_alloc(kbd);
-	scrn = msg_connect(PORT_CONS, ACC_WRITE);
-	(void)__fd_alloc(scrn);
-	(void)__fd_alloc(scrn);
-#endif
 
 	/*
 	 * Check arguments
@@ -297,7 +286,7 @@ main(int argc, char *argv[])
 	 */
 	zeroes = malloc(BLOCKSIZE);
 	if (zeroes == 0) {
-		perror("tmpfs: zeroes");
+		syslog(LOG_ERR, "tmpfs: zeroes");
 		exit(1);
 	}
 	bzero(zeroes, BLOCKSIZE);
@@ -312,7 +301,7 @@ main(int argc, char *argv[])
 	 */
         filehash = hash_alloc(NCACHE/4);
 	if (filehash == 0) {
-		perror("file hash");
+		syslog(LOG_ERR, "tmpfs: file hash");
 		exit(1);
         }
 	ll_init(&files);
@@ -323,7 +312,7 @@ main(int argc, char *argv[])
 	rootport = msg_port((port_name)0, &fsname);
 	x = namer_register(namer_name, fsname);
 	if (x < 0) {
-		fprintf(stderr, "tmpfs: can't register name\n");
+		syslog(LOG_ERR, "tmpfs: can't register name\n");
 		exit(1);
 	}
 

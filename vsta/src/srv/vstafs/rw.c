@@ -14,12 +14,6 @@
 #include <hash.h>
 #include <std.h>
 #include <sys/assert.h>
-#ifdef DEBUG
-#undef TRACE	/* Trace actions in bmap() */
-#ifdef TRACE
-#include <stdio.h>
-#endif
-#endif
 
 /*
  * file_grow()
@@ -136,16 +130,10 @@ bmap(struct buf *b_fs, struct fs_file *fs, ulong pos,
 	daddr_t extstart, start;
 	struct buf *b;
 
-#ifdef TRACE
-	printf("bmap pos %ld cnt %d fs_len %ld\n", pos, cnt, fs->fs_len);
-#endif
 	/*
 	 * Grow file if needed
 	 */
 	if (pos >= fs->fs_len) {
-#ifdef TRACE
-		printf(" grow to %ld\n", pos+cnt);
-#endif
 		/*
 		 * Calculate growth.  If more blocks are needed, get
 		 * them now.  Otherwise just fiddle the file length.
@@ -179,9 +167,6 @@ bmap(struct buf *b_fs, struct fs_file *fs, ulong pos,
 		}
 		extoff -= a->a_len;
 	}
-#ifdef TRACE
-	printf(" data in extent %d, extent off %ld\n", x, extoff);
-#endif
 	ASSERT_DEBUG(x < fs->fs_nblk, "bmap: no extent");
 
 	/*
@@ -194,9 +179,6 @@ bmap(struct buf *b_fs, struct fs_file *fs, ulong pos,
 	extstart = (extoff & ~(EXTSIZ-1));
 	start = a->a_start + extstart;
 	len = MIN(a->a_len - extstart, EXTSIZ);
-#ifdef TRACE
-	printf(" start blk %ld len %ld\n", start, len);
-#endif
 	b = find_buf(start, len);
 	if (b == 0) {
 		return(0);
@@ -217,9 +199,6 @@ bmap(struct buf *b_fs, struct fs_file *fs, ulong pos,
 	} else {
 		*stepp = x;
 	}
-#ifdef TRACE
-	printf(" avail %ld taken %d\n", x, *stepp);
-#endif
 	return(b);
 }
 

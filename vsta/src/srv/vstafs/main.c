@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <mnttab.h>
 #include <sys/assert.h>
+#include <syslog.h>
 
 extern int valid_fname(char *, int);
 
@@ -264,7 +265,7 @@ loop:
 static void
 usage(void)
 {
-	printf("Usage is: vfs -p <portname> <portpath> <fsname>\n");
+	printf("Usage is: vfs -p <portpath> <fsname>\n");
 	printf(" or: vfs <filepath> <fsname>\n");
 	exit(1);
 }
@@ -293,11 +294,11 @@ verify_root(void)
 	read_sec(BASE_SEC, secbuf);
 	fsroot = (struct fs *)secbuf;
 	if (fsroot->fs_magic != FS_MAGIC) {
-		printf("Bad magic number on filesystem\n");
+		syslog(LOG_ERR, "Bad magic number on filesystem\n");
 		exit(1);
 	}
 	free(secbuf);
-	printf(" %ld sectors", fsroot->fs_size);
+	syslog(LOG_INFO, " %ld sectors", fsroot->fs_size);
 }
 
 /*
@@ -321,10 +322,11 @@ main(int argc, char *argv[])
 			exit(1);
 		}
 		namer_name = argv[2];
-	} else if (argc == 5) {
-		port_name blkname;
+	} else if (argc == 4) {
 		port_t port;
 		int retries;
+		extern int __fd_alloc(port_t);
+		extern port_t path_open(char *, int);
 
 		/*
 		 * Version of invocation where service is specified
@@ -333,11 +335,7 @@ main(int argc, char *argv[])
 			usage();
 		}
 		for (retries = 10; retries > 0; retries -= 1) {
-			port = -1;
-			blkname = namer_find(argv[2]);
-			if (blkname >= 0) {
-				port = msg_connect(blkname, ACC_READ|ACC_WRITE);
-			}
+			port = path_open(argv[2], ACC_READ|ACC_WRITE);
 			if (port < 0) {
 				sleep(1);
 			} else {
@@ -345,23 +343,16 @@ main(int argc, char *argv[])
 			}
 		}
 		if (port < 0) {
-			printf("VFS: couldn't connect to block device.\n");
+			syslog(LOG_ERR,
+			 "VFS: couldn't connect to block device.\n");
 			exit(1);
 		}
-		if (mountport("/mnt", port) < 0) {
-			perror("/mnt");
-			exit(1);
-		}
-		if (chdir("/mnt") < 0) {
-			perror("chdir /mnt");
-			exit(1);
-		}
-		blkdev = open(argv[3], O_RDWR);
+		blkdev = __fd_alloc(port);
 		if (blkdev < 0) {
-			perror(argv[3]);
+			perror(argv[2]);
 			exit(1);
 		}
-		namer_name = argv[4];
+		namer_name = argv[3];
 	} else {
 		usage();
 	}
@@ -378,7 +369,6 @@ main(int argc, char *argv[])
 	/*
 	 * Apply sanity checks on filesystem
 	 */
-	printf("vfs mount %s", namer_name);
 	verify_root();
 
 	/*
@@ -404,7 +394,6 @@ main(int argc, char *argv[])
 	/*
 	 * Start serving requests for the filesystem
 	 */
-	printf(".\n");
 	vfs_main();
 	return(0);
 }

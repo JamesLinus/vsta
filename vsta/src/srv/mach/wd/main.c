@@ -11,9 +11,7 @@
 #include <sys/param.h>
 #include <sys/assert.h>
 #include <std.h>
-#ifdef DEBUG
-#include <sys/ports.h>
-#endif
+#include <syslog.h>
 #include "wd.h"
 
 extern void wd_rw(), wd_init(), rw_init(), wd_isr(),
@@ -163,7 +161,7 @@ loop:
 	 */
 	x = msg_receive(wdport, &msg);
 	if (x < 0) {
-		perror("wd: msg_receive");
+		syslog(LOG_ERR, "wd: msg_receive");
 		goto loop;
 	}
 
@@ -265,22 +263,13 @@ main(argc, argv)
 	int argc;
 	char **argv;
 {
-#ifdef DEBUG
-	int scrn, kbd;
-
-	kbd = msg_connect(PORT_KBD, ACC_READ);
-	(void)__fd_alloc(kbd);
-	scrn = msg_connect(PORT_CONS, ACC_WRITE);
-	(void)__fd_alloc(scrn);
-	(void)__fd_alloc(scrn);
-#endif
 	/*
 	 * Allocate handle->file hash table.  8 is just a guess
 	 * as to what we'll have to handle.
 	 */
         filehash = hash_alloc(8);
 	if (filehash == 0) {
-		perror("file hash");
+		syslog(LOG_ERR, "wd: file hash");
 		exit(1);
         }
 
@@ -291,7 +280,7 @@ main(argc, argv)
 	 * consume a channel.
 	 */
 	if (enable_dma(0) < 0) {
-		perror("WD DMA");
+		syslog(LOG_ERR, "wd: DMA");
 		exit(1);
 	}
 
@@ -299,7 +288,7 @@ main(argc, argv)
 	 * Enable I/O for the needed range
 	 */
 	if (enable_io(WD_LOW, WD_HIGH) < 0) {
-		perror("wd I/O");
+		syslog(LOG_ERR, "wd: I/O enable");
 		exit(1);
 	}
 
@@ -318,7 +307,7 @@ main(argc, argv)
 	 * Register as WD hard drive
 	 */
 	if (namer_register("disk/wd", wdname) < 0) {
-		fprintf(stderr, "WD: can't register name\n");
+		syslog(LOG_ERR, "WD: can't register name\n");
 		exit(1);
 	}
 
@@ -326,7 +315,7 @@ main(argc, argv)
 	 * Tell system about our I/O vector
 	 */
 	if (enable_isr(wdport, WD_IRQ)) {
-		perror("WD IRQ");
+		syslog(LOG_ERR, "wd: IRQ attach");
 		exit(1);
 	}
 
@@ -337,7 +326,7 @@ main(argc, argv)
 	upyet = 0;
 	secbuf = malloc(SECSZ*2);
 	if (secbuf == 0) {
-		perror("wd: sector buffer");
+		syslog(LOG_ERR, "wd: sector buffer");
 	}
 	secbuf = (char *)roundup((ulong)secbuf, SECSZ);
 	wd_io(FS_READ, (void *)(first_unit+1),

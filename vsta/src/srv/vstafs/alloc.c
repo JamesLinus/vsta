@@ -6,8 +6,7 @@
 #include <sys/assert.h>
 #include <stdlib.h>
 #include <stdio.h>
-
-#undef TRACE		/* Noisy, but helpful for debugging */
+#include <syslog.h>
 
 /*
  * The head of the free list
@@ -111,7 +110,8 @@ init_block(void)
 	/*
 	 * Report
 	 */
-	printf(" %ld free extents, longest %ld sectors", nextent, largest);
+	syslog(LOG_INFO,
+		" %ld free extents, longest %ld sectors", nextent, largest);
 }
 
 /*
@@ -167,9 +167,6 @@ alloc_block(uint nblk)
 	struct freelist *fr;
 	daddr_t d = 0;
 
-#ifdef TRACE
-	printf("alloc_block %d blocks\n", nblk);
-#endif
 	for (fr = freelist; fr; fr = fr->fr_next) {
 		d = alloc_chunk(&fr->fr_free, nblk);
 		if (d) {
@@ -183,9 +180,6 @@ alloc_block(uint nblk)
 	if (fr) {
 		write_sec(fr->fr_this, &fr->fr_free);
 	}
-#ifdef TRACE
-	printf(" -> blk %ld\n", d);
-#endif
 	return(d);
 }
 
@@ -533,9 +527,6 @@ free_block(daddr_t d, uint nblk)
 	struct freelist *fr, *ff;
 	struct free *f;
 
-#ifdef TRACE
-	printf("free_block blk %ld nblk %d\n", d, nblk);
-#endif
 	ASSERT_DEBUG(nblk > 0, "free_block: zero len");
 retry:
 	/*
@@ -661,9 +652,6 @@ take_block(daddr_t d, ulong nsec)
 {
 	struct freelist *fr;
 
-#ifdef TRACE
-	printf("take_block blk %ld nblk %ld\n", d, nsec);
-#endif
 	for (fr = freelist; fr; fr = fr->fr_next) {
 		struct alloc *a;
 		ulong x;
@@ -682,9 +670,6 @@ take_block(daddr_t d, ulong nsec)
 		 */
 		a = f->f_free;
 		if (d < a->a_start) {
-#ifdef TRACE
-			printf(" -> no blocks\n");
-#endif
 			return(0);
 		}
 
@@ -706,9 +691,6 @@ take_block(daddr_t d, ulong nsec)
 				ulong l;
 
 				l = take_chunk(fr, x, nsec);
-#ifdef TRACE
-				printf(" -> %ld blocks\n", l);
-#endif
 				return(l);
 			}
 		}
@@ -718,8 +700,5 @@ take_block(daddr_t d, ulong nsec)
 		 */
 		break;
 	}
-#ifdef TRACE
-	printf(" -> no blocks\n");
-#endif
 	return(0);
 }

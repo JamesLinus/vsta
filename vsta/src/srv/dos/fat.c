@@ -11,6 +11,7 @@
 #include <std.h>
 #include <sys/param.h>
 #include <sys/assert.h>
+#include <syslog.h>
 
 extern int blkdev;	/* Our disk */
 extern struct boot	/* Boot block */
@@ -181,14 +182,14 @@ fat_init(void)
 	lseek(blkdev, 1 * SECSZ, 0);
 	if (fat12) {
 		if (read(blkdev, fat12, fat12len) != fat12len) {
-			printf("Read (%d bytes) of FAT12 failed\n",
+			syslog(LOG_ERR, "Read (%d bytes) of FAT12 failed\n",
 				fat12len);
 			exit(1);
 		}
 		fat12_fat16(fat12, fat, fat12len);
 	} else {
 		if (read(blkdev, fat, fatlen) != fatlen) {
-			printf("Read (%d bytes) of FAT failed\n",
+			syslog(LOG_ERR, "Read (%d bytes) of FAT failed\n",
 				fatlen);
 			exit(1);
 		}
@@ -228,10 +229,10 @@ clust_setlen(struct clust *c, ulong newlen)
 			if ((y >= nclust) || (y < 2)) {
 				uint z;
 
-				printf("Bad cluster 0x%x\n", y);
-				printf("Clusters in file:\n");
+				syslog(LOG_ERR, "Bad cluster 0x%x\n", y);
+				syslog(LOG_ERR, "Clusters in file:\n");
 				for (z = 0; z < c->c_nclust; ++z) {
-					printf(" %x", c->c_clust[z]);
+					syslog(LOG_ERR, " %x", c->c_clust[z]);
 				}
 				ASSERT(0, "fat_setlen: bad clust");
 			}
@@ -436,7 +437,7 @@ map_write(void)
 					&fat[x*SECSZ/sizeof(ushort)],
 					SECSZ*cnt) != (SECSZ*cnt)) {
 				perror("fat16");
-				printf("Write of FAT16 #%d failed\n",
+				syslog(LOG_ERR, "Write of FAT16 #%d failed\n",
 					pass);
 				exit(1);
 			}
@@ -486,12 +487,14 @@ fat_sync(void)
 		x = write(blkdev, fat12, fat12len);
 		if (x!= fat12len) {
 			perror("fat12");
-			printf("Write of FAT12 #1 failed, ret %d\n", x);
+			syslog(LOG_ERR,
+				"Write of FAT12 #1 failed, ret %d\n", x);
 			exit(1);
 		}
 		if (write(blkdev, fat12, fat12len) != fat12len) {
 			perror("fat12");
-			printf("Write of FAT12 #2 failed\n");
+			syslog(LOG_ERR,
+				"Write of FAT12 #2 failed\n");
 			exit(1);
 		}
 	} else {

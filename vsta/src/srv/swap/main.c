@@ -7,9 +7,10 @@
 #include <sys/swap.h>
 #include <hash.h>
 #include <alloc.h>
-#include <sys/ports.h>
 #include <stdio.h>
 #include <std.h>
+#include <syslog.h>
+#include <sys/ports.h>
 
 extern void swap_rw(), swap_stat(), swapinit(), swap_alloc(), swap_free(),
 	swap_add();
@@ -170,7 +171,7 @@ loop:
 	 */
 	x = msg_receive(rootport, &msg);
 	if (x < 0) {
-		perror("swap: msg_receive");
+		syslog(LOG_ERR, "swap: msg_receive");
 		goto loop;
 	}
 
@@ -246,21 +247,12 @@ loop:
  */
 main()
 {
-#ifdef DEBUG
-	port_t kbd, cons;
-
-	kbd = msg_connect(PORT_KBD, ACC_READ);
-	__fd_alloc(kbd);
-	cons = msg_connect(PORT_CONS, ACC_WRITE);
-	__fd_alloc(cons);
-	__fd_alloc(cons);
-#endif
 	/*
 	 * Allocate data structures we'll need
 	 */
         filehash = hash_alloc(16);
 	if (filehash == 0) {
-		perror("file hash");
+		syslog(LOG_ERR, "file hash");
 		exit(1);
         }
 	swapinit();
@@ -270,7 +262,7 @@ main()
 	 */
 	rootport = msg_port(PORT_SWAP, 0);
 	if (rootport < 0) {
-		fprintf(stderr, "SWAP: can't register name\n");
+		syslog(LOG_ERR, "SWAP: can't register name");
 		exit(1);
 	}
 

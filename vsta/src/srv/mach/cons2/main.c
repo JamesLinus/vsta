@@ -16,6 +16,7 @@
 #include "cons.h"
 #include <stdio.h>
 #include <std.h>
+#include <syslog.h>
 
 extern int valid_fname(void *, uint);
 
@@ -352,7 +353,7 @@ screen_main()
 {
 	struct msg msg;
 	char *buf2 = 0;
-	int x, tmpscreen;
+	int x;
 	struct file *f;
 
 loop:
@@ -361,7 +362,7 @@ loop:
 	 */
 	x = msg_receive(consport, &msg);
 	if (x < 0) {
-		perror("cons: msg_receive");
+		syslog(LOG_ERR, "cons: msg_receive");
 		goto loop;
 	}
 
@@ -426,9 +427,8 @@ loop:
 		 * bootup.
 		 */
 		if (f->f_screen == ROOTDIR) {
-			tmpscreen = 0;
-		} else {
-			tmpscreen = f->f_screen;
+			msg_err(msg.m_sender, EINVAL);
+			break;
 		}
 
 		/*
@@ -436,8 +436,8 @@ loop:
 		 * last rendered via write_string(), tell it to switch
 		 * over.
 		 */
-		if (curscreen != tmpscreen) {
-			switch_screen(tmpscreen);
+		if (curscreen != f->f_screen) {
+			switch_screen(f->f_screen);
 		}
 
 		/*
@@ -545,7 +545,7 @@ main()
 	 */
         filehash = hash_alloc(16);
 	if (filehash == 0) {
-		perror("file hash");
+		syslog(LOG_ERR, "cons: file hash");
 		exit(1);
         }
 
@@ -553,11 +553,11 @@ main()
 	 * Turn on our I/O access
 	 */
 	if (enable_io(CONS_LOW, CONS_HIGH) < 0) {
-		perror("CONS: can't do I/O operations");
+		syslog(LOG_ERR, "cons: can't do I/O operations");
 		exit(1);
 	}
 	if (enable_io(KEYBD_LOW, KEYBD_HIGH) < 0) {
-		perror("KBD: can't do I/O operations");
+		syslog(LOG_ERR, "cons/kbd: can't do I/O operations");
 		exit(1);
 	}
 
@@ -571,7 +571,7 @@ main()
 	 * Tell system about our I/O vector
 	 */
 	if (enable_isr(consport, KEYBD_IRQ)) {
-		perror("Keyboard IRQ");
+		syslog(LOG_ERR, "cons: Keyboard IRQ");
 		exit(1);
 	}
 
@@ -586,7 +586,7 @@ main()
 	 */
 	screens[0].s_img = malloc(SCREENMEM);
 	if (screens[0].s_img == 0) {
-		perror("Screen #0 image");
+		syslog(LOG_ERR, "cons: Screen #0 image");
 		exit(1);
 	}
 	screens[0].s_curimg = hw_screen;

@@ -10,6 +10,7 @@
 #include "dos.h"
 #include <std.h>
 #include <sys/param.h>
+#include <syslog.h>
 
 /*
  * ytos()
@@ -22,7 +23,7 @@ ytos(uint y)
 	ulong ret;
 
 	if (y < 1990) {
-		printf("Warning: year %d is less than 1990!\n", y);
+		syslog(LOG_WARNING, "year %d is less than 1990!\n", y);
 	}
 	ret = 0;
 	for (i = 1990; i < y; i++) {

@@ -3,15 +3,13 @@
  *	Main processing loop
  */
 #include "pipe.h"
-#ifdef DEBUG
-#include <sys/ports.h>
-#endif
 #include <hash.h>
 #include <stdio.h>
 #include <fcntl.h>
 #include <std.h>
 #include <sys/namer.h>
 #include <sys/assert.h>
+#include <syslog.h>
 
 #define NCACHE (16)	/* Roughly, # clients */
 
@@ -152,7 +150,7 @@ loop:
 	 */
 	x = msg_receive(rootport, &msg);
 	if (x < 0) {
-		perror("pipe: msg_receive");
+		syslog(LOG_ERR, "pipe: msg_receive");
 		goto loop;
 	}
 
@@ -203,21 +201,13 @@ loop:
 main()
 {
 	port_name nm;
-#ifdef DEBUG
-	port_t kbd, cons;
 
-	kbd = msg_connect(PORT_KBD, ACC_READ);
-	cons = msg_connect(PORT_CONS, ACC_WRITE);
-	(void)__fd_alloc(kbd);
-	(void)__fd_alloc(cons);
-	(void)__fd_alloc(cons);
-#endif
 	/*
 	 * Allocate data structures we'll need
 	 */
         filehash = hash_alloc(NCACHE/4);
 	if (filehash == 0) {
-		perror("file hash");
+		syslog(LOG_ERR, "pipe: file hash");
 		exit(1);
         }
 	ll_init(&files);
@@ -227,7 +217,7 @@ main()
 	 */
 	rootport = msg_port(0, &nm);
 	if (rootport < 0) {
-		perror("pipe: port");
+		syslog(LOG_ERR, "pipe: port");
 		exit(1);
 	}
 
@@ -235,7 +225,7 @@ main()
 	 * Register port name
 	 */
 	if (namer_register("fs/pipe", nm) < 0) {
-		perror("pipe: name");
+		syslog(LOG_ERR, "pipe: name");
 		exit(1);
 	}
 

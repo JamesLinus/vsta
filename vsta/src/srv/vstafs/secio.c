@@ -18,6 +18,7 @@
 #include <sys/assert.h>
 #include <stdio.h>
 #include <std.h>
+#include <syslog.h>
 
 extern int blkdev;
 
@@ -34,7 +35,7 @@ do_read(void *buf, uint nbyte)
 #ifdef DEBUG
 	if (x != nbyte) {
 		perror("read");
-		fprintf(stderr, "read(%d, %x, %d) returns %d\n",
+		syslog(LOG_ERR, "read(%d, %x, %d) returns %d\n",
 			blkdev, (uint)buf, nbyte, x);
 	}
 #endif
@@ -49,7 +50,7 @@ do_write(void *buf, uint nbyte)
 #ifdef DEBUG
 	if (x != nbyte) {
 		perror("write");
-		fprintf(stderr, "write(%d, %x, %d) returns %d\n",
+		syslog(LOG_ERR, "write(%d, %x, %d) returns %d\n",
 			blkdev, (uint)buf, nbyte, x);
 	}
 #endif
@@ -64,7 +65,7 @@ do_lseek(off_t off)
 #ifdef DEBUG
 	if (o != off) {
 		perror("lseek");
-		fprintf(stderr, "lseek(%d, %ld) returns %ld\n",
+		syslog(LOG_ERR, "lseek(%d, %ld) returns %ld\n",
 			blkdev, off, o);
 	}
 #endif

@@ -9,6 +9,7 @@
 #include <hash.h>
 #include <time.h>
 #include <sys/assert.h>
+#include <syslog.h>
 
 extern struct boot bootb;
 extern int blkdev;
@@ -270,7 +271,7 @@ dir_look(struct node *n, char *file)
 	}
 	n2->n_type = ((d.attr & DA_DIR) ? T_DIR : T_FILE);
 	if ((n2->n_type == T_DIR) && !d.start) {
-		printf("Error: null directory for '%s'\n", file);
+		syslog(LOG_ERR, "null directory for '%s'\n", file);
 		free(n2);
 		return(0);
 	}
@@ -788,7 +789,8 @@ root_sync(void)
 		0);
 	x = write(blkdev, rootdirents, rootsize);
 	if (x != rootsize) {
-		printf("root_sync: write failed, err '%s', value 0x%x\n",
+		syslog(LOG_ERR,
+			"root_sync: write failed, err '%s', value 0x%x\n",
 			strerror(), x);
 		exit(1);
 	}

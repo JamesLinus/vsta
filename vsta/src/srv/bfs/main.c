@@ -8,9 +8,7 @@
 #include <hash.h>
 #include <stdio.h>
 #include <fcntl.h>
-#ifdef DEBUG
-#include <sys/ports.h>
-#endif
+#include <syslog.h>
 
 extern void *malloc(), bfs_open(), bfs_read(), bfs_write(), *bdata(),
 	*bget(), bfs_remove(), bfs_stat();
@@ -194,7 +192,7 @@ loop:
 	 */
 	x = msg_receive(rootport, &msg);
 	if (x < 0) {
-		perror("bfs: msg_receive");
+		syslog(LOG_ERR, "bfs: msg_receive");
 		goto loop;
 	}
 
@@ -283,7 +281,7 @@ loop:
 static void
 usage(void)
 {
-	printf("Usage is: bfs -p <portname> <portpath> <fsname>\n");
+	printf("Usage is: bfs -p <portpath> <fsname>\n");
 	printf(" or: bfs <filepath> <fsname>\n");
 	exit(1);
 }
@@ -301,27 +299,18 @@ main(int argc, char *argv[])
 	struct msg msg;
 	int chan, fd, x;
 	char *namer_name;
-#ifdef DEBUG
-	int scrn, kbd;
 
-	kbd = msg_connect(PORT_KBD, ACC_READ);
-	(void)__fd_alloc(kbd);
-	scrn = msg_connect(PORT_CONS, ACC_WRITE);
-	(void)__fd_alloc(scrn);
-	(void)__fd_alloc(scrn);
-#endif
 	/*
 	 * Check arguments
 	 */
 	if (argc == 3) {
 		blkdev = open(argv[1], O_RDWR);
 		if (blkdev < 0) {
-			perror(argv[1]);
+			syslog(LOG_ERR, "bfs: %s %s", argv[1], strerror());
 			exit(1);
 		}
 		namer_name = argv[2];
-	} else if (argc == 5) {
-		port_name blkname;
+	} else if (argc == 4) {
 		int retries;
 
 		/*
@@ -331,11 +320,7 @@ main(int argc, char *argv[])
 			usage();
 		}
 		for (retries = 10; retries > 0; retries -= 1) {
-			port = -1;
-			blkname = namer_find(argv[2]);
-			if (blkname >= 0) {
-				port = msg_connect(blkname, ACC_READ|ACC_WRITE);
-			}
+			port = path_open(argv[2], ACC_READ|ACC_WRITE);
 			if (port < 0) {
 				sleep(1);
 			} else {
@@ -343,23 +328,16 @@ main(int argc, char *argv[])
 			}
 		}
 		if (port < 0) {
-			printf("BFS: couldn't connect to block device.\n");
+			syslog(LOG_ERR,
+				"BFS: couldn't connect to block device");
 			exit(1);
 		}
-		if (mountport("/mnt", port) < 0) {
-			perror("/mnt");
-			exit(1);
-		}
-		if (chdir("/mnt") < 0) {
-			perror("chdir /mnt");
-			exit(1);
-		}
-		blkdev = open(argv[3], O_RDWR);
+		blkdev = __fd_alloc(port);
 		if (blkdev < 0) {
-			perror(argv[3]);
+			syslog(LOG_ERR, "bfs: %s %s", argv[2], strerror());
 			exit(1);
 		}
-		namer_name = argv[4];
+		namer_name = argv[3];
 	} else {
 		usage();
 	}
@@ -369,7 +347,7 @@ main(int argc, char *argv[])
 	 */
         filehash = hash_alloc(NCACHE/4);
 	if (filehash == 0) {
-		perror("file hash");
+		syslog(LOG_ERR, "bfs: file hash");
 		exit(1);
         }
 	binit();
@@ -382,12 +360,12 @@ main(int argc, char *argv[])
 	 */
 	shandle = bget(0);
 	if (!shandle) {
-		perror("BFS superblock");
+		syslog(LOG_ERR, "BFS: superblock read");
 		exit(1);
 	}
 	sblock = bdata(shandle);
 	if (sblock->s_magic != SMAGIC) {
-		fprintf(stderr, "BFS: bad superblock on %s\n", argv[1]);
+		syslog(LOG_ERR, "BFS: bad superblock on %s", argv[1]);
 		exit(1);
 	}
 
@@ -398,7 +376,7 @@ main(int argc, char *argv[])
 	rootport = msg_port((port_name)0, &fsname);
 	x = namer_register(namer_name, fsname);
 	if (x < 0) {
-		fprintf(stderr, "BFS: can't register name\n");
+		syslog(LOG_ERR, "BFS: can't register name");
 		exit(1);
 	}
 
