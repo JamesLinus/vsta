@@ -150,7 +150,7 @@ extern struct clust		/* Allocate representation of chain */
 	*alloc_clust(uint);
 extern void			/*  ...free this representation */
 	free_clust(struct clust *);
-extern void clust_sync(void);	/* Sync FAT table to disk */
+extern void fat_sync(void);	/* Sync FAT table to disk */
 extern int			/* Set cluster allocation */
 	clust_setlen(struct clust *, ulong);
 
@@ -167,5 +167,7 @@ extern struct node *dir_look(struct node *, char *),
 	*dir_newfile(struct file *, char *, int);
 extern void dir_remove(struct node *);
 extern int dir_copy(struct node *, uint, struct directory *);
+extern void dir_setlen(struct node *);
+extern void root_sync(void), sync(void);
 
 #endif /* _DOS_H */
