@@ -81,12 +81,14 @@ _bzero:	pushl	%edi
 	cmpl	$4,%ecx			/* Zero longwords */
 	jb	1f
 	shrl	$2,%ecx			/* Scale to longword count */
+	cld
 	rep
 	stosl
 	movl	0x10(%esp),%ecx		/* Calculate byte resid */
 	andl	$3,%ecx
 	jz	2f
-1:	rep				/* Zero bytes */
+1:	cld
+	rep				/* Zero bytes */
 	stosb
 2:	popl	%ecx
 	popl	%edi
@@ -110,13 +112,15 @@ _bcopy:	pushl	%esi
 1:	cmpl	$4,%ecx		/* Move longwords */
 	jb	5f
 	shrl	$2,%ecx		/* Scale units */
+	cld
 	rep
 	movsl
 	movl	0x18(%esp),%ecx
 	andl	$3,%ecx
 	jz	3f
 
-5:	rep			/* Resid copy of bytes */
+5:	cld
+	rep			/* Resid copy of bytes */
 	movsb
 
 3:	popl	%ecx		/* Restore registers and return */
@@ -311,13 +315,13 @@ _outportb:
 #define CP_MOVE \
 	/* Try to move longwords */ ; \
 	shrl	$2,%ecx ; \
-	rep ; \
+	cld ; rep ; \
 	movsl ; \
  \
 	/* Move residual bytes */ ; \
 	movl	0x14(%esp),%ecx ; \
 	andl	$3,%ecx ; \
-	rep ; \
+	cld ; rep ; \
 	movsb
 
 /*
