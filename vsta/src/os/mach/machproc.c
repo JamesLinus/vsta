@@ -1,5 +1,5 @@
 /*
- * proc.c
+ * machproc.c
  *	Machine-dependent parts of process handling
  */
 #include <sys/proc.h>
