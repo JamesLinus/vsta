@@ -211,3 +211,12 @@ bcmp(void *s1, void *s2, unsigned int n)
 	}
 	return(0);
 }
+
+/*
+ * memcmp()
+ *	Yet Another Name, courtesy AT&T
+ */
+memcmp(void *s1, void *s2, unsigned int n)
+{
+	return(bcmp(s1, s2, n));
+}

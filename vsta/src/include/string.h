@@ -16,6 +16,7 @@ extern void *memcpy(void *, void *, unsigned int);
 extern char *strchr(char *, char), *strrchr(char *, char);
 extern char *index(char *, char), *rindex(char *, char);
 extern char *strdup(char *);
-extern int bcmp(void *, void *, unsigned int);
+extern int bcmp(void *, void *, unsigned int),
+	memcmp(void *, void *, unsigned int);
 
 #endif /* _STRING_H */
