@@ -9,10 +9,11 @@
 #include <sys/fs.h>
 #include <wd/wd.h>
 #include <sys/assert.h>
+#include <mach/nvram.h>
 
-static int wd_readp(), wd_cmd();
-static void wd_start();
-extern void iodone();
+static int wd_cmd(int);
+static void wd_start(), wd_readp(int), wd_cmos(int),
+	wd_parseparms(int, char *);
 
 uint first_unit;		/* Lowerst unit # configured */
 
@@ -20,9 +21,8 @@ uint first_unit;		/* Lowerst unit # configured */
  * The parameters we read on each disk, and a flag to ask if we've
  * gotten them yet.
  */
-static struct wdparameters xparm[NWD];
 struct wdparms parm[NWD];
-int configed[NWD];
+char configed[NWD];
 
 /*
  * Miscellaneous counters
@@ -82,7 +82,7 @@ load_sect(void)
  * parameters.
  */
 void
-wd_init(void)
+wd_init(int argc, char **argv)
 {
 	int x;
 	int found_first;
@@ -110,22 +110,62 @@ wd_init(void)
 	outportb(WD_PORT+WD_CTLR, CTLR_4BIT);
 
 	/*
-	 * Scan units
+	 * First, mark nothing as found
 	 */
 	found_first = 0;
-	for (x = 0; x < NWD; ++x) {
-		if (wd_readp(x) < 0) {
-			configed[x] = 0;
+	bzero(configed, sizeof(configed));
+
+	/*
+	 * Scan units
+	 */
+	for (x = 1; x < argc; ++x) {
+		uint unit;
+
+		/*
+		 * Sanity check command line format
+		 */
+		if (argv[x][0] != 'd') {
+			printf("wd: bad arg: %s\n", argv[x]);
+			continue;
+		}
+
+		/*
+		 * Sanity check drive number
+		 */
+		unit = argv[x][1] - '0';
+		if (unit >= NWD) {
+			printf("wd: bad drive: %s\n", argv[x]);
+			continue;
+		}
+
+		/*
+		 * Verify colon and argument
+		 */
+		if ((argv[x][2] != ':') || !argv[x][3]) {
+			printf("wd: bad arg: %s\n", argv[x]);
+			continue;
+		}
+
+		/*
+		 * Now get drive parameters in the requested way
+		 */
+		if (!strcmp(argv[x]+3, "readp")) {
+			wd_readp(unit);
+		} else if (!strcmp(argv[x]+3, "cmos")) {
+			wd_cmos(unit);
 		} else {
-			uint s = parm[x].w_size * SECSZ;
+			wd_parseparms(unit, argv[x]+3);
+		}
+
+		if (configed[unit]) {
+			uint s = parm[unit].w_size * SECSZ;
 			const uint m = 1024*1024;
 
-			printf("wd%d: %d.%dM\n", x,
+			printf("wd%d: %d.%dM\n", unit,
 				s / m, (s % m) / (m/10));
-			configed[x] = 1;
-			if (!found_first) {
-				found_first = 1;
-				first_unit = x;
+			found_first = 1;
+			if (unit < first_unit) {
+				first_unit = unit;
 			}
 		}
 	}
@@ -394,44 +434,133 @@ readp_data(void)
 /*
  * wd_readp()
  *	Issue READP to drive, get its geometry and such
+ *
+ * On success, sets configed[unit] to 1.
  */
-static
+static void
 wd_readp(int unit)
 {
 	char buf[SECSZ];
 	struct wdparms *w;
-	struct wdparameters *xw;
+	struct wdparameters xw;
 
 	/*
 	 * Send READP and see if he'll answer
 	 */
 	outportb(WD_PORT+WD_SDH, WDSDH_EXT|WDSDH_512 | (unit << 4));
 	if (wd_cmd(WDC_READP) < 0) {
-		return(-1);
+		return;
 	}
 
 	/*
 	 * Read in the parameters
 	 */
 	if (readp_data() < 0) {
-		return(-1);
+		return;
 	}
 	repinsw(WD_PORT+WD_DATA, buf, sizeof(buf)/sizeof(ushort));
-	xw = &xparm[unit];
-	bcopy(buf, xw, sizeof(*xw));
+	bcopy(buf, &xw, sizeof(xw));
 
 	/*
 	 * Fix big-endian lossage
 	 */
-	SWAB(xw->w_model);
+	SWAB(xw.w_model);
 
 	/*
 	 * Massage into a convenient format
 	 */
 	w = &parm[unit];
-	w->w_cyls = xw->w_fixedcyl + xw->w_removcyl;
-	w->w_tracks = xw->w_heads;
-	w->w_secpertrk = xw->w_sectors;
-	w->w_secpercyl = xw->w_heads * xw->w_sectors;
+	w->w_cyls = xw.w_fixedcyl + xw.w_removcyl;
+	w->w_tracks = xw.w_heads;
+	w->w_secpertrk = xw.w_sectors;
+	w->w_secpercyl = xw.w_heads * xw.w_sectors;
 	w->w_size = w->w_secpercyl * w->w_cyls;
+	configed[unit] = 1;
+}
+
+/*
+ * wd_parseparms()
+ *	Parse user-specified drive parameters
+ */
+static void
+wd_parseparms(int unit, char *parms)
+{
+	struct wdparms *w = &parm[unit];
+
+	if (sscanf(parms, "%d:%d:%d", &w->w_cyls, &w->w_tracks,
+			&w->w_secpertrk) != 3) {
+		printf("wd%d: bad parameters: %s\n", parms);
+		return;
+	}
+	w->w_secpercyl = w->w_tracks * w->w_secpertrk;
+	w->w_size = w->w_secpercyl * w->w_cyls;
+	configed[unit] = 1;
+}
+
+/*
+ * cmos_read()
+ *	Read a byte through the NVRAM interface
+ */
+static uint
+cmos_read(unsigned char address)
+{
+	outportb(RTCSEL, address);
+	return(inportb(RTCDATA));
+}
+
+/*
+ * wd_cmos()
+ *	Get disk parameters from NVRAM BIOS storage
+ */
+static void
+wd_cmos(int unit)
+{
+	const uint
+		nv_cfg = 0x12,		/* Config'ed at all */
+		nv_lo8 = 0x1B,		/* Low, high count of secs */
+		nv_hi8 = 0x1C,
+		nv_heads = 0x1D,	/* # heads */
+		nv_sec = 0x23;		/* # sec/track */
+	uint off =			/* I/O off for unit */
+		((unit == 0) ? 0 : 9);
+	struct wdparms *w;
+
+	/*
+	 * NVRAM only handles two
+	 */
+	if (unit > 1) {
+		printf("wd%d: only 0 and 1 have CMOS information\n", unit);
+		return;
+	}
+
+	/*
+	 * Read config register to see if present
+	 */
+	if ((cmos_read(nv_cfg) & ((unit == 0) ? 0xF0 : 0x0F)) == 0) {
+		return;
+	}
+
+	/*
+	 * It appears present, so read in the parameters
+	 */
+	w = &parm[unit];
+	w->w_cyls = cmos_read(nv_hi8 + off) << 8 | cmos_read(nv_lo8 + off);
+	w->w_tracks = cmos_read(nv_heads + off);
+	w->w_secpertrk = cmos_read(nv_sec + off);
+
+	/*
+	 * Some NVRAM setups will have the drive marked present,
+	 * but with zeroes for all parameters.  Pretend like it
+	 * isn't there at all.
+	 */
+	if (!w->w_cyls || !w->w_tracks || !w->w_secpertrk) {
+		return;
+	}
+
+	/*
+	 * Otherwise calculate the reset & mark it present
+	 */
+	w->w_secpercyl = w->w_tracks * w->w_secpertrk;
+	w->w_size = w->w_secpercyl * w->w_cyls;
+	configed[unit] = 1;
 }
