@@ -36,10 +36,10 @@ struct disk disks[NWD];
  * Top-level protection for WD hierarchy
  */
 struct prot wd_prot = {
-	1,
+	2,
 	0,
 	{1, 1},
-	{ACC_READ, ACC_CHMOD}
+	{ACC_READ, ACC_WRITE|ACC_CHMOD}
 };
 
 /*
