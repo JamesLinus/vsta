@@ -201,6 +201,7 @@ trap(ulong place_holder)
 	case T_DEBUG:
 	case T_BPT:
 #ifdef PROC_DEBUG
+		f->eflags |= F_RF;	/* i386 doesn't set it */
 		ASSERT_DEBUG(curthread, "trap: user debug !curthread");
 		PTRACE_PENDING(curthread->t_proc, PD_BPOINT, 0);
 		break;
