@@ -7,6 +7,7 @@
 #include <ctype.h>
 #include <std.h>
 #include <lib/hash.h>
+#include <time.h>
 #include <sys/assert.h>
 
 extern struct boot bootb;
@@ -691,6 +692,39 @@ dir_copy(struct node *n, uint pos, struct directory *dp)
 }
 
 /*
+ * timestamp()
+ *	Mark current date/time onto given dir entry
+ */
+static void
+timestamp(struct directory *d)
+{
+	time_t t;
+	struct tm *tm;
+
+	/*
+	 * Get date/time from system, convert to struct tm so we
+	 * can pick apart day, month, etc.  Just zero date/time
+	 * if we can't get it.
+	 */
+	t = 0;
+	(void)time(&t);
+	tm = localtime(&t);
+	if (!t || !tm || (tm->tm_year < 80)) {
+		d->date = 0;
+		d->time = 0;
+		return;
+	}
+
+	/*
+	 * Pack hours, minutes, seconds into "time" field
+	 */
+	d->time = (tm->tm_hour << 11) | (tm->tm_min << 5) |
+		(tm->tm_sec >> 1);
+	d->date = ((tm->tm_year - 80) << 9) |
+		((tm->tm_mon + 1) << 5) | tm->tm_mday;
+}
+
+/*
  * dir_setlen()
  *	Move the length attribute from the node into the dir entry
  *
@@ -721,6 +755,7 @@ dir_setlen(struct node *n)
 	 * Update it, mark the block dirty, and return
 	 */
 	d->size = n->n_len;
+	timestamp(d);
 	if (c->c_nclust) {
 		ASSERT_DEBUG(d->size, "dir_setlen: !len clust");
 		d->start = c->c_clust[0];
