@@ -405,9 +405,10 @@ fputc(int c, FILE *fp)
  *	Open FILE on an existing file descriptor
  */
 FILE *
-fdopen(int fd, char *mode)
+fdopen(int fd, const char *mode)
 {
-	char *p, c;
+	char c;
+	const char *p;
 	int m = 0, x;
 	FILE *fp;
 
@@ -474,9 +475,10 @@ fdopen(int fd, char *mode)
  *	Open a buffered file on given FILE
  */
 FILE *
-freopen(char *name, char *mode, FILE *fp)
+freopen(const char *name, const char *mode, FILE *fp)
 {
-	char *p, c;
+	const char *p;
+	char c;
 	int m = 0, o = 0, x;
 
 	/*
@@ -553,7 +555,7 @@ freopen(char *name, char *mode, FILE *fp)
  *	Open buffered file
  */
 FILE *
-fopen(char *name, char *mode)
+fopen(const char *name, const char *mode)
 {
 	FILE *fp;
 
@@ -787,7 +789,7 @@ setbuf(FILE *fp, char *buf)
  * puts()
  *	Put a string, add a newline
  */
-puts(char *s)
+puts(const char *s)
 {
 	char c;
 
@@ -806,7 +808,7 @@ puts(char *s)
  * fputs()
  *	Put a string, no tailing newline (in the string already, probably)
  */
-fputs(char *s, FILE *fp)
+fputs(const char *s, FILE *fp)
 {
 	char c;
 
@@ -826,9 +828,9 @@ fputs(char *s, FILE *fp)
  * blasting it all in a single bcopy().  Issues would remain WRT
  * end-of-line handling, etc.
  */
-fwrite(void *buf, int size, int nelem, FILE *fp)
+fwrite(const void *buf, int size, int nelem, FILE *fp)
 {
-	char *p;
+	const char *p;
 	uint len, x;
 
 	p = buf;

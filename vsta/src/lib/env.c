@@ -17,7 +17,7 @@ extern char *rstat();
  *	Ask /env server for value
  */
 char *
-getenv(char *name)
+getenv(const char *name)
 {
 	char *p, buf[256];
 	int fd, len;
@@ -67,7 +67,7 @@ getenv(char *name)
  * setenv()
  *	Set variable in environment to value
  */
-setenv(char *name, char *val)
+setenv(const char *name, const char *val)
 {
 	char buf[256];
 	int fd, len;

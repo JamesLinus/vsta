@@ -9,9 +9,10 @@
  * system()
  *	Launch a shell, return status
  */
-system(char *cmd)
+int
+system(const char *cmd)
 {
-	char *argv[4];
+	const char *argv[4];
 	long pid;
 	struct exitst w;
 
@@ -35,7 +36,7 @@ system(char *cmd)
  * execvp()
  *	Interface to execv() with path honored
  */
-execvp(char *prog, char **argv)
+execvp(const char *prog, const char **argv)
 {
 	char *pathbuf, *path, *p, *buf;
 	int len;
@@ -102,7 +103,7 @@ execvp(char *prog, char **argv)
  * execlp()
  *	execl(), with path
  */
-execlp(char *path, char *arg0, ...)
+execlp(const char *path, const char *arg0, ...)
 {
 	return(execvp(path, &arg0));
 }

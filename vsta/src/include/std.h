@@ -22,10 +22,12 @@ extern void __cwd_save(char *);
 extern char *__cwd_restore(char *);
 extern char *getcwd(char *, int);
 extern int dup(int), dup2(int, int);
-extern int execl(char *, char *, ...), execv(char *, char **),
-	execlp(char *, char *, ...), execvp(char *, char **);
-extern char *getenv(char *);
-extern int setenv(char *, char *);
+extern int execl(const char *, const char *, ...),
+	execv(const char *, const char **),
+	execlp(const char *, const char *, ...),
+	execvp(const char *, const char **);
+extern char *getenv(const char *);
+extern int setenv(const char *, const char *);
 extern pid_t getpid(void), gettid(void), getppid(void);
 extern int atoi(const char *);
 extern long atol(const char *);
@@ -40,11 +42,18 @@ extern void qsort(void *base, int n, unsigned size,
 extern long strtol(const char *s, char **ptr, int base);
 extern unsigned long strtoul(const char *s, char **ptr, int base);
 extern int getdtablesize(void);
+extern int system(const char *);
 
 /*
  * GNU C has managed to change this one the last three times I moved
  * forward compilers, so don't blink your eyes.
  */
 extern void exit(int), _exit(int);
+
+/*
+ * exit() values
+ */
+#define EXIT_SUCCESS (0)
+#define EXIT_FAILURE (1)
 
 #endif /* _STD_H */

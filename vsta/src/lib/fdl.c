@@ -604,7 +604,7 @@ read(int fd, void *buf, uint nbyte)
  * write()
  *	Do a write() "syscall"
  */
-write(int fd, void *buf, uint nbyte)
+write(int fd, const void *buf, uint nbyte)
 {
 	struct port *port;
 

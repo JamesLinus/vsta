@@ -555,7 +555,7 @@ chdir(const char *newdir)
  *	Create a directory
  */
 int
-mkdir(char *dir)
+mkdir(const char *dir)
 {
 	int fd;
 
@@ -687,7 +687,7 @@ unlink(const char *path)
  *	Create a file - basically a specialised version of open()
  */
 int
-creat(char *path, int mode)
+creat(const char *path, int mode)
 {
 	return(open(path, (O_WRONLY | O_CREAT | O_TRUNC), mode));
 }

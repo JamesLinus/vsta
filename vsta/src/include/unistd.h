@@ -31,4 +31,9 @@
 #define STDOUT_FILENO (1)
 #define STDERR_FILENO (2)
 
+/*
+ * Function protos
+ */
+extern char *getlogin(void);
+
 #endif /* _UNISTD_H */

@@ -97,17 +97,17 @@ extern FILE *__iob, *__get_iob();
 /*
  * stdio routines
  */
-extern FILE *fopen(char *fname, char *mode),
-	*freopen(char *, char *, FILE *),
-	*fdopen(int, char *);
+extern FILE *fopen(const char *fname, const char *mode),
+	*freopen(const char *, const char *, FILE *),
+	*fdopen(int, const char *);
 extern int fclose(FILE *),
 	fread(void *, int, int, FILE *),
-	fwrite(void *, int, int, FILE *),
+	fwrite(const void *, int, int, FILE *),
 	feof(FILE *), ferror(FILE *),
 	fileno(FILE *), ungetc(int, FILE *);
 extern off_t fseek(FILE *, off_t, int), ftell(FILE *);
 extern char *gets(char *), *fgets(char *, int, FILE *);
-extern int puts(char *), fputs(char *, FILE *);
+extern int puts(const char *), fputs(const char *, FILE *);
 extern void clearerr(FILE *), setbuf(FILE *, char *),
 	setbuffer(FILE *, char *, uint);
 extern void rewind(FILE *);
