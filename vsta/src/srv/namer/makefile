@@ -6,12 +6,13 @@ LDFLAGS= -L../libc -L../lib
 OBJS= main.o open.o rw.o stat.o
 LIBS= -lc -lusr
 
-all: namer
+all: namer libnamer.a
 .c.o:
 	$(CC) $(CFLAGS) -c $*.c
 
 namer: $(OBJS)
 	$(LD) $(LDFLAGS) -o namer ../libc/crt0.o $(OBJS) $(LIBS)
 
-libname.a: namer.o
-	ar ruv libname.a namer.o
+libnamer.a: namer.o
+	del libnamer.a
+	ar rsv libnamer.a namer.o
