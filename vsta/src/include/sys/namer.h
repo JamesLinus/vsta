@@ -36,13 +36,29 @@ struct file {
 struct node {
 	struct prot n_prot;	/* Protection of this node */
 	char n_name[NAMESZ];	/* Name of node */
-	ushort n_internal;	/* Internal node? */
+	uchar n_internal;	/* Internal node? */
+	uchar n_deleted;	/* Removed, waiting for last close */
+	uchar n_pad0;
+	uchar n_pad1;
 	port_name n_port;	/*  ...if not, port name for leaf */
 	struct llist n_elems;	/* Linked list of elements under node */
 	uint n_refs;		/* # references to this node */
 	struct llist *n_list;	/* Our place in our parent's list */
 	uint n_owner;		/* Owner UID */
+	struct node *n_parent;	/* Our parent node */
 };
+
+/*
+ * Internal prototypes
+ */
+extern void delete_node(struct node *);
+extern void namer_open(struct msg *, struct file *),
+	namer_read(struct msg *, struct file *),
+	namer_write(struct msg *, struct file *),
+	namer_stat(struct msg *, struct file *),
+	namer_wstat(struct msg *, struct file *),
+	namer_remove(struct msg *, struct file *);
+extern int can_access(struct file *, int, struct prot *);
 
 #endif /* _NAMER_H_INTERNAL */
 

@@ -8,8 +8,8 @@
 #include <sys/fs.h>
 #include <sys/assert.h>
 #include <llist.h>
-
-extern void *malloc();
+#include <std.h>
+#include <unistd.h>
 
 /*
  * lookup()
@@ -37,13 +37,14 @@ lookup(struct file *f, char *name)
 void
 namer_open(struct msg *m, struct file *f)
 {
-	struct node *n;
+	struct node *n, *nparent;
 	struct prot *p;
 
 	/*
 	 * Make sure it's a "directory"
 	 */
-	if (!f->f_node->n_internal) {
+	nparent = f->f_node;
+	if (!nparent->n_internal) {
 		msg_err(m->m_sender, EINVAL);
 		return;
 	}
@@ -57,7 +58,7 @@ namer_open(struct msg *m, struct file *f)
 	 * If found, verify access and type of use
 	 */
 	if (n) {
-		if (access(f, m->m_arg, &n->n_prot)) {
+		if (can_access(f, m->m_arg, &n->n_prot)) {
 			msg_err(m->m_sender, EPERM);
 			return;
 		}
@@ -65,7 +66,7 @@ namer_open(struct msg *m, struct file *f)
 		/*
 		 * Move current reference to new node
 		 */
-		f->f_node->n_refs -= 1;
+		nparent->n_refs -= 1;
 		f->f_node = n;
 		n->n_refs += 1;
 		f->f_pos = 0L;
@@ -98,6 +99,7 @@ namer_open(struct msg *m, struct file *f)
 		msg_err(m->m_sender, ENOMEM);
 		return;
 	}
+	bzero(n, sizeof(struct node));
 
 	/*
 	 * Try inserting it under the current node
@@ -115,7 +117,6 @@ namer_open(struct msg *m, struct file *f)
 	 * try to connect to the server.
 	 */
 	p = &n->n_prot;
-	bzero(p, sizeof(*p));
 	p->prot_len = PERM_LEN(&f->f_perms[0]);
 	bcopy(f->f_perms[0].perm_id, p->prot_id, PERMLEN);
 	p->prot_default = ACC_READ;
@@ -124,8 +125,8 @@ namer_open(struct msg *m, struct file *f)
 	n->n_owner = f->f_perms[0].perm_uid;
 	strcpy(n->n_name, m->m_buf);
 	n->n_internal = (m->m_arg & ACC_DIR) ? 1 : 0;
-	n->n_port = 0;
 	ll_init(&n->n_elems);
+	n->n_parent = nparent;
 	n->n_refs = 2;	/* One from f->f_node, another for this open */
 
 	/*
@@ -139,6 +140,19 @@ namer_open(struct msg *m, struct file *f)
 }
 
 /*
+ * delete_node()
+ *	Remove a node from its directory list, free its storage
+ */
+void
+delete_node(struct node *n)
+{
+	ASSERT_DEBUG(n->n_parent->n_refs, "delete_node: overflow");
+	n->n_parent->n_refs -= 1;
+	ll_delete(n->n_list);
+	free(n);
+}
+
+/*
  * namer_remove()
  *	Delete an entry from the current directory
  */
@@ -146,7 +160,6 @@ void
 namer_remove(struct msg *m, struct file *f)
 {
 	struct node *n = f->f_node, *n2;
-	struct prot *p;
 
 	/*
 	 * Make sure it's a "directory"
@@ -178,22 +191,19 @@ namer_remove(struct msg *m, struct file *f)
 	}
 
 	/*
-	 * If the node is busy, forget it
+	 * If the node is busy, mark deletion pending last close
 	 */
 	if (n2->n_refs > 1) {
-		msg_err(m->m_sender, EBUSY);
-		return;
+		n2->n_deleted = 1;
+	} else {
+		ASSERT((n2->n_refs == 1) && (n->n_refs > 2),
+			"namer_remove: short ref");
+
+		/*
+		 * Trim reference counts, remove node from list, free memory.
+		 */
+		delete_node(n2);
 	}
-	ASSERT((n2->n_refs == 1) && (n->n_refs > 2),
-		"namer_remove: short ref");
-
-	/*
-	 * Trim reference counts, remove node from list, free memory.
-	 */
-	n->n_refs -= 1;
-	ll_delete(n2->n_list);
-	free(n2);
-
 	m->m_buflen = m->m_nseg = m->m_arg = m->m_arg1 = 0;
 	msg_reply(m->m_sender, m);
 }

@@ -9,9 +9,9 @@
 #include <llist.h>
 #include <sys/namer.h>
 #include <sys/fs.h>
-
-extern void *malloc();
-extern char *strerror();
+#include <stdio.h>
+#include <std.h>
+#include <string.h>
 
 /*
  * namer_write()

@@ -17,10 +17,10 @@
 #include <sys/types.h>
 #include <stdio.h>
 #include <syslog.h>
+#include <std.h>
+#include <string.h>
 
-extern void *malloc(), namer_open(), namer_read(), namer_write(),
-	namer_remove(), namer_stat(), namer_wstat();
-extern char *strerror();
+extern int valid_fname(char *, int);
 
 #define BUFSIZE (NAMESZ*3)	/* That should be enough */
 
@@ -47,8 +47,6 @@ static struct prot namer_prot = {
 static void
 namer_seek(struct msg *m, struct file *f)
 {
-	struct node *n = f->f_node;
-
 	if (m->m_arg < 0) {
 		msg_err(m->m_sender, EINVAL);
 		return;
@@ -59,10 +57,11 @@ namer_seek(struct msg *m, struct file *f)
 }
 
 /*
- * access()
+ * can_access()
  *	See if user is compatible with desired access for object
  */
-access(struct file *f, int mode, struct prot *prot)
+int
+can_access(struct file *f, int mode, struct prot *prot)
 {
 	int uperms, desired;
 
@@ -102,12 +101,12 @@ new_client(struct msg *m)
 	 */
 	f->f_nperm = m->m_buflen/sizeof(struct perm);
 	bcopy(m->m_buf, &f->f_perms, f->f_nperm*sizeof(struct perm));
-	if (access(f, m->m_arg, &namer_prot)) {
+	if (can_access(f, m->m_arg, &namer_prot)) {
 		msg_err(m->m_sender, EPERM);
 		free(f);
 		return;
 	}
-	/* f->f_mode set by access() */
+	/* f->f_mode set by can_access() */
 	f->f_pos = 0L;
 
 	/*
@@ -190,8 +189,18 @@ dup_client(struct msg *m, struct file *fold)
 static void
 dead_client(struct msg *m, struct file *f)
 {
+	struct node *n;
+
 	(void)hash_delete(filehash, m->m_sender);
-	f->f_node->n_refs -= 1;
+	n = f->f_node;
+
+	/*
+	 * If a deleted node is down to its last ref (i.e., the
+	 * one from its parent node), do the pending deletion.
+	 */
+	if (((n->n_refs -= 1) < 2) && n->n_deleted) {
+		delete_node(n);
+	}
 	free(f);
 }
 
@@ -281,12 +290,9 @@ loop:
  * main()
  *	Startup of system namer
  */
-main()
+int
+main(void)
 {
-	port_name blkname;
-	struct msg msg;
-	int chan, fd, x;
-
 	/*
 	 * Initialize syslog
 	 */
@@ -316,7 +322,7 @@ main()
 	 * with the given name.
 	 */
 	namerport = msg_port(PORT_NAMER, 0);
-	if (x < 0) {
+	if (namerport < 0) {
 		syslog(LOG_ERR, "can't register name");
 		exit(1);
 	}
@@ -325,4 +331,5 @@ main()
 	 * Start serving requests for the filesystem
 	 */
 	namer_main();
+	return(0);
 }

@@ -1,10 +1,10 @@
-CC= gcc
-LD= ld
-INCS= -I../../../include
-CFLAGS= -DDEBUG $(INCS) -O
-LDFLAGS= -L../../lib
-OBJS= main.o open.o rw.o stat.o
-LIBS= -lusr -lc_s
+CC=gcc
+LD=ld
+INCS=-I../../../include
+CFLAGS=-Wall -DDEBUG $(INCS) -O
+LDFLAGS=-L../../lib
+OBJS=main.o open.o rw.o stat.o
+LIBS=-lusr -lc_s
 
 all: namer
 .c.o:
