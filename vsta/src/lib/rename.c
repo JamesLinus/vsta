@@ -76,6 +76,7 @@ getpath(char *path, int *fdp, port_name *namep, char **name)
  * msg()
  *	Send a message
  */
+static int
 msg(int fd, int type, int arg, char *buf)
 {
 	struct msg m;
