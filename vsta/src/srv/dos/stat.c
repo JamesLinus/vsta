@@ -282,7 +282,7 @@ dos_wstat(struct msg *m, struct file *f)
 		}
 		return;
 	}
-	if (!strcmp(field, "atime") || !strcmp(field, "mtime")) {
+	if (!strcmp(field, "mtime")) {
 		time_t t;
 
 		/*
@@ -290,6 +290,8 @@ dos_wstat(struct msg *m, struct file *f)
 		 */
 		t = atoi(val);
 		dir_timestamp(n, t);
+	} else if (!strcmp(field, "atime")) {
+		/* Do nothing, but don't return an error */ ;
 	} else if (!strcmp(field, "type")) {
 		if (dir_set_type(f, val)) {
 			msg_err(m->m_sender, EINVAL);
