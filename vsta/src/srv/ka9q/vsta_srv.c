@@ -1223,6 +1223,11 @@ port_daemon(void)
 		}
 
 		/*
+		 * Spin the main loop
+		 */
+		do_mainloop();
+
+		/*
 		 * Release lock and loop
 		 */
 		v_lock(&ka9q_lock);
