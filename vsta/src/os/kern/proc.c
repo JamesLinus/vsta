@@ -544,6 +544,7 @@ exit(int code)
 	if (!last) {
 		remove_pview(p->p_vas, t->t_ustack);
 	} else {
+		printf("exit pid %d\n", p->p_pid); dbg_enter();
 		/*
 		 * If last thread gone, tear down process.
 		 */
@@ -554,16 +555,18 @@ exit(int code)
 	 * Free kernel stack once we've switched to our idle stack.
 	 * Can't use local variables after this!
 	 */
+	ATOMIC_INC(&cpu.pc_locks);	/* To avoid preemption */
 	idle_stack();
 	free(curthread->t_kstack);
+	free(curthread);
+	curthread = 0;
 
 	/*
 	 * Free thread, switch to new work
 	 */
 	ATOMIC_DEC(&nthread);
 	p_lock(&runq_lock, SPLHI);
-	free(curthread);
-	curthread = 0;
+	ATOMIC_DEC(&cpu.pc_locks);	/* swtch() will handle dispatch */
 	swtch();
 }
 
