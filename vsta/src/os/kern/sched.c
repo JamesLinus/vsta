@@ -231,7 +231,7 @@ pick_run(struct sched *root)
  * The use of local variables after the switch to idle_stack() is a little
  * risky; the *values* of the variables is not expected to be preserved.
  * However, the variables themselves are still accessed.  The idle stack
- * is constructed with some slot to make this possible.
+ * is constructed with some room to make this possible.
  *
  * swtch() is called with runq_lock held.
  */
@@ -391,7 +391,7 @@ setrun(struct thread *t)
 
 	s = p_lock(&runq_lock, SPLHI);
 	lsetrun(t);
-	v_lock(&runq_lock, SPL0);
+	v_lock(&runq_lock, s);
 }
 
 /*
