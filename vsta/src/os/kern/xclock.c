@@ -19,9 +19,6 @@
 /*
  * CVT_TIME()
  *	Convert from internal hz/sec format into "struct time"
- *
- * We mask interrupts during the assignment.  cli/sti are not portable
- * names, but the concept is portable.  Rename later, perhaps.
  */
 #define CVT_TIME(tim, t) { \
 	(t)->t_sec = (tim)[1]; \
@@ -110,17 +107,18 @@ hardclock(uint x)
 		return;
 	}
 	c->pc_flags |= CPU_CLOCK;
+	c->pc_time[0] += c->pc_ticks;
+	c->pc_ticks = 0;
 	sti();
 
 	/*
-	 * Bump time for our local CPU.  Lower bits count up until HZ;
+	 * Bump time for our local CPU.  Lower slot counts up until HZ;
 	 * upper bits then are in units of seconds.
 	 */
-	c->pc_time[0] += c->pc_ticks;
-	c->pc_ticks = 0;
-	if (++(c->pc_time[0]) >= HZ) {
-		c->pc_time[1] += (c->pc_time[0] / HZ);
-		c->pc_time[0] =  (c->pc_time[0] % HZ);
+	c->pc_time[0] += 1;
+	while (c->pc_time[0] >= HZ) {
+		c->pc_time[1] += 1;
+		c->pc_time[0] -= HZ;
 	}
 
 	/*
@@ -213,7 +211,7 @@ time_sleep(struct time *arg_time)
 	ep = &eventq;
 	p_lock(&time_lock, SPLHI);
 	for (e = eventq; e; e = e->e_next) {
-		if (l >= e->e_time.t_sec) {
+		if (l <= e->e_time.t_sec) {
 			ev->e_next = e;
 			*ep = ev;
 			break;
