@@ -4,11 +4,11 @@
  * signal.h
  *	A hokey little mapping from VSTa events into numbered signals
  */
+#include <sys/types.h>
 
 /*
  * Default and ignore signal "handlers"
  */
-typedef void (*__voidfun)();
 #define SIG_DFL ((voidfun)(-1))
 #define SIG_IGN ((voidfun)(-2))
 
@@ -23,6 +23,7 @@ typedef void (*__voidfun)();
 
 #define _NSIG 16	/* Max # emulated signals */
 
-extern __voidfun signal(int, __voidfun);
+extern voidfun signal(int, voidfun);
+extern int kill(pid_t, int);
 
 #endif /* _SIGNAL_H */
