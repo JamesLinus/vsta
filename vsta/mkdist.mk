@@ -68,7 +68,8 @@ GZIP=src/bin/ports/gzip src/bin/ports/unzip
 SC=src/bin/ports/sc
 
 # Smalltalk
-SMALL=src/bin/ports/small src/bin/ports/smalltalk-1.8.3
+SMALL=src/bin/ports/small src/bin/ports/smalltalk-1.8.3 \
+	src/bin/ports/tiny4.0
 
 # GNU C, and related language tools
 GCC=src/bin/ports/gcc2 src/bin/ports/binutl2 src/bin/ports/gdb
