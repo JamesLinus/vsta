@@ -429,7 +429,7 @@ setrun(struct thread *t)
  * timeslice()
  *	Called when a process might need to timeslice
  */
-inline static void
+static void
 timeslice(void)
 {
 	p_lock_void(&runq_lock, SPLHI);
@@ -648,6 +648,14 @@ sched_op(int op, int arg)
 		 */
 		return((curthread->t_flags & T_BG) ? PRI_BG :
 			(curthread->t_flags & T_RT) ? PRI_RT : PRI_TIMESHARE);
+
+	case SCHEDOP_YIELD:
+		/*
+		 * Let others run
+		 */
+		timeslice();
+		return(0);
+		break;
 
 	default:
 		break;
