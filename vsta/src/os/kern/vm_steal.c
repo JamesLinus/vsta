@@ -55,12 +55,15 @@ ulong failed_qios = 0L;		/* Number pushes which failed */
 #define MEDSCAN 16		/*  ... when free > MINFREE */
 #define LARGESCAN 4		/*  ... when free < MINFREE */
 
+#define PAGEOUT_SECS (5)	/* Interval to run pageout() */
+
 extern struct core *core,		/* Per-page info */
 	*coreNCORE;
 extern uint freemem, totalmem;		/* Free and total pages in system */
 					/*  total does not include C_SYS */
 sema_t pageout_sema;
 static struct qio *pgio;	/* Our asynch I/O descriptor */
+uint pageout_secs = 0;		/* Set to PAGEOUT_SECS when ready */
 
 /*
  * unvirt()
@@ -93,13 +96,22 @@ unvirt(struct perpage *pp)
  * steal_master()
  *	Handle stealing of pages from master copy of COW
  */
-steal_master(struct pset *ps, struct perpage *pp, uint idx)
+steal_master(struct pset *ps, struct perpage *pp, uint idx,
+	int trouble, intfun steal)
 {
 	struct pset *ps2;
 	struct perpage *pp2;
 	uint idx2;
 
-	for (ps2 = ps->p_cowsets; ps2; ps2 = ps2->p_cowsets) {
+	/*
+	 * First handle direct references
+	 */
+	pp->pp_flags |= unvirt(pp);
+
+	/*
+	 * Walk each potential COW reference to our slot
+	 */
+	for (ps2 = ps->p_cowsets; ps2 && pp->pp_refs; ps2 = ps2->p_cowsets) {
 		/*
 		 * If the pset doesn't cover our range of the master,
 		 * it can't be involved so ignore it.
@@ -125,7 +137,7 @@ steal_master(struct pset *ps, struct perpage *pp, uint idx)
 		pp2 = find_pp(ps2,  idx2);
 		if (!clock_slot(ps2, pp2)) {
 			if (pp2->pp_flags & PP_COW) {
-				(void)unvirt(pp2);
+				pp->pp_flags |= unvirt(pp2);
 				ASSERT_DEBUG(pp2->pp_refs == 0,
 					"steal_master: pp2 refs");
 				pp2->pp_flags &= ~(PP_COW|PP_V|PP_R);
@@ -135,6 +147,17 @@ steal_master(struct pset *ps, struct perpage *pp, uint idx)
 		} else {
 			v_lock(&ps2->p_lock, SPL0);
 		}
+	}
+
+	/*
+	 * If he successfully stole all translations and
+	 * things are getting tight, go ahead and take the memory
+	 */
+	ASSERT_DEBUG((pp->pp_flags & PP_M) == 0,
+		"steal_master: file modified");
+	if ((pp->pp_refs == 0) && (*steal)(pp->pp_flags, trouble)) {
+		free_page(pp->pp_pfn);
+		pp->pp_flags &= ~(PP_R|PP_V);
 	}
 }
 
@@ -153,23 +176,48 @@ do_hand(struct core *c, int trouble, intfun steal)
 	extern void iodone_unlock();
 
 	/*
-	 * Lock physical page.  Point to the master pset.
+	 * No point fussing over inactive pages, eh?
+	 */
+	if ((c->c_flags & C_ALLOC) == 0) {
+		return;
+	}
+
+	/*
+	 * Lock physical page
 	 */
 	pgidx = c-core;
 	if (clock_page(pgidx)) {
 		return;
 	}
-	if (BAD(c)) {
+
+	/*
+	 * Avoid bad pages and those which are changing state
+	 */
+	ps = c->c_pset;
+	if (BAD(c) || (ps == 0)) {
 		unlock_page(pgidx);
 		return;
 	}
-	ps = c->c_pset;
 	idx = c->c_psidx;
 
 	/*
-	 * Lock master slot
+	 * Lock pset
 	 */
 	p_lock(&ps->p_lock, SPL0);
+
+	/*
+	 * 0 references means we've come upon this pset in the process
+	 * of creation or tear-down.  Leave it alone.
+	 */
+	if (ps->p_refs == 0) {
+		v_lock(&ps->p_lock, SPL0);
+		unlock_page(pgidx);
+		return;
+	}
+
+	/*
+	 * Access indicated slot
+	 */
 	pp = find_pp(ps, idx);
 	if (clock_slot(ps, pp)) {
 		v_lock(&ps->p_lock, SPL0);
@@ -182,16 +230,7 @@ do_hand(struct core *c, int trouble, intfun steal)
 	 * can be made, so handle in its own routine.
 	 */
 	if ((ps->p_type != PT_COW) && ps->p_cowsets) {
-		steal_master(ps, pp, idx);
-
-		/*
-		 * If he successfully stole all translations and
-		 * things are getting tight, go ahead and take the memory
-		 */
-		if ((pp->pp_refs == 0) && (*steal)(pp->pp_flags, trouble)) {
-			free_page(pp->pp_pfn);
-			pp->pp_flags &= ~(PP_R|PP_V);
-		}
+		steal_master(ps, pp, idx, trouble, steal);
 		goto out;
 	}
 
@@ -240,7 +279,7 @@ out:
 static int
 steal1(int flags, int trouble)
 {
-	return ((trouble > 1) || !(flags & PP_R));
+	return (trouble > 1);
 }
 
 /*
@@ -257,13 +296,32 @@ steal2(int flags, int trouble)
  * pageout()
  *	Endless routine to detect memory shortages and steal pages
  */
-void
 pageout(void)
 {
 	struct core *base, *top, *hand1, *hand2;
 	int trouble, npg;
 	int troub_cnt[3];
-#define ADVANCE(hand) {if (++(hand) >= top) hand = base; }
+
+/*
+ * Not sure if these need to be macros; have to move "top" and "base"
+ * to globals to do it in its own function.
+ */
+#define INC(hand) {if (++(hand) >= top) hand = base; }
+#define ADVANCE(hand) \
+	{ INC(hand); \
+		while (BAD(hand)) { \
+			INC(hand); \
+		} \
+	}
+
+	/*
+	 * Check for mistake.  Not designed to be MP safe; "shouldn't
+	 * happen", anyway.
+	 */
+	if (pageout_secs) {
+		return(err(EBUSY));
+	}
+	pageout_secs = PAGEOUT_SECS;
 
 	/*
 	 * Skip to first usable page, also record top
@@ -275,15 +333,18 @@ pageout(void)
 	/*
 	 * Set clock hands
 	 */
-	hand2 = base;
-	hand1 = base + (top-base)/SPREAD;
+	hand1 = hand2 = base;
+	for (npg = totalmem/SPREAD; npg > 0; npg -= 1) {
+		ADVANCE(hand1);
+	}
+	npg = 0;
 
 	/*
 	 * Calculate scan counts for each situation
 	 */
-	troub_cnt[0] = (top-base)/SMALLSCAN;
-	troub_cnt[1] = (top-base)/MEDSCAN;
-	troub_cnt[2] = (top-base)/LARGESCAN;
+	troub_cnt[0] = totalmem/SMALLSCAN;
+	troub_cnt[1] = totalmem/MEDSCAN;
+	troub_cnt[2] = totalmem/LARGESCAN;
 
 	/*
 	 * Initialize our semaphore
@@ -311,6 +372,7 @@ pageout(void)
 		if (npg > troub_cnt[trouble]) {
 			npg = 0;
 			p_sema(&pageout_sema, PRIHI);
+
 			/*
 			 * Clear all v's after wakeup
 			 */
@@ -333,4 +395,15 @@ pageout(void)
 		ADVANCE(hand2);
 		npg += 1;
 	}
+}
+
+/*
+ * kick_pageout()
+ *	Wake pageout daemon periodically
+ */
+void
+kick_pageout(void)
+{
+	ASSERT_DEBUG(pageout_secs > 0, "kick_pageout: no daemon");
+	v_sema(&pageout_sema);
 }
