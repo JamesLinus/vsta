@@ -220,7 +220,7 @@ m_to_sm(struct vas *vas, struct msg *m, struct sysmsg *sm)
 					sm->m_seg[y] = 0;
 				}
 				sm->m_nseg = 0;
-				return(err(EINVAL));
+				return(err(EFAULT));
 			}
 			sm->m_seg[x] = seg;
 		}
