@@ -1,21 +1,23 @@
-CC= gcc
-LD= ld
-INCS= -I../../../include
-CFLAGS= -DDEBUG $(INCS) -Wall -O
-LDFLAGS= -L../../../libc
-LIBS= -lusr -lc
-CRT0= ../../../libc/crt0.o
+CC=gcc
+LD=ld
+INCS=-I../../../include
+CFLAGS=-DDEBUG $(INCS) -Wall -O
+LDFLAGS=-L../../../libc
+LIBS=-lusr -lc
+CRT0=../../../libc/crt0.o
 
 all: kill ps
 
 .c.o:
 	$(CC) $(CFLAGS) -c $*.c
 
-kill: kill.o
-	$(LD) $(LDFLAGS) -o kill $(CRT0) kill.o $(LIBS)
+UTIL=utils.o
 
-ps: ps.o
-	$(LD) $(LDFLAGS) -o ps $(CRT0) ps.o $(LIBS)
+kill: kill.o $(UTIL)
+	$(LD) $(LDFLAGS) -o kill $(CRT0) kill.o $(UTIL) $(LIBS)
+
+ps: ps.o $(UTIL)
+	$(LD) $(LDFLAGS) -o ps $(CRT0) ps.o $(UTIL) $(LIBS)
 
 install: all
 	strip kill
