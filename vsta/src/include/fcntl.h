@@ -21,6 +21,7 @@
 #define O_TEXT (0)
 #define O_BINARY (32)
 #define O_DIR (64)
+#define O_CHMOD (128)
 
 /*
  * Max # characters in a path.  Not clear this belongs here.

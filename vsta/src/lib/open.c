@@ -36,6 +36,7 @@ mapmode(int mode)
 	if (mode & O_WRITE) m |= ACC_WRITE;
 	if (mode & O_CREAT) m |= ACC_CREATE;
 	if (mode & O_DIR) m |= ACC_DIR;
+	if (mode & O_CHMOD) m |= ACC_CHMOD;
 	return(m);
 }
 
