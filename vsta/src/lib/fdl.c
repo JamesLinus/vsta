@@ -346,7 +346,7 @@ close(int fd)
  *
  * Only meant to be used during crt0 startup after an exec().
  */
-void
+char *
 __fdl_restore(char *p)
 {
 	char *endp;
@@ -405,6 +405,7 @@ __fdl_restore(char *p)
 		 */
 		__do_open(port);
 	}
+	return(p);
 }
 
 /*
