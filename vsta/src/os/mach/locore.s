@@ -16,7 +16,7 @@ _size_base: .space	4	/* # pages of base (< 640K) memory */
 _size_ext:  .space	4	/*  ... extended (> 1M) memory */
 _boot_pfn:  .space	4	/* PFN of first boot task */
 mainretmsg:
-		.asciz	"main returned"
+	.asciz	"main returned"
 
 /*
  * Entered through 32-bit task gate constructed in 16-bit mode
@@ -538,9 +538,9 @@ intr_common:
  * already have an error code supplied by the i386.  IDT() is for
  * those which don't--we push a dummy 0.
  */
-#define IDT(n, t) 	.globl _##n ; _##n: \
+#define IDT(n, t) 	.globl _##n ; _##n##: \
 	pushl $0 ; pushl $(t) ; jmp trap_common
-#define IDTERR(n, t) 	.globl _##n ; _##n: \
+#define IDTERR(n, t) 	.globl _##n ; _##n##: \
 	pushl $(t) ; jmp trap_common
 
 /*
@@ -581,7 +581,7 @@ _stray_ign:
  * If the extra cycle/write is a problem, guess we could define
  * a "struct intframe" in machreg.h.
  */
-#define INTVEC(n)	.globl	_xint##n ; _xint##n: \
+#define INTVEC(n)	.globl	_xint##n ; _xint##n##: \
 	pushl	$(0); pushl	$(n) ; jmp intr_common
 
 	.align	4
