@@ -25,6 +25,25 @@ static uint bufsize;		/* # sectors held in memory currently */
 static struct hash *bufpool;	/* Hash daddr_t -> buf */
 static struct llist allbufs;	/* Time-ordered list, for aging */
 
+#ifdef DEBUG
+/*
+ * dump_bufpool()
+ *	Show buffer pool
+ */
+static void
+dump_bufpool(void)
+{
+	struct llist *l;
+	struct buf *b;
+
+	for (l = allbufs.l_back; l != &allbufs; l = l->l_back) {
+		b = l->l_data;
+		printf(" Start %ld len %d locks %d flags 0x%x\n",
+			b->b_start, b->b_nsec, b->b_locks, b->b_flags);
+	}
+}
+#endif
+
 /*
  * free_buf()
  *	Release buffer storage, remove from hash
@@ -83,6 +102,10 @@ age_buf(void)
 		free_buf(b);
 		return;
 	}
+#ifdef DEBUG
+	printf("No buffers aged out of %d in pool:\n", bufsize);
+	dump_bufpool();
+#endif
 	ASSERT(bufsize <= CORESEC, "age_buf: buffers too large");
 }
 
@@ -183,6 +206,7 @@ find_buf(daddr_t d, uint nsec)
 	b->b_flags = 0;
 	b->b_locks = 0;
 	read_secs(d, b->b_data, nsec);
+	bufsize += nsec;
 	return(b);
 }
 
