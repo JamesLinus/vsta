@@ -166,9 +166,7 @@ fileinit(char *argv0)
 #endif
 	/* Try to get home directory name */
 	if ((ep = getenv("NETHOME")) == NULLCHAR) {
-		if ((ep = getenv("HOME")) == NULLCHAR) {
-			ep = ".";
-		}
+		ep = "/vsta/etc";
 	}
 	el = strlen(ep);
 	/* Replace each of the file name strings with the complete path */
