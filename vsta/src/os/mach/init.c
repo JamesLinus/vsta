@@ -82,9 +82,7 @@ init_machdep(void)
 	/*
 	 * Initialize our single "per CPU" data structure
 	 */
-	cpu.pc_thread = 0;
-	cpu.pc_num = 0;
-	cpu.pc_locks = 0;
+	bzero(&cpu, sizeof(cpu));
 	cpu.pc_flags = CPU_UP|CPU_BOOT;
 	cpu.pc_next = &cpu;
 
