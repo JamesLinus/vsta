@@ -9,6 +9,8 @@
 #include <ctype.h>
 #include <string.h>
 #include <std.h>
+#include <select.h>
+#include <termios.h>
 
 extern port_t path_open(), __fd_port();
 
@@ -69,62 +71,45 @@ my_open(char *path)
 }
 
 /*
- * reader()
- *	Read and dump until terminated by signal
- */
-static void
-reader(port_t rdport)
-{
-	struct msg m;
-	char buf[256];
-	int x;
-
-	for (;;) {
-		m.m_op = FS_READ | M_READ;
-		m.m_buf = buf;
-		m.m_arg = m.m_buflen = sizeof(buf);
-		m.m_nseg = 1;
-		m.m_arg1 = 0;
-		x = msg_send(rdport, &m);
-		if (x > 0) {
-			write(1, buf, x);
-		}
-	}
-}
-
-/*
  * my_term()
  *	Go into read/write terminal mode
  */
 static void
 my_term(char *dummy)
 {
-	port_t port2;
-	pid_t readpid;
-	struct msg m;
+	int x;
+	fd_set rfd;
 	char buf[256];
+	struct termios told, tnew;
 
 	printf("Terminal mode.  Enter '.' to end.\n");
-	port2 = clone(port);
-	if (port2 < 0) {
-		perror("clone");
-		return;
-	}
-	readpid = tfork(reader, port2);
+	tcgetattr(0, &told);
+	tnew = told;
+	tnew.c_lflag &= ~ICANON;
+	tnew.c_cc[VMIN] = 1;
+	tnew.c_cc[VTIME] = 0;
+	tcsetattr(0, TCSANOW, &tnew);
 	for (;;) {
-		fgets(buf, sizeof(buf), stdin);
-		if (*buf == '.') {
-			break;
+		FD_ZERO(&rfd);
+		FD_SET(fd, &rfd);
+		FD_SET(0, &rfd);
+		if (select(fd+1, &rfd, NULL, NULL, NULL) < 0) {
+			perror("select");
+			exit(1);
 		}
-		m.m_op = FS_WRITE;
-		m.m_buf = buf;
-		m.m_arg = m.m_buflen = strlen(buf);
-		m.m_nseg = 1;
-		m.m_arg1 = 0;
-		msg_send(port, &m);
+		if (FD_ISSET(0, &rfd)) {
+			x = read(0, buf, 1);
+			if (buf[0] == '.') {
+				tcsetattr(0, TCSANOW, &told);
+				break;
+			}
+			write(fd, buf, 1);
+		}
+		if (FD_ISSET(fd, &rfd)) {
+			x = read(fd, buf, sizeof(buf));
+			write(1, buf, x);
+		}
 	}
-	notify(0, readpid, "kill");
-	msg_disconnect(port2);
 	printf("Done with terminal mode\n");
 }
 
@@ -359,24 +344,16 @@ main(int argc, char **argv)
 	 * Access the named file
 	 */
 	if (argc < 2) {
-		path = "net/inet:tcp/clone";
+		path = "//net/inet:tcp/clone";
 	} else {
 		path = argv[1];
 	}
-	if (path[0] == '/') {
-		fd = open(path, O_RDWR);
-		if (fd < 0) {
-			perror(path);
-			exit(1);
-		}
-		port = __fd_port(fd);
-	} else {
-		port = path_open(path, ACC_READ | ACC_WRITE);
-		if (port < 0) {
-			perror(path);
-			exit(1);
-		}
+	fd = open(path, O_RDWR);
+	if (fd < 0) {
+		perror(path);
+		exit(1);
 	}
+	port = __fd_port(fd);
 
 	/*
 	 * Command loop
