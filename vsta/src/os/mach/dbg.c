@@ -109,9 +109,14 @@ gets(char *p)
 void
 dbg_enter(void)
 {
+	int was_on;
 	extern void dbg_main(void);
 
+	was_on = cli();
 	printf("[Kernel debugger]\n");
 	dbg_main();
+	if (was_on) {
+		sti();
+	}
 }
 #endif /* KDB */

@@ -48,8 +48,9 @@ dump_thread2(struct thread *t, int brief)
 	if (brief) {
 		return;
 	}
-	printf("  kregs %x proc %x ustack %x runq %x runticks %d\n",
-		t->t_kregs, t->t_proc, t->t_ustack, t->t_runq, t->t_runticks);
+	printf("  kregs %x proc %x ustack %x runq %x runticks %d oink %d\n",
+		t->t_kregs, t->t_proc, t->t_ustack, t->t_runq,
+		t->t_runticks, t->t_oink);
 	printf("  flags:"); f = t->t_flags;
 	FLAG(T_RT, "RT"); FLAG(T_BG, "BG"); FLAG(T_KERN, "KERN");
 	printf("\n  hd %x tl %x next %x msgwait %x qsav %x\n",

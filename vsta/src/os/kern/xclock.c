@@ -143,6 +143,9 @@ hardclock(struct trapframe *f)
 			t->t_runticks -= 1;
 		}
 		if (t->t_runticks == 0) {
+			if (t->t_oink < T_MAX_OINK) {
+				t->t_oink += 1;
+			}
 			do_preempt = 1;
 		}
 	}

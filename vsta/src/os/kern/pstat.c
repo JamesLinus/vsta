@@ -13,12 +13,12 @@
  * list and wrap back to the beginning.
  */
 #include <sys/proc.h>
+#ifdef PSTAT
 #include <sys/thread.h>
 #include <sys/pstat.h>
 #include <sys/percpu.h>
 #include <sys/assert.h>
 
-#ifdef PSTAT
 
 extern sema_t pid_sema;
 
@@ -33,7 +33,7 @@ pstat(struct pstat *psp, uint npst, uint pst_size)
 	struct thread *t;
 	struct pstat ps;
 	pid_t startpid = 0;
-	uint count = 0, size;
+	uint count = 0;
 
 	ASSERT_DEBUG(sizeof(ps.ps_cmd) <= sizeof(p->p_cmd),
 		"pstat: p_cmd too small");

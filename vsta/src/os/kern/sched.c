@@ -258,12 +258,17 @@ swtch(void)
 {
 	struct sched *s;
 	ushort pri;
+	struct thread *t = curthread;
 
 	/*
 	 * Now that we're going to reschedule, clear any pending preempt
-	 * request.
+	 * request.  If we voluntarily gave up the CPU, decrement
+	 * one point of CPU (over) usage.
 	 */
 	ASSERT_DEBUG(cpu.pc_nopreempt == 0, "swtch: slept in no preempt");
+	if (t && (t->t_state == TS_SLEEP) && (t->t_oink > 0)) {
+		t->t_oink -= 1;
+	}
 	do_preempt = 0;
 
 	for (;;) {
@@ -301,8 +306,8 @@ swtch(void)
 		/*
 		 * Save our current state
 		 */
-		if (curthread) {
-			if (savestate(curthread)) {
+		if (t) {
+			if (savestate(t)) {
 				/*
 				 * This is the code path from being
 				 * resume()'ed.
@@ -316,7 +321,7 @@ swtch(void)
 		 */
 		idle_stack();
 		v_lock(&runq_lock, SPL0);
-		curthread = 0;
+		t = curthread = 0;
 		idle();
 		p_lock(&runq_lock, SPLHI);
 	}
@@ -324,9 +329,9 @@ swtch(void)
 	/*
 	 * If we've picked the same guy, don't need to do anything fancy.
 	 */
-	if (s->s_thread == curthread) {
+	if (s->s_thread == t) {
 		if (pri != PRI_CHEATED) {
-			curthread->t_runticks = RUN_TICKS;
+			t->t_runticks = RUN_TICKS;
 		}
 		cpu.pc_pri = pri;
 		v_lock(&runq_lock, SPL0);
@@ -336,8 +341,8 @@ swtch(void)
 	/*
 	 * Otherwise push aside current thread and go with new
 	 */
-	if (curthread) {
-		if (savestate(curthread)) {
+	if (t) {
+		if (savestate(t)) {
 			return;
 		}
 	}
@@ -348,12 +353,12 @@ swtch(void)
 	 * their previous allocation.
 	 */
 	cpu.pc_pri = pri;
-	curthread = s->s_thread;
+	t = curthread = s->s_thread;
 	if (pri != PRI_CHEATED) {
-		curthread->t_runticks = RUN_TICKS;
+		t->t_runticks = RUN_TICKS;
 	}
-	curthread->t_state = TS_ONPROC;
-	curthread->t_eng = &cpu;
+	t->t_state = TS_ONPROC;
+	t->t_eng = &cpu;
 	idle_stack();
 	v_lock(&runq_lock, SPL0);
 	resume();
@@ -369,7 +374,6 @@ lsetrun(struct thread *t)
 {
 	struct sched *s = t->t_runq;
 
-	ASSERT_DEBUG(t->t_state == TS_SLEEP, "lsetrun: !sleep");
 	ASSERT_DEBUG(t->t_wchan == 0, "lsetrun: wchan");
 	t->t_state = TS_RUN;
 	if (t->t_flags & T_RT) {
@@ -385,7 +389,7 @@ lsetrun(struct thread *t)
 		 * Similarly for background
 		 */
 		queue(&sched_bg, s);
-	} else if (t->t_runticks > CHEAT_TICKS) {
+	} else if ((t->t_runticks > CHEAT_TICKS) && !t->t_oink) {
 
 		/*
 		 * A timeshare process which used little of its
@@ -446,7 +450,6 @@ void
 timeslice(void)
 {
 	p_lock(&runq_lock, SPLHI);
-	curthread->t_state = TS_SLEEP;
 	lsetrun(curthread);
 	swtch();
 }

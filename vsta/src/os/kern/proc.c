@@ -355,6 +355,7 @@ fork_thread(voidfun f)
 	t->t_uregs = 0;
 	t->t_state = TS_SLEEP;
 	t->t_fpu = 0;
+	t->t_oink = 0;
 
 	/*
 	 * Add new guy to the proc's list
@@ -408,25 +409,19 @@ fork(void)
 	 * Allocate new structures
 	 */
 	tnew = MALLOC(sizeof(struct thread), MT_THREAD);
+	bzero(tnew, sizeof(struct thread));
 	pnew = MALLOC(sizeof(struct proc), MT_PROC);
+	bzero(pnew, sizeof(struct proc));
 
 	/*
 	 * Get new thread
 	 */
 	tnew->t_kstack = MALLOC(KSTACK_SIZE, MT_KSTACK);
 	tnew->t_flags = told->t_flags;
-	tnew->t_hd = tnew->t_tl = tnew->t_next = 0;
-	tnew->t_wchan = 0;
-	tnew->t_nointr = tnew->t_intr = 0;
 	init_sema(&tnew->t_msgwait);
-	tnew->t_probe = 0;
-	tnew->t_err[0] = '\0';
-	tnew->t_usrcpu = tnew->t_syscpu = 0L;
-	tnew->t_evsys[0] = tnew->t_evproc[0] = '\0';
 	init_sema(&tnew->t_evq); set_sema(&tnew->t_evq, 1);
 	tnew->t_state = TS_SLEEP;	/* -> RUN in setrun() */
 	tnew->t_ustack = (void *)USTACKADDR;
-	tnew->t_fpu = 0;
 
 	/*
 	 * Get new PIDs for process and initial thread.  Insert
@@ -452,8 +447,6 @@ fork(void)
 	tnew->t_runq = sched_thread(pnew->p_runq, tnew);
 	bzero(&pnew->p_ports, sizeof(pnew->p_ports));
 	fork_ports(pold->p_open, pnew->p_open, PROCOPENS);
-	pnew->p_prefs = 0;
-	pnew->p_flags = 0;
 	pnew->p_nopen = pold->p_nopen;
 	pnew->p_handler = pold->p_handler;
 	pnew->p_pgrp = pold->p_pgrp; join_pgrp(pold->p_pgrp, npid);
@@ -461,12 +454,6 @@ fork(void)
 	bcopy(pold->p_cmd, pnew->p_cmd, sizeof(pnew->p_cmd));
 	v_sema(&pold->p_sema);
 	pnew->p_children = alloc_exitgrp(pnew);
-	pnew->p_event[0] = '\0';
-	pnew->p_usr = pnew->p_sys = 0L;
-#ifdef PROC_DEBUG
-	bzero(&pnew->p_dbg, sizeof(struct pdbg));
-	bzero(&pnew->p_dbgr, sizeof(struct dbg_regs));
-#endif
 
 	/*
 	 * Duplicate stack now that we have a viable thread/proc
