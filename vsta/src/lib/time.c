@@ -20,6 +20,7 @@ static int month_len[] =
  * sleep()
  *	Suspend execution the given amount of time
  */
+uint
 sleep(uint secs)
 {
 	struct time t;
