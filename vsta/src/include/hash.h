@@ -4,6 +4,7 @@
  * hash.h
  *	Data structures for a hashed lookup object
  */
+#include <sys/types.h>
 
 /*
  * This is the root of the hashed object.  You shouldn't monkey
@@ -32,5 +33,7 @@ int hash_insert(struct hash *, long, void *);
 int hash_delete(struct hash *, long);
 void *hash_lookup(struct hash *, long);
 void hash_dealloc(struct hash *);
+void hash_foreach(struct hash *, intfun, void *);
+uint hash_size(struct hash *);
 
 #endif /* _HASH_H */
