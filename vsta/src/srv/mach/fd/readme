@@ -1,5 +1,5 @@
 Subject: Readme for the VSTa PC floppy drive server
-Date: 21st July 1994
+Date: 30th October 1994
 From: Dave Hudson <dave@humbug.demon.co.uk>
 
 
@@ -67,8 +67,5 @@ There are a some areas of enhancement for this server:
 
 a) Support diskette formatting
 
-b) Optimise performance via the use of a track buffer
-
-c) Add support for concurrent seek and recalibrate operations over all
+b) Add support for concurrent seek and recalibrate operations over all
 drives in the system
-

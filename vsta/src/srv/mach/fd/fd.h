@@ -19,7 +19,13 @@
 /*
  * Max I/O size supported
  */
-#define MAXIO (65536)
+#define MAXIO 65536
+
+
+/*
+ * Read-ahead buffer size
+ */
+#define RABUFSIZE 20480
 
 
 /*
@@ -80,12 +86,17 @@ struct floppy {
 	uint f_cyl;		/* Cylinder heads are currently on */
 	uint f_opencnt;		/* Number of open references */
 	int *f_posdens;		/* Array of possible densities */
+	uchar f_abort;		/* Are we in an abort cycle */
 	char f_prbcount;	/* Which density are we probing (if any)? */
 	int f_mediachg;		/* Number of media changes */
 	uchar f_chgactive;	/* Is the change-line active? */
 	int f_errors;		/* Number of consecutive errors */
 	int f_retries;		/* Number of retries permitted */
 	uchar f_messages;	/* Message issuing level */	
+	void *f_rabuf;		/* Read ahead buffer */
+	int f_rablock;		/* First block in the r/a buffer */
+	int f_racount;		/* Number of blocks in the r/a buffer */
+	int f_ranow;		/* Are we doing a read-ahead at the moment */
 };
 
 #define FD_NOPROBE -1		/* We're not probing media details */

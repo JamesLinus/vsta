@@ -40,6 +40,7 @@ static void unit_reset();
 static void unit_failed();
 static void media_chgtest();
 static void media_probe();
+static void run_queue();
 
 
 extern int fd_baseio;		/* Our controller's base I/O address */
@@ -550,6 +551,21 @@ unit_recal(int old, int new)
 	}
 
 	/*
+	 * If this is just a tidy up after an abort we want to get on with
+	 * something productive again
+	 */
+	if (busy->f_abort) {
+		busy->f_abort = FALSE;
+		busy->f_state = F_READY;
+		busy->f_ranow = 0;
+		run_queue();
+		if (!busy) {
+			timeout(3000);
+		}
+		return;
+	}
+
+	/*
 	 * If we have an 82077, configure the FDC.  Note that we don't
 	 * allow implied seeks on stretched media :-(
 	 */
@@ -800,7 +816,11 @@ setup_fdc(struct floppy *fl, struct file *f)
 	fdc_out((f->f_head << 2) | fl->f_unit);
 	fdc_out(f->f_cyl);
 	fdc_out(f->f_head);
-	fdc_out((f->f_blkno % fp->f_sectors) + 1);
+	if (!fl->f_ranow) {
+		fdc_out((f->f_blkno % fp->f_sectors) + 1);
+	} else {
+		fdc_out(((fl->f_rablock + fl->f_racount) % fp->f_sectors) + 1);
+	}
 	fdc_out(fp->f_secsize);
 	fdc_out(fp->f_sectors);
 	fdc_out(fp->f_gap);
@@ -820,6 +840,18 @@ setup_dma(struct file *f)
 {
 	ulong pa;
 	uint secsz = SECSZ(busy->f_parms.f_secsize);
+	void *fbuf;
+	uint foff;
+
+	/*
+	 * Sort out where the I/O's going - it could be into the
+	 * read-ahead buffer
+	 */
+	if (!busy->f_ranow) {
+		fbuf = f->f_buf + f->f_off;
+	} else {
+		fbuf = busy->f_rabuf + (secsz * busy->f_racount);
+	}
 
 	/*
 	 * First off, we need to ensure we don't keep grabbing wired pages
@@ -836,12 +868,12 @@ setup_dma(struct file *f)
 	 * space doesn't mean that they are physically.  We take the easy
 	 * approach and just use the bounce buffer for this case
 	 */
-	if ((((uint)(f->f_buf) + f->f_off) & (NBPG - 1)) + secsz <= NBPG) {
+	if ((((uint)fbuf) & (NBPG - 1)) + secsz <= NBPG) {
 		/*
 		 * Try for straight map-down of memory.  Use bounce buffer
 		 * if we can't get the memory directly.
 		 */
-		map_handle = page_wire(f->f_buf + f->f_off, (void **)&pa);
+		map_handle = page_wire(fbuf, (void **)&pa);
 		if (map_handle > 0) {
 			/*
 			 * Make sure that the wired page is the DMAable
@@ -866,7 +898,7 @@ setup_dma(struct file *f)
 		 * user's data into the bounce buffer
 		 */
 		if (f->f_dir == FS_WRITE) {
-			bcopy(f->f_buf + f->f_off, bounceva, secsz);
+			bcopy(fbuf, bounceva, secsz);
 		}
 	}
 	
@@ -878,6 +910,56 @@ setup_dma(struct file *f)
 	outportb(DMA_CNT, (secsz - 1) & 0xff);
 	outportb(DMA_CNT, ((secsz - 1) >> 8) & 0xff);
 	outportb(DMA_INIT, 2);
+}
+
+
+/*
+ * io_complete()
+ *	Reply to our clien and handle the clean up after our I/O's complete
+ */
+static void
+io_complete(struct file *f)
+{
+	struct msg m;
+
+	/*
+	 * All done. Return results.  If we used a local buffer, send it
+	 * back.  Otherwise we DMA'ed into his own memory, so no segment
+	 * is returned.
+	 */
+	if (f->f_local) {
+		m.m_buf = f->f_buf;
+		m.m_buflen = f->f_off;
+		m.m_nseg = 1;
+	} else {
+		m.m_nseg = 0;
+	}
+	m.m_arg = f->f_off;
+	m.m_arg1 = 0;
+	msg_reply(f->f_sender, &m);
+
+	/*
+	 * Dequeue the completed operation.  Kick the queue so
+	 * that any pending operation can now take over.
+	 */
+	ll_delete(f->f_list);
+	f->f_list = 0;
+	run_queue();
+
+	/*
+	 * He has it, so free back to our pool
+	 */
+	if (f->f_local) {
+		free(f->f_buf);
+	}
+
+	/*
+	 * Leave a timer behind; if nothing comes up, this will
+	 * cause the floppies to spin down.
+	 */
+	if (!busy) {
+		timeout(3000);
+	}
 }
 
 
@@ -922,6 +1004,50 @@ unit_io(int old, int new)
 	}
 
 	/*
+	 * Before we actually request the data off the media check to see
+	 * that we haven't already cached it
+	 */
+	if ((!busy->f_ranow)
+	    && (f->f_dir == FS_READ)
+	    && (busy->f_racount > 0)
+	    && (f->f_blkno >= busy->f_rablock)
+	    && (f->f_blkno < busy->f_rablock + busy->f_racount)) {
+		/*
+		 * OK we have cached data we can work with
+		 */
+		uint secsz = SECSZ(busy->f_parms.f_secsize);
+		int clen = (busy->f_rablock + busy->f_racount - f->f_blkno)
+			   * secsz;
+
+		if (clen > f->f_count) {
+			clen = f->f_count;
+		}
+		bcopy(busy->f_rabuf + ((f->f_blkno - busy->f_rablock) * secsz),
+		      f->f_buf + f->f_off, clen);
+		f->f_off += clen;
+		f->f_pos += clen;
+		f->f_blkno += (clen / secsz);
+		f->f_count -= clen;
+		
+		/*
+		 * If we have now completed the I/O, terminate the cycle.
+		 * If we've still got some to go it can only really mean that
+		 * the data we're after is on the next track so seek
+		 * to it
+		 */
+		if (f->f_count == 0) {
+			busy->f_state = F_READY;
+			io_complete(f);
+			return;
+		} else {
+			calc_cyl(f, &busy->f_parms);
+			busy->f_state = F_SEEK;
+			unit_seek(F_READY, F_SEEK);
+			return;
+		}
+	}
+
+	/*
 	 * Setup the DMA and FDC registers
 	 */
 	setup_dma(f);
@@ -941,7 +1067,6 @@ unit_iodone(int old, int new)
 	uint secsz = SECSZ(busy->f_parms.f_secsize);
 	int x;
 	struct file *f = cur_tran();
-	struct msg m;
 
 	ASSERT_DEBUG(busy, "fd iodone: not busy");
 	ASSERT_DEBUG(f, "fd iodone: no request");
@@ -1057,6 +1182,11 @@ unit_iodone(int old, int new)
 	}
 
 	/*
+	 * Clear error count after successful transfer
+	 */
+	busy->f_errors = 0;
+
+	/*
 	 * If we weren't DMAing then we need to copy the bounce buffer
 	 * back into user land
 	 */
@@ -1064,68 +1194,50 @@ unit_iodone(int old, int new)
 		/*
 		 * Need to bounce out to buffer
 		 */
-		bcopy(bounceva, f->f_buf + f->f_off, secsz);
+		if (!busy->f_ranow) {
+			bcopy(bounceva, f->f_buf + f->f_off, secsz);
+		} else {
+			bcopy(bounceva,
+			      busy->f_rabuf + (secsz * busy->f_racount),
+			      secsz);
+		}
 	}
-
-	/*
-	 * Clear error count after successful transfer
-	 */
-	busy->f_errors = 0;
 
 	/*
 	 * Advance I/O counters.  If we have more to do in this
 	 * transfer, keep our state as F_IO and start next part
 	 * of transfer.
 	 */
-	f->f_pos += secsz;
-	f->f_off += secsz;
-	f->f_blkno += 1;
-	f->f_count -= secsz;
-	if (f->f_count > 0) {
-		calc_cyl(f, &busy->f_parms);
-		busy->f_state = F_SEEK;
-		unit_seek(F_READY, F_SEEK);
-		return;
+	if (!busy->f_ranow) {
+		f->f_pos += secsz;
+		f->f_off += secsz;
+		f->f_blkno += 1;
+		f->f_count -= secsz;
+		if (f->f_count > 0) {
+			calc_cyl(f, &busy->f_parms);
+			busy->f_state = F_SEEK;
+			unit_seek(F_READY, F_SEEK);
+			return;
+		} else if (f->f_dir == FS_READ) {
+			busy->f_ranow = 1;
+			busy->f_rablock = f->f_blkno;
+			busy->f_racount = -1;
+		}
 	}
 
-	/*
-	 * All done. Return results.  If we used a local buffer, send it
-	 * back.  Otherwise we DMA'ed into his own memory, so no segment
-	 * is returned.
-	 */
-	if (f->f_local) {
-		m.m_buf = f->f_buf;
-		m.m_buflen = f->f_off;
-		m.m_nseg = 1;
-	} else {
-		m.m_nseg = 0;
-	}
-	m.m_arg = f->f_off;
-	m.m_arg1 = 0;
-	msg_reply(f->f_sender, &m);
-
-	/*
-	 * Dequeue the completed operation.  Kick the queue so
-	 * that any pending operation can now take over.
-	 */
-	ll_delete(f->f_list);
-	f->f_list = 0;
-	run_queue();
-
-	/*
-	 * He has it, so free back to our pool
-	 */
-	if (f->f_local) {
-		free(f->f_buf);
+	if (busy->f_ranow) {
+		busy->f_racount++;
+		if ((busy->f_rablock + busy->f_racount)
+		    % busy->f_parms.f_sectors) {
+			busy->f_state = F_SEEK;
+			unit_seek(F_READY, F_SEEK);
+			return;
+		} else {
+			busy->f_ranow = 0;
+		}
 	}
 
-	/*
-	 * Leave a timer behind; if nothing comes up, this will
-	 * cause the floppies to spin down.
-	 */
-	if (!busy) {
-		timeout(3000);
-	}
+	io_complete(f);
 }
 
 
@@ -1403,6 +1515,7 @@ fd_init(void)
 		fl->f_userp.f_size = FD_PUNDEF;
 		fl->f_prbcount = FD_NOPROBE;
 		fl->f_messages = FDM_FAIL;
+		fl->f_abort = FALSE;
 
 		switch(fl->f_type) {
 		case FDNONE:
@@ -1439,6 +1552,16 @@ fd_init(void)
 			fl->f_state = F_NXIO;
 		}
 		configed += (fl->f_state != F_NXIO ? 1 : 0);
+
+		if (fl->f_state != F_NXIO) {
+			/*
+			 * Allocate read-ahead buffer space
+			 */
+			fl->f_rabuf = (void *)malloc(RABUFSIZE);
+			fl->f_rablock = -1;
+			fl->f_racount = 0;
+			fl->f_ranow = 0;
+		}
 	}
 	if (!configed) {
 		syslog(LOG_INFO, "no drives found - server exiting!");
@@ -1473,13 +1596,6 @@ abort_io(struct file *f)
 {
 	ASSERT(busy, "fd abort_io: not busy");
 
-	ll_delete(f->f_list);
-	f->f_list = 0;
-	if (f->f_local) {
-		free(f->f_buf);
-	}
-	msg_err(f->f_sender, EIO);
-
 	if (f == cur_tran()) {
 		/*
 		 * We have to be pretty heavy-handed.  We reset the
@@ -1491,11 +1607,15 @@ abort_io(struct file *f)
 		if (map_handle >= 0) {
 			(void)page_release(map_handle);
 		}
-		outportb(fd_baseio + FD_MOTOR, 0);
-		__usleep(RESET_SLEEP);
-		motors_off();
-		busy->f_state = F_CLOSED;
-		run_queue();
+		busy->f_abort = TRUE;
+		busy->f_state = F_RESET;
+		unit_reset(F_READY, F_RESET);
+	}
+
+	ll_delete(f->f_list);
+	f->f_list = 0;
+	if (f->f_local) {
+		free(f->f_buf);
 	}
 }
 
@@ -1563,32 +1683,26 @@ void
 fd_close(struct msg *m, struct file *f)
 {
 	struct floppy *fl;
-
+	
 	/*
 	 * If it's just at the directory level, no problem
 	 */
 	if (f->f_slot == ROOTDIR) {
 		return;
 	}
-
+	
 	/*
 	 * Abort any active I/O
 	 */
 	if (f->f_list) {
 		abort_io(f);
 	}
-
+	
 	/*
-	 * Decrement open count.  On last close, shut off motor to make
-	 * it easier to swap floppies.
+	 * Decrement open count
 	 */
 	fl = unit(f->f_unit);
-	if ((fl->f_opencnt -= 1) > 0)
-		return;
-	ASSERT_DEBUG(busy != fl, "fd fd_close: closed but busy");
-	fl->f_state = F_CLOSED;
-	fl->f_spinning = 0;
-	motors();
+	fl->f_opencnt -= 1;
 }
 
 
@@ -1609,6 +1723,8 @@ media_chgtest(void)
 		if (!busy->f_chgactive) {
 			busy->f_chgactive = 1;
 			busy->f_mediachg++;
+			busy->f_rablock = -1;
+			busy->f_racount = 0;
 			if (cur_tran()->f_slot == SPECIALNODE) {
 				media_probe(cur_tran());
 			}
