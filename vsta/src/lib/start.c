@@ -12,8 +12,8 @@
 /*
  * We initialize these here and offer them to C library users
  */
-unsigned char *__ctab;
-FILE (*__iob)[];
+const unsigned char *__ctab;
+FILE *__iob;
 
 /*
  * __start()
