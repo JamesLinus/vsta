@@ -2,12 +2,15 @@
  * vm_swap.c
  *	Routines and data structures for the swap pseudo-device
  *
- * XXX swapdev must initially point to La-La land.  We'll have to
- * initially fake it until the system comes up far enough to get
- * some swap configured.  Perhaps just assume swap will be at least
- * 1 M, let people allocate, panic on pageout, and when we get our
- * first group of swap, insist it be >= 1 M, and "slip it in" as
- * the real space for the already-allocated swap blocks.
+ * swapdev must initially point to La-La land--we have to fake it until
+ * the system comes up far enough to get some swap configured.  A tally
+ * is run; the swap blocks are allocated starting at 1.  When a swap
+ * manager shows up, the next swap request will have pending swap added
+ * to the size.
+ *
+ * During DEBUG, swap frees are allowed and the space is leaked (lost).
+ * During !DEBUG, we panic if we need to free swap before a manager has
+ * been started.
  */
 #include <sys/types.h>
 #include <sys/port.h>
@@ -30,11 +33,6 @@ struct portref *swapdev = 0;
 sema_t swap_wait;
 lock_t swap_lock;
 static ulong swap_pending = 0L;	/* Pages consumed before swapper up */
-
-/*
- * The most privileged protection
- */
-static struct perm kern_perm = {0};
 
 /*
  * seg_physcopy()
@@ -215,7 +213,7 @@ set_swapdev(port_t arg_port)
 	/*
 	 * Steal away his port
 	 */
-	pr = delete_portref(arg_port);
+	pr = delete_portref(curthread->t_proc, arg_port);
 	if (!pr) {
 		return(-1);
 	}
@@ -241,7 +239,8 @@ alloc_swap(uint pages)
 	/*
 	 * If there appears to be swap usage pending and the
 	 * swap manager appears to be up, account for the
-	 * space now.
+	 * space now.  This code assumes there are no other CPUs
+	 * online yet, nor any real-time processes.
 	 */
 	args[0] = 0;
 	if (swap_pending && swapdev) {
