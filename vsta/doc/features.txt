@@ -311,3 +311,33 @@ Fix MGR's startup so it gives a clear message and exits when it can't
 	attach to the mouse.
 
 1.6.7
+Ported unzip
+Fixed output corruption problem in fmt(1)
+Fixed race condition in aborting a kernel read request which completes just
+	as you abort it.  Could leave the server hanging.
+Fixed edge condition in signal generation from mach/cons2 which
+	could keep future select() clients from working.
+Fixed subtle bug where using the kernel debugger and then continuing
+	could corrupt the first page of console server code.
+Tweak kernel capability handling so that the default process label
+	isn't ever changed to reflect a "root" capability (which, being
+	zero-length, isn't a good label to use for ownership).
+3c509 network driver added
+KA9Q networking generic ether driver now takes driver path as argument
+Tightened up some TLB treatment in the page allocator and
+	debug memory examination code.
+Fix edge condition where large reads from /tmp would complete with a
+	short count--many apps interpret this as EOF, instead of reading
+	further data.  tmpfs will now always return the full read request
+	(assuming the data's there!).
+Ported GNU chess 5.00
+Added basic CPU profiling support--see vsta/src/lib/mcount.c.
+Alias view->vi (for read-only viewing via vim)
+Port of Tiny Smalltalk 4.0, including so many changes that I've
+	bumped its version number.
+Fix annoying behavior where some program exceptions either don't
+	get caught by the debugger ("process exited normally") or
+	the stack frame doesn't include the failing routine.
+Fix environment variable inheritance between processes; in some cases,
+	you wouldn't get variables you expected.  In others, variables
+	would hang around in places which were not expected.
