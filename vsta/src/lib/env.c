@@ -60,3 +60,48 @@ getenv(char *name)
 	close(fd);
 	return(p);
 }
+
+/*
+ * setenv()
+ *	Set variable in environment to value
+ */
+setenv(char *name, char *val)
+{
+	char buf[256];
+	int fd, len;
+
+	/*
+	 * Slashes in path mean absolute path to environment
+	 * variable.
+	 */
+	if (strchr(name, '/')) {
+		while (name[0] == '/') {
+			++name;
+		}
+		sprintf(buf, "/env/%s", name);
+	} else {
+		/*
+		 * Otherwise use our "home" node
+		 */
+		sprintf(buf, "/env/#/%s", name);
+	}
+
+	/*
+	 * Write name, create as needed
+	 */
+	fd = open(buf, O_WRITE|O_CREAT, 0600);
+	if (fd < 0) {
+		return(-1);
+	}
+
+	/*
+	 * Write value
+	 */
+	len = strlen(val);
+	if (write(fd, val, len) != len) {
+		return(-1);
+	}
+	close(fd);
+
+	return(0);
+}
