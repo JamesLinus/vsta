@@ -19,7 +19,8 @@ extern char *__fieldval(char *, char *);
 
 static int nkeep = 2;	/* # revisions to keep */
 static int nflag,	/* Command switches */
-	rflag;
+	rflag,
+	vflag;
 static int errs;	/* Errors? */
 
 /*
@@ -50,7 +51,7 @@ static void
 purge_file(char *name, char *statstr)
 {
 	char *p, *tmpname;
-	int revs;
+	int x, revs;
 	ulong cur;
 
 	/*
@@ -63,18 +64,36 @@ purge_file(char *name, char *statstr)
 	/*
 	 * Walk back revisions
 	 */
-	for (revs = 1; ; ++revs) {
+	for (revs = 1; statstr; ++revs) {
+		/*
+		 * Get the dope on the stat string before
+		 * our unlink() stomps on the stat buffer.
+		 */
+		p = __fieldval(statstr, "prev");
+		if (p) {
+			x = sscanf(p, "%U", &cur);
+		}
+
+		/*
+		 * Delete the file?
+		 */
 		if (revs > nkeep) {
-			if (nflag) {
+			if (nflag || vflag) {
 				printf("purge %s\n", tmpname);
-			} else {
+			}
+			if (!nflag) {
 				unlink(tmpname);
 			}
 		}
-		p = __fieldval(statstr, "prev");
-		if (!p || (sscanf(p, "%U", &cur) != 1) || !cur) {
+
+		/*
+		 * Done if no stat string, bad parse, or no
+		 * more versions.
+		 */
+		if (!p || (x != 1) || !cur) {
 			return;
 		}
+
 		sprintf(tmpname, "%s,,%U", name, cur);
 		statstr = getstat(tmpname, NULL);
 	}
@@ -194,13 +213,16 @@ main(int argc, char **argv)
 {
 	int x;
 
-	while ((x = getopt(argc, argv, "rnk:")) > 0) {
+	while ((x = getopt(argc, argv, "rnvk:")) > 0) {
 		switch (x) {
 		case 'n':
 			nflag = 1;
 			break;
 		case 'r':
 			rflag = 1;
+			break;
+		case 'v':
+			vflag = 1;
 			break;
 		case 'k':
 			if (sscanf(optarg, "%d", &nkeep) != 1) {
