@@ -816,7 +816,7 @@ dir_setlen(struct node *n)
 	ASSERT(d, "dir_setlen: lost dir entry");
 
 	/*
-	 * Update it, mark the block dirty, and return
+	 * Update it, mark the block dirty, log change time, and return
 	 */
 	if (d->size != n->n_len) {
 		d->size = n->n_len;
@@ -827,6 +827,7 @@ dir_setlen(struct node *n)
 			ASSERT_DEBUG(d->size == 0, "dir_setlen: len !clust");
 			d->start = 0;
 		}
+		timestamp(d, 0);
 		ddirty(handle);
 	}
 	dfree(handle);

@@ -102,7 +102,8 @@ dos_open(struct msg *m, struct file *f)
 		if (!newfile && (m->m_arg & ACC_WRITE)) {
 			/*
 			 * When an existing file is opened for modification,
-			 * mark its new modification date/time.
+			 * mark its new modification date/time.  This makes
+			 * commands like "touch" work.
 			 */
 			dir_timestamp(n, 0);
 		}
@@ -123,9 +124,9 @@ dos_open(struct msg *m, struct file *f)
 			return;
 		}
 		clust_setlen(n->n_clust, 0L);
-		dir_timestamp(n, 0);
 		n->n_len = 0;
 		n->n_flags |= N_DIRTY;
+		dir_setlen(n);
 	}
 success:
 	move_file(f, n);
