@@ -20,9 +20,10 @@ load_kernel(struct aouthdr *h, FILE *fp)
 	pbase += NBPG;
 
 	/*
-	 * Read in the text section
+	 * Read in the a.out header and text section
 	 */
-	(void)fseek(fp, sizeof(struct aouthdr), SEEK_SET);
+	(void) rewind(fp);
+	lread(fp, pbase, sizeof(struct aouthdr));
 	pbase += sizeof(struct aouthdr);
 	lread(fp, pbase, h->a_text);
 	pbase += h->a_text;
