@@ -55,6 +55,105 @@ struct bucket {
 	uint b_size;		/* Size of this kind of chunk */
 } buckets[MAX_BUCKET+1];
 
+#ifdef DEBUG_LEAK
+/*
+ * Hooks for tracing memory leaks
+ */
+
+/*
+ * Tap to update the record of who's taken what
+ */
+#define LEAK(caller, addr, size, alloc) trace_leak(caller, addr, size, alloc)
+
+/*
+ * Hack to get caller's address.  This makes some fairly CPU and compiler
+ * specific assumptions.  Pass it the first argument to the function,
+ * and it'll give the return address.  On an x86.  Under gcc.  We hope.
+ */
+#define CALLER(var) *(((uint *)&var) - 1)
+
+/*
+ * A record arrives on alloc, and is cleared on the corresponding dealloc.
+ * Up to LEAK_RECORDS outstanding allocations can be remembered.
+ */
+#define LEAK_RECORDS 4096
+static struct leak_record {
+	uint l_caller;
+	void *l_addr;
+	uint l_size;
+} leaks[LEAK_RECORDS];
+static uint forgotten;
+
+/*
+ * Overall count of pages taken from system
+ */
+static uint leak_pages;
+#define LEAK_MEM(pgs) (leak_pages += (pgs))
+
+/*
+ * trace_leak()
+ *	Record memory allocation/deallocation transactions
+ */
+static void
+trace_leak(uint caller, void *addr, uint size, int alloc)
+{
+	uint x;
+	struct leak_record *l = &leaks[0], *free = 0;
+
+	if (alloc) {
+		/*
+		 * Scan all the records to see if this is a dup.  We
+		 * have to do this because alloc interfaces like
+		 * realloc() use other alloc interfaces internally,
+		 * and we then need to override the "caller" field
+		 * to point to the application address which invoked
+		 * an allocation interface.
+		 */
+		for (x = 0; x < LEAK_RECORDS; ++x, ++l) {
+			if (!l->l_caller && !free) {
+				free = l;
+			} else if (l->l_addr == addr) {
+				l->l_caller = caller;
+				return;
+			}
+		}
+
+		/*
+		 * First we've heard of it.  Record it at the first place we
+		 * found.
+		 */
+		if (free) {
+			free->l_caller = caller;
+			free->l_addr = addr;
+			free->l_size = size;
+		} else {
+			forgotten += 1;
+		}
+		return;
+	}
+
+	/*
+	 * Free.  Find the record (if possible) and clear its entry.
+	 */
+	for (x = 0; x < LEAK_RECORDS; ++x, ++l) {
+		if (l->l_addr == addr) {
+			bzero(l, sizeof(*l));
+			return;
+		}
+	}
+}
+
+#else
+
+/*
+ * If not doing leak debugging, no-op these hooks
+ */
+#define LEAK(caller, addr, size, alloc)
+#define CALLER(var) 0
+#define LEAK_MEM(pgs)
+
+#endif /* DEBUG_LEAK */
+
 /*
  * init_malloc()
  *	Set up each bucket
@@ -98,6 +197,7 @@ free_core(void *mem)
 	 * Dump the memory back to the operating system
 	 */
 	munmap(mem, ptob(c->c_len + 1));
+	LEAK_MEM(-(c->c_len + 1));
 }
 
 /*
@@ -118,6 +218,7 @@ alloc_core(uint pgs)
 	if (!newmem) {
 		return(0);
 	}
+	LEAK_MEM(pgs+1);
 
 	/*
 	 * First page is for our chunk description
@@ -270,6 +371,8 @@ malloc(unsigned int size)
 		pgs = btorp(size);
 		mem = alloc_core(pgs);
 		set_size(mem, pgs + MAX_BUCKET);
+
+		LEAK(CALLER(size), mem, size, 1);
 		return(mem);
 	}
 
@@ -350,6 +453,7 @@ malloc(unsigned int size)
 	/*
 	 * Return memory
 	 */
+	LEAK(CALLER(size), f, size, 1);
 	return(f);
 }
 
@@ -374,6 +478,7 @@ free(void *mem)
 	 * Get allocation information for this data element
 	 */
 	sz = get_size(mem);
+	LEAK(CALLER(mem), mem, sz, 0);
 
 	/*
 	 * If a whole page or more, free directly
@@ -416,7 +521,9 @@ realloc(void *mem, uint newsize)
 	 * to special-case the first time an element is allocated.
 	 */
 	if (mem == 0) {
-		return(malloc(newsize));
+		newmem = malloc(newsize);
+		LEAK(CALLER(mem), mem, newsize, 1);
+		return(newmem);
 	}
 
 	/*
@@ -459,6 +566,7 @@ realloc(void *mem, uint newsize)
 	}
 	bcopy(mem, newmem, (oldsize < newsize) ? oldsize : newsize);
 	free(mem);
+	LEAK(CALLER(mem), newmem, newsize, 1);
 	return(newmem);
 }
 
@@ -484,5 +592,6 @@ calloc(unsigned int nelem, unsigned int elemsize)
 	 * Clear it, return a pointer
 	 */
 	bzero(p, total);
+	LEAK(CALLER(nelem), p, total, 1);
 	return(p);
 }
