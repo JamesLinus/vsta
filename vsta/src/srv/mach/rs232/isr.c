@@ -257,7 +257,7 @@ isr_daemon(port_t isrport)
 		 * Get next message.  Accept only M_ISR.
 		 */
 		x = msg_receive(isrport, &m);
-		if (m.m_op != M_ISR) {
+		if ((m.m_op & MSG_MASK) != M_ISR) {
 			msg_err(m.m_sender, EPERM);
 			continue;
 		}

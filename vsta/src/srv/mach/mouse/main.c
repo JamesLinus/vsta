@@ -178,7 +178,7 @@ loop:
 	 *  Categorize by basic message operation
 	 */
 	f = hash_lookup(mouse_hash, msg.m_sender);
-	switch (msg.m_op) {
+	switch (msg.m_op & MSG_MASK) {
 	case M_CONNECT:			/* New client */
 		mouse_new_client(&msg);
 		break;

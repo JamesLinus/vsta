@@ -220,7 +220,7 @@ ne_start(struct adapter *ap, struct file *f)
 	outportb(nec+ds0_isr, DSIS_RDC);
 	outportb(nec+ds0_rbcr0, len);
 	outportb(nec+ds0_rbcr1, len >> 8);
-	outportb(nec+ds0_rsar0, TBUF);
+	outportb(nec+ds0_rsar0, ((ulong)TBUF) & 0xFF);
 	outportb(nec+ds0_rsar1, TBUF >> 8);
 
 	/* Execute & stuff to card */

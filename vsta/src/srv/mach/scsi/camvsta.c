@@ -257,6 +257,7 @@ long	cam_ccb_wait(CCB *ccb)
 			perror("CAM message receive error");
 			continue;
 		}
+		msg.m_op &= MSG_MASK;
 		switch(msg.m_op) {
 		case M_ISR:
 			irq = msg.m_arg;

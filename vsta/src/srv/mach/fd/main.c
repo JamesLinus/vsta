@@ -187,6 +187,7 @@ loop:
 	 * Categorize by basic message operation
 	 */
 	f = hash_lookup(filehash, msg.m_sender);
+	msg.m_op &= MSG_MASK;
 	switch (msg.m_op) {
 	case M_CONNECT:		/* New client */
 		new_client(&msg);

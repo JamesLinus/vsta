@@ -627,7 +627,7 @@ pio_read_buffer(FILE * file)
    size = statbuff.st_size;
    temp = pio_create_buffer(NULL, size + 2);
    if(read(fd,temp->buffer,size) != size){
-      fprintf(stderr,"pio: Unable to read %d bytes\n",size);
+      fprintf(stderr,"pio: Unable to read %ld bytes\n",size);
       pio_destroy_buffer(temp);
       return(NULL);
    }
