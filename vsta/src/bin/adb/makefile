@@ -10,3 +10,7 @@ CRT0=../../libc/crt0.o
 
 adb: $(OBJS)
 	$(LD) -o adb $(CRT0) $(OBJS) $(LIBS)
+
+clean:
+	del *.o
+	del adb
