@@ -15,7 +15,7 @@ typedef void (*__voidfun)();
 extern void *malloc(unsigned int), *realloc(void *, unsigned int);
 extern void free(void *);
 extern char *strdup(char *), *strchr(char *, char), *strrchr(char *, char),
-	*index(char *, char), *rindex(char *, char);
+	*index(char *, char), *rindex(char *, char), *strerror(void);
 extern int fork(void), tfork(__voidfun);
 
 #endif /* _STD_H */
