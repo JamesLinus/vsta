@@ -15,6 +15,12 @@
 #include "mouse.h"
 
 /*
+ * Flag that we're using a PS2-ish mouse with alternate decoding.
+ * It looks bus mouse-like, but probes as a PS/2 controller.
+ */
+static int busmouse;
+
+/*
  * Handle the queueing of commands
  */
 struct ps2aux_rbuffer {
@@ -197,39 +203,74 @@ ps2aux_interrupt(void)
 		return;
 	}
 
+#define BUF(idx) (rbuffer->data[(rbuffer->tail + (idx)) & \
+		(PS2AUX_BUFFER_SIZE - 1)])
+
+	/*
+	 * Walk each set of three-byte packets
+	 */
 	while (diff >= 3) {
-		buttons =
-			rbuffer->data[rbuffer->tail] & 0x07;
-		if (!(rbuffer->data[rbuffer->tail] & PS2AUX_X_OVERFLOW)) {
-			dx = rbuffer->data[(rbuffer->tail + 1) &
-				(PS2AUX_BUFFER_SIZE - 1)];
-			if (rbuffer->data[rbuffer->tail] & PS2AUX_X_SIGN) {
-				dx = dx - 256;
+
+		/*
+		 * Decode based on whether it's a strict PS/2 type of mouse,
+		 * or a simpler busmouse-like encoding.
+		 */
+		if (busmouse) {
+
+			/*
+			 * Expect simple bus mouse interface
+			 */
+			buttons = BUF(1);
+			dx = BUF(2);
+			if (dx & 0x80) {
+				dx -= 256;
+			}
+			dy = BUF(0);
+			if (dy & 0x80) {
+				dy -= 256;
 			}
 		} else {
-			dx = 255;
-			if (rbuffer->data[rbuffer->tail] & PS2AUX_X_SIGN) {
-				dx = -256;
+
+			/*
+			 * Standard PS/2 mouse
+			 */
+			buttons = BUF(0);
+			if (!(buttons & PS2AUX_X_OVERFLOW)) {
+				dx = BUF(1);
+				if (buttons & PS2AUX_X_SIGN) {
+					dx = dx - 256;
+				}
+			} else {
+				dx = 255;
+				if (buttons & PS2AUX_X_SIGN) {
+					dx = -256;
+				}
+			}
+			if (!(buttons & PS2AUX_Y_OVERFLOW)) {
+				dy = BUF(2);
+				if (buttons & PS2AUX_Y_SIGN) {
+					dy = dy - 256;
+				}
+			} else {
+				dy = 255;
+				if (buttons & PS2AUX_Y_SIGN) {
+					dy = -256;
+				}
 			}
 		}
-		if (!(rbuffer->data[rbuffer->tail] & PS2AUX_Y_OVERFLOW)) {
-			dy = rbuffer->data[(rbuffer->tail + 2) &
-				(PS2AUX_BUFFER_SIZE - 1)];
-			if (rbuffer->data[rbuffer->tail] & PS2AUX_Y_SIGN) {
-				dy = dy - 256;
-			}
-		} else {
-			dy = 255;
-			if (rbuffer->data[rbuffer->tail] & PS2AUX_Y_SIGN) {
-				dy = -256;
-			}
-		}
+
+		/*
+		 * Record consumption of this 3-byte packet, and
+		 * update our dx/dy values.
+		 */
 		diff -= 3;
 		rbuffer->tail =
 			(rbuffer->tail + 3) & (PS2AUX_BUFFER_SIZE - 1);
 		p->dx += dx;
 		p->dy += dy;
+		buttons &= 0x07;
 	}
+#undef BUF
 
 	/*
 	 * Map 1+3 -> 2, simulate middle button
@@ -260,7 +301,7 @@ ps2aux_interrupt(void)
 int
 ps2aux_initialise(int argc, char **argv)
 {
-	int loop;
+	int x;
 	mouse_data_t *m = &mouse_data;
 
 	/*
@@ -272,6 +313,22 @@ ps2aux_initialise(int argc, char **argv)
 	m->pointer_data.buttons = 0;
 	m->irq_number = PS2AUX_IRQ;
 	m->update_frequency = 0;
+
+	/*
+	 * Parse options
+	 */
+	for (x = 1; x < argc; ++x) {
+		if (!strcmp(argv[x], "-type")) {
+			x += 1;
+			continue;
+		}
+		if (!strcmp(argv[x], "-bus")) {
+			busmouse = 1;
+			continue;
+		}
+		fprintf(stderr, "%s: bad option '%s'\n", argv[0], argv[x]);
+		exit(1);
+	}
 
 	/*
 	 * Establish the receive ring buffer details
