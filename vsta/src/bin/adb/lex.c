@@ -1,20 +1,22 @@
 /*
  * A standard lexical analyzer
  */
-#include <sys/types.h>
-#include <setjmp.h>
+#include <stdio.h>
 #include <ctype.h>
+#include <string.h>
+#include <std.h>
+#include "adb.h"
 #include "expr.h"
 
-char *expr_line, *expr_pos;
+static char *expr_line, *expr_pos;
 
 static char buf[80];
-static int donum();
-extern int yylval;
+static int donum(int);
 
 /*
  * Convert hex and decimal strings to integers
  */
+static int
 xtoi(char *p)
 {
 	unsigned int val = 0;
@@ -39,7 +41,7 @@ xtoi(char *p)
  /*
   * getchar() function for lexical analyzer.
   */
-static
+static int
 nextc()
 {
 	register int c;
@@ -59,8 +61,7 @@ nextc()
  * Push back a character
  */
 static void inline
-unget_c(c)
-	int c;
+unget_c(int c)
 {
 	if ((expr_pos <= expr_line) || (c == -1) || !c) {
 		return;
@@ -73,7 +74,7 @@ unget_c(c)
  * Skip leading white space in current input stream
  */
 static void
-skipwhite()
+skipwhite(void)
 {
 	register c;
 
@@ -91,7 +92,8 @@ skipwhite()
 /*
  * Lexical analyzer for YACC
  */
-yylex()
+int
+yylex(void)
 {
 	register char *p = buf;
 	register c, c1;
@@ -99,7 +101,6 @@ yylex()
 	/*
 	 * Skip over white space
 	 */
-again:
 	skipwhite();
 	c = nextc();
 
@@ -172,8 +173,7 @@ again:
  *	Handle parsing of a number
  */
 static int
-donum(startc)
-	char startc;
+donum(int startc)
 {
 	register char c, *p = buf;
 
@@ -247,10 +247,9 @@ getnum(char *p, uint *valp)
  * yyerror()
  *	Report syntax error
  */
-yyerror()
+void
+yyerror(char *msg)
 {
-	extern jmp_buf errjmp;
-
-	printf("Expression syntax error\n");
+	printf("Expression error: %s\n", msg);
 	longjmp(errjmp, 1);
 }

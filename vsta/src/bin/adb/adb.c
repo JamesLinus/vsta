@@ -2,17 +2,15 @@
  * adb.c
  *	Main command handling for assembly debugger
  */
-#include <sys/types.h>
 #include <stdio.h>
 #include <ctype.h>
-#include <setjmp.h>
 #include <std.h>
+#include <fcntl.h>
+#include <time.h>
+#include <sys/syscall.h>
+#include <sys/msg.h>
+#include "adb.h"
 #include "map.h"
-
-#define MAXARGS (8)	/* Max # args to :r command */
-
-extern char *getnum();
-extern void breakpoints(void *, int), dump_breakpoints(void), dump_syms();
 
 pid_t corepid;		/* PID we debug, if any */
 port_t dbg_port;	/*  ...port we talk to him via */
@@ -72,6 +70,7 @@ readloc(ulong addr, int size)
 		case 4:	fread(&l, sizeof(l), 1, objfile); return(l);
 		}
 	}
+	return(0);
 }
 
 /*
@@ -198,7 +197,7 @@ static void
 dump_mem(char *p)
 {
 	char fmt;
-	int x, cnt, oldcnt;
+	uint x, cnt, oldcnt;
 
 	/*
 	 * Optional count here as well.  The two interact in a way
@@ -249,9 +248,7 @@ dump_mem(char *p)
 static void
 start(char *args)
 {
-	pid_t pid;
 	port_name pn;
-	port_t p;
 	uint argc;
 	char *argv[MAXARGS+1];
 
@@ -328,7 +325,7 @@ start(char *args)
 static void
 colon_cmds(char *p)
 {
-	extern void run(void), step(void);
+	extern void run(void);
 
 	switch (*p) {
 	case 'c':
@@ -346,7 +343,10 @@ colon_cmds(char *p)
 		run();
 		break;
 	case 's':
-		step();
+		step(0);
+		break;
+	case 'n':
+		step(1);
 		break;
 	case 'b':
 		breakpoint((void *)addr, 1);
@@ -502,6 +502,7 @@ cmdloop(void)
  *	adb <prog>
  *	adb <prog> [ <pid> ]
  */
+int
 main(int argc, char **argv)
 {
 	/*
@@ -534,7 +535,6 @@ main(int argc, char **argv)
 	 */
 	if (corepid) {
 		port_name pn;
-		port_t p;
 
 		/*
 		 * Create server port he will talk to us via

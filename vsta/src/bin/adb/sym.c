@@ -13,6 +13,7 @@
 #include <mach/nlist.h>
 #include <std.h>
 #include <sys/param.h>
+#include "adb.h"
 #include "map.h"
 
 /*
@@ -231,6 +232,7 @@ symval(char *p)
  * map_aout()
  *	Fill in map for the a.out file we loaded
  */
+void
 map_aout(struct map *m)
 {
 	ulong end_text;

@@ -2,14 +2,11 @@
  * i386.c
  *	Routines which know all the gore of the i386
  */
-#include <sys/types.h>
+#include <stdio.h>
+#include "adb.h"
 #include <sys/param.h>
 #include <mach/machreg.h>
 #include <std.h>
-
-extern char *nameval(ulong);
-extern void getregs(struct trapframe *);
-extern ulong readloc(ulong, int);
 
 /*
  * flagnames()
@@ -57,7 +54,6 @@ void
 show_here(void)
 {
 	struct trapframe t;
-	extern ulong db_disasm(ulong, int);
 
 	getregs(&t);
 	printf("%s:\t", nameval(t.eip));
@@ -71,7 +67,7 @@ show_here(void)
 void
 backtrace(void)
 {
-	ulong x, eip, ebp, oebp;
+	ulong eip, ebp, oebp;
 	struct trapframe t;
 	struct stkframe {
 		uint s_ebp;
@@ -163,4 +159,14 @@ backtrace(void)
 			break;
 		}
  	}
+}
+
+/*
+ * regs_pc()
+ *	Return "program counter" value as extracted from machine state
+ */
+ulong
+regs_pc(struct trapframe *tf)
+{
+	return(tf->eip);
 }

@@ -3,14 +3,8 @@
 #ifdef YYDEBUG
 int yydebug = 1;
 #endif
-#line 10 "y.tab.c"
-#define MINUS 257
-#define LE 258
-#define GE 259
-#define EQ 260
-#define NE 261
-#define ID 262
-#define INT 263
+#line 10 "expr.c"
+#include "expr.h"
 #define YYERRCODE 256
 short yylhs[] = {                                        -1,
     0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
@@ -160,7 +154,7 @@ YYSTYPE yyvs[YYSTACKSIZE];
 #define YYACCEPT goto yyaccept
 #define YYERROR goto yyerrlab
 int
-yyparse()
+yyparse(void)
 {
     register int yym, yyn, yystate;
 #if YYDEBUG
@@ -227,12 +221,10 @@ yyloop:
 #ifdef lint
     goto yynewerror;
 #endif
-yynewerror:
     yyerror("syntax error");
 #ifdef lint
     goto yyerrlab;
 #endif
-yyerrlab:
     ++yynerrs;
 yyinrecovery:
     if (yyerrflag < 3)
@@ -343,7 +335,7 @@ case 12:
 #line 38 "expr.y"
 {yyval = yyvsp[-1];}
 break;
-#line 350 "y.tab.c"
+#line 350 "expr.c"
     }
     yyssp -= yym;
     yystate = *yyssp;

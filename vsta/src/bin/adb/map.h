@@ -35,5 +35,6 @@ struct map {
 extern struct map *alloc_map(void);
 extern int add_map(struct map *, void *, ulong, ulong),
 	do_map(const struct map *, const void *, ulong *);
+extern void map_aout(struct map *);
 
 #endif MAP_H

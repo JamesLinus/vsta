@@ -2,17 +2,15 @@
  * proc.c
  *	Handling of a running process
  */
-#include <sys/types.h>
 #include <sys/msg.h>
 #define PROC_DEBUG
 #include <sys/proc.h>
 #include <mach/machreg.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <std.h>
+#include "adb.h"
 #include "map.h"
-
-#define MAX_BPOINT (4)		/* Max # breakpoints */
-
-extern port_t dbg_port;
-extern struct map coremap;
 
 static void
 	*bpoints[MAX_BPOINT];	/* Breakpoints set */
@@ -178,8 +176,6 @@ eventstr(void)
 static void
 cur_event(void)
 {
-	extern pid_t corepid;
-
 	printf("pid %ld stopped", corepid);
 	if (why_stop & PD_EVENT) {
 		printf(" at event: %s", eventstr());
@@ -201,7 +197,6 @@ void
 run(void)
 {
 	ulong args[2];
-	extern void show_here(void);
 
 	/*
 	 * When we first attach to a process, his mask is set
@@ -234,23 +229,51 @@ run(void)
 /*
  * step()
  *	Set single-step, and run one step
+ *
+ * If "over" is true, will "step" by figuring out address of
+ * next instruction, and setting temporary breakpoint there.
+ * This has the effect of stepping over function calls, if the
+ * next instruction is a "call".
  */
 void
-step(void)
+step(int over)
 {
 	ulong args[2];
+	int oldstdout, tempstdout;
+	uint nextpc;
+	struct trapframe cur_regs;
 
 	/*
 	 * Ask him to step, use run(), and then clear the step stuff
 	 * so we can continue properly.
 	 */
-	args[0] = 1;
-	args[1] = 0;
-	(void)sendhim(PD_STEP, args);
+	if (!over) {
+		args[0] = 1;
+		args[1] = 0;
+		(void)sendhim(PD_STEP, args);
+		run();
+		args[0] = 0;
+		args[1] = 0;
+		(void)sendhim(PD_STEP, args);
+		return;
+	}
+
+	/*
+	 * Arrange for disassembler to silently calculate
+	 * next instruction address for us.  It does printf()'s,
+	 * so we just channel stdout to nowhere for a second...
+	 */
+	getregs(&cur_regs);
+	oldstdout = dup(1);
+	close(1);
+	tempstdout = open("/dev/null", O_WRITE);
+	nextpc = db_disasm(regs_pc(&cur_regs), 0);
+	close(tempstdout);
+	dup2(oldstdout, 1);
+	close(oldstdout);
+	breakpoint((void *)nextpc, 1);
 	run();
-	args[0] = 0;
-	args[1] = 0;
-	(void)sendhim(PD_STEP, args);
+	breakpoint((void *)nextpc, 0);
 }
 
 /*
@@ -373,6 +396,7 @@ dump_breakpoints(void)
  * wait_exec()
  *	Fiddle flags and wait for child process to finish exec()'iing
  */
+void
 wait_exec(void)
 {
 	ulong args[2];
