@@ -17,6 +17,7 @@
 #include <sys/ports.h>
 #include <sys/mman.h>
 #include <mach/aout.h>
+#include <alloc.h>
 
 #define PAGESIZE (4096)		/* XXX should be from a .h */
 
@@ -29,8 +30,9 @@ strlen(char *p)
 {
 	int x = 0;
 
-	while (*p++)
+	while (*p++) {
 		++x;
+	}
 	return(x);
 }
 
@@ -147,9 +149,62 @@ _load2(port_name rootname, char *p)
 	 * to find out how big it is & where it wants to run.
 	 */
 	port = msg_connect_shl(rootname, ACC_READ);
-	x = walk(port, "vsta") || walk(port, "lib") ||
-			walk(port, p) ||
-			receive(port, &aout, sizeof(aout));
+	x = walk(port, "vsta") || walk(port, "lib");
+
+	/*
+	 * Try and open the DLL.  If we can't, try trimming back
+	 * to a 8.3.
+	 */
+	if (!x && walk(port, p)) {
+		char *p2 = alloca(strlen(p) + 1), *p3 = p2, c;
+		int len = 0, dot = 0;
+
+		/*
+		 * Copy across, trimming the first part to 8
+		 * characters.
+		 */
+		while (c = *p) {
+			/*
+			 * Stop working on truncating the name once we
+			 * see the transition to filename extension.
+			 */
+			if (c == '.') {
+				dot = 1;
+			}
+
+			/*
+			 * For filename, bring across first 8 chars
+			 */
+			if (!dot) {
+				if (len < 8) {
+					*p2++ = *p;
+				}
+				++p, ++len;
+			/*
+			 * Otherwise bring across the dot along with
+			 * any extension.
+			 */
+			} else {
+				*p2++ = *p++;
+			}
+		}
+
+		/*
+		 * Now try and open this created filename
+		 */
+		x = walk(port, p3);
+	}
+
+	/*
+	 * If we got the file open, read in the a.out header.
+	 */
+	if (!x) {
+		x = receive(port, &aout, sizeof(aout));
+	}
+
+	/*
+	 * On any of these failures, bail out
+	 */
 	if (x) {
 		msg_disconnect_shl(port);
 		return(0);
