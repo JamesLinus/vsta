@@ -13,7 +13,23 @@ static int col = 0;		/* When to wrap */
 #ifdef KDB
 extern int cons_getc(void);
 static char buf[80];		/* Typing buffer */
+static int prlines = 0;		/* # lines since last paused */
 #endif
+
+/*
+ * more()
+ *	Sorta.  Pause if we've scrolled too much text
+ */
+static void
+more(void)
+{
+#ifdef KDB
+	if (++prlines < 23)
+		return;
+	(void)cons_getc();
+	prlines = 0;
+#endif
+}
 
 /*
  * putchar()
@@ -27,13 +43,16 @@ putchar(int c)
 	if (c == '\n') {
 		col = 0;
 		cons_putc('\r');
+		cons_putc('\n');
+		more();
 	} else {
 		if (++col >= 78) {
 			cons_putc('\r'); cons_putc('\n');
+			more();
 			col = 1;
 		}
+		cons_putc(c);
 	}
-	cons_putc(c);
 }
 
 #ifdef KDB
@@ -45,6 +64,7 @@ getchar(void)
 {
 	char c;
 
+	prlines = 0;
 	c = cons_getc() & 0x7F;
 	if (c == '\r')
 		c = '\n';
