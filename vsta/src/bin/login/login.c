@@ -16,6 +16,37 @@
 #define MOUNTRC "mount.rc"		/* Per-user mounts */
 
 static struct termios torig;	/* Initial TTY mode */
+static char *tty_dev;		/* Named TTY, if any */
+
+/*
+ * open_tty_dev()
+ *	Direct stdin/out/err onto named device
+ *
+ * We access the
+ * device read/write, and attach it in this mode to
+ * stdin/stdout/stderr.  This lets scripts have an
+ * interactive FD no matter how I/O is redirected.
+ */
+static void
+open_tty_dev(char *tty)
+{
+	int x;
+	port_t p;
+	extern port_t path_open(char *, int);
+
+	/*
+	 * Access named server, get R/W access.
+	 */
+	for (x = 0; x <= 2; ++x) {
+		close(x);
+		p = path_open(tty, ACC_READ | ACC_WRITE);
+		if (p < 0) {
+			perror(tty);
+			exit(1);
+		}
+		(void)__fd_alloc(p);
+	}
+}
 
 /*
  * cat()
@@ -217,7 +248,13 @@ login(struct uinfo *u)
 
 	/*
 	 * Scrub TTY.  Create our own signal group and tell our TTY.
+	 * We need to re-open the TTY if we have a path to it, so
+	 * our server can see our "real" ID's, not the login process's
+	 * version.
 	 */
+	if (tty_dev) {
+		open_tty_dev(tty_dev);
+	}
 	(void)tcsetattr(1, TCSANOW, &torig);
 	(void)setsid();
 	(void)sprintf(buf, "pgrp=%lu\n", getpid());
@@ -296,33 +333,32 @@ init_tty(void)
 main(int argc, char **argv)
 {
 	/*
-	 * Optionally let them specify device.  We access the
-	 * device read/write, and attach it in this mode to
-	 * stdin/stdout/stderr.  This lets scripts have an
-	 * interactive FD no matter how I/O is redirected.
+	 * Optionally let them specify device.
 	 */
 	if (argc > 1) {
-		int x;
-		port_t p;
-		extern port_t path_open(char *, int);
+		tty_dev = argv[1];
 
-		/*
-		 * Access named server, get R/W access.
-		 */
-		for (x = 0; x <= 2; ++x) {
-			close(x);
-			p = path_open(argv[1], ACC_READ | ACC_WRITE);
-			if (p < 0) {
-				perror(argv[1]);
-				exit(1);
-			}
-			__fd_alloc(p);
-		}
+		open_tty_dev(tty_dev);
 	}
 
+	/*
+	 * Randomize a bit
+	 */
 	srandom(time((long *)0));
+
+	/*
+	 * Display welcoming banner
+	 */
 	cat(BANNER);
+
+	/*
+	 * Set up the TTY mode for cbreak noecho type of interaction
+	 */
 	init_tty();
+
+	/*
+	 * Login or bust
+	 */
 	for (;;) {
 		do_login();
 	}
