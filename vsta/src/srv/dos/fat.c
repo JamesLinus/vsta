@@ -24,6 +24,7 @@ uint clsize;		/* Size of cluster, in bytes */
 static int fat_dirty;	/* Flag that we need to flush the FAT */
 static uint nclust;	/* Total clusters on disk */
 ulong data0;		/* Byte offset for data block 0 (cluster 2) */
+uint dirents;		/* # directory entries */
 
 /*
  * fat12_fat16()
@@ -103,18 +104,23 @@ fat16_fat12(ushort *fat16, ushort *fat12, uint len)
 void
 fat_init(void)
 {
+	uint x;
+
 	/*
 	 * Calculate some static values
 	 */
-	ASSERT(bootb.secsize == SECSZ, "fat_init: bad sector size");
+	ASSERT((bootb.secsize0 + (bootb.secsize1 << 8)) == SECSZ,
+		"fat_init: bad sector size");
+	dirents = bootb.dirents0 + (bootb.dirents1 << 8);
 	clsize = bootb.clsize * SECSZ;
-	if (bootb.psect > 0) {
-		nclust = (bootb.psect * SECSZ) / clsize;
+	x = bootb.psect0 + (bootb.psect1 << 8);
+	if (x > 0) {
+		nclust = (x * SECSZ) / clsize;
 	} else {
 		nclust = (bootb.bigsect * SECSZ) / clsize;
 	}
 	data0 = bootb.nrsvsect + (bootb.nfat * bootb.fatlen) +
-		(bootb.dirents * sizeof(struct directory))/SECSZ;
+		(dirents * sizeof(struct directory))/SECSZ;
 	data0 *= SECSZ;
 
 	/*

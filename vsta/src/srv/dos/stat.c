@@ -53,10 +53,10 @@ inum(struct node *n)
 static uint
 isize(struct node *n)
 {
-	extern struct boot bootb;
+	extern uint dirents;
 
 	if (n == rootdir) {
-		return(sizeof(struct directory)*bootb.dirents);
+		return(sizeof(struct directory)*dirents);
 	}
 	return(n->n_clust->c_nclust*clsize);
 }

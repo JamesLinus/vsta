@@ -11,6 +11,7 @@
 
 extern struct boot bootb;
 extern int blkdev;
+extern uint dirents;
 
 struct node *rootdir;		/* Root dir always here */
 static uint rootsize;		/* # bytes in root dir data */
@@ -57,7 +58,7 @@ dir_init(void)
 	 * contents into a malloc()'ed buffer, and flush the buffer
 	 * back in units of sectors as needed.
 	 */
-	rootsize = bootb.dirents * sizeof(struct directory);
+	rootsize = dirents * sizeof(struct directory);
 	rootdirents = malloc(rootsize);
 	if (rootdirents == 0) {
 		perror("dir_init: rootdirents");
@@ -157,7 +158,7 @@ root_search(char *f1, char *f2, struct directory *dp)
 {
 	int x;
 
-	x = search_dir(rootdirents, bootb.dirents, f1, f2);
+	x = search_dir(rootdirents, dirents, f1, f2);
 	*dp = rootdirents[x];
 	return(x);
 }
@@ -403,7 +404,7 @@ get_dirent(struct node *n, uint idx, void **handlep)
 	 * Root is pretty easy
 	 */
 	if (n == rootdir) {
-		if (idx >= bootb.dirents) {
+		if (idx >= dirents) {
 			return(0);
 		}
 		*handlep = 0;
@@ -487,7 +488,7 @@ dir_findslot(struct node *n, void **handlep)
 		 * Root is a single linear scan
 		 */
 		*handlep = 0;
-		endd = rootdirents+bootb.dirents;
+		endd = rootdirents+dirents;
 		for (d = rootdirents; d < endd; ++d) {
 			ch = (d->name[0] & 0xFF);
 			if ((ch == 0) || (ch == 0xe5)) {

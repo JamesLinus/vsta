@@ -100,20 +100,24 @@ struct directory {
  * Format of sector 0 in filesystem
  */
 struct boot {
-	uint jump:24;		/* Jump to boot code */
-	char banner[8];		/* OEM name & version */
-	uint secsize:16;	/* Bytes per sector hopefully 512 */
-	uint clsize:8;		/* Cluster size in sectors */
-	uint nrsvsect:16;	/* Number of reserved (boot) sectors */
-	uint nfat:8;		/* Number of FAT tables hopefully 2 */
-	uint dirents:16;	/* Number of directory slots */
-	uint psect:16;		/* Total sectors on disk */
-	uint descr:8;		/* Media descriptor=first byte of FAT */
-	uint fatlen:16;		/* Sectors in FAT */
-	uint nsect:16;		/* Sectors/track */
-	uint nheads:16;		/* Heads */
-	uint nhs:32;		/* number of hidden sectors */
-	uint bigsect:32;	/* big total sectors */
+	uint jump1:16;		/* Jump to boot code 0 */
+	uint jump2:8;
+	char banner[8];		/* OEM name & version  3 */
+	uint secsize0:8;	/* Bytes per sector hopefully 512  11 */
+	uint secsize1:8;
+	uint clsize:8;		/* Cluster size in sectors 13 */
+	uint nrsvsect:16;	/* Number of reserved (boot) sectors 14 */
+	uint nfat:8;		/* Number of FAT tables hopefully 2 16 */
+	uint dirents0:8;	/* Number of directory slots 17 */
+	uint dirents1:8;
+	uint psect0:8;		/* Total sectors on disk 19 */
+	uint psect1:8;
+	uint descr:8;		/* Media descriptor=first byte of FAT 21 */
+	uint fatlen:16;		/* Sectors in FAT 22 */
+	uint nsect:16;		/* Sectors/track 24 */
+	uint nheads:16;		/* Heads 26 */
+	uint nhs:32;		/* number of hidden sectors 28 */
+	uint bigsect:32;	/* big total sectors 32 */
 };
 
 /*
