@@ -396,24 +396,30 @@ timewatcher(void)
 		if (target > 0) {
 			tick(target);
 		}
-		do_mainloop();
-		target = next_tick();
+
+		/*
+		 * Run the scheduler until things look idle.
+		 * Idleness is defined as having an empty loopback,
+		 * as well as no expired timed events.
+		 */
+		do {
+			extern struct mbuf *loopq;
+
+			do {
+				do_mainloop();
+			} while (loopq);
+			target = next_tick();
+		} while (target == 0);
+
 		v_lock(&ka9q_lock);
 
 		/*
 		 * Sleep no less than 1 msec, nor more than 1 sec
 		 */
-		if (target > 0) {
-			/*
-			 * Convert from ticks to msec
-			 */
-			x = target*1000 / MSPTICK;
-			if (x < 1) {
-				x = 1;
-			} else if (x > 1000) {
-				x = 1000;
-			}
-		} else {
+		x = target*1000 / MSPTICK;
+		if (x < 1) {
+			x = 1;
+		} else if (x > 1000) {
 			x = 1000;
 		}
 
