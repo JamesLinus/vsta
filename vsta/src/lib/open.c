@@ -189,7 +189,7 @@ try_open(port_t newfile, char *file, int mask, int mode)
 		m.m_arg = p ? ACC_EXEC : mode;
 		m.m_arg1 = p ? 0 : mask;
 		if (msg_send(newfile, &m) < 0) {
-			close(newfile);
+			msg_disconnect(newfile);
 			return(1);
 		}
 
