@@ -27,7 +27,7 @@ SRCSRV=src/srv/bfs src/srv/cdfs src/srv/devnull src/srv/dos \
 # Core source distribution
 SRC=$(LAW) mkdist.mk rcs \
 	src/bin/adb src/bin/init src/bin/login src/bin/roff \
-	src/bin/cmds src/bin/time src/lib src/os \
+	src/bin/cmds src/bin/time src/include src/lib src/os \
 	$(SRCSRV) src/boot.386
 
 # Networking
