@@ -28,8 +28,8 @@ do_write(struct openfile *o, int pos, char *buf, int cnt)
 		 */
 		boff = pos & (BLOCKSIZE-1);
 		step = BLOCKSIZE - boff;
-		if (step >= cnt) {
-			step = cnt;
+		if (step >= (cnt - x)) {
+			step = (cnt - x);
 		}
 
 		/*
