@@ -633,7 +633,6 @@ sendev(struct thread *t, char *ev)
 	/*
 	 * Build event frame
 	 */
-	e.ev_prevsp = f->esp;
 	e.ev_previp = f->eip;
 	strcpy(e.ev_event, ev);
 

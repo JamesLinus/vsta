@@ -3,6 +3,7 @@
  *	Actual entry points into the VSTa operating system
  */
 #include <sys/syscall.h>
+#include <sys/param.h>
 
 /*
  * syserr()
@@ -174,14 +175,14 @@ c_handler: .space	4
 asm_handler:
 	pusha				/* Save state */
 	pushf
-	lea	0x28(%esp),%eax		/* Point to event string */
+	lea	0x24(%esp),%eax		/* Point to event string */
 	push	%eax			/* Leave as arg to routine */
 	movl	c_handler,%eax
 	call	%eax
 	lea	4(%esp),%esp		/* Drop arg */
 	popf				/* Restore state */
 	popa
-	pop	%esp			/* Skip event string */
+	lea	EVLEN(%esp),%esp	/* Drop event string */
 	ret				/* Resume at old IP */
 
 	.globl	_notify_handler
