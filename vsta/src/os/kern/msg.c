@@ -117,7 +117,6 @@ sm_to_m(struct sysmsg *sm)
 
 	m->m_op &= ~M_READ;
 	m->m_nseg = sm->sm_nseg;
-	m->m_sender = (ulong)sm->sm_sender;
 	for (x = 0, s = m->m_seg; x < sm->sm_nseg; ++x, ++s) {
 		seg = sm->sm_seg[x];
 		s->s_buf = (char *)(seg->s_pview.p_vaddr) + seg->s_off;
