@@ -1,7 +1,7 @@
 CC=gcc
 LD=ld
 INCS=-I../../../include
-CFLAGS=-Wall -g $(INCS)
+CFLAGS=-Wall -O $(INCS)
 LDFLAGS= -L../../lib
 OBJS=main.o open.o rw.o stat.o
 LIBS=-lusr -lc
