@@ -16,6 +16,10 @@
 extern void *mmap(void *vaddr, ulong len, int prot, int flags,
 	int fd, ulong offset);
 extern int munmap(void *vaddr, ulong len);
+#ifdef KERNEL
+extern void *add_map(struct vas *,
+	struct portref *, void *, ulong, ulong, int);
+#endif /* KERNEL */
 
 /*
  * Bits for prot
