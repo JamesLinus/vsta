@@ -71,6 +71,7 @@ new_client(struct msg *m)
 	f->f_pos = 0;
 	f->f_nperm = nperms;
 	bcopy(m->m_buf, &f->f_perms, nperms * sizeof(struct perm));
+	f->f_perm = ACC_READ|ACC_WRITE;
 
 	/*
 	 * Hash under the sender's handle
