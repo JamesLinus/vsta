@@ -172,6 +172,9 @@ shaking.  The C is pretty thoroughly commented, which'll help
 programmers.  I'm not sure VSTa's ready for non-programmers, but you're
 welcome to give it a try.
 
+The file /vsta/doc/features.txt will tell you a bit about what's
+being added from release to release.
+
 8. More?
 
 No doubt, but I can't think of what might help the most.  Stay in touch!
