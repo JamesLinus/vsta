@@ -79,12 +79,10 @@ strerror(void)
 {
 
 	if (__err[0] == '\0') {
-		printf("Get from kern\n");
 		if ((_strerror(__err) < 0) || !__err[0]) {
 			strcpy(__err, "unknown error");
 		}
 	}
-	printf("Err is %s\n", __err);
 	return(__err);
 }
 
