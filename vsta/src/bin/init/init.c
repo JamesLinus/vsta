@@ -77,6 +77,13 @@ read_inittab(void)
 	while (fgets(buf, sizeof(buf)-1, fp)) {
 
 		/*
+		 * Skip comments
+		 */
+		if ((buf[0] == '\n') || (buf[0] == '#')) {
+			continue;
+		}
+
+		/*
 		 * Burst line, get another inittab entry
 		 */
 		buf[strlen(buf)-1] = '\0';
