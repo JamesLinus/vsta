@@ -214,3 +214,16 @@ deliver_isr(int isr)
 	sm->m_arg1 += 1;
 	return(1);
 }
+
+/*
+ * start_clock()
+ *	Enable clock ticks now that we're ready
+ */
+void
+start_clock(void)
+{
+	cli();
+	intr_mask &= ~(1 << 0);
+	SETMASK(intr_mask);
+	sti();
+}
