@@ -71,7 +71,7 @@ show_here(void)
 void
 backtrace(void)
 {
-	ulong x, eip, ebp;
+	ulong x, eip, ebp, oebp;
 	struct trapframe t;
 	struct stkframe {
 		uint s_ebp;
@@ -88,7 +88,7 @@ backtrace(void)
  	/*
  	 * Loop, reading pairs of frame pointers and return addresses
  	 */
-#define INSTACK(v) ((v > 0x7F000000) && (v <= 0x7FFFFFF8))
+#define INSTACK(v) ((v > 0x00400000) && (v <= 0x7FFFFFF8))
 	while (INSTACK(ebp)) {
 		uint narg, x;
 		char *p, *loc;
@@ -97,7 +97,11 @@ backtrace(void)
  		 * Read next stack frame, output called procedure name
  		 */
 		s.s_ebp = readloc(ebp, sizeof(ulong));
+		if (s.s_ebp == 0)
+			break;
 		s.s_eip = readloc(ebp+4, sizeof(ulong));
+		if (s.s_eip == 0)
+			break;
  		loc = nameval(eip);
  		if (p = strchr(loc, '+')) {
  			*p = '\0';
@@ -116,6 +120,8 @@ backtrace(void)
 		} else {
 			x = readloc(s.s_eip, sizeof(ulong));
 		}
+		if (x == 0)
+			break;
  		if ((x & 0xFF) == 0x59) {
  			narg = 1;
 		} else if ((x & 0xFFFF) == 0xC483) {
@@ -145,7 +151,16 @@ backtrace(void)
 		 * a 5-byte long call.  Wrong for function pointers.
 		 */
 		printf(") called from %s\n", nameval(s.s_eip-5));
+		oebp = ebp;
  		ebp = s.s_ebp;
  		eip = s.s_eip;
+
+		/*
+		 * Make sure stack frames go in the right direction,
+		 * and isn't too big a jump.
+		 */
+		if ((ebp <= oebp) || (ebp > (oebp + 32768))) {
+			break;
+		}
  	}
 }
