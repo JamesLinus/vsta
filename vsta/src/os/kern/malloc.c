@@ -142,6 +142,7 @@ malloc(uint size)
 		int x;
 		struct core *c;
 
+		ASSERT_DEBUG(b->b_elems == 0, "malloc: bad list");
 		ASSERT_DEBUG(pg, "malloc: no pg, no mem");
 
 		/*
