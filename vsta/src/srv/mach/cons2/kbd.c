@@ -6,8 +6,6 @@
  * a little strange.
  */
 #include "cons.h"
-#include <llist.h>
-#include <mach/kbd.h>
 #include <sys/assert.h>
 #include <sys/seg.h>
 
@@ -109,7 +107,7 @@ kbd_read(struct msg *m, struct file *f)
 	 */
 	f->f_readcnt = m->m_arg;
 	f->f_sender = m->m_sender;
-	ll_insert(&read_q, f);
+	ll_insert(&s->s_readers, f);
 }
 
 /*
@@ -120,14 +118,16 @@ void
 abort_read(struct file *f)
 {
 	struct llist *l;
+	struct screen *s;
 
-	for (l = read_q.l_forw; l != &read_q; l = l->l_forw) {
+	s = &screens[f->f_screen];
+	for (l = s->s_readers.l_forw; l != &s->s_readers; l = l->l_forw) {
 		if (l->l_data == f) {
 			ll_delete(l);
 			break;
 		}
 	}
-	ASSERT_DEBUG(l != &read_q, "abort_read: missing tran");
+	ASSERT_DEBUG(l != &s->s_readers, "abort_read: missing tran");
 }
 
 /*
@@ -145,8 +145,8 @@ kbd_enqueue(struct screen *s, uint c)
 	/*
 	 * If there's a waiter, just let'em have it
 	 */
-	l = read_q.l_forw;
-	if (l != &read_q) {
+	l = s->s_readers.l_forw;
+	if (l != &s->s_readers) {
 		ASSERT_DEBUG(s->s_nbuf == 0, "kbd: waiters with data");
 
 		/*
