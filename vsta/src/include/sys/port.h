@@ -83,14 +83,14 @@ struct portref {
 extern struct portref *dup_port(struct portref *);
 extern ulong fork_ports(sema_t *, struct portref **, struct portref **, uint);
 extern struct portref *alloc_portref(void);
-extern void shut_client(struct portref *);
+extern void shut_client(struct portref *, int);
 extern int shut_server(struct port *);
 extern void free_portref(struct portref *);
 extern int kernmsg_send(struct portref *, int, long *);
 extern struct port *alloc_port(void);
 extern void exec_cleanup(struct port *);
 extern struct portref *find_portref(struct proc *, port_t),
-	*delete_portref(struct proc *, port_t);
+	*delete_portref(struct proc *, port_t, int);
 extern struct port *find_port(struct proc *, port_t),
 	*delete_port(struct proc *, port_t);
 extern void mmap_cleanup(struct port *);
