@@ -16,12 +16,16 @@ perm_print(struct prot *prot)
 {
 	static char buf[PERMLEN*4*2+12];
 	char buf2[16];
-	int x;
+	int x, max;
 	char *p;
 
 	sprintf(buf, "perm=");
 	p = buf;
-	for (x = 0; x < prot->prot_len; ++x) {
+	max = prot->prot_len;
+	if (max > PERMLEN) {
+		max = PERMLEN;
+	}
+	for (x = 0; x < max; ++x) {
 		p = p+strlen(p);
 		if (x > 0)
 			strcat(p, "/");
@@ -31,7 +35,7 @@ perm_print(struct prot *prot)
 	strcat(p, "\nacc=");
 	sprintf(buf2, "%d", prot->prot_default);
 	strcat(p, buf2);
-	for (x = 0; x < prot->prot_len; ++x) {
+	for (x = 0; x < max; ++x) {
 		p = p+strlen(p);
 		sprintf(buf2, "/%d", prot->prot_bits[x]);
 		strcat(p, buf2);
