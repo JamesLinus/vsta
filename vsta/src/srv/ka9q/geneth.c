@@ -15,6 +15,7 @@
 #include "timer.h"
 #include "arp.h"
 #include "trace.h"
+#include "vsta.h"
 
 extern struct interface *ifaces;
 extern int pether(), gaether(), enet_send(), enet_output();
@@ -39,7 +40,7 @@ eth_raw(struct interface *i, struct mbuf *bp)
 {
 	int size = 0, count = 0, res;
 	struct mbuf *b = bp;
-	unsigned char *p;
+	unsigned char *p, *overbuf = 0;
 	struct msg m;
 
 	dump(i, IF_TRACE_OUT, TRACE_ETHER, bp);
@@ -56,15 +57,14 @@ eth_raw(struct interface *i, struct mbuf *bp)
 		 */
 		if (count == (MSGSEGS-1)) {
 			int overflow;
-			uchar *buf, *p;
+			uchar *p;
 
 			/*
-			 * Accumulate data into "buf", with "overflow"
+			 * Accumulate data into "overbuf", with "overflow"
 			 * tabulating the amount of data contained.  Note
-			 * that "buf"'s address can change due to
+			 * that "overbuf"'s address can change due to
 			 * realloc().
 			 */
-			buf = 0;
 			overflow = 0;
 			while (b) {
 				int off;
@@ -77,20 +77,20 @@ eth_raw(struct interface *i, struct mbuf *bp)
 				 */
 				off = overflow;
 				overflow += b->cnt;
-				p = buf;
-				buf = realloc(buf, overflow);
+				p = overbuf;
+				overbuf = realloc(overbuf, overflow);
 
 				/*
 				 * Point to where the new space starts.
 				 * Bomb if out of memory.
 				 */
-				if (!buf) {
+				if (!overbuf) {
 					printf("No memory in geneth\n");
 					free_p(bp);
 					free(p);
 					return(-1);
 				}
-				p = buf + off;
+				p = overbuf + off;
 
 				/*
 				 * Copy this buffer into place, and walk
@@ -104,7 +104,7 @@ eth_raw(struct interface *i, struct mbuf *bp)
 			 * Tack this accumulated buffer on as the
 			 * last one, and finish the loop.
 			 */
-			m.m_seg[count].s_buf = buf;
+			m.m_seg[count].s_buf = overbuf;
 			m.m_seg[count].s_buflen = overflow;
 			count += 1;
 			size += overflow;
@@ -134,6 +134,8 @@ eth_raw(struct interface *i, struct mbuf *bp)
 	 */
 	res = msg_send(ethport, &m);
 	free_p(bp);
+	if (overbuf)
+		free(overbuf);
 	return((res > 0) ? 0 : -1);
 }
 
@@ -192,20 +194,13 @@ eth_recv_daemon(void)
 	struct msg m;
 
 	/*
-	 * If not attached yet, sleep waiting for open
-	 */
-	while ((ethport == 0) || (ethport_rx == 0)) {
-		sleep(1);
-	}
-
-	/*
-	 * Loop receiving frames as long as previous frames have
-	 * not yet been consumed.
+	 * Loop receiving frames
 	 */
 	for (;;) {
 		/*
 		 * Get packet mbuf and data for MTU
 		 */
+		p_lock(&ka9q_lock);
 		bp = malloc(sizeof(struct mbuf));
 		if (bp) {
 			bp->data = malloc(MTU);
@@ -214,8 +209,10 @@ eth_recv_daemon(void)
 				bp = NULL;
 			}
 		}
+		v_lock(&ka9q_lock);
 		if (!bp) {
-			return;
+			sleep(1);
+			continue;
 		}
 
 		/* 
@@ -229,40 +226,50 @@ eth_recv_daemon(void)
 		m.m_arg1 = 0;
 		len = msg_send(ethport_rx, &m);
 		if (len < 0) {
+			p_lock(&ka9q_lock);
 			perror("eth_recv_daemon");
 			close(ethfd);
+			v_lock(&ka9q_lock);
 			msg_disconnect(ethport_rx);
 			ethport = ethport_rx = 0;
-			return;
+			_exit(0);
 		}
 
 		/*
 		 * Start discarding packets when we've queued up
 		 * too many without processing them.
 		 */
-		if (count < MAXBUF) {
-			if (head == 0) {
-				head = tail = bp;
-			} else {
-				tail->anext = bp;
-				tail = bp;
-			}
-			bp->anext = NULL;
-			bp->next = NULL;
-			bp->size = len;
-			bp->cnt = len;
-			count += 1;
+		if (count >= MAXBUF) {
+			continue;
 		}
+
+		/*
+		 * Add to our list, set up the mbuf structures
+		 */
+		if (head == 0) {
+			head = tail = bp;
+		} else {
+			tail->anext = bp;
+			tail = bp;
+		}
+		bp->anext = NULL;
+		bp->next = NULL;
+		bp->size = len;
+		bp->cnt = len;
+		count += 1;
 
 		/*
 		 * If we've assembled some frames, and all previous
 		 * frames have been processed, then put these on the
-		 * queue and return.  This will cause us to fall
-		 * into the main processing loop.
+		 * queue and run the main processing loop.
 		 */
 		if (rxqueue == 0) {
 			rxqueue = head;
-			return;
+			head = 0;
+			count = 0;
+			p_lock(&ka9q_lock);
+			do_mainloop();
+			v_lock(&ka9q_lock);
 		}
 	}
 }
@@ -357,6 +364,11 @@ eth_attach(int argc, char **argv)
 	 */
 	if_eth->next = ifaces;
 	ifaces = if_eth;
+
+	/*
+	 * Launch daemon
+	 */
+	vsta_daemon(eth_recv_daemon);
 
 	return 0;
 }

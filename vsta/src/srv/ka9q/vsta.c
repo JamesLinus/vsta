@@ -23,19 +23,19 @@
 #include "cmdparse.h"
 #include "iface.h"
 #include "unix.h"
+#include "vsta.h"
 
 #define	MAXCMD	1024
 
 /*
  * Our private hack mutex package
  */
-typedef unsigned char lock_t;
-static void
+void
 init_lock(lock_t *p)
 {
 	*p = 0;
 }
-static void
+void
 p_lock(volatile lock_t *p)
 {
 	while (*p) {
@@ -43,21 +43,25 @@ p_lock(volatile lock_t *p)
 	}
 	*p = 1;
 }
+void
 v_lock(lock_t *p)
 {
 	*p = 0;
 }
 
 /*
- * We post a thread to each source of data.  These are:
+ * Tabulation of daemons running
  */
-static pid_t netpid,	/* Ethernet interface */
-	conspid,	/* Controlling console */
-	timepid,	/* Timing events */
-	curtid;		/* Current thread holding ka9q_lock */
-static lock_t		/* Mutex among threads */
-	ka9q_lock;
+#define MAXDAEMON (8)
+static struct daemon {
+	pid_t d_tid;	/* Thread ID for this daemon */
+	voidfun d_fn;	/* Function to run */
+} daemons[MAXDAEMON];
+
+static pid_t curtid;	/* Current thread holding ka9q_lock */
+lock_t ka9q_lock;	/* Mutex among threads */
 static uint nbg;	/* # of background threads from yield() */
+static pid_t timetid;	/* Timer task thread ID */
 
 /*
  * Typeahead for console, a circular list
@@ -68,13 +72,31 @@ static uint nkbchar, kbhd, kbtl;
 extern int32 next_tick(void);
 extern char *startup, *config, *userfile, *Dfile, *hosts, *mailspool;
 extern char *mailqdir, *mailqueue, *routeqdir, *alias, *netexe;
-extern void eth_recv_daemon(void);
 #ifdef	_FINGER
 extern char *fingerpath;
 #endif
 #ifdef	XOBBS
 extern char *bbsexe;
 #endif
+
+/*
+ * vsta_daemon()
+ *	Start a daemon for the given function
+ */
+void
+vsta_daemon(voidfun fn)
+{
+	uint x;
+
+	for (x = 0; x < MAXDAEMON; ++x) {
+		if (daemons[x].d_fn == 0) {
+			daemons[x].d_fn = fn;
+			daemons[x].d_tid = tfork(fn);
+			return;
+		}
+	}
+	printf("Too many daemons\n");
+}
 
 /*
  * fileinit()
@@ -223,15 +245,21 @@ fileinit(char *argv0)
 }
 
 /*
- * gun()
- *	Shoot down the thread unless it's us
+ * gun_all()
+ *	Shoot down all threads, except our own
  */
-gun(pid_t pid)
+static void
+gun_all(void)
 {
-	pid_t mytid = gettid();
+	uint x;
+	pid_t pid, mytid = gettid();
 
-	if (mytid != pid) {
-		(void)notify(0, pid, "kill");
+	for (x = 0; x < MAXDAEMON; ++x) {
+		if (pid = daemons[x].d_tid) {
+			if (mytid != pid) {
+				(void)notify(0, pid, "kill");
+			}
+		}
 	}
 }
 
@@ -241,14 +269,12 @@ gun(pid_t pid)
  */
 sysreset()
 {
-	int x;
+	uint x;
 
 	/*
 	 * Gun down all of our threads
 	 */
-	gun(netpid);
-	gun(conspid);
-	gun(timepid);
+	gun_all();
 
 	/*
 	 * Close all files except stdin/out/err
@@ -270,7 +296,7 @@ sysreset()
  * do_mainloop()
  *	Call mainloop(), handle yield()'ed threads on return
  */
-static void
+void
 do_mainloop(void)
 {
 	pid_t mytid = gettid();
@@ -302,9 +328,14 @@ do_mainloop(void)
  * sufficient.
  */
 static void
-timechange(void)
+timechange(char *event)
 {
-	/* No-op */
+	/*
+	 * Do nothing on recalc event, die horribly on anything else
+	 */
+	if (strcmp(event, "recalc")) {
+		_exit(1);
+	}
 }
 
 /*
@@ -314,7 +345,7 @@ timechange(void)
 void
 recalc_timers(void)
 {
-	(void)notify(0, timepid, "recalc");
+	(void)notify(0, timetid, "recalc");
 }
 
 /*
@@ -329,9 +360,10 @@ timewatcher(void)
 	struct time tm, tm2;
 
 	/*
-	 * Set up a handler for our "wakeup call"
+	 * Set up a handler for our "wakeup call", register our TID
 	 */
 	notify_handler(timechange);
+	timetid = gettid();
 
 	/*
 	 * Endless server loop
@@ -382,21 +414,6 @@ timewatcher(void)
 				target = 1;
 			}
 		}
-	}
-}
-
-/*
- * netwatcher()
- *	Watch main network interface (i.e., ethernet) and pass packets
- */
-static void
-netwatcher(void)
-{
-	for (;;) {
-		eth_recv_daemon();
-		p_lock(&ka9q_lock);
-		do_mainloop();
-		v_lock(&ka9q_lock);
 	}
 }
 
@@ -458,13 +475,11 @@ eihalt()
 	init_lock(&ka9q_lock);
 
 	/*
-	 * Launch the three threads which always exist.  We use the
-	 * main thread for the console watcher.
+	 * Launch the initial threads.  The original thread dies here.
 	 */
-	netpid = tfork(netwatcher);
-	timepid = tfork(timewatcher);
-	conspid = gettid();
-	conswatcher();
+	vsta_daemon(timewatcher);
+	vsta_daemon(conswatcher);
+	_exit(0);
 }
 
 /*
@@ -716,6 +731,7 @@ dir(char *path, int full)
 void
 iostop()
 {
+	uint x;
 	extern struct termios savecon;
 
 	/*
@@ -740,9 +756,7 @@ iostop()
 	/*
 	 * Nail our threads
 	 */
-	gun(netpid);
-	gun(conspid);
-	gun(timepid);
+	gun_all();
 }
 
 /*
@@ -758,36 +772,31 @@ iostop()
 void
 yield(void)
 {
-	int match = 0;
+	uint x;
 	pid_t mytid = gettid();
 
 	/*
 	 * If this thread corresponds to one of our official ones,
 	 * launch a new instance of it.
 	 */
-	if (mytid == netpid) {
-		netpid = tfork(netwatcher);
-		match = 1;
-	} else if (mytid == conspid) {
-		conspid = tfork(conswatcher);
-		match = 1;
-	} else if (mytid == timepid) {
-		timepid = tfork(timewatcher);
-		match = 1;
-	} 
+	for (x = 0; x < MAXDAEMON; ++x) {
+		if (mytid == daemons[x].d_tid) {
+			daemons[x].d_tid = tfork(daemons[x].d_fn);
 
-	/*
-	 * Release the mutex if we were the holder of it
-	 */
-	if (match) {
-		curtid = 0;
-		nbg += 1;
-		v_lock(&ka9q_lock);
+			/*
+			 * Clear us as the current thread, and tally.
+			 * Release lock so life can go on in the router.
+			 */
+			curtid = 0;
+			nbg += 1;
+			break;
+		}
 	}
 
 	/*
 	 * Pause
 	 */
+	v_lock(&ka9q_lock);
 	__msleep(100);
 
 	/*

@@ -32,6 +32,7 @@
 #include "iface.h"
 #include "unix.h"
 #include "cmdparse.h"
+#include "vsta.h"
 
 struct asy asy[ASY_MAX];
 struct interface *ifaces;
