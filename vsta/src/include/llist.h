@@ -15,6 +15,13 @@ struct llist {
 };
 
 /*
+ * LL_EMPTY(), LL_NEXT()
+ *	Tell if linked list is empty, who is next
+ */
+#define LL_EMPTY(l) ((l)->l_forw == (l))
+#define LL_NEXT(l) ((l)->l_forw)
+
+/*
  * ll_init()
  *	Initialize list head
  */
