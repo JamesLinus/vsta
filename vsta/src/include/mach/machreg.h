@@ -37,7 +37,7 @@ struct trapframe {
 /*
  * Tell if given descriptor is from user mode
  */
-#define USERMODE(tf) (((tf)->ecs & 0x3) == 3)
+#define USERMODE(tf) ((tf)->ecs & 0x3)
 
 /*
  * Bits in eflags
