@@ -19,6 +19,7 @@
 #include <sys/malloc.h>
 #include <sys/assert.h>
 #include <sys/xclock.h>
+#include <sys/misc.h>
 #include "../mach/mutex.h"
 #include "../mach/timer.h"
 
@@ -157,19 +158,6 @@ hardclock(struct trapframe *f)
 	}
 
 	/*
-	 * If pageout configured, invoke him periodically
-	 * XXX generalize
-	 */
-	if (pageout_secs > 0) {
-		if (pageout_wait >= pageout_secs) {
-			extern void kick_pageout();
-
-			pageout_wait = 0;
-			kick_pageout();
-		}
-	}
-
-	/*
 	 * Clear flag & done
 	 */
 	c->pc_flags &= ~CPU_CLOCK;
@@ -245,41 +233,22 @@ time_get(struct time *arg_time)
 }
 
 /*
- * time_sleep()
- *	Sleep for the indicated amount of time
+ * timed_sleep()
+ *	Suspend for the indicated interval
+ *
+ * Permit interruptions if "intr" is non-zero.
  */
-time_sleep(struct time *arg_time)
+static int
+timed_sleep(struct time *t, int intr)
 {
-	struct time t;
-	ulong l;
+	ulong l = t->t_sec;
 	struct eventq *ev, *e, **ep;
-
-	/*
-	 * Get the time the user has in mind
-	 */
-	if (copyin(arg_time, &t, sizeof(t))) {
-		return(-1);
-	}
-	
-	/*
-	 * Convert the time to a boot time referenced value
-	 */
-	cli();
-	t.t_sec -= boot_time.t_sec;
-	t.t_usec -= boot_time.t_usec;
-	sti();
-	if (t.t_usec < 0) {
-		t.t_sec -= 1;
-		t.t_usec += 1000000;
-	}
-
-	l = t.t_sec;
 
 	/*
 	 * Get an event element, fill it in
 	 */
 	ev = MALLOC(sizeof(struct eventq), MT_EVENTQ);
-	ev->e_time = t;
+	ev->e_time = *t;
 	ev->e_tid = curthread->t_pid;
 	init_sema(&ev->e_sema); set_sema(&ev->e_sema, 0);
 	ev->e_onlist = 1;
@@ -305,7 +274,11 @@ time_sleep(struct time *arg_time)
 	 * Atomically switch to the semaphore.  We will either return
 	 * from an event, or from our time request completing.
 	 */
-	if (p_sema_v_lock(&ev->e_sema, PRICATCH, &time_lock)) {
+	if (p_sema_v_lock(&ev->e_sema,
+			(intr ? PRICATCH : PRIHI), &time_lock)) {
+
+		ASSERT_DEBUG(intr, "interval_sleep: intr");
+
 		/*
 		 * Regain lock, and see if we're still on the list.
 		 */
@@ -331,6 +304,50 @@ time_sleep(struct time *arg_time)
 	ASSERT(ev->e_onlist == 0, "alarm_set: spurious wakeup");
 	FREE(ev, MT_EVENTQ);
 	return(0);
+}
+
+/*
+ * interval_sleep()
+ *	Sleep for the indicated period of time
+ */
+void
+interval_sleep(int secs)
+{
+	struct time tm;
+
+	CVT_TIME(cpu.pc_time, &tm);
+	tm.t_sec += secs;
+	(void)timed_sleep(&tm, 0);
+}
+
+/*
+ * time_sleep()
+ *	Sleep for the indicated amount of time
+ */
+int
+time_sleep(struct time *arg_time)
+{
+	struct time t;
+
+	/*
+	 * Get the time the user has in mind
+	 */
+	if (copyin(arg_time, &t, sizeof(t))) {
+		return(-1);
+	}
+	
+	/*
+	 * Convert the time to a boot time referenced value
+	 */
+	cli();
+	t.t_sec -= boot_time.t_sec;
+	t.t_usec -= boot_time.t_usec;
+	sti();
+	if (t.t_usec < 0) {
+		t.t_sec -= 1;
+		t.t_usec += 1000000;
+	}
+	return(timed_sleep(&t, 1));
 }
 
 /*
