@@ -229,8 +229,7 @@ msg_send(port_t arg_port, struct msg *arg_msg)
 	 */
 	if (!(sm.sm_op & M_READ)) {
 		if (m_to_sm(&p->p_vas, &sm)) {
-			error = -1;
-			goto out2;
+			return(-1);
 		}
 	} else {
 		sm.sm_nseg = 0;
@@ -683,8 +682,7 @@ msg_reply(long arg_who, struct msg *arg_msg)
 	 * Try to map segments into sysmsg format
 	 */
 	if (m_to_sm(&p->p_vas, &sm)) {
-		error = -1;
-		goto out;
+		return(-1);
 	}
 
 	/*
