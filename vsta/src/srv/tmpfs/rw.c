@@ -6,6 +6,37 @@
 #include <hash.h>
 #include <llist.h>
 #include <std.h>
+#include <stdio.h>
+
+/*
+ * blkoff()
+ *	Given position, return offset within current block
+ */
+static inline void
+blkoff(uint pos, uint *offp, uint *sizep)
+{
+	uint off;
+
+	if (pos < BLOCKMIN) {
+		*offp = pos;
+		*sizep = BLOCKMIN - pos;
+		return;
+	}
+	*offp = off = ((pos - BLOCKMIN) & (BLOCKSIZE - 1));
+	*sizep = BLOCKSIZE - off;
+}
+
+/*
+ * blkidx()
+ *	Given position, return block # holding it
+ */
+static inline uint
+blknum(uint pos)
+{
+	if (pos < BLOCKMIN)
+		return(0);
+	return(((pos - BLOCKMIN) >> BLOCKLOG) + 1);
+}
 
 /*
  * do_write()
@@ -13,7 +44,7 @@
  *
  * Returns 0 on success, 1 on error.
  */
-static
+static int
 do_write(struct openfile *o, int pos, char *buf, int cnt)
 {
 	uint x, step, blk, boff;
@@ -26,9 +57,8 @@ do_write(struct openfile *o, int pos, char *buf, int cnt)
 		/*
 		 * Calculate how much to take out of current block
 		 */
-		boff = pos & (BLOCKSIZE-1);
-		step = BLOCKSIZE - boff;
-		if (step >= (cnt - x)) {
+		blkoff(pos, &boff, &step);
+		if (step > (cnt - x)) {
 			step = (cnt - x);
 		}
 
@@ -36,14 +66,17 @@ do_write(struct openfile *o, int pos, char *buf, int cnt)
 		 * Get next block.  If not present yet, allocate
 		 * and add to the file.
 		 */
-		blk = pos / BLOCKSIZE;
+		blk = blknum(pos);
 		blkp = hash_lookup(o->o_blocks, blk);
 		if (blkp == 0) {
-			blkp = malloc(BLOCKSIZE);
+			uint sz;
+
+			sz = (blk ? BLOCKSIZE : BLOCKMIN);
+			blkp = malloc(sz);
 			if (blkp == 0) {
 				return(1);
 			}
-			bzero(blkp, BLOCKSIZE);
+			bzero(blkp, sz);
 			if (hash_insert(o->o_blocks, blk, blkp)) {
 				free(blkp);
 				return(1);
@@ -258,7 +291,6 @@ tmpfs_read(struct msg *m, struct file *f)
 	 * Build message segments
 	 */
 	cnt = 0;
-	blk = f->f_pos / BLOCKSIZE;
 	for (nseg = 0; (cnt < lim) && (nseg < MSGSEGS); ++nseg) {
 		uint off, sz;
 
@@ -267,6 +299,7 @@ tmpfs_read(struct msg *m, struct file *f)
 		 * files by using our pre-allocated source of
 		 * zeroes.
 		 */
+		blk = blknum(f->f_pos);
 		blkp = hash_lookup(o->o_blocks, blk);
 		if (blkp == 0) {
 			extern char *zeroes;
@@ -278,10 +311,9 @@ tmpfs_read(struct msg *m, struct file *f)
 		 * Calculate how much of the block to add to
 		 * the message.
 		 */
-		off = f->f_pos & (BLOCKSIZE-1);
-		sz = BLOCKSIZE-off;
+		blkoff(f->f_pos, &off, &sz);
 		if ((cnt+sz) > lim) {
-			sz = lim-cnt;
+			sz = lim - cnt;
 		}
 
 		/*
@@ -295,7 +327,6 @@ tmpfs_read(struct msg *m, struct file *f)
 		 */
 		cnt += sz;
 		f->f_pos += sz;
-		blk += 1;
 	}
 
 	/*

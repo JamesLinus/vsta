@@ -16,7 +16,15 @@
 #include <sys/fs.h>
 #include <sys/perm.h>
 
-#define BLOCKSIZE 2048		/* Size of blocks in filesystem */
+/*
+ * Block sizes.  We allocate BLOCKSIZE for all blocks except the first
+ * in a file; for that one, we us a BLOCKMIN sized block so that we
+ * burn less memory for small files.
+ * BLOCKLOG is log2(BLOCKSIZE), for ease in calculating block indices
+ */
+#define BLOCKSIZE (16384)
+#define BLOCKMIN (BLOCKSIZE / 8)
+#define BLOCKLOG (14)
 
 /*
  * Structure of an open file in the filesystem
