@@ -18,8 +18,7 @@ static int root_dirty = 0;	/*  ...needs to be flushed to disk */
 static struct directory		/* Root dir contents */
 	*rootdirents;
 static uint cldirs;		/* # dir entries in a cluster */
-static struct hash		/* Maps dirs to nodes */
-	*dirhash;
+struct hash *dirhash;		/* Maps dirs to nodes */
 
 /*
  * dir_init()
@@ -100,16 +99,18 @@ map_filename(char *file, char *f1, char *f2)
 			*p++ = toupper(c);
 		}
 	}
-	p = f2;
-	len = 0;
 	strcpy(f2, "   ");
-	while (c = *file++) {
-		c &= 0x7F;
-		if (c == '.') {
-			return(1);
-		}
-		if (len++ < 3) {
-			*p++ = toupper(c);
+	if (c == '.') {		/* Extension found */
+		p = f2;
+		len = 0;
+		while (c = *file++) {
+			c &= 0x7F;
+			if (c == '.') {
+				return(1);
+			}
+			if (len++ < 3) {
+				*p++ = toupper(c);
+			}
 		}
 	}
 	return(0);
@@ -395,6 +396,8 @@ get_dirent(struct node *n, uint idx, void **handlep)
 {
 	struct directory *d;
 	void *handle;
+	uint clnum;
+	struct clust *c;
 
 	/*
 	 * Root is pretty easy
@@ -411,10 +414,12 @@ get_dirent(struct node *n, uint idx, void **handlep)
 	 * Others require that we figure out which cluster
 	 * is needed and bget() it.
 	 */
-	if ((idx/cldirs) < n->n_clust->c_nclust) {
+	c = n->n_clust;
+	clnum = idx / cldirs;
+	if (clnum >= c->c_nclust) {
 		return(0);
 	}
-	*handlep = handle = bget(n->n_clust->c_clust[idx / cldirs]);
+	*handlep = handle = bget(c->c_clust[clnum]);
 	d = bdata(handle);
 	return (d + (idx % cldirs));
 }
@@ -554,11 +559,12 @@ dir_newfile(struct file *f, char *file, int isdir)
 	void *handle, *dirhandle;
 	char f1[9], f2[4], ochar0;
 	int error = 0;
+	struct node *n = f->f_node;
 
 	/*
 	 * Get a slot
 	 */
-	dir = dir_findslot(f->f_node, &dirhandle);
+	dir = dir_findslot(n, &dirhandle);
 	if (dir == 0) {
 		/*
 		 * Sorry...
@@ -607,13 +613,17 @@ dir_newfile(struct file *f, char *file, int isdir)
 		bzero(d, clsize);
 		bcopy(".       ", d->name, sizeof(d->name));
 		bcopy("   ", d->ext, sizeof(d->ext));
-		d->attr = DA_DIR|DA_ARCHIVE;
-		d->start = c->c_clust[0];
+		dir->attr = d->attr = DA_DIR|DA_ARCHIVE;
+		dir->start = d->start = c->c_clust[0];
 		++d;
 		bcopy("..      ", d->name, sizeof(d->name));
 		bcopy("   ", d->ext, sizeof(d->ext));
 		d->attr = DA_DIR|DA_ARCHIVE;
-		d->start = c->c_clust[0];
+		if (n == rootdir) {
+			d->start = 0;
+		} else {
+			d->start = n->n_clust->c_clust[0];
+		}
 		bdirty(handle);
 		bfree(handle);
 	}
@@ -637,7 +647,11 @@ out:
 	/*
 	 * Kind of cheating, but saves quite a bit of duplication
 	 */
-	return(dir_look(f->f_node, file));
+	n = dir_look(n, file);
+	if (n) {
+		n->n_flags |= N_DIRTY;
+	}
+	return(n);
 }
 
 /*
