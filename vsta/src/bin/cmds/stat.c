@@ -17,6 +17,7 @@
 #include <sys/msg.h>
 
 extern port_t path_open(char *, int);
+static int symlinks;
 
 /*
  * usage()
@@ -32,6 +33,40 @@ usage(char *util_name)
 }
 
 /*
+ * open_port()
+ *	Access the named file
+ */
+static int
+open_port(char *name, int mode)
+{
+	int fd;
+
+	if (!strcmp(name, "-")) {
+		fd = (mode & O_RDONLY) ? 0 : 1;
+	} else {
+		fd = open(name, O_CHMOD | (symlinks ? O_SYM : 0));
+	}
+	if (fd < 0) {
+		perror(name);
+		return(-1);
+	}
+	return(fd);
+}
+
+/*
+ * close_port()
+ *	Close port access
+ * But not if it's stdin/stdout, duh!
+ */
+static void
+close_port(int fd)
+{
+	if (fd > 2) {
+		close(fd);
+	}
+}
+
+/*
  * read_stat()
  *	Print a stat field from the specified file.
  *
@@ -39,42 +74,24 @@ usage(char *util_name)
  * for success, non-zero otherwise.
  */
 static int
-read_stat(char *name, int use_port, char *field, int verbose)
+read_stat(char *name, char *field, int verbose)
 {
 	int fd, x = 0, y = 0;
 	char *statstr, fmtstr[512];
-	port_t pt;
 
-	if (!use_port) {
-		/*
-		 * Open the named file, stat it and then close it!
-		 */
-		if (!strcmp(name, "-")) {
-			fd = 0;
-		} else {
-			fd = open(name, O_RDONLY);
-		}
-		if (fd < 0) {
-			perror(name);
-			return 1;
-		}
-		statstr = rstat(__fd_port(fd), field);
-		if (fd != 0) {
-			close(fd);
-		}
-	} else {
-		pt = path_open(name, ACC_CHMOD);
-		if (pt < 0) {
-			perror(name);
-			return 1;
-		}
-		statstr = rstat(pt, field);
-		msg_disconnect(pt);
+	/*
+	 * Open the named file, stat it and then close it!
+	 */
+	fd = open_port(name, O_RDONLY);
+	if (fd < 0) {
+		return(1);
 	}
+	statstr = rstat(__fd_port(fd), field);
+	close_port(fd);
 
 	if (statstr == NULL) {
 		perror(name);
-		return 0;
+		return(1);
 	}
 
 	/*
@@ -116,11 +133,10 @@ read_stat(char *name, int use_port, char *field, int verbose)
  *	Write a stat field to the specified file.
  */
 static int
-write_stat(char *name, int use_port, char *field, int verbose)
+write_stat(char *name, char *field, int verbose)
 {
 	int fd, rcode;
 	char statstr[128];
-	port_t pt;
 
 	strcpy(statstr, field);
 	strcat(statstr, "\n");
@@ -128,32 +144,16 @@ write_stat(char *name, int use_port, char *field, int verbose)
 		printf("\t%s", statstr);
 	}
 
-	if (!use_port) {
-		/*
-		 * Open the named file, stat it and then close it!
-		 */
-		if (!strcmp(name, "-")) {
-			fd = 1;
-		} else {
-			fd = open(name, O_CHMOD);
-		}
-		if (fd < 0) {
-			perror(name);
-			return 1;
-		}
-		rcode = wstat(__fd_port(fd), statstr);
-		if (fd != 1) {
-			close(fd);
-		}
-	} else {
-		pt = path_open(name, ACC_CHMOD);
-		if (pt < 0) {
-			perror(name);
-			return 1;
-		}
-		rcode = wstat(pt, statstr);
-		msg_disconnect(pt);
+	/*
+	 * Open the named file, stat it and then close it!
+	 */
+	fd = open_port(name, O_CHMOD);
+	if (fd < 0) {
+		return(1);
 	}
+	rcode = wstat(__fd_port(fd), statstr);
+	close_port(fd);
+
 	if (rcode < 0) {
 		perror(name);
 	}
@@ -161,11 +161,11 @@ write_stat(char *name, int use_port, char *field, int verbose)
 	return(rcode);
 }
 
+int
 main(int argc, char **argv)
 {
-	int exit_code = 0, x, doing_wstat = 0, verbose = 0, using_port = 0;
+	int exit_code = 0, x, doing_wstat = 0, verbose = 0;
 	int c, sleep_after = 0;
-	port_t pt;
 
 	/*
 	 * Do we have anything that looks vaguely reasonable
@@ -177,12 +177,8 @@ main(int argc, char **argv)
 	/*
 	 * Scan for command line options
 	 */
-	while ((c = getopt(argc, argv, "prsvwS:")) != EOF) {
+	while ((c = getopt(argc, argv, "rsvwS:y")) != EOF) {
 		switch(c) {
-		case 'p' :	/* Use port name instead of file name */
-			using_port = 1;
-			break;
-
 		case 'r' :			/* Read stat info */
 			doing_wstat = 0;
 			break;
@@ -201,6 +197,10 @@ main(int argc, char **argv)
 
 		case 'S':			/* Sleep after ops */
 			sleep_after = atoi(optarg);
+			break;
+
+		case 'y':			/* Access sYmlinks */
+			symlinks = 1;
 			break;
 
 		default :	/* Only errors should get us here? */
@@ -225,7 +225,7 @@ main(int argc, char **argv)
 		 * We're writing, so loop round writing stat codes
 		 */
 		for (x = optind + 1; x < argc; x++) {
-			exit_code = write_stat(argv[optind], using_port,
+			exit_code = write_stat(argv[optind],
 				argv[x], verbose);
 			if (exit_code) {
 				return(exit_code);
@@ -251,7 +251,7 @@ main(int argc, char **argv)
 		 * the specified stat codes
 		 */
 		for (x = optind + 1; x < argc; x++) {
-			exit_code = read_stat(argv[optind], using_port,
+			exit_code = read_stat(argv[optind],
 				argv[x], verbose);
 			if (exit_code) {
 				return(exit_code);
