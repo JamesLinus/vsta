@@ -42,7 +42,7 @@ static void
 get_str(char *buf, int buflen, int echo)
 {
 	int nstar[STRLEN];
-	int x;
+	int x, ret;
 	char c;
 	static char stars[] = "****";
 
@@ -50,9 +50,18 @@ get_str(char *buf, int buflen, int echo)
 	buflen -= 1;	/* Leave room for terminating '\0' */
 	for (;;) {
 		/*
-		 * Get next char
+		 * Get next char.  If we lost access to the device,
+		 * end the login attempt
 		 */
-		read(0, &c, sizeof(c));
+		ret = read(0, &c, sizeof(c));
+		if (ret < 0) {
+			exit(1);
+		}
+		if (ret == 0) {
+			sleep(1);
+			buf[0] = '\0';
+			return;
+		}
 		c &= 0x7f;
 
 		/*
