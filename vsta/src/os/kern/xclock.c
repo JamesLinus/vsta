@@ -252,6 +252,7 @@ time_sleep(struct time *arg_time)
 			}
 			ASSERT(e, "alarm_set: lost event");
 		}
+		v_lock(&time_lock, SPL0);
 		free(ev);
 		return(err(EINTR));
 	}
