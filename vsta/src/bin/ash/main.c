@@ -100,7 +100,10 @@ main(argc, argv)  char **argv; {
 	struct stackmark smark;
 	volatile int state;
 	char *shinit;
+	extern int gl_tab_complete();
+	extern void gl_set_tab_hook();
 
+	gl_set_tab_hook(gl_tab_complete);
 #if PROFILE
 	monitor(4, etext, profile_buf, sizeof profile_buf, 50);
 #endif
