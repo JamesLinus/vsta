@@ -92,7 +92,7 @@ GRAPHICS=src/bin/ports/svgalib src/bin/ports/jpeg6b lib/libjpeg.a
 SIM=src/bin/ports/sim_2.3d
 
 # Miscellaneous
-MISC=src/bin/ports/units src/bin/ports/expr
+MISC=src/bin/ports/units src/bin/ports/expr src/bin/ports/file-3.22
 
 # Sample accounts
 ACCOUNT=root guest
