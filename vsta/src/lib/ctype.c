@@ -76,3 +76,6 @@ toupper(int c) {
 	}
 	return(c);
 }
+toascii(int c) {
+	return(c & 0x7F);
+}

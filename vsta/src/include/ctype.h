@@ -42,6 +42,7 @@ extern unsigned char __ctab[];
 #define isascii(c) (((int)(c) >= 0) && ((int)(c) <= 0x7F))
 #define tolower(c) (isupper(c) ? ((c) - 'A' + 'a') : c)
 #define toupper(c) (islower(c) ? ((c) - 'a' + 'A') : c)
+#define toascii(c) ((c) & 0x7F)
 #endif /* !_CT_NOMACS */
 
 #endif /* _CTYPE_H */
