@@ -378,10 +378,10 @@ dump_pset(char *p)
 	/*
 	 * Print pset dope
 	 */
-	printf("len 0x%x off 0x%x type %s locks %d p_u 0x%x\n",
+	printf("len 0x%x off 0x%x type %s locks %d data 0x%x\n",
 		ps->p_len, ps->p_off,
 		pset_type(ps->p_type),
-		ps->p_locks, &ps->p_u);
+		ps->p_locks, ps->p_data);
 	printf(" swap 0x%x refs %d flags 0x%x perpage 0x%x\n",
 		ps->p_swapblk, ps->p_refs, ps->p_flags, ps->p_perpage);
 	printf(" ops 0x%x lock 0x%x lockwait 0x%x cowsets 0x%x\n",
