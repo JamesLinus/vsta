@@ -1,0 +1,67 @@
+A Simple RAM Disk Server
+
+RD is a simple ram disk server written mainly to familiarize myself
+with the VSTa messaging architecture.  However, I hope that it may
+actually be usefull to some folks.
+
+The server can create up to sixteen blocks of RAM that appear as
+block devices.  These can be formatted with a filesystem and mounted.
+Also a flat or gzipped compressed image file may be loaded into a
+device at server startup.
+
+Command Line Options
+
+There are only two command line options, 'ramN' and 'loadN' where N is
+an integer between 0 and 15.
+
+'ramN=M' creates a ramdisk of a size M, where M may be a decimal or
+hex number.  For example
+
+rd ram0=4194304
+
+and 
+
+rd ram0=0x400000
+
+both create a 4MB ramdrive with a device name of ram0.  Note that
+spacing is important, there cannot be a space between the equals
+sign.  The index of the ram disk 'N' can be any integer between 0 and
+15 and need to be consecutive, however you cannot use an index more
+than once.
+
+'loadN=image.bin' is used to load an image file into a ram disk where
+'N' is the index of the ram disk and 'image.bin' is the path to the
+file to be loaded.  Note that you must also create the ram disk with
+the 'ramN' option.  If the image file is smaller than the ram disk the
+internal size variable with be lowered.  If it is smaller the server
+will abort.  Again spacing is important, do not leave a space before
+or after the equals sign.  What can I say, I'm lazy.
+
+An example:
+
+rd ram0=0x400000 load0=root.img
+
+will create a four meg ram disk and load the file 'root.img' into it.
+If you have linked the server against the zlib library (see the
+makefile) the file may be either a flat file or compressed with gzip.
+
+Mouting
+
+Once the server is running, you may mount into your namespace as such:
+
+mount disk/rd /rd
+
+The ram disks will appear with the device name 'ramN' as in the
+command line.
+
+That's about, feel free to email me regarding any problems or bugs.
+
+Eddie, 9/24/2001
+
+Eddie McCreary                  Outside of a dog, a book is a man's best
+mailto:beowulf@heorot.org       friend.  Inside of a dog, it's too dark 
+http://www.heorot.org           to read. -Groucho Marx
+
+
+
+
