@@ -161,9 +161,7 @@ panic(const char *msg, ...)
 
 		dbg_enter();
 #else
-		extern void nop();
-
-		nop();
+		;
 #endif
 	}
 }
