@@ -93,3 +93,10 @@ In fork() the portref array is mutexed across the entire dup_port()
 Add a flag for pviews to tell if they should be copied/inherited on
 	a fork().  Make sure transient pviews from msg_receive()'s
 	are *not* inherited.
+
+Rethink struct core's c_long vs. c_atl fields.  They are mutually
+	exclusive in use except for cases of M_CONNECT messages,
+	where the user temporarily maps the permissions of the
+	connecting process.  Perhaps it would be worth adding some
+	code to handle this differently... would it be worth it
+	to regain 4 bytes per 4K (0.1%) overhead?
