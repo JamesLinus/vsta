@@ -428,6 +428,7 @@ fork(void)
 	pnew->p_nopen = pold->p_nopen;
 	pnew->p_pgrp = pold->p_pgrp; join_pgrp(pold->p_pgrp, pnew->p_pid);
 	pnew->p_parent = pold->p_children; ref_exitgrp(pnew->p_parent);
+	bcopy(pold->p_cmd, pnew->p_cmd, sizeof(pnew->p_cmd));
 	v_sema(&pold->p_sema);
 	pnew->p_children = alloc_exitgrp(pnew);
 

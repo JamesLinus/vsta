@@ -340,3 +340,19 @@ perm_ctl(int arg_idx, struct perm *arg_perm, struct perm *arg_ret)
 	}
 	return(0);
 }
+
+/*
+ * set_cmd()
+ *	Set p_cmd[] field of proc
+ *
+ * Merely an advisory tool; it isn't trusted in any way
+ */
+set_cmd(char *arg_cmd)
+{
+	struct proc *p = curthread->t_proc;
+
+	if (copyin(arg_cmd, p->p_cmd, sizeof(p->p_cmd))) {
+		return(err(EFAULT));
+	}
+	return(0);
+}
