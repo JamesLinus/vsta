@@ -84,7 +84,26 @@ free_pset(struct pset *ps)
 	 * Free our reference to the master set on PT_COW
 	 */
 	if (ps->p_type == PT_COW) {
-		deref_pset(ps->p_cow);
+		struct pset *ps2 = ps->p_cow, **pp, *p;
+
+		/*
+		 * Remove us from his COW list
+		 */
+		p_lock(&ps2->p_lock, SPL0);
+		pp = &ps2->p_cowsets;
+		for (p = ps2->p_cowsets; p; p = p->p_cowsets) {
+			if (p == ps) {
+				*pp = p->p_cowsets;
+				break;
+			}
+		}
+		ASSERT(p, "free_pset: lost cow");
+		v_lock(&ps2->p_lock, SPL0);
+
+		/*
+		 * Remove our reference from him
+		 */
+		deref_pset(ps2);
 	}
 
 	/*
@@ -276,7 +295,6 @@ deref_pset(struct pset *ps)
 	 * When it reaches 0, ask for it to be freed
 	 */
 	if (ps->p_refs == 0) {
-		printf("free pset 0x%x\n", ps); dbg_enter();
 		(*(ps->p_ops->psop_deinit))(ps);
 		free_pset(ps);
 	} else {
