@@ -19,8 +19,8 @@ typedef unsigned long u_long;
 typedef unsigned long off_t;
 typedef unsigned long size_t;
 struct time {
-	ulong t_sec;
-	ulong t_usec;
+	long t_sec;
+	long t_usec;
 };
 typedef int port_t;
 typedef int port_name;
