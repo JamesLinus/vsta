@@ -31,5 +31,6 @@ extern char *ctime(time_t *);
 extern struct tm *gmtime(time_t *), *localtime(time_t *);
 extern int __usleep(int);
 extern int __msleep(int);
+extern time_t time(time_t *);
 
 #endif /* _TIME_H */
