@@ -315,7 +315,7 @@ malloc(unsigned int size)
 		/*
 		 * Fill in per-page information
 		 */
-		pgs = btorp(size);
+		pgs = btorp(b->b_size);
 		p = alloc_pages(pgs);
 		set_size(p, b-buckets);
 
