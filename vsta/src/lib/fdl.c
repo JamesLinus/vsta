@@ -83,6 +83,7 @@ __fd_port(int fd)
 	return(port->p_port);
 }
 
+#ifndef SRV
 /*
  * balign_io()
  *	Try to do block I/O after running into alignment problems
@@ -163,8 +164,8 @@ balign_io(struct port *port, void *buf, uint nbyte, int do_read)
 			 * Copy the relevant non-aligned data into the
 			 * requester's buffer
 			 */
-			memcpy(&((uchar *)buf)[offs], &abuf[buf_st],
-			       count - offs);
+			bcopy(&abuf[buf_st], &((uchar *)buf)[offs],
+				count - offs);
 		} else {
 			/*
 			 * Only read the data if we need to modify
@@ -211,7 +212,7 @@ balign_io(struct port *port, void *buf, uint nbyte, int do_read)
 			 * Copy the relevant non-aligned data from the
 			 * requester's buffer
 			 */
-			memcpy(&abuf[buf_st], &((uchar *)buf)[offs],
+			bcopy(&((uchar *)buf)[offs], &abuf[buf_st],
 			       count - offs);
 
 			/*
@@ -248,6 +249,7 @@ balign_io(struct port *port, void *buf, uint nbyte, int do_read)
 	}
 	return(x);
 }
+#endif /* !SRV */
 
 /*
  * do_io()
@@ -278,6 +280,9 @@ do_io(int op, struct port *port, void *buf, uint nbyte)
 		return(x);
 	}
 
+#ifdef SRV
+	return(x);
+#else
 	/*
 	 * Errors other than alignment finish here.
 	 */
@@ -289,6 +294,7 @@ do_io(int op, struct port *port, void *buf, uint nbyte)
 	 * Go ahead and try to align the I/O on the fly
 	 */
 	return(balign_io(port, buf, nbyte, (op != FS_WRITE)));
+#endif /* SRV */
 }
 
 /*
@@ -372,6 +378,7 @@ do_close(struct port *port)
  */
 __do_open(struct port *port)
 {
+#ifndef SRV
 	char *p;
 
 	/*
@@ -400,9 +407,12 @@ __do_open(struct port *port)
 		port->p_read = __tty_read;
 		port->p_write = __tty_write;
 	} else {
+#endif
 		port->p_read = do_read;
 		port->p_write = do_write;
+#ifndef SRV
 	}
+#endif
 
 	/*
 	 * Default handlers

@@ -113,6 +113,7 @@ wstat(port_t fd, char *field)
 	return(msg_send(fd, &m));
 }
 
+#ifndef SRV
 /*
  * field()
  *	Parse a x/y/z field and allow array-type access
@@ -308,3 +309,5 @@ isatty(int fd)
 	}
 	return(0);
 }
+
+#endif /* !SRV */

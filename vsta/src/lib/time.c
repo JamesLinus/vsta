@@ -208,6 +208,7 @@ __get_tzname(void)
 	return(__tzname);
 }
 
+#ifndef SRV
 /*
  * sleep()
  *	Suspend execution the given amount of time
@@ -249,6 +250,7 @@ __msleep(int msecs)
 {
 	return(__usleep(msecs * 1000));
 }
+#endif /* !SRV */
 
 /*
  * time()
@@ -272,6 +274,7 @@ time(long *lp)
 	return(t.t_sec);
 }
 
+#ifndef SRV
 /*
  * asctime()
  *	Another way to get a printed string version of time
@@ -324,6 +327,7 @@ ftime(struct timeb *__tp)
 
 	return(0);
 }
+#endif /* !SRV */
 
 /*
  * detzcode()
@@ -1050,11 +1054,14 @@ tzsetwall(void)
 void
 tzset(void)
 {
+#ifndef SRV
 	const char *name;
 
 	name = getenv("TZ");
 	if (name == NULL) {
+#endif /* !SRV */
 		tzsetwall();
+#ifndef SRV
 		return;
 	}
 	lcl_is_set = TRUE;
@@ -1080,6 +1087,7 @@ tzset(void)
 		}
 	}
 	settzname();
+#endif /* !SRV */
 }
 
 /*

@@ -152,6 +152,7 @@ __dotdot(char *path)
 	return(0);
 }
 
+#ifndef SRV
 /*
  * follow_symlink()
  *	Try to extract a symlink contents and build a new path
@@ -239,6 +240,8 @@ follow_symlink(port_t port, char *file, char *p)
 	return(newpath);
 }
 
+#endif /* !SRV */
+
 /*
  * try_open()
  *	Given a root point and a path, try to walk into the mount
@@ -281,12 +284,14 @@ try_open(port_t newfile, char *file, int mask, int mode)
 		 * a "@" prefix.
 		 */
 		tmp = 0;
+#ifndef SRV
 		if (*file == '@') {
 			tmp = getenv(file+1);
 			if (tmp) {
 				file = tmp;
 			}
 		}
+#endif /* !SRV */
 
 		/*
 		 * Try to walk our file down to the new node
@@ -302,6 +307,7 @@ try_open(port_t newfile, char *file, int mask, int mode)
 			free(tmp);	/* Free env storage if any */
 		}
 
+#ifndef SRV
 		/*
 		 * If we encounter a symlink, see about following it
 		 */
@@ -326,6 +332,7 @@ try_open(port_t newfile, char *file, int mask, int mode)
 				continue;
 			}
 		}
+#endif /* !SRV */
 
 		if (p) {
 			*p++ = '/';	/* Restore path seperator */
@@ -342,6 +349,7 @@ try_open(port_t newfile, char *file, int mask, int mode)
 	return(0);
 }
 
+#ifndef SRV
 /*
  * do_home()
  *	Rewrite ~ to $HOME, and ~foo to foo's home dir
@@ -415,6 +423,7 @@ do_home(char *in)
 	sprintf(q, "%s%s", p, name_end);
 	return(q);
 }
+#endif /* !SRV */
 
 /*
  * fdalloc()
@@ -461,6 +470,7 @@ open(const char *file, int mode, ...)
 	 */
 	mode = mapmode(mode);
 
+#ifndef SRV
 	/*
 	 * Rewrite ~
 	 */
@@ -469,9 +479,9 @@ open(const char *file, int mode, ...)
 		if (home_buf) {
 			file = home_buf;
 		}
-	} else {
+	} else
+#endif /* !SRV */
 		home_buf = 0;
-	}
 
 	/*
 	 * See where to start.  We always have to copy the string
@@ -499,13 +509,14 @@ open(const char *file, int mode, ...)
 		return(__seterr(ESRCH));
 	}
 
-
+#ifndef SRV
 	/*
 	 * Free $HOME processing buffer now that we've used it
 	 */
 	if (home_buf) {
 		free(home_buf);
 	}
+#endif /* !SRV */
 
 	/*
 	 * Remove ".."s
@@ -627,29 +638,6 @@ chdir(const char *newdir)
 		sprintf(buf, "%s/%s", __cwd, newdir);
 	}
 	__dotdot(buf);
-
-#ifdef XXX
-	/*
-	 * Try to open it.
-	 */
-	fd = open(buf, O_READ);
-	if (fd < 0) {
-		return(-1);
-	}
-
-	/*
-	 * Make sure it's a directory-like substance
-	 */
-	{
-		extern char *rstat();
-
-		p = rstat(__fd_port(fd), "type");
-	}
-	if (!p || strcmp(p, "d")) {
-		return(-1);
-	}
-	close(fd);
-#endif
 
 	/*
 	 * Looks OK.  Move to this dir.

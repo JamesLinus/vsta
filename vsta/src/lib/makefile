@@ -4,7 +4,7 @@ LD=ld
 CPP= cpp
 INCS= -I../../include
 CFLAGS= $(INCS) -O -DDEBUG
-CRT=start.o startsrv.o
+CRT=start.o
 target: all
 
 include mach/makefile.inc
@@ -18,6 +18,13 @@ OBJS= syscall.o malloc.o \
 	pipe.o fdnull.o errno.o port.o syslog.o rename.o fnmatch.o \
 	bsearch.o strtol.o utime.o getline.o strftime.o mstring.o \
 	fdcall.o \
+	$(MACHOBJS)
+
+SRVOBJS= syscall.o malloc.o srvstr.o srvprnt.o srvopen.o srvfdl.o \
+	llist.o hash.o syslog.o printf.o ctype.o srvmisc.o assert.o \
+	srvstat.o srvstdio.o mount.o port.o statsup.o srvperm.o \
+	permsup.o startsrv.o seg.o files.o namer.o abc.o lock.o \
+	srvtime.o \
 	$(MACHOBJS)
 
 .c.o:
@@ -98,6 +105,29 @@ regsub.o: regexp/regsub.c
 	$(CC) $(CFLAGS) -c regexp/regsub.c
 regerror.o: regexp/regerror.c
 	$(CC) $(CFLAGS) -c regexp/regerror.c
+
+libsrv.a: $(SRVOBJS)
+	rm -f libsrv.a
+	ar rsv libsrv.a $(SRVOBJS)
+
+srvstr.o: srv/srvstr.c
+	$(CC) $(CFLAGS) -c srv/srvstr.c
+srvprnt.o: srv/srvprnt.c
+	$(CC) $(CFLAGS) -c srv/srvprnt.c
+srvopen.o: open.c
+	$(CC) $(CFLAGS) -DSRV -o srvopen.o -c open.c
+srvfdl.o: fdl.c
+	$(CC) $(CFLAGS) -DSRV -o srvfdl.o -c fdl.c
+srvstat.o: stat.c
+	$(CC) $(CFLAGS) -DSRV -o srvstat.o -c stat.c
+srvstdio.o: stdio.c
+	$(CC) $(CFLAGS) -DSRV -o srvstdio.o -c stdio.c
+srvperm.o: permpr.c
+	$(CC) $(CFLAGS) -DSRV -o srvperm.o -c permpr.c
+srvtime.o: time.c
+	$(CC) $(CFLAGS) -DSRV -o srvtime.o -c time.c
+srvmisc.o: srv/srvmisc.c
+	$(CC) $(CFLAGS) -o srvmisc.o -c srv/srvmisc.c
 
 clean:
 	rm -f *.o *.tmp *.st

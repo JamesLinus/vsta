@@ -1066,6 +1066,7 @@ setlinebuf(FILE *fp)
 	setvbuf(fp, (char *)NULL, _IOLBF, 0);
 }
 
+#ifndef SRV
 /*
  * funopen()
  *	Open FILE with user callbacks for the actual I/O
@@ -1082,3 +1083,4 @@ funopen(void *cookie, intfun readfn, intfun writefn,
 	fp = fdopen(fd, "r+");
 	return(fp);
 }
+#endif /* !SRV */

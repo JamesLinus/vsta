@@ -81,6 +81,7 @@ perm_set(unsigned char *field, char *val)
 	return(nfield);
 }
 
+#ifndef SRV
 /*
  * parse_perm()
  *	Parse a numeric dotted string into a struct perm
@@ -196,3 +197,4 @@ protstr(char *pr_str, char *acc_str)
 
 	return(pr_str);
 }
+#endif /* !SRV */
