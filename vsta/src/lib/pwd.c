@@ -2,6 +2,7 @@
  * pwd.c
  *	Group file functions
  */
+#include <sys/perm.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <hash.h>
@@ -180,4 +181,24 @@ getpwnam(char *name)
 	ha.name = name;
 	hash_foreach(uidhash, namecheck, &ha);
 	return(ha.passwd);
+}
+
+/*
+ * getlogin()
+ *	Get UID from first permission record, map to a name
+ */
+char *
+getlogin(void)
+{
+	struct perm me;
+	struct passwd *pw;
+
+	if (perm_ctl(0, 0, &me) < 0) {
+		return(0);
+	}
+	pw = getpwuid(me.perm_uid);
+	if (pw == 0) {
+		return(0);
+	}
+	return(pw->pw_name);
 }
