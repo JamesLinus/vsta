@@ -308,6 +308,7 @@ bool	cam_get_msg(struct msg *msg)
 			perror("CAM message receive error");
 			return(FALSE);
 		}
+		msg->m_op &= MSG_MASK;
 	}
 	return(TRUE);
 }

@@ -15,7 +15,7 @@
 /*
  * CAM specific message operations.
  */
-#define	CAM_MSGOP(_code)	(('C' << 8) | (_code))
+#define	CAM_MSGOP(_code)	(('C' << 4) | (_code))
 #define	CAM_TIMESTAMP		CAM_MSGOP(0)
 #define	CAM_PASSTHRU		CAM_MSGOP(1)
 
