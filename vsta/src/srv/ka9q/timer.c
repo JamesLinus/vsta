@@ -14,15 +14,15 @@ struct timer *timers;
 int32
 next_tick(void)
 {
-	int32 max = 0;
+	int32 min = 999999;
 	struct timer *t;
 
 	for (t = timers; t; t = t->next) {
-		if (t->count > max) {
-			max = t->count;
+		if (t->count < min) {
+			min = t->count;
 		}
 	}
-	return(max);
+	return(min);
 }
 
 /*
