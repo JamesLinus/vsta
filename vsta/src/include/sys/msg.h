@@ -75,6 +75,12 @@ struct sysmsg {
  */
 extern int copyoutsegs(struct sysmsg *);
 
+/*
+ * Other prototypes
+ */
+extern void lqueue_msg(struct port *, struct sysmsg *),
+	queue_msg(struct port *, struct sysmsg *, spl_t);
+
 #endif /* KERNEL */
 
 port_t msg_port(port_name, port_name *); /* Create new port */
