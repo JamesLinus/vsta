@@ -7,23 +7,20 @@
  *
  * Description:	Utility to read a file sector.
  */
-
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-
 
 /*
  * usage()
  *	When the user's tried something illegal we tell them what was valid
  */
-static void usage(char *util_name)
+static void
+usage(char *util_name)
 {
-  fprintf(stderr, "Usage: %s <file_name> <sector_number>\n", util_name);
-  exit(1);
+	fprintf(stderr, "Usage: %s <file_name> <sector_number>\n", util_name);
+	exit(1);
 }
-
 
 /*
  * print_stat()
@@ -32,71 +29,57 @@ static void usage(char *util_name)
  * We do a few checks, and only display data that was actually read - in other
  * words we take some notice of EOF markers
  */
-static int print_sect(char *name, int sect)
+static int
+print_sect(char *name, int sect)
 {
-  FILE *fd;
-  int x = 0, y = 0, xh, rem, rd;
-  char dat[512];
-	
-  /*
-   * Open the specified file
-   */
-  fd = fopen(name, "rb");
-  if (fd == NULL) {
-    perror(name);
-    return 1;
-  }
+	FILE *fp;
+	char dat[512];
+	int x;
 
-  /*
-   * Position at the appropriate sector
-   */
-  fseek(fd, sect * 512, SEEK_SET);
-  rd = fread(dat, 1, 512, fd); 
-  fclose(fd);
-  xh = rd / 0x18;
-  rem = rd % 0x18;
+	/*
+	* Open the specified file
+	*/
+	fp = fopen(name, "rb");
+	if (fp == NULL) {
+		perror(name);
+		return 1;
+	}
 
-  /*
-   * Display the sector contents
-   */
-  for(x = 0; x < xh; x++) {
-    printf("%04x: ", (x * 0x18));
-    for(y = 0; y < 0x18; y++) {
-      printf("%02x ", (uchar)dat[(x * 0x18) + y]);
-    }
-    printf("\n");
-  }
+	/*
+	* Position at the appropriate sector
+	*/
+	fseek(fp, sect * 512, SEEK_SET);
+	x = fread(dat, 1, 512, fp); 
+	fclose(fp);
 
-  if (rem) {
-    printf("%04x: ", (x * 0x18));
-    for(y = 0; y < rem; y++) {
-      printf("%02x ", (uchar)dat[rd - rem + y]);
-    }
-    printf("\n");
-  }
-
-  return 0;
+	/*
+	* Display the sector contents
+	*/
+	if (x > 0) {
+		dump_s(dat, x);
+	}
+	return(0);
 }
-
 
 /*
  * main()
  *	Sounds like a good place to start things :-)
  */
-int main(int argc, char **argv)
+int
+main(int argc, char **argv)
 {
-  int exit_code = 0;
-  int x;
-	
-  /*
-   * Do we have anything that looks vaguely reasonable
-   */
-  if (argc < 3) {
-    usage(argv[0]);
-  }
+	int exit_code = 0;
+	int x;
 
-  sscanf(argv[2], "%d", &x);
-  exit_code = print_sect(argv[1], x);
-	
-  return exit_code;
+	/*
+	* Do we have anything that looks vaguely reasonable
+	*/
+	if (argc < 3) {
+		usage(argv[0]);
+	}
+
+	(void)sscanf(argv[2], "%d", &x);
+	exit_code = print_sect(argv[1], x);
+
+	return(exit_code);
 }
