@@ -39,7 +39,7 @@ MAKE=src/bin/make src/bin/gmake
 # Text utilities
 TXT=src/bin/roff src/bin/less src/bin/grep src/bin/rh \
 	src/bin/sed src/bin/tar src/bin/awk src/bin/fileutl \
-	src/bin/textutil src/bin/find src/bin/patch
+	src/bin/textutil src/bin/find src/bin/patch src/bin/ctags
 
 # Shells
 SH=src/bin/ash src/bin/testsh src/bin/rc src/bin/sh
