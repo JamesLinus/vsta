@@ -48,6 +48,7 @@ id_init(struct id *i)
  *
  * Returns 0 on successful read, 1 on EOF or error.
  */
+static
 getent(FILE *fp, char *name, ulong *num, uint *depthp)
 {
 	char *p, *q, buf[128];
@@ -249,4 +250,82 @@ look_id(char *field, uchar *leading, int nlead)
 	 * Not found under this node
 	 */
 	return(2);
+}
+
+/*
+ * cvt_id()
+ *	Convert numeric dotted format into symbolic
+ */
+char *
+cvt_id(uchar *ids, int nid)
+{
+	char *p = 0;
+	int x, len = 0, first = 1;
+	struct id *i;
+
+	/*
+	 * Read tree first time only
+	 */
+	if (!tree_read) {
+		read_tree();
+		tree_read = 1;
+	}
+
+	/*
+	 * Convert each position
+	 */
+	i = &root;
+	for (x = 0; x < nid; ++x) {
+		char buf[64];
+
+		/*
+		 * Set default value--just numeric representation
+		 */
+		sprintf(buf, "%d", ids[x]);
+
+		/*
+		 * Scan tree if we're still within it
+		 */
+		if (i) {
+			struct llist *l;
+			struct id *i2;
+
+			l = LL_NEXT(&i->i_children);
+			while (l != &i->i_children) {
+				i2 = l->l_data;
+				if (i2->i_id == ids[x]) {
+					i = i2;
+					strcpy(buf, i->i_name);
+					break;
+				}
+				l = LL_NEXT(l);
+			}
+
+			/*
+			 * If we didn't find it, we have wandered into
+			 * a name space not described by our ID file.
+			 * We use numeric representation from here.
+			 */
+			if (l == &i->i_children) {
+				i = 0;
+			}
+		}
+
+		/*
+		 * Grow result string and add this entry
+		 */
+		len = (!first ? (len + strlen(buf) + 1) : strlen(buf));
+		p = realloc(p, len+1);
+		if (p == 0) {
+			return("2.2");
+		}
+		if (first) {
+			*p = '\0';
+		} else {
+			strcat(p, ".");
+		}
+		strcat(p, buf);
+		first = 0;
+	}
+	return(p);
 }
