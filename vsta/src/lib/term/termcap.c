@@ -63,10 +63,12 @@ char	*tgetstr();
 static char	*tdecode();
 char	*getenv();
 static char *termcap, *termpath, *home;
+static int tnchktc(void), tnamatch(char *);
 
 /*
  * Get an entry for terminal name in buffer bp from the termcap file.
  */
+int
 tgetent(char *bp, char *name)
 {
 	register char *p;
@@ -155,6 +157,7 @@ tgetent(char *bp, char *name)
  * variable pvec.  Terminal entries may not be broken across files.  Parse is
  * very rudimentary; we just notice escaped newlines.
  */
+int
 tfindent(char *bp, char *name)
 {
 	register char *cp;
@@ -220,6 +223,7 @@ nextfile:
  * entries to say "like an HP2621 but doesn't turn on the labels".
  * Note that this works because of the left to right scan.
  */
+static int
 tnchktc(void)
 {
 	register char *p, *q;
@@ -270,6 +274,7 @@ tnchktc(void)
  * against each such name.  The normal : terminator after the last
  * name (before the first field) stops us.
  */
+static int
 tnamatch(char *np)
 {
 	register char *Np, *Bp;
@@ -315,6 +320,7 @@ tskip(register char *bp)
  * a # character.  If the option is not found we return -1.
  * Note that we handle octal numbers beginning with 0.
  */
+int
 tgetnum(char *id)
 {
 	register int i, base;
