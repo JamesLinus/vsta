@@ -57,9 +57,9 @@
 
 #define PAGEOUT_SECS (5)	/* Interval to run pageout() */
 
-extern uint freemem, totalmem;		/* Free and total pages in system */
-					/*  total does not include C_SYS */
-uint pageout_secs = 0;		/* Set to PAGEOUT_SECS when ready */
+extern uint freemem, totalmem;	/* Free and total pages in system */
+				/*  total does not include C_SYS */
+static uint pageout_secs = 0;	/* Set to PAGEOUT_SECS when ready */
 uint desfree, minfree;		/* Initial values calculated on boot */
 extern struct portref
 	*swapdev;		/* To tell when it's been enabled */
