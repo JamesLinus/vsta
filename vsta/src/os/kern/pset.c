@@ -226,6 +226,7 @@ unlock_slot(struct pset *ps, struct perpage *pp)
 {
 	int wanted;
 
+	ASSERT_DEBUG(pp->pp_lock & PP_LOCK, "unlock_slot: not locked");
 	(void)p_lock(&ps->p_lock, SPL0);
 	ps->p_locks -= 1;
 	wanted = (pp->pp_lock & PP_WANT);
@@ -268,7 +269,7 @@ pset_writeslot(struct pset *ps, struct perpage *pp, uint idx, voidfun iodone)
 	 */
 	q = alloc_qio();
 	q->q_port = swapdev;
-	q->q_op = FS_WRITE;
+	q->q_op = FS_ABSWRITE;
 	q->q_pset = ps;
 	q->q_pp = pp;
 	q->q_off = ptob(idx + ps->p_swapblk);
