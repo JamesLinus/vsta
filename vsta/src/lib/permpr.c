@@ -6,6 +6,7 @@
 #include <sys/fs.h>
 #include <std.h>
 #include <string.h>
+#include <server.h>
 
 /*
  * perm_print()

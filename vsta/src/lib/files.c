@@ -2,6 +2,7 @@
  * files.c
  *	Support routines, mostly for sanity checking
  */
+#include <server.h>
 
 /*
  * valid_fname()
