@@ -4,7 +4,6 @@
  * kbd.h
  *	Declarations for PC/AT keyboard controller
  */
-#include <sys/types.h>
 
 #define KEYBD_MAXBUF (1024)	/* # bytes buffered from keyboard */
 
@@ -40,6 +39,14 @@
  */
 #define KEYBD_IRQ 1	/* Hardware IRQ1==interrupt vector 9 */
 
+/*
+ * Function key scan codes
+ */
+#define F1 (59)
+#define F10 (68)
+
+#ifdef KBD
+#include <sys/types.h>
 
 /*
  * Structure for per-connection operations
@@ -50,5 +57,6 @@ struct file {
 	uint f_flags;	/* User access bits */
 	uint f_count;	/* # bytes wanted for current op */
 };
+#endif
 
 #endif /* _KEYBD_H */
