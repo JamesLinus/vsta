@@ -21,6 +21,7 @@ extern int *__ptr_errno(void);
 #define	EIO (5)		/* I/O error */
 #define	ENXIO (6)	/* No such device or address */
 #define	E2BIG (7)	/* Arg list too long */
+#define ENAMETOOLONG E2BIG	/* File name too long for filesystem */
 #define	ENOEXEC (8)	/* Exec format error */
 #define	EBADF (9)	/* Bad file number */
 #define	ECHILD (10)	/* No children */
@@ -31,6 +32,7 @@ extern int *__ptr_errno(void);
 #define	EFAULT (14)	/* Bad address */
 #define	ENOTBLK (15)	/* Block device required */
 #define	EBUSY (16)	/* Mount device busy */
+#define ENOTEMPTY EBUSY	/* Directory removal attempt when not empty */
 #define	EEXIST (17)	/* File exists */
 #define	EXDEV (18)	/* Cross-device link */
 #define	ENODEV (19)	/* No such device */
