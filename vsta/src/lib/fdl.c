@@ -85,6 +85,36 @@ __fd_port(int fd)
 
 #ifndef SRV
 /*
+ * __fd_iocount()
+ *	Tell I/O count of given FDL port
+ */
+ulong
+__fd_iocount(int fd)
+{
+	struct port *port;
+
+	if ((port = __port(fd)) == 0) {
+		return(-1);
+	}
+	return(port->p_iocount);
+}
+
+/*
+ * __fd_set_iocount()
+ *	Set I/O count value
+ */
+void
+__fd_set_iocount(int fd, ulong val)
+{
+	struct port *port;
+
+	if ((port = __port(fd)) == 0) {
+		return;
+	}
+	port->p_iocount = val;
+}
+
+/*
  * balign_io()
  *	Try to do block I/O after running into alignment problems
  *
@@ -143,6 +173,7 @@ balign_io(struct port *port, void *buf, uint nbyte, int do_read)
 			m.m_arg = block_size;
 			m.m_arg1 = apos;
 			m.m_nseg = 1;
+			port->p_iocount += 1;
 			x = msg_send(port->p_port, &m);
 			if (x < 0) {
 				continue;
@@ -182,6 +213,7 @@ balign_io(struct port *port, void *buf, uint nbyte, int do_read)
 				m.m_arg = block_size;
 				m.m_arg1 = apos;
 				m.m_nseg = 1;
+				port->p_iocount += 1;
 				x = msg_send(port->p_port, &m);
 				if (x < 0) {
 					continue;
@@ -224,6 +256,7 @@ balign_io(struct port *port, void *buf, uint nbyte, int do_read)
 			m.m_arg = block_size;
 			m.m_arg1 = apos;
 			m.m_nseg = 1;
+			port->p_iocount += 1;
 			x = msg_send(port->p_port, &m);
 			if (x < 0) {
 				continue;
@@ -270,6 +303,7 @@ do_io(int op, struct port *port, void *buf, uint nbyte)
 	m.m_arg = nbyte;
 	m.m_arg1 = 0;
 	m.m_nseg = 1;
+	port->p_iocount += 1;
 	x = msg_send(port->p_port, &m);
 
 	/*
@@ -347,6 +381,7 @@ do_seek(struct port *port, long off, int whence)
 	m.m_arg = l;
 	m.m_arg1 = 0;
 	m.m_nseg = 0;
+	port->p_iocount += 1;
 	x = msg_send(port->p_port, &m);
 	if (x >= 0) {
 		port->p_pos = l;

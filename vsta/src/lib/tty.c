@@ -145,6 +145,7 @@ non_canon(struct termios *t, TTYBUF *fp, struct port *port)
 		m.m_buflen = BUFSIZ;
 		m.m_nseg = 1;
 		m.m_arg1 = 0;
+		port->p_iocount += 1;
 		x = msg_send(port->p_port, &m);
 		if (x <= 0) {
 			return(-1);
@@ -246,6 +247,7 @@ __tty_write(struct port *port, void *buf, uint nbyte)
 	m.m_arg = m.m_buflen = nbyte;
 	m.m_nseg = 1;
 	m.m_arg1 = 0;
+	port->p_iocount += 1;
 	ret = msg_send(port->p_port, &m);
 	if ((ret < 0) || ((tty_state.c_lflag & ICANON) == 0)) {
 		return(ret);

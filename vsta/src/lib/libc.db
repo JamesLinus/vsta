@@ -349,3 +349,7 @@ _getpgrp
 ___get_environ
 ___strtosig
 _tzsetwall
+___fd_iocount hidden
+__fork hidden
+_select
+___fd_set_iocount hidden
