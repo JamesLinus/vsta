@@ -31,11 +31,11 @@
 #include <sys/thread.h>
 #include <sys/proc.h>
 #include <sys/percpu.h>
+#include <lib/alloc.h>
 
 #define NRMAPSLOT (20)		/* # slots for our vaddr map */
 
-extern uint alloc_page();
-extern void flush_tlb(), *malloc(), rmap_init();
+extern void flush_tlb(), rmap_init();
 
 /*
  * hat_initvas()
@@ -46,7 +46,6 @@ extern void flush_tlb(), *malloc(), rmap_init();
 void
 hat_initvas(struct vas *vas)
 {
-	uint paddr;
 	pte_t *c;
 	extern pte_t *cr3;
 	extern int freel1pt;
@@ -56,11 +55,10 @@ hat_initvas(struct vas *vas)
 	 * This one has all the usual slots fille in for kernel
 	 * address space, and all zeroes for user.
 	 */
-	paddr = ptob(alloc_page());
-	c = vas->v_hat.h_vcr3 = ptov(paddr);
+	c = vas->v_hat.h_vcr3 = malloc(NBPG);
+	vas->v_hat.h_cr3 = (ulong)vtop(c);
 	bzero(c, NBPG);
 	bcopy(cr3, c, freel1pt * sizeof(pte_t));
-	vas->v_hat.h_cr3 = paddr;
 
 	/*
 	 * Get an address map for doing on-demand virtual address
@@ -123,9 +121,9 @@ hat_addtrans(struct pview *pv, void *va, uint pfn, int prot)
 	if (!(*root & PT_V)) {
 		uint pg;
 
-		pg = alloc_page();
-		pt = ptov(ptob(pg));
+		pt = malloc(NBPG);
 		bzero(pt, NBPG);
+		pg = btop(vtop(pt));
 		*root = (pg << PT_PFNSHIFT) | PT_V|PT_W|PT_U;
 	} else {
 		pt = ptov(*root & PT_PFN);
@@ -211,13 +209,12 @@ hat_deletetrans(struct pview *pv, void *va, uint pfn)
  * hat_getbits()
  *	Atomically get and clear the ref/mod bits on a translation
  */
-hat_getbits(struct pview *pv, uint idx)
+hat_getbits(struct pview *pv, void *vaddr)
 {
 	pte_t *pt;
-	void *vaddr;
 	int x;
 
-	vaddr = (void *)((ulong)(pv->p_vaddr) + ptob(idx) | 0x80000000);
+	vaddr = (void *)((ulong)vaddr | 0x80000000);
 	pt = pv->p_vas->v_hat.h_vcr3 + L1IDX(vaddr);
 	if (!(*pt & PT_V)) {
 		return(0);
