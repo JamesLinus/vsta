@@ -7,7 +7,6 @@
 #include <sys/perm.h>
 #include <namer/namer.h>
 #include <lib/hash.h>
-#include <stdio.h>
 #include <fcntl.h>
 #include <std.h>
 #include <sys/assert.h>
@@ -383,10 +382,7 @@ main(int argc, char *argv[])
 	 */
 	rootport = msg_port((port_name)0, &fsname);
 	x = namer_register(namer_name, fsname);
-	if (x < 0) {
-		fprintf(stderr, "VFS: can't register name: %s\n", namer_name);
-		exit(1);
-	}
+	ASSERT(x >= 0, "VFS: can't register name");
 
 	/*
 	 * Init our data structures

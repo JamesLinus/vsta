@@ -12,9 +12,9 @@
  * errors.  Lots of filesystems get scary after an I/O error.  Use a
  * mirror if you really care.
  */
-#include <stdio.h>
-#include <unistd.h>
 #include <vstafs/vstafs.h>
+#include <unistd.h>
+#include <sys/assert.h>
 
 extern int blkdev;
 
@@ -28,15 +28,8 @@ read_sec(daddr_t d, void *p)
 	off_t o;
 
 	o = (off_t)stob(d);
-	if (lseek(blkdev, o, SEEK_SET) != o) {
-		fprintf(stderr, "read_sec: seek error to off %ld\n", (long)o);
-		exit(1);
-	}
-	if (read(blkdev, p, SECSZ) != SECSZ) {
-		fprintf(stderr, "read_sec: read error off %ld buf 0x%x\n",
-			(long)o, p);
-		exit(1);
-	}
+	ASSERT(lseek(blkdev, o, SEEK_SET) == o, "read_sec: seek error");
+	ASSERT(read(blkdev, p, SECSZ) == SECSZ, "read_sec: I/O error");
 }
 
 /*
@@ -49,15 +42,8 @@ write_sec(daddr_t d, void *p)
 	off_t o;
 
 	o = (off_t)stob(d);
-	if (lseek(blkdev, o, SEEK_SET) != o) {
-		fprintf(stderr, "write_sec: seek error to off %ld\n", (long)o);
-		exit(1);
-	}
-	if (write(blkdev, p, SECSZ) != SECSZ) {
-		fprintf(stderr, "write_sec: write error off %ld buf 0x%x\n",
-			(long)o, p);
-		exit(1);
-	}
+	ASSERT(lseek(blkdev, o, SEEK_SET) == o, "write_sec: seek error")
+	ASSERT(write(blkdev, p, SECSZ) == SECSZ, "write_sec: I/O error");
 }
 
 /*
@@ -71,16 +57,8 @@ read_secs(daddr_t d, void *p, uint nsec)
 	uint sz = stob(nsec);
 
 	o = (off_t)stob(d);
-	if (lseek(blkdev, o, SEEK_SET) != o) {
-		fprintf(stderr, "read_sec: seek error to off %ld\n", (long)o);
-		exit(1);
-	}
-	if (read(blkdev, p, sz) != sz) {
-		fprintf(stderr,
-			"read_secs: read error off %ld buf 0x%x size %d\n",
-			(long)o, p, sz);
-		exit(1);
-	}
+	ASSERT(lseek(blkdev, o, SEEK_SET) == o, "read_sec: seek error");
+	ASSERT(read(blkdev, p, sz) == sz, "read_secs: I/O error");
 }
 
 /*
@@ -94,14 +72,6 @@ write_secs(daddr_t d, void *p, uint nsec)
 	uint sz = stob(nsec);
 
 	o = (off_t)stob(d);
-	if (lseek(blkdev, o, SEEK_SET) != o) {
-		fprintf(stderr, "write_sec: seek error to off %ld\n", (long)o);
-		exit(1);
-	}
-	if (write(blkdev, p, sz) != sz) {
-		fprintf(stderr,
-			"write_secs: write error off %ld buf 0x%x size %d\n",
-			(long)o, p, sz);
-		exit(1);
-	}
+	ASSERT(lseek(blkdev, o, SEEK_SET) == o, "write_sec: seek error");
+	ASSERT(write(blkdev, p, sz) == sz, "write_secs: I/O error");
 }
