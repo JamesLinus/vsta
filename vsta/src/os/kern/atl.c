@@ -57,8 +57,6 @@ delete_atl(struct perpage *pp, struct pview *pv, uint off)
 			*ap = a->a_next;
 			break;
 		}
-		ASSERT_DEBUG(a->a_pview != pv,
-			"delete_atl: multiple mapping?");
 		ap = &a->a_next;
 	}
 
