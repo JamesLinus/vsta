@@ -99,6 +99,13 @@ dos_open(struct msg *m, struct file *f)
 	 * MUST be !newfile, or it would have been caught above.
 	 */
 	if (!(m->m_arg & ACC_CREATE)) {
+		if (!newfile && (m->m_arg & ACC_WRITE)) {
+			/*
+			 * When an existing file is opened for modification,
+			 * mark its new modification date/time.
+			 */
+			dir_timestamp(n, 0);
+		}
 		goto success;
 	}
 
@@ -116,6 +123,7 @@ dos_open(struct msg *m, struct file *f)
 			return;
 		}
 		clust_setlen(n->n_clust, 0L);
+		dir_timestamp(n, 0);
 		n->n_len = 0;
 		n->n_flags |= N_DIRTY;
 	}

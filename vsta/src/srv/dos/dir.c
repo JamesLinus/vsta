@@ -820,7 +820,6 @@ dir_setlen(struct node *n)
 	 */
 	if (d->size != n->n_len) {
 		d->size = n->n_len;
-		timestamp(d, 0);
 		if (c->c_nclust) {
 			ASSERT_DEBUG(d->size, "dir_setlen: !len clust");
 			d->start = c->c_clust[0];
