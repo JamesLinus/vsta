@@ -122,9 +122,7 @@ dir_init(void)
 		 */
 		struct directory d;
 
-		ASSERT_DEBUG(root_cluster < 65536, "dir_init: root dir high");
-		d.start = root_cluster;
-		d.startHi = 0;
+		SETSTART(&d, root_cluster);
 		n->n_clust = alloc_clust(&d);
 	}
 
@@ -403,7 +401,7 @@ dir_look(struct node *n, char *file)
 	 * by starting cluster number.
 	 */
 	if (d.attr & DA_DIR) {
-		n2 = hash_lookup(dirhash, d.start);
+		n2 = hash_lookup(dirhash, START(&d));
 	} else {
 		n2 = hash_lookup(n->n_files, x);
 	}
@@ -424,7 +422,7 @@ dir_look(struct node *n, char *file)
 		return(0);
 	}
 	n2->n_type = map_type(d.attr);
-	if ((n2->n_type == T_DIR) && !d.start) {
+	if ((n2->n_type == T_DIR) && !START(&d)) {
 		syslog(LOG_ERR, "null directory for '%s'", file);
 		free(n2);
 		return(0);
@@ -452,7 +450,7 @@ dir_look(struct node *n, char *file)
 			free(n2);
 			return(0);
 		}
-		if (hash_insert(dirhash, d.start, n2)) {
+		if (hash_insert(dirhash, START(&d), n2)) {
 			hash_dealloc(n2->n_files);
 			free_clust(n2->n_clust);
 			free(n2);
@@ -746,7 +744,7 @@ dir_newfile(struct file *f, char *file, int isdir)
 	bcopy(f1, dir->name, sizeof(dir->name));
 	bcopy(f2, dir->ext, sizeof(dir->ext));
 	dir->attr = 0;
-	dir->start = 0;
+	SETSTART(dir, 0);
 	dir->size = 0;
 	timestamp(dir, 0);
 
@@ -778,7 +776,8 @@ dir_newfile(struct file *f, char *file, int isdir)
 		bcopy(".       ", d->name, sizeof(d->name));
 		bcopy("   ", d->ext, sizeof(d->ext));
 		dir->attr = d->attr = DA_DIR|DA_ARCHIVE;
-		dir->start = d->start = c->c_clust[0];
+		SETSTART(dir, c->c_clust[0]);
+		SETSTART(d, c->c_clust[0]);
 		timestamp(dir, 0);
 		++d;
 		bcopy("..      ", d->name, sizeof(d->name));
@@ -786,9 +785,9 @@ dir_newfile(struct file *f, char *file, int isdir)
 		d->attr = DA_DIR|DA_ARCHIVE;
 		timestamp(dir, 0);
 		if (n == rootdir) {
-			d->start = 0;
+			SETSTART(d, 0);
 		} else {
-			d->start = n->n_clust->c_clust[0];
+			SETSTART(d, n->n_clust->c_clust[0]);
 		}
 		ddirty(handle);
 		dfree(handle);
@@ -945,10 +944,10 @@ dir_setlen(struct node *n)
 		d->size = n->n_len;
 		if (c->c_nclust) {
 			ASSERT_DEBUG(d->size, "dir_setlen: !len clust");
-			d->start = c->c_clust[0];
+			SETSTART(d, c->c_clust[0]);
 		} else {
 			ASSERT_DEBUG(d->size == 0, "dir_setlen: len !clust");
-			d->start = 0;
+			SETSTART(d, 0);
 		}
 		timestamp(d, 0);
 		ddirty(handle);
@@ -1043,7 +1042,7 @@ fix_dotdot(struct node *n, struct node *ndir)
 	/*
 	 * Point to new parent dir
 	 */
-	de->start = get_clust(ndir->n_clust, 0);
+	SETSTART(de, get_clust(ndir->n_clust, 0));
 	ddirty(b);
 }
 

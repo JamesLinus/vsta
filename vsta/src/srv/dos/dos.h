@@ -84,15 +84,15 @@ struct file {
  * A DOS directory entry
  */
 struct directory {
-	char name[8];		/* file name */
-	char ext[3];		/* file extension */
-	uint attr:8;		/* attribute byte */
-	uchar reserved[8];	/* DOS reserved */
-	uint startHi:16;	/* starting cluster (hi 16 bits, FAT32) */
-	uint time:16;		/* time stamp */
-	uint date:16;		/* date stamp */
-	uint start:16;		/* starting cluster (low 16 bits) */
-	uint size:32;		/* size of the file */
+	char name[8];		/* 0  file name */
+	char ext[3];		/* 8  file extension */
+	uint attr:8;		/* 11 attribute byte */
+	uchar reserved[8];	/* 12 DOS reserved */
+	uint startHi:16;	/* 20 starting cluster (hi 16 bits, FAT32) */
+	uint time:16;		/* 22 time stamp */
+	uint date:16;		/* 24 date stamp */
+	uint start:16;		/* 26 starting cluster (low 16 bits) */
+	uint size:32;		/* 28 size of the file */
 };
 
 /*
@@ -105,6 +105,18 @@ struct directory {
 #define DA_DIR 0x10		/* Subdirectory */
 #define DA_ARCHIVE 0x20		/* Needs archiving */
 #define DA_VFAT (0x0f)		/* Illegal combe == vFAT */
+
+/*
+ * The start/startHi fields need to be handled differently
+ * for FAT-32 as opposed to earlier filesystems.
+ */
+extern uint fat_size;
+#define START(d) ((fat_size == 32) ? \
+	(((d)->startHi << 16) | (d)->start) : \
+	(d)->start)
+#define SETSTART(d, v) if (fat_size == 32) { \
+		(d)->startHi = ((v) >> 16); (d)->start = (v);} \
+	else { (d)->start = (v); }
 
 /*
  * Shape of bytes at offset 36 in boot block for FAT 12/16

@@ -14,10 +14,10 @@
 /*
  * FAT flag values for FAT-32
  */
-#define FAT_RESERVED (0xFFFFFFF0)	/* Start of reserved value range */
-#define FAT_DEFECT (0xFFFFFFF7)		/* Cluster w. defective block */
-#define FAT_EOF (0xFFFFFFF8)		/* Start of EOF range */
-#define FAT_END (0xFFFFFFFF)		/* End of reserved range */
+#define FAT_RESERVED (0xFFFFFF0)	/* Start of reserved value range */
+#define FAT_DEFECT (0xFFFFFF7)		/* Cluster w. defective block */
+#define FAT_EOF (0xFFFFFF8)		/* Start of EOF range */
+#define FAT_END (0xFFFFFFF)		/* End of reserved range */
 
 /*
  * Contents of FAT32 filesystem information sector
@@ -96,11 +96,11 @@ lookup(claddr_t idx)
 	/*
 	 * If it isn't there yet, need to go fetch it now
 	 */
-	if (idx >= nfatv) {
+	if (seg >= nfatv) {
 		syslog(LOG_ERR, "bad seg %d limit %d idx %ld",
 			seg, nfatv, idx);
 	}
-	ASSERT_DEBUG(idx < nfatv, "fat32 lookup: bad index");
+	ASSERT_DEBUG(seg < nfatv, "fat32 lookup: bad index");
 	fatp = fatv[seg];
 	if (fatp == 0) {
 		/*
@@ -382,7 +382,7 @@ fat32_alloc(struct clust *c, struct directory *d)
 	/*
 	 * Get starting cluster from directory entry
 	 */
-	start = d->start;
+	start = START(d);
 
 	/*
 	 * Scan the chain to get its length

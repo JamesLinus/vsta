@@ -134,7 +134,7 @@ alloc_clust(struct directory *d)
 	/*
 	 * Zero-length file is easy
 	 */
-	if ((d == 0) || (d->start == 0)) {
+	if ((d == 0) || (START(d) == 0)) {
 		c->c_nclust = 0;
 		c->c_clust = 0;
 		return(c);
