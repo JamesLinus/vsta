@@ -553,17 +553,17 @@ exit(int code)
 		remove_pview(p->p_vas, t->t_ustack);
 	} else {
 		/*
+		 * Detach from our exit groups
+		 */
+		noparent_exitgrp(p->p_children);
+		post_exitgrp(p->p_parent, p, code);
+		deref_exitgrp(p->p_parent);
+
+		/*
 		 * If last thread gone, tear down process.
 		 */
-		free_proc(t->t_proc);
+		free_proc(p);
 	}
-
-	/*
-	 * Detach from our exit groups
-	 */
-	noparent_exitgrp(p->p_children);
-	post_exitgrp(p->p_parent, p, code);
-	deref_exitgrp(p->p_parent);
 
 	/*
 	 * Free kernel stack once we've switched to our idle stack.
