@@ -370,6 +370,7 @@ wd_start(void)
 {
 	uint cyl, sect, trk, lsect;
 	struct wdparms *w = &disks[cur_unit].d_parm;
+	uint base = wd_baseio;
 
 	/*
 	 * For laptops with power management, our inportb() here can
@@ -377,7 +378,7 @@ wd_start(void)
 	 * a busy disk until the spinup is complete.  Give it 5 seconds.
 	 */
 	cyl = 0;
-	while (inportb(wd_baseio + WD_STATUS) & WDS_BUSY) {
+	while (inportb(base + WD_STATUS) & WDS_BUSY) {
 		if (++cyl > 50) {
 			ASSERT(0, "wd_start: busy");
 		}
@@ -411,20 +412,20 @@ wd_start(void)
 	/*
 	 * Program I/O
 	 */
-	outportb(wd_baseio + WD_SCNT, cur_xfer);
-	outportb(wd_baseio + WD_SNUM, sect);
-	outportb(wd_baseio + WD_CYL0, cyl & 0xFF);
-	outportb(wd_baseio + WD_CYL1, (cyl >> 8) & 0xFF);
-	outportb(wd_baseio + WD_SDH,
+	outportb(base + WD_SCNT, cur_xfer);
+	outportb(base + WD_SNUM, sect);
+	outportb(base + WD_CYL0, cyl & 0xFF);
+	outportb(base + WD_CYL1, (cyl >> 8) & 0xFF);
+	outportb(base + WD_SDH,
 		WDSDH_EXT|WDSDH_512 | trk | (cur_unit << 4));
-	outportb(wd_baseio + WD_CMD,
+	outportb(base + WD_CMD,
 		(cur_op == FS_READ) ? WDC_READ : WDC_WRITE);
 
 	/*
 	 * Feed data immediately for write
 	 */
 	if (cur_op == FS_WRITE) {
-		while ((inportb(wd_baseio + WD_STATUS) & WDS_DRQ) == 0) {
+		while ((inportb(base + WD_STATUS) & WDS_DRQ) == 0) {
 			;
 		}
 		load_sect();
