@@ -4,6 +4,7 @@
  */
 #include <sys/perm.h>
 #include <sys/fs.h>
+#include <sys/sched.h>
 #include <sys/assert.h>
 #include <sys/param.h>
 #include <hash.h>
@@ -493,6 +494,11 @@ main(int argc, char **argv)
 
 	syslog(LOG_INFO, "%s on IRQ %d, I/O base 0x%x",
 		uart_names[uart], irq, iobase);
+
+	/*
+	 * Take a shot at real-time priority
+	 */
+	(void)sched_op(SCHEDOP_SETPRIO, PRI_RT);
 
 	/*
 	 * Start serving requests for the filesystem
