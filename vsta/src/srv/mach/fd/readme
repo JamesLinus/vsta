@@ -1,0 +1,74 @@
+Subject: Readme for the VSTa PC floppy drive server
+Date: 21st July 1994
+From: Dave Hudson <dave@humbug.demon.co.uk>
+
+
+1.0 Introduction
+
+This is the VSTa PC floppy drive server - fd.  This code provides access to
+all standard PC-AT type floppy diskette drives
+
+
+2.0 Copyright
+
+The code is copyrighted under the same terms as the VSTa kernel.  Please see
+the license provided with the kernel for more details.
+
+
+3.0 Modification summary
+
+The original fd server was written by Andy Valencia in 1993. This provided
+the core features:
+
+	basic server framework
+	support for 1.2MByte drives
+	state machine operation
+
+The code was extended in mid 1994 by Dave Hudson to add some extra features:
+
+	support for 82077 type controllers
+	support for 360k, 720k, 1.44MByte and 2.88MByte drives
+	write protection checks
+	diskette change checks
+	user defineable media parameters
+	various "stat" parameters added
+	support for different media types in a given drive
+	autoprobing of media types
+
+
+4.0 Technical Description
+
+The server expects to be initialised using the following command syntax:
+
+	fd [opts=args] ...
+
+The optional parameters are as follows:
+
+	baseio=<I/O-base-address>
+		- sets the base I/O address used by the FDC
+
+	dma=<DMA-channel>
+		- sets the DMA channel numner for the FDC
+
+	fdc=<FDC-type>
+		- forces the system to assume a particular type of FDC
+
+	irq=<IRQ-number>
+		- sets the Interrupt Request line used by the FDC
+
+	namer=<namer-entry>
+		- sets the name used to register the server with VSTa's
+		  namer
+
+
+5.0 To Do
+
+There are a some areas of enhancement for this server:
+
+a) Support diskette formatting
+
+b) Optimise performance via the use of a track buffer
+
+c) Add support for concurrent seek and recalibrate operations over all
+drives in the system
+
