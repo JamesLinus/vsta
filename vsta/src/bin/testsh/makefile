@@ -1,8 +1,9 @@
 CC= gcc
 LD= ld
+INCS=-nostdinc -I../../include
 # Add -DSTAND for a more standalone-oriented flavor of shell
-CFLAGS= -DSTAND -O -I../../include -I../..
-# CFLAGS= -O -I../../include -I../..
+CFLAGS= -DSTAND -O $(INCS)
+# CFLAGS= -O $(INCS)
 LDFLAGS= -L../../libc
 LIBS= -lc_s
 # LIBS= -lc
@@ -16,7 +17,7 @@ OBJS= testsh.o dump.o run.o
 all: testsh
 
 testsh: $(OBJS)
-	$(LD) $(LDFLAGS) -e start -o testsh $(CRT0) $(OBJS) $(LIBS)
+	$(LD) $(LDFLAGS) -o testsh $(CRT0) $(OBJS) $(LIBS)
 
 clean:
 	rm -f *.o
