@@ -30,3 +30,7 @@ ENTRY(munmap, S_MUNMAP)
 ENTRY(strerror, S_STRERROR)
 ENTRY(_notify, S_NOTIFY)
 ENTRY(clone, S_CLONE)
+ENTRY(page_wire, S_PAGE_WIRE)
+ENTRY(page_release, S_PAGE_RELEASE)
+ENTRY(enable_dma, S_ENABLE_DMA)
+

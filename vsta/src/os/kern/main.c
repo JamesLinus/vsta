@@ -6,6 +6,7 @@
 
 extern void init_machdep(), init_page(), init_qio(), init_sched(),
 	init_proc(), init_swap(), swtch(), init_malloc(), init_msg();
+extern void init_wire();
 #ifdef DEBUG
 extern void init_debug();
 #endif
@@ -27,6 +28,7 @@ main(void)
 	init_proc();
 	init_msg();
 	init_swap();
+	init_wire();
 
 	/*
 	 * Flag that we're up.  swtch() assumes runq_lock is held,

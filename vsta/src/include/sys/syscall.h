@@ -22,6 +22,9 @@
 #define S_STRERROR 15
 #define S_NOTIFY 16
 #define S_CLONE 17
-#define S_HIGH S_CLONE
+#define S_PAGE_WIRE 18
+#define S_PAGE_RELEASE 19
+#define S_ENABLE_DMA 20
+#define S_HIGH S_ENABLE_DMA
 
 #endif /* _SYSCALL_H */

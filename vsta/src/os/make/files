@@ -42,6 +42,7 @@ pview.c
 clock.c
 event.c
 mmap.c
+phys.c
 
 dbg:
 dbgmain.c
