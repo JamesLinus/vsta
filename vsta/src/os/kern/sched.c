@@ -3,7 +3,10 @@
  *	Routines for scheduling
  *
  * The decision of who to run next is solved in VSTa by placing all
- * threads within nodes organized as a tree.  All sibling nodes
+ * threads within nodes organized as a tree.  All sibling nodes compete
+ * on a percentage basis under their common parent.  A node which "wins"
+ * will either (1) run the process if it's a leaf, or (2) recursively
+ * distribute the "won" CPU time among its competing children.
  */
 #include <sys/proc.h>
 #include <sys/thread.h>
