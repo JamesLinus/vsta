@@ -5,7 +5,6 @@
 #include <stdio.h>
 #include "adb.h"
 #include <sys/param.h>
-#include <mach/machreg.h>
 #include <std.h>
 
 /*

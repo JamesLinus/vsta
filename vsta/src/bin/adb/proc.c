@@ -5,7 +5,6 @@
 #include <sys/msg.h>
 #define PROC_DEBUG
 #include <sys/proc.h>
-#include <mach/machreg.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <std.h>
