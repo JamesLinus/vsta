@@ -23,6 +23,7 @@ namer_register(char *buf, port_name uport)
 	int x;
 	port_t port;
 	struct msg m;
+	static char deleted[] = "deleted=1\n";
 
 	/*
 	 * Skip leading '/'
@@ -35,7 +36,8 @@ namer_register(char *buf, port_name uport)
 	 * Connect to name server
 	 */
 	for (x = 0; x < 5; ++x) {
-		port = msg_connect(PORT_NAMER, ACC_READ|ACC_WRITE);
+		port = msg_connect(PORT_NAMER,
+			ACC_READ | ACC_WRITE | ACC_NOCLONE);
 		if (port >= 0) {
 			break;
 		}
@@ -99,7 +101,24 @@ namer_register(char *buf, port_name uport)
 	m.m_arg = m.m_buflen = strlen(numbuf);
 	m.m_arg1 = 0;
 	x = msg_send(port, &m);
-	msg_disconnect(port);
+
+	/*
+	 * Mark port as "deleted".  Yes, we could delete the
+	 * port using FS_REMOVE, but that would require keeping
+	 * an extra port open to the containing dir.
+	 *
+	 * If we could mark it as deleted, leave the port open; this
+	 * will then let the namer delete the entry on the exit
+	 * of this registering server.
+	 */
+	m.m_op = FS_WSTAT;
+	m.m_buf = deleted;
+	m.m_arg = m.m_buflen = sizeof(deleted)-1;
+	m.m_arg1 = 0;
+	if (msg_send(port, &m) < 0) {
+		msg_disconnect(port);
+	}
+
 	return(x);
 }
 
