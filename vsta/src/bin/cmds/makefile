@@ -8,9 +8,12 @@ LIBS= -lc
 	$(CC) $(CFLAGS) -c $*.c
 
 PROGS=test args cat id ls swapd rm cp sleep mkdir pwd kill mv stat \
-	dumpsect man fstab
+	dumpsect man fstab ps
 
 all: $(PROGS)
+
+ps: ps.o
+	$(LD) $(LDFLAGS) -o ps ../../libc/crt0.o ps.o -lc
 
 fstab: fstab.o
 	$(LD) $(LDFLAGS) -o fstab ../../libc/crt0.o fstab.o -lc
