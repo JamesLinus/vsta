@@ -146,7 +146,7 @@ check_gen(struct msg *m, struct file *f)
 }
 
 /*
- * screen_main()
+ * kbd_main()
  *	Endless loop to receive and serve requests
  */
 static void
