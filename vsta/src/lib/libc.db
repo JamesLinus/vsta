@@ -336,3 +336,4 @@ _modf
 _strtod
 _frexp
 ___get_logopt
+_tcgetsize

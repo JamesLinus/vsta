@@ -363,8 +363,37 @@ cfsetispeed(struct termios *t, ulong speed)
  * cfsetospeed()
  *	Set TTY output baud rate
  */
+int
 cfsetospeed(struct termios *t, ulong speed)
 {
 	t->c_ospeed = speed;
+	return(0);
+}
+
+/*
+ * tcgetsize()
+ *	Try to divine the geometry of the given display
+ */
+int
+tcgetsize(int fd, int *rowsp, int *colsp)
+{
+	port_t port;
+	char *p;
+	int rows, cols;
+
+	port = __fd_port(fd);
+	if (port < 0) {
+		return(-1);
+	}
+	p = rstat(port, "rows");
+	if (!p || (sscanf(p, "%d", &rows) != 1)) {
+		return(-1);
+	}
+	p = rstat(port, "cols");
+	if (!p || (sscanf(p, "%d", &cols) != 1)) {
+		return(-1);
+	}
+	*rowsp = rows;
+	*colsp = cols;
 	return(0);
 }
