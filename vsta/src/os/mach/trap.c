@@ -169,7 +169,7 @@ out:
 	/*
 	 * See if we should get off the CPU
 	 */
-	check_preempt();
+	CHECK_PREEMPT();
 
 	/*
 	 * See if we should handle any events
@@ -323,7 +323,7 @@ trap(ulong place_holder)
 	/*
 	 * See if we should get off the CPU
 	 */
-	check_preempt();
+	CHECK_PREEMPT();
 
 	/*
 	 * See if we should handle any events
@@ -697,8 +697,6 @@ interrupt(ulong place_holder)
 
 	/*
 	 * Check for preemption and events if we pushed in from user mode.
-	 * When ready for kernel preemption, move check_preempt() to before
-	 * the "if" statement.
 	 */
 out:
 	if (USERMODE(f)) {
@@ -710,8 +708,8 @@ out:
 			check_events();
 			t->t_uregs = 0;
 		}
-		check_preempt();
 	}
+	CHECK_PREEMPT();
 }
 
 /*

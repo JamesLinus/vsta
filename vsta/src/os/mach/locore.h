@@ -256,6 +256,26 @@ idle_stack(void)
 }
 
 /*
+ * on_idle_stack()
+ *	Tell if we're running on the idle stack
+ */
+inline static int
+on_idle_stack(void)
+{
+	extern void *id_stack, *id_bottom;
+	int res;
+
+	__asm__ __volatile__ (
+		"	subl %0,%0\n"
+		"	cmpl $_id_stack,%%esp\n"
+		"	ja 1f\n"
+		"	incl %0\n"
+		"1:"
+		: "=r" (res)
+		: /* No input */);
+}
+
+/*
  * idle()
  *	Run idle - do nothing except wait for something to happen :-)
  *

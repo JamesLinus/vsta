@@ -215,7 +215,7 @@ syscall(ulong place_holder)
 	/*
 	 * See if we should get off the CPU
 	 */
-out:	check_preempt();
+out:	CHECK_PREEMPT();
 
 	/*
 	 * See if we should handle any events

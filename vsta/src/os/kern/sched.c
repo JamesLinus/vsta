@@ -17,6 +17,7 @@
 #include <sys/percpu.h>
 #include <alloc.h>
 #include "../mach/mutex.h"
+#include "../mach/locore.h"
 
 extern ulong random();
 extern void nudge();
@@ -439,12 +440,11 @@ check_preempt(void)
 {
 	/*
 	 * If no preemption needed, holding locks, or not running
-	 * with a process, don't preempt.
+	 * with a process, don't preempt.  We don't check do_preempt
+	 * itself here, because all calls do so via CHECK_PREEMPT.
 	 */
-	if (do_preempt
-	    && curthread
-	    && (cpu.pc_locks == 0)
-	    && (cpu.pc_nopreempt == 0)) {
+	if (curthread && (cpu.pc_locks == 0) &&
+			(cpu.pc_nopreempt == 0) && !on_idle_stack()) {
 		/*
 		 * Use timeslice() to switch us off
 		 */
