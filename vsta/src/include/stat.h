@@ -18,7 +18,7 @@ typedef ulong ino_t;
 
 struct	stat {
 	dev_t st_dev;
-	inot_t st_ino;
+	ino_t st_ino;
 	mode_t st_mode;
 	nlink_t st_nlink;
 	ulong st_uid, st_gid;
