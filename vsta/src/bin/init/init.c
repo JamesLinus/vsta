@@ -302,7 +302,7 @@ main()
 	(void)__fd_alloc(p);
 	p = path_open("CONS:0", ACC_WRITE);
 	(void)__fd_alloc(p);
-	(void)__fd_alloc(p);
+	(void)dup2(1, 2);
 
 	/*
 	 * Root filesystem
