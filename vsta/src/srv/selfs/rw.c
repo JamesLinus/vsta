@@ -56,6 +56,7 @@ run_queue(struct file *f)
 	m.m_arg1 = 0;
 	msg_reply(f->f_sender, &m);
 	f->f_size = 0;
+	free(buf);
 }
 
 /*
