@@ -43,5 +43,7 @@ STRUCT_REF(pset);
 STRUCT_REF(pview);
 STRUCT_REF(prot);
 STRUCT_REF(perm);
+STRUCT_REF(port);
+STRUCT_REF(portref);
 
 #endif /* _TYPES_H */
