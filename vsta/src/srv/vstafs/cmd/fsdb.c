@@ -90,7 +90,9 @@ dump_s(char *buf, uint count)
 				char buf[20];
 
 				lines = 0;
-				(void)gets(buf);
+				if (gets(buf) == NULL) {
+					exit(0);
+				}
 				if (buf[0] == 'q') {
 					return;
 				}
@@ -177,7 +179,7 @@ dump_free(int argc, char **argv)
 	printf("next @ %lx, nfree %ld\n", f->f_next, f->f_nfree);
 	a = f->f_free;
 	for (x = 0; x < f->f_nfree; ++x,++a) {
-		printf(" %ld..%ld", a->a_start, a->a_start + a->a_len - 1);
+		printf(" %X..%X", a->a_start, a->a_start + a->a_len - 1);
 	}
 	printf("\n");
 }
@@ -399,6 +401,9 @@ getline(void)
 		}
 		buf = p;
 		buf[len-1] = c;
+	}
+	if (c == EOF) {
+		exit(0);
 	}
 	if (buf) {
 		buf[len] = '\0';
