@@ -5,7 +5,6 @@
 #include <swap/swap.h>
 #include <sys/param.h>
 
-extern char *strerror();
 extern ulong total_swap, free_swap;
 
 /*
