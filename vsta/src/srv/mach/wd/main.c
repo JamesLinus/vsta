@@ -212,18 +212,22 @@ loop:
 		break;
 
 	case FS_SEEK:		/* Set position */
-	case FS_ABSREAD:	/* Set position, then read */
-	case FS_ABSWRITE:	/* Set position, then write */
 		if (!f || (msg.m_arg < 0)) {
 			msg_err(msg.m_sender, EINVAL);
 			break;
 		}
 		f->f_pos = msg.m_arg;
-		if (msg.m_op == FS_SEEK) {
-			msg.m_arg = msg.m_arg1 = msg.m_nseg = 0;
-			msg_reply(msg.m_sender, &msg);
+		msg.m_arg = msg.m_arg1 = msg.m_nseg = 0;
+		msg_reply(msg.m_sender, &msg);
+		break;
+
+	case FS_ABSREAD:	/* Set position, then read */
+	case FS_ABSWRITE:	/* Set position, then write */
+		if (!f || (msg.m_arg1 < 0)) {
+			msg_err(msg.m_sender, EINVAL);
 			break;
 		}
+		f->f_pos = msg.m_arg1;
 		msg.m_op = ((msg.m_op == FS_ABSREAD) ? FS_READ : FS_WRITE);
 
 		/* VVV fall into VVV */
