@@ -195,6 +195,7 @@ kern_mem(void *vaddr, uint len)
 	pgstart = btop(vaddr);
 	pgend = btop((char *)vaddr + len - 1);
 	pv->p_len = pgend-pgstart+1;
+	pv->p_off = 0;
 	ps = pv->p_set = physmem_pset(0, pv->p_len);
 	ref_pset(ps);
 	pv->p_prot = PROT_RO;
