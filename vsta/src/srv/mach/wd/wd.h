@@ -8,7 +8,7 @@
 #include <sys/perm.h>
 #include <wd/fdisk.h>
 
-#define NWD (1)		/* Max # WD units supported */
+#define NWD (2)		/* Max # WD units supported */
 
 #define SECSZ (512)	/* Only 512 byte sectors handled */
 #define MAXIO (128*1024)	/* Max I/O--128K */
@@ -156,5 +156,8 @@ struct disk {
 };
 
 extern int get_offset(int, ulong, ulong *, uint *);
+extern void wd_init(int, char **);
+extern void iodone();
+extern char configed[];
 
 #endif /* _WD_H */
