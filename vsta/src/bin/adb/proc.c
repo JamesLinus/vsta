@@ -9,8 +9,14 @@
 #include <mach/machreg.h>
 #include "map.h"
 
+#define MAX_BPOINT (4)		/* Max # breakpoints */
+
 extern port_t dbg_port;
 extern struct map coremap;
+
+static void
+	*bpoints[MAX_BPOINT];	/* Breakpoints set */
+static uint nbpoint = 0;	/*  ...how many in bpoints[] */
 
 /*
  * sendhim()
@@ -210,5 +216,97 @@ getregs(struct trapframe *tf)
 		} else {
 			*t++ = args[0];
 		}
+	}
+}
+
+/*
+ * breakpoint()
+ *	Set and clear breakpoints
+ */
+void
+breakpoint(void *addr, int set)
+{
+	uint x;
+	ulong args[2];
+
+	/*
+	 * Check count and addr
+	 */
+	if (set && (nbpoint >= MAX_BPOINT)) {
+		printf("No more breakpoints possible\n");
+		return;
+	}
+	if (!set && !nbpoint) {
+		printf("No breakpoints set\n");
+		return;
+	}
+	if (set && !addr) {
+		printf("Invalid breakpoint address\n");
+		return;
+	}
+
+	/*
+	 * Find slot for operation
+	 */
+	for (x = 0; x < MAX_BPOINT; ++x) {
+		if (set && !bpoints[x])
+			break;
+		if (!set && (bpoints[x] == addr)) {
+			/*
+			 * May as well clear it now
+			 */
+			bpoints[x] = 0;
+			nbpoint -= 1;
+			break;
+		}
+	}
+
+	/*
+	 * Complain on bogosity
+	 */
+	if (!set && (x >= MAX_BPOINT)) {
+		printf("No breakpoint at 0x%x\n", (ulong)addr);
+		return;
+	}
+	if (set) {
+		if (x >= MAX_BPOINT) {
+			printf("Oops, breakpoint table out of synch\n");
+			return;
+		}
+		nbpoint += 1;
+		bpoints[x] = addr;
+	}
+
+	/*
+	 * Tell our humble slave
+	 */
+	args[1] = (ulong)addr;
+	args[0] = set;
+	if (sendhim(PD_BREAK, args) < 0) {
+		if (set) {
+			bpoints[x] = 0;
+			nbpoint -= 1;
+		}
+		printf("Breakpoint operation failed\n");
+	}
+}
+
+/*
+ * dump_breakpoints()
+ *	List out current breakpoints
+ */
+void
+dump_breakpoints(void)
+{
+	uint x;
+
+	printf("Current breakpoints:\n");
+	for (x = 0; x < MAX_BPOINT; ++x) {
+		if (bpoints[x]) {
+			printf(" 0x%x", bpoints[x]);
+		}
+	}
+	if (nbpoint) {
+		printf("\n");
 	}
 }

@@ -9,6 +9,7 @@
 #include "map.h"
 
 extern char *getnum();
+extern void breakpoints(void *, int), dump_breakpoints(void);
 
 static pid_t corepid;	/* PID we debug, if any */
 port_t dbg_port;	/*  ...port we talk to him via */
@@ -83,6 +84,9 @@ dollar_cmds(char *p)
 		exit(0);
 	case 'r':		/* Dump registers */
 		dump_regs();
+		break;
+	case 'b':		/* List breakpoints */
+		dump_breakpoints();
 		break;
 	default:
 		printf("Unknown command: $%s\n", p);
@@ -232,6 +236,12 @@ colon_cmds(char *p)
 	case 's':
 		read_from = &coremap;
 		step();
+		break;
+	case 'b':
+		breakpoint((void *)addr, 1);
+		break;
+	case 'd':
+		breakpoint((void *)addr, 0);
 		break;
 	default:
 		printf("Unknown command: :%s\n", p);
