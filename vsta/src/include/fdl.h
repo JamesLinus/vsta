@@ -6,6 +6,8 @@
  */
 #include <sys/types.h>
 
+typedef off_t (*__offt_fun)();
+
 /*
  * Per-connection state information
  */
@@ -14,8 +16,8 @@ struct port {
 	void *p_data;	/* Per-port-type state */
 	intfun p_read,	/* Read/write/etc. functions */
 		p_write,
-		p_close,
-		p_seek;
+		p_close;
+	__offt_fun p_seek;
 	uint p_refs;	/* # FD's mapping to this port # */
 	ulong p_pos;	/* Absolute byte offset in file */
 };
