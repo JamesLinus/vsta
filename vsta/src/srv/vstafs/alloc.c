@@ -7,6 +7,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#define TRACE		/* Noisy, but helpful for debugging */
+
 /*
  * The head of the free list
  */
@@ -165,6 +167,9 @@ alloc_block(uint nblk)
 	struct freelist *fr;
 	daddr_t d = 0;
 
+#ifdef TRACE
+	printf("alloc_block nblk %d", nblk);
+#endif
 	for (fr = freelist; fr; fr = fr->fr_next) {
 		d = alloc_chunk(&fr->fr_free, nblk);
 		if (d) {
@@ -178,6 +183,9 @@ alloc_block(uint nblk)
 	if (fr) {
 		write_sec(fr->fr_this, &fr->fr_free);
 	}
+#ifdef TRACE
+	printf(" -> %ld\n", d);
+#endif
 	return(d);
 }
 
@@ -495,6 +503,9 @@ free_block(daddr_t d, uint nblk)
 	struct freelist *fr, *ff;
 	struct free *f;
 
+#ifdef TRACE
+	printf("free_block nblk %d blk %ld\n", nblk, d);
+#endif
 	ASSERT_DEBUG(nblk > 0, "free_block: zero len");
 retry:
 	/*
@@ -542,7 +553,9 @@ retry:
 	}
 #ifdef DEBUG
 	/* Not strictly needed, but useful for debugging */
-	write_sec(fr->fr_this, f);
+	if (fr) {
+		write_sec(fr->fr_this, f);
+	}
 #endif
 
 	/*
@@ -618,6 +631,9 @@ take_block(daddr_t d, ulong nsec)
 {
 	struct freelist *fr;
 
+#ifdef TRACE
+	printf("take_block nblk %ld blk %ld\n", nsec, d);
+#endif
 	for (fr = freelist; fr; fr = fr->fr_next) {
 		struct alloc *a;
 		ulong x;
@@ -654,7 +670,13 @@ take_block(daddr_t d, ulong nsec)
 		a = f->f_free;
 		for (x = 0; x < f->f_nfree; ++x, ++a) {
 			if (d == a->a_start) {
-				return(take_chunk(fr, x, nsec));
+				ulong l;
+
+				l = take_chunk(fr, x, nsec);
+#ifdef TRACE
+				printf(" -> %ld blocks\n", l);
+#endif
+				return(l);
 			}
 		}
 
@@ -663,5 +685,6 @@ take_block(daddr_t d, ulong nsec)
 		 */
 		break;
 	}
+	printf(" [failed]\n");
 	return(0);
 }
