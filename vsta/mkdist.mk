@@ -26,7 +26,7 @@ SRCSRV=src/srv/bfs src/srv/cdfs src/srv/devnull src/srv/dos \
 
 # Core source distribution
 SRC=$(LAW) mkdist.mk rcs \
-	src/bin/adb src/bin/init src/bin/login src/bin/perf \
+	src/bin/adb src/bin/init src/bin/login src/bin/roff \
 	src/bin/cmds src/bin/time src/lib src/os \
 	$(SRCSRV) src/boot.386
 
@@ -34,48 +34,50 @@ SRC=$(LAW) mkdist.mk rcs \
 NET=src/srv/ka9q
 
 # Make (a simple/fast one, and then GNU's)
-MAKE=src/bin/make src/bin/gmake
+MAKE=src/bin/ports/make src/bin/ports/gmake
 
 # Text utilities
-TXT=src/bin/roff src/bin/less src/bin/grep src/bin/rh \
-	src/bin/sed src/bin/tar src/bin/awk src/bin/fileutl \
-	src/bin/textutil src/bin/find src/bin/patch src/bin/ctags
+TXT=src/bin/ports/less src/bin/ports/grep src/bin/ports/rh \
+	src/bin/ports/sed src/bin/ports/tar src/bin/ports/awk \
+	src/bin/ports/fileutl src/bin/ports/textutil \
+	src/bin/ports/find src/bin/ports/patch \
+	src/bin/ports/ctags
 
 # Shells
-SH=src/bin/ash src/bin/testsh src/bin/rc src/bin/sh
+SH=src/bin/ports/ash src/bin/testsh src/bin/ports/rc
 
 # Editors
-ED=src/bin/emacs src/bin/ed src/bin/vim
+ED=src/bin/ports/emacs src/bin/ports/ed src/bin/ports/vim
 
 # Games
-FUN=src/bin/backgamm
+FUN=src/bin/ports/backgamm
 
 # "bc" calculator
-BC=src/bin/bc
+BC=src/bin/ports/bc
 
 # GNU zip
-GZIP=src/bin/gzip
+GZIP=src/bin/ports/gzip
 
 # "sc" spreadsheet
-SC=src/bin/sc
+SC=src/bin/ports/sc
 
 # Smalltalk
-SMALL=src/bin/small
+SMALL=src/bin/ports/small
 
 # GNU C, and related language tools
-GCC=src/bin/gcc2 src/bin/binutl2 src/bin/gdb
+GCC=src/bin/ports/gcc2 src/bin/ports/binutl2 src/bin/ports/gdb
 
 # MGR windowing system
 MGR=mgr lib/libbitbl.a lib/libmgr.a
 
 # Compiler tools
-LANG=src/bin/flex src/bin/bison src/bin/yacc lib/libfl.a
+LANG=src/bin/ports/flex src/bin/ports/bison src/bin/ports/yacc lib/libfl.a
 
 # Python
-PYTHON=src/bin/python lib/python15
+PYTHON=src/bin/ports/python lib/python15
 
 # Diff utilities
-DIFF=src/bin/diffutl
+DIFF=src/bin/ports/diffutl
 
 # Sample accounts
 ACCOUNT=root guest
