@@ -9,6 +9,7 @@ extern pid_t _getid(int);
 
 char __err[ERRLEN];	/* Latest error string */
 uint _errcnt;		/* Bumped on each error (errno.h emulation) */
+int _errno;		/* Simulation for POSIX errno */
 
 /*
  * msg_err()
@@ -86,6 +87,7 @@ strerror(...)
 
 	if (__err[0] == '\0') {
 		if ((_strerror(__err) < 0) || !__err[0]) {
+			_errcnt += 1;
 			strcpy(__err, "unknown error");
 		}
 	}
@@ -105,6 +107,7 @@ __seterr(char *p)
 		abort();
 	}
 	strcpy(__err, p);
+	_errcnt += 1;
 	return(-1);
 }
 
