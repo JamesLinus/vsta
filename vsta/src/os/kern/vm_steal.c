@@ -355,7 +355,7 @@ do_hand(struct core *c, int trouble, intfun steal)
 		 * Nope, we don't want it yet.  If trouble's brewing,
 		 * schedule an async flush of the dirty page.
 		 */
-		if (trouble && (pp->pp_flags & PP_M)) {
+		if (trouble && (pp->pp_flags & PP_M) && swapdev) {
 			(*(ps->p_ops->psop_writeslot))(ps,
 				pp, idx, iodone_unlock);
 			pp->pp_flags &= ~(PP_M);
@@ -416,6 +416,8 @@ out:
 static int
 steal1(int flags, int trouble)
 {
+	if ((flags & PP_M) && !swapdev)
+		return(0);
 	return (trouble > 1);
 }
 
