@@ -261,7 +261,7 @@ loop:
  * main()
  *	Startup of the WD hard disk server
  */
-main()
+main(int argc, char **argv)
 {
 	int scrn, kbd;
 
@@ -272,6 +272,13 @@ main()
 	(void)__fd_alloc(scrn);
 	(void)__fd_alloc(scrn);
 #endif
+
+	/*
+	 * Our name, if not inherited from execv()
+	 */
+	if (argc == 0) {
+		(void)set_cmd("wd");
+	}
 
 	/*
 	 * Allocate handle->file hash table.  8 is just a guess
