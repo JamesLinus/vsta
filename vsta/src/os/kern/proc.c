@@ -132,6 +132,7 @@ bootproc(struct boot_task *b)
 	t->t_state = TS_SLEEP;	/* -> RUN in setrun() */
 	init_sema(&t->t_mutex);
 	set_sema(&t->t_mutex, 0);
+	p->p_nthread = 1;
 
 	/*
 	 * The vas for the proc
@@ -311,7 +312,7 @@ fork_thread(voidfun f, ulong arg)
 	/*
 	 * Most stuff we can just copy from the current thread
 	 */
-	*t = *curthread;
+	bcopy(curthread, t, sizeof(*t));
 
 	/*
 	 * Get him his own PID
@@ -347,6 +348,9 @@ fork_thread(voidfun f, ulong arg)
 	p_sema(&p->p_sema, PRIHI);
 	t->t_next = p->p_threads;
 	p->p_threads = t;
+	if (!(t->t_flags & T_EPHEM)) {
+		p->p_nthread += 1;
+	}
 	v_sema(&p->p_sema);
 
 	/*
@@ -435,6 +439,7 @@ fork(void)
 	bcopy(pold->p_cmd, pnew->p_cmd, sizeof(pnew->p_cmd));
 	v_sema(&pold->p_sema);
 	pnew->p_children = alloc_exitgrp(pnew);
+	pnew->p_nthread = 1;
 
 	/*
 	 * Duplicate stack now that we have a viable thread/proc
@@ -553,6 +558,21 @@ do_exit(int code)
 	 */
 	p->p_usr += t->t_usrcpu;
 	p->p_sys += t->t_syscpu;
+
+	/*
+	 * Update non-ephemeral count
+	 */
+	if (!(t->t_flags & T_EPHEM)) {
+		/*
+		 * If we're the last non-ephemeral thread, kill all
+		 * the rest of the threads in the process.
+		 */
+		if ((p->p_nthread -= 1) == 0) {
+			for (t2 = p->p_threads; t2; t2 = t2->t_next) {
+				signal_thread(t2, EKILL, 1);
+			}
+		}
+	}
 
 	v_sema(&p->p_sema);
 

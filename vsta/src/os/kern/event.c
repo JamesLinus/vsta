@@ -44,7 +44,7 @@ extern struct proc *pfind();
  *
  * The process mutex is held by the caller.
  */
-static int
+int
 signal_thread(struct thread *t, char *event, int is_sys)
 {
 	char *evp;

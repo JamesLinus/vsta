@@ -646,6 +646,9 @@ sched_prichg(uint new_pri)
 int
 sched_op(int op, int arg)
 {
+	struct proc *p;
+	struct thread *t;
+
 	/*
 	 * Look at what we've been requested to do
 	 */
@@ -678,6 +681,29 @@ sched_op(int op, int arg)
 		 * Let others run
 		 */
 		timeslice();
+		return(0);
+
+	case SCHEDOP_EPHEM:
+		/*
+		 * If we were the last non-ephemeral thread,
+		 * let the process exit instead.
+		 */
+		t = curthread;
+		p = t->t_proc;
+		if (p->p_nthread == 1) {
+			do_exit(0);
+		}
+
+		/*
+		 * Become an ephmeral thread
+		 */
+		if (p_sema(&p->p_sema, PRICATCH)) {
+			return(err(EINTR));
+		}
+		t->t_flags |= T_EPHEM;
+		p->p_nthread -= 1;
+		v_sema(&p->p_sema);
+
 		return(0);
 
 	default:

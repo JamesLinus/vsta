@@ -53,6 +53,7 @@
 #define SCHEDOP_SETPRIO 0
 #define SCHEDOP_GETPRIO 1
 #define SCHEDOP_YIELD 2
+#define SCHEDOP_EPHEM 3
 
 #ifdef KERNEL
 

@@ -56,6 +56,8 @@ struct thread {
 #define T_RT (0x1)		/* Thread is real-time priority */
 #define T_BG (0x2)		/*  ... background priority */
 #define T_FPU (0x8)		/* Thread has new state in the FPU */
+#define T_EPHEM (0x10)		/* Thread is ephemeral (process exits */
+				/*  when all non-ephemeral threads die) */
 
 /*
  * Values for t_state
@@ -74,6 +76,7 @@ struct thread {
 #ifdef KERNEL
 extern void dup_stack(struct thread *, struct thread *, voidfun, ulong);
 extern void check_preempt(void);
+extern int signal_thread(struct thread *, char *, int);
 
 /*
  * Quick global check before the full procedure call

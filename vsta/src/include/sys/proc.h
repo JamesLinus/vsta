@@ -80,6 +80,7 @@ struct proc {
 	struct vas p_vas;	/* Virtual address space of process */
 	struct thread		/* List of threads in this process */
 		*p_threads;
+	uint p_nthread;		/*  ...# of non-ephemeral threads */
 	struct sched *p_runq;	/* Scheduling node for all threads */
 	struct hash		/* Portrefs attached to our ports */
 		*p_prefs;
