@@ -8,6 +8,7 @@
 
 extern void dump_phys(), dump_virt(), dump_procs(), dump_pset(),
 	dump_instr(), trace(), trapframe(), dump_vas(), dump_port();
+extern void dbg_inport(), dbg_outport();
 static void quit(), calc(), set();
 
 jmp_buf dbg_errjmp;		/* For aborting on error */
@@ -25,6 +26,8 @@ struct {
 	"di", dump_instr,
 	"dp", dump_phys,
 	"dv", dump_virt,
+	"inport", dbg_inport,
+	"outport", dbg_outport,
 	"port", dump_port,
 	"proc", dump_procs,
 	"pset", dump_pset,
