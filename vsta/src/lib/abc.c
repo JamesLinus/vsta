@@ -137,7 +137,8 @@ read_secs(daddr_t start, void *buf, uint nsec)
 		m.m_op = FS_BLKREAD | (can_dma ? 0 : M_READ);
 		m.m_nseg = 1;
 		m.m_buf = buf;
-		m.m_arg = m.m_buflen = nsec;
+		m.m_buflen = stob(nsec);
+		m.m_arg = nsec;
 		m.m_arg1 = start;
 		if (msg_send(ioport, &m) >= 0) {
 			return;
@@ -175,7 +176,8 @@ write_secs(daddr_t start, void *buf, uint  nsec)
 		m.m_op = FS_BLKWRITE;
 		m.m_nseg = 1;
 		m.m_buf = buf;
-		m.m_arg = m.m_buflen = nsec;
+		m.m_buflen = stob(nsec);
+		m.m_arg = nsec;
 		m.m_arg1 = start;
 		if (msg_send(ioport, &m) >= 0) {
 			return;
