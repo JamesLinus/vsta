@@ -7,8 +7,11 @@
 #include <vstafs/vstafs.h>
 #include <vstafs/buf.h>
 #include <sys/perm.h>
+#include <stdio.h>
+#include <std.h>
 
-extern char *perm_print();
+extern char *perm_print(struct prot *);
+extern int do_wstat(struct msg *, struct prot *, uint, char **, char **);
 
 /*
  * vfs_stat()

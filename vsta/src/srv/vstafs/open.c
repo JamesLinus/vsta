@@ -86,7 +86,6 @@ findent(struct fs_dirent *d, uint nent, char *name)
 static struct openfile *
 dir_lookup(struct buf *b, struct fs_file *fs, char *name)
 {
-	ulong off;
 	struct buf *b2;
 	uint extent;
 
@@ -495,7 +494,8 @@ vfs_close(struct file *f)
 {
 	struct openfile *o;
 
-	if (o = f->f_file) {
+	o = f->f_file;
+	if (o) {
 		deref_node(o);
 	}
 }

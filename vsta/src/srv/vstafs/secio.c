@@ -14,6 +14,7 @@
  */
 #include <vstafs/vstafs.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <sys/assert.h>
 
 extern int blkdev;

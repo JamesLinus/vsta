@@ -240,7 +240,7 @@ move_forward(struct freelist *from, struct freelist *to, uint cnt)
 			fp->fr_this = alloc_chunk(f, 1);
 			ASSERT_DEBUG(fp->fr_this, "move_forward: no block");
 			fp->fr_free.f_nfree = 0;
-			fp->fr_free.f_next;
+			fp->fr_free.f_next = 0;
 		}
 
 		/*

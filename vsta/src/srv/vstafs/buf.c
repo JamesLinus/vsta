@@ -106,7 +106,8 @@ find_buf(daddr_t d, uint nsec)
 	/*
 	 * If we can find it, this is easy
 	 */
-	if (b = hash_lookup(bufpool, d)) {
+	b = hash_lookup(bufpool, d);
+	if (b) {
 		return(b);
 	}
 

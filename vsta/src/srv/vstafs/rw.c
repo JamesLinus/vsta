@@ -411,7 +411,8 @@ vfs_readdir(struct msg *m, struct file *f)
 		/*
 		 * Add name and update counters
 		 */
-		sprintf(buf + bufcnt, "%s\n", d->fs_name);
+		strcat(buf + bufcnt, d->fs_name);
+		strcat(buf + bufcnt, "\n");
 		bufcnt += slen;
 		f->f_pos += sizeof(struct fs_dirent);
 		step -= sizeof(struct fs_dirent);

@@ -9,10 +9,14 @@
 #include <lib/hash.h>
 #include <fcntl.h>
 #include <std.h>
+#include <stdio.h>
+#include <mnttab.h>
 #include <sys/assert.h>
 #ifdef DEBUG
 #include <sys/ports.h>
 #endif
+
+extern int valid_fname(char *, int);
 
 int blkdev;		/* Device this FS is mounted upon */
 port_t rootport;	/* Port we receive contacts through */
@@ -50,7 +54,7 @@ new_client(struct msg *m)
 {
 	struct file *f;
 	struct perm *perms;
-	int uperms, nperms;
+	int nperms;
 	struct fs_file *fs;
 
 	/*
@@ -294,6 +298,7 @@ verify_root(void)
  * main()
  *	Startup a filesystem
  */
+int
 main(int argc, char *argv[])
 {
 	int x;
@@ -401,4 +406,5 @@ main(int argc, char *argv[])
 	 * Start serving requests for the filesystem
 	 */
 	vfs_main();
+	return(0);
 }
