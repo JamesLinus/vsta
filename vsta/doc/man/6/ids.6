@@ -1,0 +1,25 @@
+.TH "IDS" "6" "" "" "File formats"
+.SH "NAME"
+ids \- ID mapping
+.SH "DESCRIPTION"
+ID's and capabilities are central to protection in VSTa.
+This file describes ID's, mapping from symbolic names to numbers.
+The portion of the file concerning the "vandys" account (usr.vandys) is:
+.LP 
+usr:3
+.RS
+vandys:1
+.br 
+jtk:2
+.RE
+.LP 
+So if you're "usr.vandys", numerically this is actually "3.1",
+whereas "usr.jtk" would be "3.2".
+.SH "FILES"
+/vsta/etc/ids
+
+.SH "SEE ALSO"
+.BR login (1),
+.BR passwd (1),
+.BR passwd (6),
+.BR group (6)

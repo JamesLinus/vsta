@@ -1,0 +1,39 @@
+.TH "SHADOW" "6" "" "" "File formats"
+.SH "NAME"
+shadow \- password file
+.SH "DESCRIPTION"
+The
+.I shadow
+file has the same format as the passwd file,
+but most of the fields are left empty.
+It exists so that the account password may be
+stored in a file with restricted read access, and its
+protection should be set so that only system
+programs can access it.
+The passwd file itself is left public so that programs like
+.BR ls (1)
+can convert user ID's to user names.
+.TP 
+An entry looks like:
+user:password:::::::
+.LP 
+The fields are:
+.TP 
+user
+.br
+The username of the user.
+.TP 
+password
+.br
+The password of the user in plain text.
+.LP 
+The rest of the fields are left empty; they correspond to the actual
+fields in /vsta/etc/passwd.
+.SH "FILES"
+/vsta/etc/passwd \- user account information
+.br 
+/vsta/etc/shadow \- user passwords
+.SH "SEE ALSO"
+.BR login (1),
+.BR passwd (1),
+.BR passwd (6)

@@ -1,0 +1,27 @@
+.TH "GROUP" "6" "" "" "File formats"
+.SH "NAME"
+group \- user group file
+.SH "DESCRIPTION"
+\fB/vsta/etc/group\fP is an ASCII file which defines the groups to which users
+belong.  There is one entry per line, and each line has the format:
+.sp
+.RS
+group_name:GID:capability[,capability...]
+.RE
+.sp
+The field descriptions are:
+.IP group_name
+the name of the group.
+.IP GID
+the numerical group ID.
+.IP capability
+This is a list of capabilities granted to members of this group.
+There can be one or more capabilities, separated by further colons.
+A user can access any file that either has the capability of
+the user or a capability granted from the group to which the user belongs.
+.SH "FILES"
+/vsta/etc/group
+.SH "SEE ALSO"
+.BR login (1),
+.BR passwd (6),
+.BR ids (6)

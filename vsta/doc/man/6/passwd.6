@@ -1,0 +1,107 @@
+.TH "PASSWD" "6" "" "" "File formats"
+.SH "NAME"
+passwd \- password file
+.SH "DESCRIPTION"
+.B Passwd
+is a text file containing a list of the system's accounts,
+specifying for each account the user name, user ID, account
+name,
+group ID, home directory, shell, capabilities, and environment
+variable path.
+It should have general read permission (many utilities
+use it to map user IDs to user names), but write access only for the
+superuser.
+.PP 
+If you create a new login, put a star in the password field,
+and then edit the corresponding entry in
+I /vsta/etc/shadow
+to establish the actual password.
+.PP 
+There is one entry per line, with the format:
+.sp
+.RS
+username:password:UID:GID:name:capability:directory:environment:shell
+.RE
+.sp
+The field descriptions are:
+.sp
+.RS
+.TP 1.0in
+.I username
+.br
+The name of the user on the system. This is what you enter to the login program.
+.TP 
+.I password
+.br
+The account's login password. Passwords are not actually stored in
+.BR  passwd (6),
+but rather in
+.BR  shadow (6).
+This field should be set to a star ("*").
+.TP 
+.I UID
+.br
+The numerical user ID. In UNIX, this would define what files you can access,
+but not so in VSTa. Rather, in VSTa, the "UID" is simply that: an ID
+related to one particular logged in user.
+It is used to answer questions like "who created this file?",
+but not "who can read this file?".
+.TP 
+.I GID
+.br
+The group ID indicates a specific group id
+.BR  group (6).
+By being a member of a particular group, you get capabilities.
+So a set of capabilities suitable for some particular group of
+accounts is described in
+.BR  group (6)
+for a given group ID. Then, each user account has the same group ID,
+and they all
+share those capabilities.
+.TP 
+.I name
+.br
+This field is only used for informational purposes.
+It contains the real name of the account's owner.
+.TP 
+.I capability
+.br
+Capabilities granted to this account.
+The capability name is hierarchical, and is a reference to the
+numerical counterpart, looked up via
+.BR  ids (6).
+After you log in, your capabilities are the sum of this one,
+plus any additional ones granted due to your group ID.
+.TP 
+.I directory
+.br
+the user's $HOME directory.
+.TP 
+.I environment
+.br
+Environment path.
+Very much unlike UNIX, your environment is kept in an external server,
+which is global to the system.
+A given user's environment variables exist under /env with the given name.
+Each variable shows up as a simple file within that directory.  Thus,
+if you wish to know the $HOME of the "joe" account, "cat /env/joe/HOME"
+would access this information, assuming you possess sufficient
+capabilities to access the file.
+.TP 
+.I shell
+.br
+The program run at login (if empty,
+.BR /bin/sh
+is used).
+If set to a non\-existing executable, the user will be unable to login
+through
+.BR login (1).
+.RE
+.SH "FILES"
+.I /vsta/etc/passwd
+.SH "SEE ALSO"
+.BR passwd (1),
+.BR login (1),
+.BR group (6),
+.BR ids (6),
+.BR shadow (6)
