@@ -10,6 +10,7 @@
 #include <mach/setjmp.h>
 #include <mach/machreg.h>
 #include <sys/mutex.h>
+#include <sys/percpu.h>
 
 struct thread {
 	sema_t *t_wchan;	/* Semaphore we're asleep on */
@@ -72,6 +73,12 @@ struct thread {
 
 #ifdef KERNEL
 extern void dup_stack(struct thread *, struct thread *, voidfun, ulong);
+extern void check_preempt(void);
+
+/*
+ * Quick global check before the full procedure call
+ */
+#define CHECK_PREEMPT() {if (do_preempt) check_preempt();}
 #endif
 
 #endif /* _THREAD_H */
