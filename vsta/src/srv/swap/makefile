@@ -10,3 +10,6 @@ LIBS= -L../libc -L../lib -lc -lusr
 
 swap: $(OBJS)
 	$(LD) -o swap ../libc/crt0srv.o $(OBJS) $(LIBS)
+
+clean:
+	rm -f *.o swap

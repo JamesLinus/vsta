@@ -12,3 +12,6 @@ all: env
 
 env: $(OBJS)
 	$(LD) $(LDFLAGS) -o env ../libc/crt0srv.o $(OBJS) $(LIBS)
+
+clean:
+	rm -f *.o env

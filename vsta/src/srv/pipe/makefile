@@ -12,3 +12,6 @@ all: pipe
 
 pipe: $(OBJS)
 	$(LD) $(LDFLAGS) -o pipe ../libc/crt0srv.o $(OBJS) $(LIBS)
+
+clean:
+	rm -f *.o pipe

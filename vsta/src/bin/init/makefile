@@ -12,3 +12,6 @@ all: init
 
 init: $(OBJS)
 	$(LD) $(LDFLAGS) -e start -o init ../../libc/crt0srv.o $(OBJS) -lc
+
+clean:
+	rm -f *.o init

@@ -28,4 +28,4 @@ args: args.o
 	$(LD) $(LDFLAGS) -e start -o args ../../libc/crt0.o args.o -lc
 
 clean:
-	rm -f test test.o
+	rm -f *.o test ls cat args swapd id

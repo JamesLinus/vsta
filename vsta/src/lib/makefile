@@ -54,3 +54,6 @@ syscalls.o: mach/syscalls.s
 # Share this with the kernel
 hash.o: ../lib/hash.c
 	$(CC) $(CFLAGS) -c ../lib/hash.c
+
+clean:
+	rm -f *.o *.a

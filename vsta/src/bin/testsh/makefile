@@ -13,3 +13,6 @@ all: testsh
 
 testsh: $(OBJS)
 	$(LD) $(LDFLAGS) -e start -o testsh ../../libc/crt0.o $(OBJS) -lc
+
+clean:
+	rm -f testsh *.o

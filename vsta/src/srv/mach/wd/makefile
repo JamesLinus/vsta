@@ -12,3 +12,6 @@ all: wd
 
 wd: $(OBJS)
 	$(LD) $(LDFLAGS) -o wd ../libc/crt0srv.o $(OBJS) $(LIBS)
+
+clean:
+	rm -f *.o wd

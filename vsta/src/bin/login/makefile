@@ -10,3 +10,6 @@ OBJS= login.o
 
 login: $(OBJS)
 	$(LD) $(LDFLAGS) -e start -o login ../../libc/crt0.o $(OBJS) $(LIBS)
+
+clean:
+	rm -f *.o login

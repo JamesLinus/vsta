@@ -12,3 +12,6 @@ all: namer
 
 namer: $(OBJS)
 	$(LD) $(LDFLAGS) -o namer ../libc/crt0srv.o $(OBJS) $(LIBS)
+
+clean:
+	rm -f *.o namer

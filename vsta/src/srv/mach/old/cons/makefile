@@ -20,5 +20,3 @@ cons: $(IBM_OBJS)
 
 clean:
 	rm -f -r cons *.o *.c~ *.h~ *.~ 
-
-
