@@ -432,6 +432,7 @@ fdopen(int fd, char *mode)
 			break;
 		case '+':
 			m |= _F_WRITE;
+			m |= _F_WRITE | _F_READ;
 			break;
 		default:
 			free(fp->f_buf);
@@ -503,8 +504,8 @@ freopen(char *name, char *mode, FILE *fp)
 			o |= O_BINARY;
 			break;
 		case '+':
-			m |= _F_WRITE;
-			o |= O_WRITE;
+			m |= (_F_WRITE | _F_READ);
+			o |= (O_WRITE | O_READ);
 			break;
 		default:
 			return(0);
