@@ -220,7 +220,6 @@ ___fixdfsi
 ___fixunsdfsi
 ___udivsi3
 _qsort
-___strtosig hidden
 _kill
 _signal
 _getenv
@@ -348,3 +347,4 @@ ___get_nerr
 ___get_errlist
 _getpgrp
 ___get_environ
+___strtosig
