@@ -138,11 +138,55 @@ void
 run(void)
 {
 	ulong args[2];
+	static int ever_ran = 0;
+	extern void show_here(void);
 
+	/*
+	 * When we first attach to a process, his mask is set
+	 * to trap him out ASAP.  Now drop the mask back to
+	 * what we need.
+	 */
+	if (!ever_ran) {
+		args[0] = PD_EVENT|PD_EXIT|PD_BPOINT;
+		args[1] = 0;
+		(void)sendhim(PD_MASK, args);
+		ever_ran = 1;
+	}
+
+	/*
+	 * Away he goes.  We don't return until he breaks.
+	 */
 	args[0] = args[1] = 0;
 	if (sendhim(PD_RUN, args) < 0) {
 		printf("Error telling child to run\n");
 	}
+
+	/*
+	 * Show where he popped up
+	 */
+	show_here();
+}
+
+/*
+ * step()
+ *	Set single-step, and run one step
+ */
+void
+step(void)
+{
+	ulong args[2];
+
+	/*
+	 * Ask him to step, use run(), and then clear the step stuff
+	 * so we can continue properly.
+	 */
+	args[0] = 1;
+	args[1] = 0;
+	(void)sendhim(PD_STEP, args);
+	run();
+	args[0] = 0;
+	args[1] = 0;
+	(void)sendhim(PD_STEP, args);
 }
 
 /*

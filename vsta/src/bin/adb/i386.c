@@ -45,3 +45,18 @@ dump_regs(void)
 	printf(" esp 0x%x ebp 0x%x\n",
 		t.esp, t.ebp);
 }
+
+/*
+ * show_here()
+ *	Pick up current EIP, and show location
+ */
+void
+show_here(void)
+{
+	struct trapframe t;
+	extern ulong db_disasm(ulong, int);
+
+	getregs(&t);
+	printf("%s:\t", nameval(t.eip));
+	(void)db_disasm(t.eip, 0);
+}

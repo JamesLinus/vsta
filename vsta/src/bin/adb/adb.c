@@ -222,7 +222,21 @@ dump_mem(char *p)
 static void
 colon_cmds(char *p)
 {
-	/* TBD */
+	extern void run(void), step(void);
+
+	switch (*p) {
+	case 'c':
+		read_from = &coremap;
+		run();
+		break;
+	case 's':
+		read_from = &coremap;
+		step();
+		break;
+	default:
+		printf("Unknown command: :%s\n", p);
+		break;
+	}
 }
 
 /*
@@ -280,6 +294,7 @@ cmdloop(void)
 	/*
 	 * Get a line, skip over white space
 	 */
+	printf("adb>"); fflush(stdout);
 	gets(buf);
 	p = buf;
 	SKIP(p);
