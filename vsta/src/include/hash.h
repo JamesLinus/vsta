@@ -12,6 +12,7 @@
  */
 struct hash {
 	int h_hashsize;		/* Width of h_hash array */
+	ulong h_hashmask;	/* Bit mask to match array size */
 	struct hash_node	/* Chains under each hash value */
 		*h_hash[1];
 };
