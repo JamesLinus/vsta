@@ -61,7 +61,7 @@ alloc_node(daddr_t d)
 {
 	struct buf *b;
 	struct fs_file *fs;
-	ulong len;
+	ulong len, fslen;
 	struct openfile *o;
 
 	/*
@@ -76,6 +76,7 @@ alloc_node(daddr_t d)
 	 * Extend the buf if necessary
 	 */
 	len = fs->fs_blks[0].a_len;
+	fslen = fs->fs_len;
 	if (len > 1) {
 		if (len > EXTSIZ) {
 			len = EXTSIZ;
@@ -94,7 +95,7 @@ alloc_node(daddr_t d)
 	}
 	o->o_file = d;
 	o->o_len = len;
-	o->o_hiwrite = fs->fs_len;
+	o->o_hiwrite = fslen;
 	o->o_refs = 1;
 	return(o);
 }
