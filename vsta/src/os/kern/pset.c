@@ -229,6 +229,8 @@ ref_pset(struct pset *ps)
 void
 deref_pset(struct pset *ps)
 {
+	ASSERT_DEBUG(ps->p_refs > 0, "deref_pset: 0 ref");
+
 	/*
 	 * Lock the page set, reduce its reference count
 	 */
