@@ -149,3 +149,20 @@ Enable SIGINTR/SIGQUIT generation from console keyboard.  Fix login
 	the process group.
 Add -k to rs232 server so it's easy to control whether ^Z puts you
 	into the kernel debugger.
+
+1.6.2
+Add rcsdo/changed, my tools for working with RCS trees.
+Fix docs on rawrite'ing, also more spots missed in the great
+	filesystem server command line change fiasco.
+Update sample boot/menu.lst to reflect file server command line syntax.
+On usage() errors, have DOS and vstafs put out a message to syslog
+	as well as stderr (which, DOS being a boot server, isn't active).
+Fixed memory leak in ethernet driver
+Added memory leak instrumentation to libc malloc.c
+Added standard filesystem switch support to all filesystems
+KA9Q and proxyd now work for open/close/read/write/stat.  So distributed
+	kernel messaging is now working.  Mount remote filesystems.
+	Even /proc!  Kill remote processes!  Wheee!
+Implement support for ISA bus limitation "bounce buffers".
+Use bounce buffers in our two ISA DMA drivers--SCSI and floppy disk.
+Fix a nasty race condition in vstafs.
