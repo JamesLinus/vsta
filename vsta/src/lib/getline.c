@@ -86,6 +86,7 @@ static void     search_addchar();	/* increment search string */
 static void     search_term();		/* reset with current contents */
 static void     search_back();		/* look back for current string */
 static void     search_forw();		/* look forw for current string */
+static int	use_fd;		/* FD for getline() I/O */
 
 /************************ nonportable part *********************************/
 
@@ -95,7 +96,7 @@ struct termios  new_termios, old_termios;
 static void
 gl_char_init()			/* turn off input echo */
 {
-    tcgetattr(0, &old_termios);
+    tcgetattr(use_fd, &old_termios);
     gl_intrc = old_termios.c_cc[VINTR];
     gl_quitc = old_termios.c_cc[VQUIT];
 #ifdef VSUSP
@@ -110,13 +111,13 @@ gl_char_init()			/* turn off input echo */
     new_termios.c_lflag &= ~(ICANON|ISIG|ECHO);
     new_termios.c_cc[VMIN] = 1;
     new_termios.c_cc[VTIME] = 0;
-    tcsetattr(0, TCSANOW, &new_termios);
+    tcsetattr(use_fd, TCSANOW, &new_termios);
 }
 
 static void
 gl_char_cleanup()		/* undo effects of gl_char_init */
 {
-    tcsetattr(0, TCSANOW, &old_termios);
+    tcsetattr(use_fd, TCSANOW, &old_termios);
 }
 
 static int
@@ -126,7 +127,7 @@ gl_getc()
     int             c;
     char            ch;
 
-    c = (read(0, &ch, 1) > 0)? ch : -1;
+    c = (read(use_fd, &ch, 1) > 0)? ch : -1;
     return c;
 }
 
@@ -136,10 +137,10 @@ int     c;
 {
     char   ch = c;
 
-    write(1, &ch, 1);
+    write(use_fd, &ch, 1);
     if (ch == '\n') {
 	ch = '\r';
-        write(1, &ch, 1);	/* RAW mode needs '\r', does not hurt */
+        write(use_fd, &ch, 1);	/* RAW mode needs '\r', does not hurt */
     }
 }
 
@@ -153,7 +154,7 @@ char *buf;
     
     if (buf) {
         len = strlen(buf);
-        write(1, buf, len);
+        write(use_fd, buf, len);
     }
 }
 
@@ -175,8 +176,15 @@ gl_init()
     if (gl_init_done < 0) {		/* -1 only on startup */
         hist_init();
     }
-    if (isatty(0) == 0 || isatty(1) == 0)
+    if (isatty(0)) {
+    	use_fd = 0;
+    } else if (isatty(1)) {
+    	use_fd = 1;
+    } else if (isatty(2)) {
+    	use_fd = 2;
+    } else {
 	gl_error("\n*** Error: getline(): not interactive, use stdio.\n");
+    }
     gl_char_init();
     gl_init_done = 1;
 }
