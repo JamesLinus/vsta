@@ -31,6 +31,7 @@
 #include <sys/mutex.h>
 #include <sys/fs.h>
 #include <lib/hash.h>
+#include <lib/alloc.h>
 #include <sys/assert.h>
 
 extern sema_t pid_sema;
@@ -88,26 +89,57 @@ retry:	p_lock(&runq_lock, SPLHI);
 }
 
 /*
- * notify()
- *	Send a process event somewhere
+ * notifypg()
+ *	Send an event to a process group
+ */
+static
+notifypg(struct proc *p, char *event)
+{
+	ulong *l, *lp;
+	uint x, nelem;
+	struct pgrp *pg = p->p_pgrp;
+
+	p_sema(&pg->pg_sema, PRIHI);
+
+	/*
+	 * Get the list of processes to hit while holding the
+	 * group's semaphore.
+	 */
+	nelem = pg->pg_nmember;
+	l = malloc(pg->pg_nmember * sizeof(ulong));
+	lp = pg->pg_members;
+	for (x = 0; x < nelem; ++x) {
+		while (*lp == 0)
+			++lp;
+		l[x] = *lp++;
+		x -= 1;
+	}
+
+	/*
+	 * Release the semaphores, then go about trying to
+	 * signal the processes.
+	 */
+	v_sema(&pg->pg_sema);
+	v_sema(&p->p_sema);
+	for (x = 0; x < nelem; ++x) {
+		notify2(l[x], 0L, event);
+	}
+	free(l);
+	return(0);
+}
+
+/*
+ * notify2()
+ *	Most of the work for doing an event notification
  *
  * If arg_proc is 0, it means the current process.  If arg_thread is
  * 0, it means all threads under the named proc.
  */
-notify(ulong arg_proc, ulong arg_thread, char *arg_msg, int arg_msglen)
+notify2(ulong arg_proc, ulong arg_thread, char *evname)
 {
 	struct proc *p;
-	char evname[EVLEN];
 	int x, error = 0;
 	struct thread *t;
-
-	printf("Notify\n"); dbg_enter();
-	/*
-	 * Get the string event name
-	 */
-	if (get_ustr(evname, sizeof(evname), arg_msg, arg_msglen)) {
-		return(-1);
-	}
 
 	if (arg_proc == 0) {
 		/*
@@ -132,6 +164,13 @@ notify(ulong arg_proc, ulong arg_thread, char *arg_msg, int arg_msglen)
 	if (!(x & P_SIG)) {
 		error = err(EPERM);
 		goto out;
+	}
+
+	/*
+	 * Magic value for thread means signal process group instead
+	 */
+	if (arg_thread == NOTIFY_PG) {
+		return(notifypg(p, evname));
 	}
 
 	/*
@@ -165,6 +204,26 @@ notify(ulong arg_proc, ulong arg_thread, char *arg_msg, int arg_msglen)
 out:
 	v_sema(&p->p_sema);
 	return(error);
+}
+
+/*
+ * notify()
+ *	Send a process event somewhere
+ *
+ * Wrapper to get event string into kernel
+ */
+notify(ulong arg_proc, ulong arg_thread, char *arg_msg, int arg_msglen)
+{
+	char evname[EVLEN];
+
+	printf("Notify\n"); dbg_enter();
+	/*
+	 * Get the string event name
+	 */
+	if (get_ustr(evname, sizeof(evname), arg_msg, arg_msglen)) {
+		return(-1);
+	}
+	return(notify2(arg_proc, arg_thread, evname));
 }
 
 /*
@@ -225,4 +284,92 @@ check_events(void)
 		return;
 	}
 	v_lock(&runq_lock, s);
+}
+
+/*
+ * join_pgrp()
+ *	Join a process group
+ */
+void
+join_pgrp(struct pgrp *pg, ulong pid)
+{
+	void *e;
+	ulong *lp;
+
+	p_sema(&pg->pg_sema, PRIHI);
+
+	/*
+	 * If there's no more room now for members, grow the list
+	 */
+	if (pg->pg_nmember >= pg->pg_nelem) {
+		e = malloc((pg->pg_nelem + PG_GROWTH) * sizeof(ulong));
+		bcopy(pg->pg_members, e, pg->pg_nelem * sizeof(ulong));
+		free(pg->pg_members);
+		pg->pg_members = e;
+		bzero(pg->pg_members + pg->pg_nelem,
+			PG_GROWTH*sizeof(ulong));
+		pg->pg_nelem += PG_GROWTH;
+	}
+
+	/*
+	 * Insert in open slot
+	 */
+	for (lp = pg->pg_members; *lp; ++lp)
+		;
+	ASSERT_DEBUG(lp < (pg->pg_members + pg->pg_nelem),
+		"join_pgrp: no slot");
+	*lp = pid;
+	pg->pg_nmember += 1;
+
+	v_sema(&pg->pg_sema);
+}
+
+/*
+ * leave_pgrp()
+ *	Leave a process group
+ */
+void
+leave_pgrp(struct pgrp *pg, ulong pid)
+{
+	ulong *lp;
+
+	p_sema(&pg->pg_sema, PRIHI);
+
+	/*
+	 * If we're the last, throw it out
+	 */
+	if (pg->pg_nmember == 1) {
+		free(pg->pg_members);
+		free(pg);
+		return;
+	}
+
+	/*
+	 * Otherwise leave the group, zero out our slot
+	 */
+	pg->pg_nmember -= 1;
+	for (lp = pg->pg_members; *lp != pid; ++lp)
+		;
+	ASSERT_DEBUG(lp < (pg->pg_members + pg->pg_nelem),
+		"leave_pgrp: no slot");
+	*lp = 0;
+
+	v_sema(&pg->pg_sema);
+}
+
+/*
+ * alloc_pgrp()
+ *	Allocate a new process group
+ */
+struct pgrp *
+alloc_pgrp(void)
+{
+	struct pgrp *pg;
+
+	pg = malloc(sizeof(struct pgrp));
+	pg->pg_nmember = 0;
+	pg->pg_members = malloc(PG_GROWTH * sizeof(ulong));
+	pg->pg_nelem = PG_GROWTH;
+	init_sema(&pg->pg_sema);
+	return(pg);
 }
