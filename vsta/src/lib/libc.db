@@ -371,3 +371,12 @@ _sigsuspend
 ___signal_save hidden
 ___signal_restore hidden
 ___signal_size hidden
+_strsignal
+_setuid
+_seteuid
+_setgid
+_setegid
+_clock
+_usleep
+_setreuid
+_nice
