@@ -22,7 +22,8 @@ struct port {
 /*
  * Internal routines
  */
-extern uint __fd_size(void);
-extern void __fd_save(char *, ulong), __fd_restore(char *);
+extern uint __fdl_size(void);
+extern void __fdl_save(char *, ulong);
+extern char *__fdl_restore(char *);
 
 #endif /* _FDL_H */
