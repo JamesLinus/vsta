@@ -133,8 +133,9 @@ eth_raw(struct interface *i, struct mbuf *bp)
 	 */
 	res = msg_send(ethport, &m);
 	free_p(bp);
-	if (overbuf)
+	if (overbuf) {
 		free(overbuf);
+	}
 	return((res > 0) ? 0 : -1);
 }
 
@@ -202,14 +203,7 @@ eth_recv_daemon(void)
 		 * Get packet mbuf and data for MTU
 		 */
 		p_lock(&ka9q_lock);
-		bp = malloc(sizeof(struct mbuf));
-		if (bp) {
-			bp->data = malloc(MTU);
-			if (!bp->data) {
-				free(bp);
-				bp = NULL;
-			}
-		}
+		bp = alloc_mbuf(MTU);
 		v_lock(&ka9q_lock);
 		if (!bp) {
 			sleep(1);
@@ -219,7 +213,7 @@ eth_recv_daemon(void)
 		/* 
 		 * Send message
 		 */
-		m.m_op = FS_READ;
+again:		m.m_op = FS_READ;
 		m.m_buf = bp->data;
 		m.m_buflen = MTU;
 		m.m_nseg = 1;
@@ -230,6 +224,7 @@ eth_recv_daemon(void)
 			p_lock(&ka9q_lock);
 			perror("eth_recv_daemon");
 			msg_disconnect(ethport);
+			free_mbuf(bp);
 			v_lock(&ka9q_lock);
 			msg_disconnect(ethport_rx);
 			ethport = ethport_rx = 0;
@@ -241,7 +236,7 @@ eth_recv_daemon(void)
 		 * too many without processing them.
 		 */
 		if (count >= MAXBUF) {
-			continue;
+			goto again;
 		}
 
 		/*
@@ -330,7 +325,8 @@ eth_attach(int argc, char **argv)
 	if (!macaddr) {
 		printf("eth_attach: can't get MAC address\n");
 		msg_disconnect(ethport);
-		free(if_eth->name); free(if_eth);
+		free(if_eth->name);
+		free(if_eth);
 		return(-1);
 	}
 	if (sscanf(macaddr ,"%x.%x.%x.%x.%x.%x", &dig[0], &dig[1],
