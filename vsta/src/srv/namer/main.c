@@ -16,6 +16,7 @@
 #include <sys/ports.h>
 #include <sys/types.h>
 #include <stdio.h>
+#include <syslog.h>
 
 extern void *malloc(), namer_open(), namer_read(), namer_write(),
 	namer_remove(), namer_stat(), namer_wstat();
@@ -282,7 +283,6 @@ loop:
  */
 main()
 {
-	port_t port;
 	port_name blkname;
 	struct msg msg;
 	int chan, fd, x;
@@ -312,20 +312,9 @@ main()
 	 */
 	namerport = msg_port(PORT_NAMER, 0);
 	if (x < 0) {
-		fprintf(stderr, "NAMER: can't register name\n");
+		syslog(LOG_ERR, "NAMER: can't register name\n");
 		exit(1);
 	}
-
-#ifdef DEBUG
-	/*
-	 * XXX hack so printf will show up on console
-	 */
-	port = msg_connect(PORT_KBD, ACC_READ);
-	__fd_alloc(port);
-	port = msg_connect(PORT_CONS, ACC_WRITE);
-	__fd_alloc(port);
-	__fd_alloc(port);
-#endif
 
 	/*
 	 * Start serving requests for the filesystem
