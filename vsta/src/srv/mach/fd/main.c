@@ -220,6 +220,8 @@ loop:
 
 	case FD_TIME:		/* Time event */
 		fd_time();
+		msg.m_arg = msg.m_arg1 = msg.m_nseg = 0;
+		(void)msg_reply(msg.m_sender, &msg);
 		break;
 
 	case FS_SEEK:		/* Set position */
@@ -229,7 +231,7 @@ loop:
 		}
 		f->f_pos = msg.m_arg;
 		msg.m_arg = msg.m_arg1 = msg.m_nseg = 0;
-		msg_reply(msg.m_sender, &msg);
+		(void)msg_reply(msg.m_sender, &msg);
 		break;
 
 	case FS_ABSREAD:	/* Set position, then read */

@@ -14,7 +14,7 @@
 #include <sys/fs.h>
 #include <sys/assert.h>
 #include <sys/param.h>
-#include <sys/syscall.h>
+#include <sys/mman.h>
 #include <syslog.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -357,20 +357,9 @@ queue_io(struct floppy *fl, struct msg *m, struct file *f)
 static void
 childproc(ulong child_msecs)
 {
-	static port_t selfport = 0;
+	port_t selfport;
 	struct time t;
 	struct msg m;
-
-	/*
-	 * Child waits, then sends
-	 */
-	if (selfport == 0) {
-		selfport = msg_connect(fdport_name, ACC_WRITE);
-		if (selfport < 0) {
-			selfport = 0;
-			exit(1);
-		}
-	}
 
 	/*
 	 * Wait the interval
@@ -384,11 +373,26 @@ childproc(ulong child_msecs)
 	time_sleep(&t);
 
 	/*
+	 * Connect to server port
+	 */
+	selfport = msg_connect(fdport_name, ACC_WRITE);
+	if (selfport < 0) {
+		selfport = 0;
+		exit(1);
+	}
+
+	/*
 	 * Send an FD_TIME message
 	 */
 	m.m_op = FD_TIME;
 	m.m_nseg = m.m_arg = m.m_arg1 = 0;
 	(void)msg_send(selfport, &m);
+
+	/*
+	 * Disconnect
+	 */
+	(void)msg_disconnect(selfport);
+
 	_exit(0);
 }
 
@@ -792,6 +796,7 @@ failed(char *errstr)
 	 */
 	if (map_handle >= 0) {
 		(void)page_release(map_handle);
+		map_handle = -1;
 	}
 
 	/*
@@ -871,13 +876,11 @@ setup_dma(struct file *f)
 		 * Try for straight map-down of memory.  Use bounce buffer
 		 * if we can't get the memory directly.
 		 */
-		map_handle = page_wire(fbuf, (void **)&pa);
-		if (map_handle > 0) {
+		map_handle = page_wire(fbuf, (void **)&pa, 0);
+		if (map_handle >= 0) {
 			/*
 			 * Make sure that the wired page is the DMAable
-			 * area of system memory.  We'll assume for now that
-			 * we're going to have to live with the usual
-			 * 16 MByte ISA bus limit
+			 * area of system memory.
 			 */
 			if (pa & ISA_DMA_MASK) {
 				page_release(map_handle);
@@ -886,10 +889,13 @@ setup_dma(struct file *f)
 		}
 	}
 	if (map_handle < 0) {
+		printf("bounce 0x%x 0x%x %d\n", bounceva, bouncepa, secsz);
 		/*
 		 * We're going to use the bounce buffer
 		 */
 		pa = (ulong)bouncepa;
+		bzero(bounceva, secsz);
+		printf("zeroed\n");
 		
 		/*
 		 * Are we doing a write - if we are we need to copy the
@@ -1063,7 +1069,7 @@ unit_iodone(int old, int new)
 {
 	uchar results[7];
 	uint secsz = SECSZ(busy->f_parms.f_secsize);
-	int x;
+	int x, bounced;
 	struct file *f = cur_tran();
 
 	ASSERT_DEBUG(busy, "fd iodone: not busy");
@@ -1074,11 +1080,19 @@ unit_iodone(int old, int new)
 	 */
 	timeout(0);
 
-	if (map_handle >= 0) {
+	bounced = (map_handle < 0);
+	if (!bounced) {
 		/*
 		 * Release memory lock-down, if DMA was to user's memory
 		 */
 		(void)page_release(map_handle);
+		map_handle = -1;
+	} else {
+		printf("done: 0x%x 0x%x 0x%x 0x%x\n",
+			*(ulong *)bounceva,
+			*((ulong *)bounceva + 1),
+			*((ulong *)bounceva + 2),
+			*((ulong *)bounceva + 3));
 	}
 
 	/*
@@ -1188,7 +1202,7 @@ unit_iodone(int old, int new)
 	 * If we weren't DMAing then we need to copy the bounce buffer
 	 * back into user land
 	 */
-	if ((map_handle < 0) && (f->f_dir == FS_READ)) {
+	if (bounced && (f->f_dir == FS_READ)) {
 		/*
 		 * Need to bounce out to buffer
 		 */
@@ -1427,7 +1441,7 @@ fd_init(void)
 	 * Get a bounce buffer for misaligned I/O
 	 */
 	bounceva = malloc(NBPG);
-	if (page_wire(bounceva, &bouncepa) < 0) {
+	if (page_wire(bounceva, &bouncepa, WIRE_16M) < 0) {
 		syslog(LOG_ERR, "can't get bounce buffer");
 		exit(1);
 	}
@@ -1604,6 +1618,7 @@ abort_io(struct file *f)
 		timeout(0);
 		if (map_handle >= 0) {
 			(void)page_release(map_handle);
+			map_handle = -1;
 		}
 		busy->f_abort = TRUE;
 		busy->f_state = F_RESET;

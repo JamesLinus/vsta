@@ -1,10 +1,10 @@
-CC= gcc
-LD= ld
-INCS= -I../../../../include
-CFLAGS= -DDEBUG $(INCS) -O
-LDFLAGS= -L../../../lib
-OBJS= main.o rw.o stat.o dir.o
-LIBS= -lusr -lc
+CC=gcc
+LD=ld
+INCS=-I../../../../include
+CFLAGS=-DDEBUG $(INCS) -g
+LDFLAGS=-L../../../lib
+OBJS=main.o rw.o stat.o dir.o
+LIBS=-lusr -lc
 
 all: fd
 .c.o:
