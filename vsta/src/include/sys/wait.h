@@ -84,6 +84,7 @@ extern pid_t wait(int *),
 #define WIFEXITED(x) (!WIFSIGNALED(x) && !WIFSTOPPED(x))
 					/* Called exit() */
 #define WEXITSTATUS(x) ((x) & 0xFF)	/* Value passed to exit() */
+#define WCOREDUMP(x) (0)		/* VSTa doesn't do core dumps */
 
 #endif /* KERNEL */
 
