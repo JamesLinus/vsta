@@ -37,7 +37,6 @@ rs232_write(struct msg *m, struct file *fl)
 {
 	struct fifo *f = outbuf;
 	uint cnt, resid = m->m_arg;
-	extern int txbusy;
 
 	/*
 	 * While there's room, add data to the buffer

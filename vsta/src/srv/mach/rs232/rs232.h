@@ -15,6 +15,11 @@
 #define RS232_UARTNAMEMAX (8)	/* Max length of name of UART */
 
 /*
+ * Special messages
+ */
+#define RS232_HELPER (301)	/* Ask for helper to run */
+
+/*
  * Maximum range of I/O ports used
  */
 #define RS232_HIGH(base) (base+7)
@@ -167,10 +172,11 @@ void abort_io(struct file *f);
 /*
  * Prototypes for isr.c
  */
-extern void rs232_isr(struct msg *m);
 extern void start_tx(void);
-extern void rs232_enable(void);
+extern void rs232_enable(int);
+extern void run_helper(void);
 extern ulong overruns;
+extern volatile uint txbusy;
 
 /*
  * Prototypes for control.c
@@ -190,5 +196,10 @@ extern int rs232_iduart(int test_uart);
  */
 extern void rs232_stat(struct msg *m, struct file *f);
 extern void rs232_wstat(struct msg *m, struct file *f);
+
+/*
+ * Prototypes from main.c
+ */
+extern port_name rs232port_name;
 
 #endif /* _RS232_H */

@@ -4,7 +4,6 @@
  */
 #include <sys/perm.h>
 #include <sys/fs.h>
-#include <sys/sched.h>
 #include <sys/assert.h>
 #include <sys/param.h>
 #include <hash.h>
@@ -236,10 +235,6 @@ loop:
 		}
 		msg_reply(msg.m_sender, &msg);
 		break;
-	case M_ISR:		/* Interrupt */
-		ASSERT_DEBUG(f == 0, "rs232: session from kernel");
-		rs232_isr(&msg);
-		break;
 	case FS_READ:		/* Read file */
 		if (check_gen(&msg, f)) {
 			break;
@@ -264,6 +259,12 @@ loop:
 		}
 		rs232_wstat(&msg, f);
 		break;
+	case RS232_HELPER:	/* Run helper code */
+		msg.m_arg = msg.m_nseg = 0;
+		msg_reply(msg.m_sender, &msg);
+		run_helper();
+		break;
+
 	default:		/* Unknown */
 		msg_err(msg.m_sender, EINVAL);
 		break;
@@ -475,14 +476,6 @@ main(int argc, char **argv)
 	}
 
 	/*
-	 * Tell system about our I/O vector
-	 */
-	if (enable_isr(rs232port, irq)) {
-		syslog(LOG_ERR, "IRQ %d allocation", irq);
-		exit(1);
-	}
-
-	/*
 	 * Default configuration and turn on interrupts
 	 */
 	rs232_baud(9600);
@@ -490,15 +483,10 @@ main(int argc, char **argv)
 	rs232_databits(8);
 	rs232_stopbits(1);
 	rs232_parity(PARITY_NONE);
-	rs232_enable();
+	rs232_enable(irq);
 
 	syslog(LOG_INFO, "%s on IRQ %d, I/O base 0x%x",
 		uart_names[uart], irq, iobase);
-
-	/*
-	 * Take a shot at real-time priority
-	 */
-	(void)sched_op(SCHEDOP_SETPRIO, PRI_RT);
 
 	/*
 	 * Start serving requests for the filesystem
