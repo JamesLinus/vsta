@@ -349,3 +349,51 @@ A port of Tim Budd's latest/greatest "Tiny Smalltalk".  Actually, this was
 Have fputc() honor unbuffered flag in IOB.  Fixes problem where things
 	like fprintf to stderr or perror would misplace a trailing newline.
 ash missing from "shells" package due to pathname mismatch... fixed.
+
+1.6.8
+Port CVS.  Found a bug in CVS. :->
+Convert main source repository to CVS.
+Fix regoff_t type to be a signed quantity... fixes bug in expr(1)
+	where it would not correctly indicate match length
+	in its colon operator.
+Convert kernel build to use vsta/src/makefile.all.
+Retool boot and doc subdirs to use "make install".
+Add support for "a" mode of fopen() (I thought I had already done this...).
+Make sscanf() family of API's declare their input string buffer "const".
+More performance tuning on "ls", also do alpha sort on -l format.
+Construct font/hfont/icon directories in MGR from latest MGR distro...
+	these contents were munged by the old DOS 8.3 filenaming lossage.
+With long filename support, ".foo" is now a legal filename, so remove
+	the .foo -> _foo mapping hack from the DOS filesystem.
+libmgr.a and libbitblit.a are moved under /vsta/mgr/lib.
+Fix bug in KA9Q's generic ethernet driver... port_t versus file
+	descriptor mixup.
+vim.old removed.
+Added some section 6 and section 3 man page entries.
+Fix name length bug in RCS.
+select() support for the mouse driver.
+fd_rstat() added to permit access to rstat() stat strings via
+	file descriptor.
+Pseudo-TTY support via vsta/src/srv/pty server.
+Various bugs fixed in select(), especially with respect to reads
+	which do not consume all available data, and how this
+	is reflected in a subsequent select() for readability.
+Fix day-one bug in handling of file descriptors under execv[p]().
+	Also related bug in setup of FD's in init.
+stat(1) has some special syntax added so you can stat raw file
+	descriptors or ports open within the stat(1) process.
+	Probably not generally useful, but I needed this to debug
+	the problem with file descriptors listed right above this
+	entry.
+Missing file for DOS fsck code.
+Convert to vt100 as system terminal type.  Emulate quite a bit more
+	of vt100 behavior.
+Fix onlcr emulation (which was kinda sorta working for RS-232, but not
+	otherwise used.  Now it's pretty much fixed, and used by console
+	as well).
+Add "reset" wstat message to reset console state.
+ascii(1) command because I can never remember my ASCII table.
+Port of teco(1) to VSTa.
+A sample RAM disk server is available in the new vsta_contrib archive.
+vsta/etc and vsta/lib text files put under source control (duh,
+	should have happened a long time ago).

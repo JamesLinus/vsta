@@ -399,3 +399,20 @@ X 	this seems like a need for wstat("fork") to come back in the
 X 	start.c code at a minimum, along with an explicit clone() of
 X 	the /env/ mount point port.
 X	Done.
+
+We should go ahead and emulate the rest of symlinks.  This would require
+	S_IFLNK and S_ISLINK, as well as lstat and perhaps others.
+
+The mouse server should provide its dx/dy/button changes via the regular
+	FS_READ interface, not via FS_STAT.  This becomes apparent when
+	you use select(), and now FS_STAT has to become a recognized
+	I/O source... which is wrong.  Right now FS_READ just blocks
+	the process and completes the read with a length of zero; it should
+	instead sprintf() a FS_STAT type buffer, and make that the
+	return value.
+
+fork_env() gets invoked on a new process startup.  Technically, it should
+	happen right after a process successfully fork()'s--so that
+	any environment variable manipulation is handled correctly,
+	even if the new process never actually follows the fork() with
+	an exec of any sort.
