@@ -692,7 +692,7 @@ mkdir(const char *dir)
 {
 	int fd;
 
-	fd = open(dir, O_CREAT|O_DIR);
+	fd = open(dir, O_CREAT|O_DIR, 0700);
 	if (fd > 0) {
 		close(fd);
 		return(0);
