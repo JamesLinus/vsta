@@ -65,7 +65,6 @@ addc(TTYBUF *fp, char c)
 static void
 delc(TTYBUF *fp)
 {
-	fp->f_pos -= 1;
 	fp->f_cnt -= 1;
 }
 
