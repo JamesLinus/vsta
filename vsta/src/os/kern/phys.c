@@ -9,6 +9,7 @@
 #include <sys/vas.h>
 #include <sys/pview.h>
 #include <sys/pset.h>
+#include <sys/core.h>
 #include <sys/fs.h>
 #include <sys/mutex.h>
 #include <sys/assert.h>
@@ -18,9 +19,7 @@
  */
 struct wire {
 	struct proc *w_proc;
-	struct pset *w_pset;
-	struct perpage
-		*w_pp;
+	uint w_pfn;
 };
 static struct wire wired[MAX_WIRED];
 static sema_t wired_sema;
@@ -39,6 +38,40 @@ init_wire(void)
 }
 
 /*
+ * unwire_page()
+ *	Clear the C_WIRED bit on a core entry
+ */
+static void
+unwire_page(uint pfn)
+{
+	struct core *c;
+	extern struct core *core, *coreNCORE;
+
+	c = core+pfn;
+	ASSERT_DEBUG(c < coreNCORE, "unwire_page: bad pfn");
+	lock_page(pfn);
+	c->c_flags &= ~C_WIRED;
+	unlock_page(pfn);
+}
+
+/*
+ * wire_page()
+ *	Set the C_WIRED bit on a core entry
+ */
+static void
+wire_page(uint pfn)
+{
+	struct core *c;
+	extern struct core *core, *coreNCORE;
+
+	c = core+pfn;
+	ASSERT_DEBUG(c < coreNCORE, "wire_page: bad pfn");
+	lock_page(pfn);
+	c->c_flags |= C_WIRED;
+	unlock_page(pfn);
+}
+
+/*
  * page_wire()
  *	Wire down a page for a user process
  */
@@ -51,6 +84,7 @@ page_wire(void *arg_va, void **arg_pa)
 	uint idx;
 	struct wire *w;
 	int error = 0;
+	void *paddr;
 
 	/*
 	 * Allowed?
@@ -67,7 +101,7 @@ page_wire(void *arg_va, void **arg_pa)
 	for (w = wired; w->w_proc; ++w)
 		;
 	ASSERT_DEBUG(w < &wired[MAX_WIRED], "page_wire: bad count");
-	w->w_proc = p;
+	w->w_proc = (struct proc *)1;	/* Placeholder */
 	v_lock(&wired_lock, SPL0);
 
 	/*
@@ -97,19 +131,23 @@ page_wire(void *arg_va, void **arg_pa)
 	}
 
 	/*
-	 * Copy out the PFN value
+	 * Copy out the PFN value, converted to a physical address
 	 */
-	if (copyout(arg_pa, &pp->pp_pfn, sizeof(uint))) {
-		unlock_slot(ps, pp);
+	wire_page(w->w_pfn = pp->pp_pfn);
+	unlock_slot(ps, pp);
+	paddr = (char *)ptob(w->w_pfn) + ((ulong)arg_va & (NBPG-1));
+	if (copyout(arg_pa, &paddr, sizeof(paddr))) {
+		unwire_page(w->w_pfn);
 		error = -1;
+		goto out;
 	}
 	error = w-wired;
-	w->w_pset = ps;
-	w->w_pp = pp;
 out:
 	if (error < 0) {
 		w->w_proc = 0;
 		v_sema(&wired_sema);
+	} else {
+		w->w_proc = p;
 	}
 	return(error);
 }
@@ -121,18 +159,39 @@ out:
 page_release(uint arg_handle)
 {
 	struct wire *w;
+	int error;
+	uint pfn;
 
+	/*
+	 * Sanity
+	 */
 	if (arg_handle >= MAX_WIRED) {
 		return(err(EINVAL));
 	}
+
+	/*
+	 * Lock and see if this is really our slot
+	 */
 	w = &wired[arg_handle];
-	if (w->w_proc != curthread->t_proc) {
-		return(err(EPERM));
+	p_lock(&wired_lock, SPL0);
+	if (w->w_proc == curthread->t_proc) {
+		pfn = w->w_pfn;
+		w->w_proc = 0;
+		v_sema(&wired_sema);
+		error = 0;
+	} else {
+		pfn = 0;
+		error = err(EPERM);
 	}
-	unlock_slot(w->w_pset, w->w_pp);
-	w->w_proc = 0;
-	v_sema(&wired_sema);
-	return(0);
+	v_lock(&wired_lock, SPL0);
+
+	/*
+	 * If we freed a slot, unwire the page now
+	 */
+	if (pfn) {
+		unwire_page(w->w_pfn);
+	}
+	return(error);
 }
 
 /*
@@ -143,12 +202,39 @@ void
 pages_release(struct proc *p)
 {
 	int x;
-	struct wire *w = wired;
+	struct wire *w;
+	uint pfn = 0;
 
-	for (x = 0; x < MAX_WIRED; ++x, ++w) {
+	/*
+	 * Scan across all currently wired pages
+	 */
+	for (x = 0, w = wired; x < MAX_WIRED; ++x, ++w) {
+		/*
+		 * If it looks like a match...
+		 */
 		if (w->w_proc == p) {
-			w->w_proc = 0;
-			v_sema(&wired_sema);
+			/*
+			 * Lock and check again
+			 */
+			p_lock(&wired_lock, SPL0);
+			if (w->w_proc == p) {
+				/*
+				 * Record PFN, clear slot
+				 */
+				pfn = w->w_pfn;
+				w->w_proc = 0;
+				v_sema(&wired_sema);
+			}
+			v_lock(&wired_lock, SPL0);
+
+			/*
+			 * With lock released, lock slot and clear
+			 * the WIRED bit.
+			 */
+			if (pfn) {
+				unwire_page(pfn);
+				pfn = 0;
+			}
 		}
 	}
 }
