@@ -244,6 +244,9 @@ loop:
 	case FS_STAT:		/* Tell about file */
 		vfs_stat(&msg, f);
 		break;
+	case FS_WSTAT:		/* Modify file */
+		vfs_wstat(&msg, f);
+		break;
 	case FS_FID:		/* File ID */
 		vfs_fid(&msg, f);
 		break;

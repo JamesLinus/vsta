@@ -150,6 +150,7 @@ extern void vfs_open(struct msg *, struct file *),
 	vfs_write(struct msg *, struct file *),
 	vfs_remove(struct msg *, struct file *),
 	vfs_stat(struct msg *, struct file *),
+	vfs_wstat(struct msg *, struct file *),
 	vfs_close(struct file *),
 	vfs_fid(struct msg *, struct file *);
 extern void init_buf(void), init_node(void), init_block(void);
