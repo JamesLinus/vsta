@@ -93,7 +93,7 @@ alloc_node(daddr_t d)
 		return(0);
 	}
 	o->o_file = d;
-	o->o_len = len;
+	o->o_hiwrite = o->o_len = len;
 	o->o_refs = 1;
 	return(o);
 }
