@@ -7,7 +7,6 @@
 #include <hash.h>
 #include <stdio.h>
 #include <sys/assert.h>
-#include <sys/ports.h>
 #include <std.h>
 #include "rs232.h"
 
