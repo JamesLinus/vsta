@@ -38,4 +38,5 @@ ENTRY(time_sleep, S_TIME_SLEEP)
 ENTRY(dbg_enter, S_DBG_ENTER)
 ENTRY(exec, S_EXEC)
 ENTRY(waits, S_WAITS)
+ENTRY(perm_ctl, S_PERM_CTL)
 
