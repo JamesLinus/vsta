@@ -13,10 +13,10 @@
 #include <sys/port.h>
 #include <sys/proc.h>
 #include <sys/thread.h>
+#include <lib/alloc.h>
 
 #define START_ROTOR (1024)	/* Where we start searching for an open # */
 
-extern void *malloc();
 extern void disable_isr();
 extern struct portref *delete_portref();
 extern struct port *delete_port();
@@ -103,16 +103,9 @@ msg_port(port_name arg_port, port_name *arg_portp)
 	int slot;
 
 	/*
-	 * Allocate the port data structure, initialize its members
+	 * Get new port
 	 */
-	port = malloc(sizeof(struct port));
-	init_lock(&port->p_lock);
-	init_sema(&port->p_wait);
-	set_sema(&port->p_wait, 0);
-	init_sema(&port->p_sema);
-	port->p_hd = port->p_tl = 0;
-	port->p_flags = 0;
-	port->p_refs = 0;
+	port = alloc_port();
 
 	/*
 	 * Lock the process and see if we have a free slot
@@ -373,6 +366,7 @@ msg_accept(long arg_tran)
  * shut_client()
  *	Shut down a connection from a client to a server
  */
+void
 shut_client(struct portref *pr)
 {
 	struct sysmsg *sm;
@@ -396,7 +390,6 @@ shut_client(struct portref *pr)
 		v_lock(&pr->p_lock, SPL0);	/* for lock count in percpu */
 		free_portref(pr);
 		free(sm);
-		return(0);
 	}
 
 	/*
@@ -416,7 +409,6 @@ shut_client(struct portref *pr)
 	 * Free our portref
 	 */
 	free_portref(pr);
-	return(0);
 }
 
 /*
@@ -542,6 +534,11 @@ bounce_msgs(struct port *port)
 shut_server(struct port *port)
 {
 	/*
+	 * Flag that it's going down
+	 */
+	port->p_flags |= P_CLOSING;
+
+	/*
 	 * If we have an ISR tied to this port, disable
 	 * that before the port goes away.
 	 */
@@ -549,6 +546,11 @@ shut_server(struct port *port)
 		disable_isr(port);
 		port->p_flags &= ~P_ISR;
 	}
+
+	/*
+	 * Let the exec() layer clean anything up it might have.
+	 */
+	exec_cleanup(port);
 
 	/*
 	 * Enumerate our current clients, shut them down
@@ -559,6 +561,14 @@ shut_server(struct port *port)
 			v_lock(&port->p_lock, SPL0);
 		}
 	}
+
+	/*
+	 * Take this semaphore to flush out any lagging folks trying
+	 * to fiddle with mappings.
+	 */
+	p_sema(&port->p_mapsema, PRIHI);
+	ASSERT(port->p_maps == 0, "shut_server: maps");
+
 	free(port);
 	return(0);
 }
@@ -596,7 +606,8 @@ msg_disconnect(port_t arg_port)
 		if (!pr) {
 			return(-1);
 		}
-		return(shut_client(pr));
+		shut_client(pr);
+		return(0);
 	}
 }
 

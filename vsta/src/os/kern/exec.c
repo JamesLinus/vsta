@@ -14,10 +14,14 @@
 #include <sys/exec.h>
 #include <sys/port.h>
 #include <sys/assert.h>
+#include <lib/hash.h>
 
 extern void set_execarg(), reset_uregs();
 extern struct pset *alloc_pset_fod();
 extern struct portref *delete_portref();
+
+/* Flag that we're not allowing a map hash to be created */
+#define NO_MAP_HASH ((struct hash *)1)
 
 /*
  * discard_vas()
@@ -68,6 +72,99 @@ add_minstack(struct vas *vas)
 }
 
 /*
+ * get_exec_pset()
+ *	Return pset view of named file
+ *
+ * We will try to cache the mapping; if this is possible, all mappings
+ * of the file will come through the same pset.  If not, we return
+ * a simple private view.
+ */
+static struct pset *
+get_exec_pset(struct portref *pr, uint hi)
+{
+	struct pset *ps;
+	struct portref *prmap;
+	long args[2];
+	struct port *port;
+
+	/*
+	 * Hold mutex so we're the only one searching/updating the
+	 * cache of mappings.  This also keeps the port from shutting
+	 * on us.
+	 */
+	p_lock(&pr->p_lock, SPL0);
+	port = pr->p_port;
+	if (port) {
+		if ((port->p_flags & P_CLOSING) ||
+				(port->p_maps == NO_MAP_HASH)) {
+			v_lock(&pr->p_lock, SPL0);
+			port = 0;
+		} else {
+			p_sema_v_lock(&port->p_mapsema, PRIHI,
+				&pr->p_lock);
+		}
+	}
+
+	/*
+	 * Try to get file ID.  Bail to simple, inefficient case if
+	 * we can't.  FS_FID returns a unique ID in args[0], and
+	 * the size in pages in args[1].
+	 */
+	if (!port || kernmsg_send(pr, FS_FID, args) || (args[1] < hi)) {
+		/*
+		 * Allocate a pset of the file from 0 to highest mapping needed
+		 */
+		if (port) {
+			v_sema(&port->p_mapsema);
+		}
+		return(alloc_pset_fod(pr, hi));
+	}
+
+	/*
+	 * If there's a hash already, search it for our ID.  Otherwise
+	 * create a new hash and flag that we didn't find the pset.
+	 */
+	if (port->p_maps) {
+		ps = hash_lookup(port->p_maps, args[0]);
+	} else {
+		/*
+		 * New hash table.  Is 32 a good number?  Who knows?
+		 */
+		port->p_maps = hash_alloc(32);
+		ps = 0;
+	}
+
+	/*
+	 * If no pset, create one and insert it.  The mapping in
+	 * the hash counts as a reference.
+	 */
+	if (ps == 0) {
+		ps = alloc_pset_fod(pr, args[1]);
+		(void)hash_insert(port->p_maps, args[0], ps);
+		ref_pset(ps);
+	} else {
+		/*
+		 * Found one in hash.  Free our current portref
+		 * and go with the existing cached pset/portref.
+		 */
+		shut_client(pr);
+	}
+
+	/*
+	 * Leave an extra ref on the pset so it won't go away
+	 * while we add views to it.  Our caller will release
+	 * this ref once he's done his own refs.
+	 */
+	ref_pset(ps);
+
+	/*
+	 * Release sema and return pset
+	 */
+	v_sema(&port->p_mapsema);
+	return(ps);
+}
+
+/*
  * add_views()
  *	Add mappings of the port
  *
@@ -99,9 +196,9 @@ add_views(struct vas *vas, struct portref *pr, struct mapfile *fm)
 	}
 
 	/*
-	 * Allocate a pset of the file from 0 to highest mapping needed
+	 * Get a pset view of this file
 	 */
-	ps = alloc_pset_fod(pr, hi);
+	ps = get_exec_pset(pr, hi);
 
 	/*
 	 * Add in each view of the file
@@ -157,6 +254,11 @@ add_views(struct vas *vas, struct portref *pr, struct mapfile *fm)
 			}
 		}
 	}
+
+	/*
+	 * Drop "placeholder" ref to pset (see get_exec_pset())
+	 */
+	deref_pset(ps);
 }
 
 /*
@@ -232,4 +334,49 @@ exec(uint arg_port, struct mapfile *arg_map, void *arg)
 	reset_uregs(t, (ulong)(m.m_entry));
 	set_execarg(t, arg);
 	return(0);
+}
+
+/*
+ * do_derefport()
+ *	Release a cached access to a port
+ */
+static
+do_derefport(struct port *port, void *dummy)
+{
+	deref_port(port);
+}
+
+/*
+ * exec_cleanup()
+ *	Clean up mapped file cache, if any
+ */
+void
+exec_cleanup(struct port *port)
+{
+	/*
+	 * Take map mutex
+	 */
+	p_sema(&port->p_mapsema, PRIHI);
+
+	/*
+	 * No cache--nothing to do
+	 */
+	if (port->p_maps == 0) {
+		v_sema(&port->p_mapsema);
+		return;
+	}
+
+	/*
+	 * Remove reference from pset for each entry
+	 * in our cache.
+	 */
+	hash_foreach(port->p_maps, do_derefport, 0);
+
+	/*
+	 * Free the hash storage, flag port as shutting down
+	 */
+	hash_dealloc(port->p_maps);
+	port->p_maps = NO_MAP_HASH;
+
+	v_sema(&port->p_mapsema);
 }
