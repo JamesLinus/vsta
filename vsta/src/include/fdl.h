@@ -26,5 +26,8 @@ struct port {
 extern uint __fdl_size(void);
 extern void __fdl_save(char *, ulong);
 extern char *__fdl_restore(char *);
+extern port_t __fd_port(int);
+extern int __fd_alloc(port_t);
+extern struct port *__port(int);
 
 #endif /* _FDL_H */
