@@ -29,7 +29,7 @@ struct tm {
  */
 extern char *ctime(time_t *);
 extern struct tm *gmtime(time_t *), *localtime(time_t *);
-extern int __usleep(uint);
-extern int __msleep(uint);
+extern int __usleep(int);
+extern int __msleep(int);
 
 #endif /* _TIME_H */
