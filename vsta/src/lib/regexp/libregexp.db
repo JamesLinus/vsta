@@ -1,4 +1,4 @@
-library libregex.a
+library libregexp.a
 _regcomp
 _regexec
 _regsub
