@@ -31,6 +31,12 @@ struct port {
 #define P_ISR 2			/* Port has an ISR vectored to it */
 
 /*
+ * Flag value for struct port's p_map fields indicating that we're not
+ * allowing a map hash to be created any more.
+ */
+#define NO_MAP_HASH ((struct hash *)1)
+
+/*
  * Per-connected-port structure.  The protocol offered through
  * such ports requires that we maintain a mutex.
  */
