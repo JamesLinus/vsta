@@ -34,11 +34,12 @@ typedef voidfun sig_t;
 #define SIGTERM 15	/* Software termination */
 #define SIGSTKFLT 16
 #define SIGCHLD 17
-#define SIGCONT 18
-#define SIGSTOP 19
-#define SIGTSTP 20
-#define SIGTTIN 21
-#define SIGTTOU 22
+#define SIGCLD SIGCHLD
+/* #define SIGCONT 18	These make us appear to support job control */
+/* #define SIGSTOP 19 */
+/* #define SIGTSTP 20 */
+/* #define SIGTTIN 21 */
+/* #define SIGTTOU 22 */
 #define SIGIO 23
 #define SIGPOLL SIGIO
 #define SIGURG SIGIO
