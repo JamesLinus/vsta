@@ -614,6 +614,14 @@ do_exit(int code)
 	}
 
 	/*
+	 * Drop FPU if in use
+	 */
+	if (t->t_fpu) {
+		fpu_disable(0);
+		FREE(t->t_fpu, MT_FPU);
+	}
+
+	/*
 	 * Free kernel stack once we've switched to our idle stack.
 	 * Can't use local variables after this!
 	 */
@@ -624,14 +632,6 @@ do_exit(int code)
 	 * One less runable thread
 	 */
 	ATOMIC_DEC(&num_run);
-
-	/*
-	 * Drop FPU if in use
-	 */
-	if (curthread->t_fpu) {
-		fpu_disable(0);
-		FREE(curthread->t_fpu, MT_FPU);
-	}
 
 	/*
 	 * Free thread, switch to new work
