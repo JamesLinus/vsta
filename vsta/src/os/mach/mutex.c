@@ -27,7 +27,7 @@ p_lock(lock_t *l, spl_t s)
 	}
 	ASSERT_DEBUG(l->l_lock == 0, "p_lock: deadlock");
 	l->l_lock = 1;
-	ATOMIC_INC(&cpu.pc_locks);
+	ATOMIC_INCW(&cpu.pc_locks);
 	return(x ? SPL0 : SPLHI);
 }
 
@@ -52,7 +52,7 @@ cp_lock(lock_t *l, spl_t s)
 		return(-1);
 	}
 	l->l_lock = 1;
-	ATOMIC_INC(&cpu.pc_locks);
+	ATOMIC_INCW(&cpu.pc_locks);
 	return(x ? SPL0 : SPLHI);
 }
 
@@ -68,7 +68,7 @@ v_lock(lock_t *l, spl_t s)
 	if (s == SPL0) {
 		sti();
 	}
-	ATOMIC_DEC(&cpu.pc_locks);
+	ATOMIC_DECW(&cpu.pc_locks);
 }
 
 /*
