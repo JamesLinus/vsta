@@ -15,8 +15,7 @@ int net_error;
  * binary IP address
  */
 int32
-aton(s)
-register char *s;
+aton(char *s)
 {
 	int32 n;
 	int atoi();
@@ -149,4 +148,31 @@ char *s;
 			break;
 	}
 	return ret;
+}
+
+/*
+ * err2str()
+ *	Return string for given error number
+ */
+char *
+err2str(int err)
+{
+	switch (err) {
+	case CON_EXISTS:
+		return("ip/exists");
+	case NO_CONN:
+		return("ip/no conn");
+	case CON_CLOS:
+		return("ip/closing");
+	case NO_SPACE:
+		return("ip/no space");
+	case WOULDBLK:
+		return("ip/blocked");
+	case NOPROTO:
+		return("ip/no proto");
+	case INVALID:
+		return("ip/invalid");
+	default:
+		return("ip/unknown");
+	}
 }
