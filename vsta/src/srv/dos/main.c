@@ -366,8 +366,7 @@ usage(void)
 	/*
 	 * If it's interactive, they'll see this...
 	 */
-	printf("Usage: dos -p <portpath> <fsname>\n");
-	printf("   or: dos <filepath> <fsname>\n");
+	printf("Usage: dos -d <disk path> -n <fsname> [-B <buffers>] [-r]\n");
 
 	/*
 	 * If not, perhaps syslog will be noticed
