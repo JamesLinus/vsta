@@ -101,7 +101,8 @@ syscall(struct trapframe *f)
 	/*
 	 * See if can get needed number of arguments
 	 */
-	if (copyin(f->esp, args, s->s_narg * sizeof(int))) {
+	if (copyin(f->esp + sizeof(ulong), args,
+			s->s_narg * sizeof(int))) {
 #ifdef DEBUG
 		printf("Short syscall args\n");
 		dbg_enter();
