@@ -103,7 +103,7 @@ clean:
 	rm -f *.o *.tmp *.st
 
 clobber: clean
-	rm -f mklibs *.a *.shl
+	rm -f mklibs mkshlib *.a *.shl
 
 install: all mklibs
 	cp $(LIBS) crt0.o crt0srv.o ../../lib
