@@ -47,7 +47,7 @@ exec.o: mach/exec.c
 
 # Our tricky syscall stub which needs to use CPP
 syscalls.o: mach/syscalls.s
-	$(CPP) $(INCS) mach/syscalls.s tmp.s
+	$(CPP) -D__ASM__ $(INCS) mach/syscalls.s tmp.s
 	as -o syscalls.o tmp.s
 	del tmp.s
 
