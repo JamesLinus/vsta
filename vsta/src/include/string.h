@@ -30,5 +30,6 @@ extern void *memmove(void *, const void *, size_t),
 	*memchr(const void *, unsigned char, size_t),
 	*memset(void *, int, size_t);
 extern char *strsep(char **, const char *);
+extern void swab(const char *, char *, size_t);
 
 #endif /* _STRING_H */
