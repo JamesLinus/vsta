@@ -54,6 +54,7 @@ rstat(port_t fd, char *field)
 {
 	struct msg m;
 	static char statbuf[MAXSTAT];
+	char *p, *q;
 
 	/*
 	 * Send a stat request
@@ -77,7 +78,19 @@ rstat(port_t fd, char *field)
 	/*
 	 * Hunt for named field
 	 */
-	return(fieldval(statbuf, field));
+	p = fieldval(statbuf, field);
+	if (p == 0) {
+		return(0);
+	}
+
+	/*
+	 * Make it a null-terminated string
+	 */
+	q = strchr(p, '\n');
+	if (q) {
+		*q = '\0';
+	}
+	return(p);
 }
 
 /*
