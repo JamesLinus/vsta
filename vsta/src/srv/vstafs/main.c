@@ -25,8 +25,7 @@ static struct hash	/* Handle->filehandle mapping */
 	*filehash;
 static struct fs
 	*fsroot;	/* Snapshot of root sector */
-static int fflag,	/* Pull in fsck-pending changes */
-	pflag;		/* Use path_open syntax */
+static int fflag;	/* Pull in fsck-pending changes */
 
 /*
  * This "open" file just sits around as an easy way to talk about
@@ -281,7 +280,7 @@ loop:
 static void
 usage(void)
 {
-	printf("Usage is: vstafs [-d <disk>] [-n <name>] [-p] [-f]\n");
+	printf("Usage is: vstafs [-d <disk>] [-n <name>] [-f]\n");
 	syslog(LOG_ERR, "Illegal command line arguments");
 	exit(1);
 }
@@ -375,7 +374,7 @@ main(int argc, char *argv[])
 	/*
 	 * Check arguments
 	 */
-	while ((x = getopt(argc, argv, "d:n:fp")) > 0) {
+	while ((x = getopt(argc, argv, "d:n:f")) > 0) {
 		switch (x) {
 		case 'd':
 			disk = optarg;
@@ -386,22 +385,9 @@ main(int argc, char *argv[])
 		case 'f':
 			fflag = 1;
 			break;
-		case 'p':
-			pflag = 1;
-			break;
 		default:
 			usage();
 		}
-	}
-
-	/*
-	 * Trailing arguments are disk/namer entry (compat)
-	 */
-	if (!disk && (optind < argc)) {
-		disk = argv[optind++];
-	}
-	if (!namer_name && (optind < argc)) {
-		namer_name = argv[optind++];
 	}
 
 	/*
@@ -409,17 +395,6 @@ main(int argc, char *argv[])
 	 */
 	if ((optind < argc) || !disk || !namer_name) {
 		usage();
-	}
-
-	/*
-	 * Convert path_open() semantics
-	 */
-	if (pflag) {
-		char *buf;
-
-		buf = malloc(strlen(disk) + 4);
-		sprintf(buf, "//%s", disk);
-		disk = buf;
 	}
 
 	/*
