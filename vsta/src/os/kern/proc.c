@@ -552,12 +552,6 @@ do_exit(int code)
 	 */
 	PTRACE_PENDING(p, PD_EXIT, 0);
 
-#ifdef DEBUG
-	if (p->p_vas->v_flags & VF_BOOT) {
-		printf("Boot process %d dies\n", p->p_pid);
-		dbg_enter();
-	}
-#endif
 	/*
 	 * Remove our thread from the process hash list
 	 */
@@ -596,6 +590,12 @@ do_exit(int code)
 	if (!last) {
 		remove_pview(p->p_vas, t->t_ustack);
 	} else {
+#ifdef DEBUG
+		if (p->p_vas->v_flags & VF_BOOT) {
+			printf("Boot process %d dies\n", p->p_pid);
+			dbg_enter();
+		}
+#endif
 		/*
 		 * Detach from our exit groups
 		 */
