@@ -593,7 +593,7 @@ interrupt(ulong place_holder)
 	if (isr == 0) {
 		extern void hardclock();
 
-		hardclock();
+		hardclock(f);
 		goto out;
 	}
 
