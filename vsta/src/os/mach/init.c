@@ -223,6 +223,14 @@ init_machdep(void)
 	memsegs[1].m_len = size_ext;
 
 	/*
+	 * Cap memory due to limits on virtual address space mapping
+	 * of available RAM.
+	 */
+	if (size_ext > 768*K*K) {
+		memsegs[1].m_len = 768*K*K;
+	}
+
+	/*
 	 * Point heap at first byte beyond _end; it will almost
 	 * certainly be advanced past boot tasks next, but this
 	 * makes it possible to test the kernel by itself.
