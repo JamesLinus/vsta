@@ -79,13 +79,28 @@ bootproc(struct boot_task *b)
 	p->p_ids[0].perm_len = 2;
 	p->p_ids[0].perm_id[0] = 1;
 	p->p_ids[0].perm_id[1] = 1;
-	init_sema(&p->p_sema);
+
+	/*
+	 * Grant him root, but leave it disabled.  Those who really
+	 * need it will know how to turn it on.
+	 */
+	p->p_ids[1].perm_len = 0;
+	PERM_DISABLE(&p->p_ids[1]);
+
+	/*
+	 * Default protection: require sys/sys to touch us.
+	 */
 	p->p_prot.prot_len = 2;
 	p->p_prot.prot_default = 0;
 	p->p_prot.prot_id[0] = 1;
 	p->p_prot.prot_id[1] = 1;
 	p->p_prot.prot_bits[0] = 0;
 	p->p_prot.prot_bits[1] = P_PRIO|P_SIG|P_KILL|P_STAT|P_DEBUG;
+
+	/*
+	 * Initialize other fields
+	 */
+	init_sema(&p->p_sema);
 	p->p_runq = sched_node(&sched_root);
 	p->p_pgrp = alloc_pgrp();
 	p->p_children = alloc_exitgrp(p);
