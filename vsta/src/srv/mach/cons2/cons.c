@@ -142,8 +142,25 @@ init_screen(int type)
 		exit(1);
 	}
 	hw_screen = p;
+
+	/*
+	 * Move to screen 0, and clear it
+	 */
 	set_screen(p, 0);
-	cls(); cursor();
+	cls();
+
+	/*
+	 * Move the cursor down some.  This leaves room for the
+	 * kernel debugger to lurch to life due to a boot task
+	 * dying, without scrolling the syslog output off the
+	 * screen.
+	 */
+	write_string("\n\n\n", 3);
+
+	/*
+	 * Update cursor, and we're ready to go!
+	 */
+	cursor();
 }
 
 /*
