@@ -217,7 +217,7 @@ bcmp(const void *s1, const void *s2, unsigned int n)
 
 	while (n-- > 0) {
 		if (*p++ != *q++) {
-			return(1);
+			return((int)p[-1] - (int)q[-1]);
 		}
 	}
 	return(0);
