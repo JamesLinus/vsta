@@ -28,6 +28,7 @@ extern char *getenv(char *);
 extern int setenv(char *, char *);
 extern pid_t getpid(void), gettid(void), getppid(void);
 extern int atoi(const char *);
+extern long atol(const char *);
 extern void perror(const char *);
 extern uint sleep(uint);
 extern int chdir(const char *);
