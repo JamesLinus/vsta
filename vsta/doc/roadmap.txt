@@ -70,9 +70,6 @@ in the same place you found vsta.tz and vsta_bin.tz.
 
 	You now have all the binaries and administrative files for VSTa.
 
-	You can iterate on this in the obvious way to load other
-	sets of VSTa distribution files.
-
 Accounts are in /vsta/etc/passwd, with a parallel file /vsta/etc/shadow
 holding the actual passwords, which are in the clear.  Feel free
 to edit these files using a DOS editor; VSTa tries to accomodate
@@ -103,12 +100,6 @@ The binary directories are not kept under CVS.
 	src/srv/mach	i386/ISA servers (disk, keyboard, etc.)
 	src/bin		Command source
 	src/lib		Library source
-	src/bin/ports	Ports of other UN*X-ish utilities
-
-If your tree includes the 68030 Amiga port, you will also see mach.ami
-directories.  The mach.r4k subdirectory probably isn't present, but holds
-code for a MIPS R4000 port of VSTa.  Both of these ports are in the
-unsupported/historical category.
 
 3. Booting the kernel, the first time
 
@@ -193,25 +184,62 @@ ALT-F1, ALT-F2, ..., to switch between the screens.  See the
 file /vsta/etc/inittab to launch more or less screens.  The first
 screen (ALT-F1) also receives syslog output.
 
-6. Building the system
+6. Building from Source Code
 
-	(Boot VSTa)
-	cd /vsta/src
-	sh -x mkall.sh
-	(watch the blinkin lights)
-	(if all looks great:)
-	sh -x mkall.sh install
+The source to the main VSTa distribution is managed by CVS.  You'll
+need to extract the vsta_cvs.tz file into /cvs, which will create
+a tree of CVS files under /cvs/vsta.  Once these are extracted, you
+need to check out a copy of the tree in some location:
 
-You can also cd to some particular server or command source directory
-and "make" or "make install" just that piece.  This is probably the
-best idea, since if something subtle gets hosed you'll have fewer
-changes to undo in order to get a usable system again.
+	cd /home/me
+	cvs -d /cvs co vsta
 
-NOTE: some binaries (emacs, rc, gcc & friends) are in their own
-distribution tar file.  They are probably not present in your source
-tree unless you explicitly loaded them.  A lot of the stuff in
-src/bin/ports is not part of the regular/formal "VSTa system build"
-process.
+This will extract the main VSTa source (which does not include ports
+of various utilities--just the kernel, libraries, and core commands like
+the default shell).
+
+Now you need to cd into the source, and edit the line near the top of
+makefile.all to indicate the location of this source tree:
+
+	cd vsta/src
+	vi makefile.all
+
+Change the line:
+	SRC=/vandys/src/src
+to:
+	/home/me/vsta/src
+
+(In the case of this example.)  With this set, you can now cd down into any
+of the source directories and build from the source there.  You probably
+want to cd into vsta/src/lib first, as the other source in the tree links
+against the privately built version of the library files:
+
+	cd lib
+	make
+
+After this, you could build, say, the DOS filesystem code by:
+	cd ../srv/dos		(up out of lib, and into DOS source)
+	make
+
+In the top of vsta/src is a mkall.sh, which will enumerate all source,
+invoking a "make" with any arguments provided to mkall.sh.  Thus, you
+could build everything by:
+
+	cd ../..		(up out of DOS, to top of source tree)
+	sh mkall.sh
+
+Or remove all object files by:
+
+	sh mkall.sh clean
+
+Or clean up all generated files by:
+
+	sh mkall.sh clobber
+
+NOTE: some binaries (emacs, rc, gcc & friends) are in their own distribution
+tar files.  They are not present in your source tree unless you explicitly
+loaded them.  The stuff in src/bin/ports is not part of the regular/formal
+"VSTa system build" process.
 
 7. Documentation
 
