@@ -29,3 +29,9 @@ clone: clone.2
 page_wire: pagewire.2
 page_release: pagerel.2
 enable_dma: enabdma.2
+
+/6
+group: group.6
+ids: ids.6
+passwd: passwd.6
+shadow: shadow.6
