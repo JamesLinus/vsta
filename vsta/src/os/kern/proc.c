@@ -546,6 +546,11 @@ do_exit(int code)
 	int last;
 
 	/*
+	 * Let debugger take a crack, if configured
+	 */
+	PTRACE_PENDING(p, PD_EXIT, 0);
+
+	/*
 	 * Remove our thread from the process hash list
 	 */
 	p_sema(&p->p_sema, PRIHI);
