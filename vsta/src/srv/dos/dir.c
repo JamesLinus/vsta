@@ -24,6 +24,8 @@ static struct hash
 
 static void timestamp(struct directory *d);
 
+extern char dos_sysmsg[];	/* String used as a prefix in syslog calls */
+
 /*
  * dir_init()
  *	Set up various tables, read in root directory
@@ -43,7 +45,7 @@ dir_init(void)
 	 */
 	n = rootdir = malloc(sizeof(struct node));
 	if (n == 0) {
-		perror("dir_init: root");
+		syslog(LOG_ERR, "%s dir_init: root", dos_sysmsg);
 		exit(1);
 	}
 	n->n_type = T_DIR;
@@ -64,14 +66,15 @@ dir_init(void)
 	rootsize = dirents * sizeof(struct directory);
 	rootdirents = malloc(rootsize);
 	if (rootdirents == 0) {
-		perror("dir_init: rootdirents");
+		syslog(LOG_ERR, "%s dir_init: rootdirents", dos_sysmsg);
 		exit(1);
 	}
 	lseek(blkdev,
 		(bootb.nrsvsect+(bootb.nfat * bootb.fatlen))*(ulong)SECSZ,
 		0);
 	if (read(blkdev, rootdirents, rootsize) != rootsize) {
-		perror("dir_init: read root");
+		syslog(LOG_ERR, "%s dir_init: unable to read root",
+			dos_sysmsg);
 		exit(1);
 	}
 
@@ -272,7 +275,8 @@ dir_look(struct node *n, char *file)
 	}
 	n2->n_type = ((d.attr & DA_DIR) ? T_DIR : T_FILE);
 	if ((n2->n_type == T_DIR) && !d.start) {
-		syslog(LOG_ERR, "null directory for '%s'\n", file);
+		syslog(LOG_ERR, "%s null directory for '%s'",
+			dos_sysmsg, file);
 		free(n2);
 		return(0);
 	}
@@ -795,8 +799,8 @@ root_sync(void)
 	x = write(blkdev, rootdirents, rootsize);
 	if (x != rootsize) {
 		syslog(LOG_ERR,
-			"root_sync: write failed, err '%s', value 0x%x\n",
-			strerror(), x);
+			"%s root_sync: write failed, err '%s', value 0x%x",
+			dos_sysmsg, strerror(), x);
 		exit(1);
 	}
 	root_dirty = 0;
