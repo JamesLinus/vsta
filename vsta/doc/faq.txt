@@ -42,19 +42,23 @@ Cygnus has kindly made some space available at their FTP site:
 
 	ftp.cygnus.com:pub/embedded/vsta
 
-Cisco also has it available, although their FTP daemon makes it more
-of a chore:
+Its primary distribution site is:
 
-	ftp.cisco.com:vandys/vsta
+	ftp.zendo.com:vsta
 
-Other mirror sites exist and will be added here as verified.
+Other mirror sites exist; use a search engine.
 
 5. How do I boot it?
 
-You boot DOS, and then run a program which reads in the kernel and boot
-servers.  This program then switches to 32-bit protected mode and starts
-running the VSTa microkernel.  So DOS is your "boot filesystem"; you can
-access many types of filesystems (including DOS) once VSTa is running.
+VSTa uses the Multiboot standard, and can be loaded from any
+bootloader which uses that standard.  The most common is GRUB
+("GRand Unified Bootloader), which is included in the VSTa
+distribution.  It loads the kernel image, any "boot servers" (which
+are like any program running under VSTa, except they exist as
+processes at boot time, so they can provide disk I/O and such
+without having to build this into the kernel).  DOS is your "boot
+filesystem"; you can access many types of filesystems (including
+DOS) once VSTa is running.
 
 For the nuts and bolts of doing this, see the file vsta_*.readme on the
 FTP site.  This will point you to the files "license" and "readme" in
@@ -69,7 +73,7 @@ at the FTP sites contain several messages which describe the design of
 various parts (booting, VM, scheduling, ...) of the system.  If you are
 searching for a particular topic, a hypertext index:
 
-	http://ftoomsh.socs.uts.EDU.AU/mlists/vsta
+	http://www.zendo.com/vandys/vsta-mail
 
 provides a powerful interface for searching all message list traffic.
 
@@ -95,21 +99,20 @@ A telnetd has been implemented, permitting network logins to VSTa.
 
 8. What's being developed for VSTa?
 
-Ports are in various states of progress for the m68k, R3000, and SPARC.
-People are working on a windowing system, a Linux filesystem, a BSD
-filesystem, and more networking.  A list, maintained by Gavin Nicol
-(gtn@ebt.com) is posted to the mailing list periodically.
+VSTa has been ported to the 68030 and R4000.  MGR is the primary
+windowing system, and runs pretty well.  Distributed VSTa (binding
+kernel messages to the IP stack) is working in a basic form.
 
-9. What list is that?
+9. Is there a mailing list?
 
 We run a VSTa mailing list.  Send a subscription request to:
 
-    vsta-request@cisco.com
+    vsta-request@zendo.com
 
 There's no list server, so feel free to use English.  Once you're on the
 list, send to:
 
-    vsta@cisco.com
+    vsta@zendo.com
 
 and the message will be distributed to all members.
 
@@ -388,64 +391,29 @@ process from boot.exe through the login: prompt.
 
 1. Load kernel and server images
 
-    VSTa is booted from DOS using a large-model DOS program called boot.exe.
-boot.exe takes a single argument which is the kernel image to load.  It
-opens this file using the usual DOS calls, and reads the image into free
-memory just after the end of boot.exe's memory.  It also zeroes out the
-BSS portion.
+    VSTa is booted using a Multiboot-compliant loader.  The loader reads
+in not only the kernel, but also any other additional programs you want.
+The memory image ends up looking something like this:
 
-    boot.exe now opens boot.lst, and reads in a list of files, one per
-line.  For each file, boot.exe opens the file and reads its a.out image
-into successive memory just after the end of the kernel memory image.
-After this process, low memory looks like this:
-
-| DOS | boot.exe | kernel | cons | keybd | wd | dos | ...
-+--------------------------------------------------------
+| Loader | kernel | cons | keybd | wd | dos | ...
++--------------------------------------------
    0 ->
 
-2. Build bootstrap 386 32-bit protected mode data structures
+2. Switch to 32-bit mode
 
-    The i386 defines numerous arcane data structures which need to be
-present to switch from 16-bit real mode to 32-bit protected mode.  These
-data structures must remain intact throughout the gyrations needed to
-get VSTa running, until VSTa is sufficiently "up" to take over with its
-own data structures.  If these structures were tacked onto the end of
-low memory (from our picture, after "dos"), there would be a danger
-that they would be overwritten by VSTa data structures during bootup.
-Therefore, these structures are allocated at the top of low memory,
-from 640K coming down.
-
-... | Copy() | GDT | TSS16 | TSS32 | Data-L2PTEs | Text-L2PTEs | L1PTEs | Stack
-- ------------------------------------------------------------------------------+
-									<- 640K
-
-    "Stack" is a single page of memory used as a stack while switching modes.
-The top couple of words contain parameters which DOS passes to the VSTA kernel.
-These are the size of the kernel plus all boot servers, size of extended
-memory, size of base memory, and the address at which the kernel was loaded.
-L1PTEs is the root of the page tables (CR3), and Text and Data PTEs are the
-the second level PTEs.  Text maps memory 1:1, and Data maps the a.out data
-virtual address (4 Mb) onto the data memory for the kernel image loaded
-in low memory.  GDT, TSS16, and TSS32 are the data structures for describing
-the 32-bit text and data segments, as well as the 32-bit task (used to enter
-32-bit mode).
-
-    Copy() is some position-independent 16-bit code which is the last
-16-bit code executed during bootup of VSTa.  The VSTa kernel image was
-loaded above boot.exe's memory, but the VSTa kernel expects to run from
-a 0 base.  Copy() disables interrupts, copies the VSTa kernel down to
-physical memory starting at 0, switches into protected mode, and jumps
-through the 32-bit TSS to becomes a 32-bit task running in the VSTa
-kernel's locore.s at _start.
+    Multiboot specifies that the loaded kernel is entered in flag
+32-bit mode.
 
 3. Initial VSTa instructions
 
-    VSTa first pops the four DOS parameters off its stack.  It switches
-to its own stack, and calls main().  We are now running in C code.  main()
-will call a number of init routines, discussed below.
+    VSTa has a Multiboot data structure embedded in its low memory.
+The loader has filled this in to indicate memory size, location of
+the additional programs ("modules", in Multiboot parlance), and other
+details of its loaded environment.  A private stack is set, and then
+main() is called, which in turn calls a number of initialization routines.
 
     init_machdep() handles the grotty intial setup of memory.  It uses the
-DOS-passed parameters, and sets up machine-independent descriptions of
+Multiboot-passed parameters, and sets up machine-independent descriptions of
 the memory available.  It also scans the images of the boot servers which
 were concatentated onto the end of the kernel image, and builds a machine-
 independent description of them.  This description will be used soon to
