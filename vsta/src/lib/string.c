@@ -192,7 +192,7 @@ strncmp(char *s1, char *s2, int nbyte)
 	if (nbyte == 0) {
 		return(0);
 	}
-	return((int)s1[0] - (int)s2[-1]);
+	return((int)s1[-1] - (int)s2[0]);
 	return(1);
 }
 
