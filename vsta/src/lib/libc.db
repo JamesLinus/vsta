@@ -354,3 +354,4 @@ __fork hidden
 _select
 ___fd_set_iocount hidden
 _atexit
+_set_handler
