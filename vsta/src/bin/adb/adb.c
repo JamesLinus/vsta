@@ -16,6 +16,7 @@ port_t dbg_port;	/*  ...port we talk to him via */
 
 uint addr, count = 1;	/* Addr/count for each command */
 static FILE *objfile;	/* Open FILE * to object file */
+static char *objname;	/*  ...name of this file */
 jmp_buf errjmp;		/* Recovery from parse errors */
 static struct map	/* Mappings for a.out and core */
 	textmap,
@@ -224,6 +225,56 @@ dump_mem(char *p)
 }
 
 /*
+ * start()
+ *	Run a process from the named object file
+ */
+static void
+start(void)
+{
+	pid_t pid;
+	port_name pn;
+	port_t p;
+
+	/*
+	 * Launch a child.  We wait until our parent attaches.
+	 */
+	corepid = fork();
+	if (corepid == 0) {
+		uint cnt;
+
+		/*
+		 * Wait for parent to rendevous; bail if we haven't
+		 * seen him in 60 seconds.
+		 */
+		cnt = 0;
+		while (ptrace(0, 0) < 0) {
+			__msleep(250);
+			if (++cnt > 4*60) {
+				_exit(1);
+			}
+		}
+
+		/*
+		 * Now run the named program
+		 */
+		execl(objname, objname, (char *)0);
+		_exit(1);
+	}
+
+	/*
+	 * Parent--attach to child, then let him sync to point of
+	 * running new a.out.
+	 */
+	dbg_port = msg_port(0, &pn);
+	if (dbg_port < 0) {
+		perror("Debug port");
+		exit(1);
+	}
+	ptrace(corepid, pn);
+	wait_exec();
+}
+
+/*
  * colon_cmds()
  *	Do the ':' commands
  */
@@ -234,11 +285,20 @@ colon_cmds(char *p)
 
 	switch (*p) {
 	case 'c':
-		read_from = &coremap;
+	case 's':
+	case 'b':
+	case 'd':
+		if (!corepid) {
+			printf("No process\n");
+			return;
+		}
+	}
+	read_from = &coremap;
+	switch (*p) {
+	case 'c':
 		run();
 		break;
 	case 's':
-		read_from = &coremap;
 		step();
 		break;
 	case 'b':
@@ -246,6 +306,13 @@ colon_cmds(char *p)
 		break;
 	case 'd':
 		breakpoint((void *)addr, 0);
+		break;
+	case 'r':
+		if (corepid) {
+			printf("Already running\n");
+			break;
+		}
+		start();
 		break;
 	default:
 		printf("Unknown command: :%s\n", p);
@@ -308,7 +375,7 @@ cmdloop(void)
 	/*
 	 * Get a line, skip over white space
 	 */
-	printf("adb>"); fflush(stdout);
+	write(1, ">", 1);
 	gets(buf);
 	p = buf;
 	SKIP(p);
@@ -366,10 +433,6 @@ cmdloop(void)
 		dump_mem(p);
 		break;
 	case ':':
-		if (!corepid) {
-			printf("No process attached\n");
-			break;
-		}
 		colon_cmds(p);
 		break;
 	case '$':
@@ -408,7 +471,7 @@ main(int argc, char **argv)
 	 * Read symbols from a.out, leave him open so we can
 	 * do "?" examination of him.
 	 */
-	if ((objfile = fopen(argv[1], "r")) == NULL) {
+	if ((objfile = fopen(objname = argv[1], "r")) == NULL) {
 		perror(argv[1]);
 		exit(1);
 	}

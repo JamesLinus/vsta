@@ -17,6 +17,7 @@ extern struct map coremap;
 static void
 	*bpoints[MAX_BPOINT];	/* Breakpoints set */
 static uint nbpoint = 0;	/*  ...how many in bpoints[] */
+static int ever_ran = 0;	/* Tell if first run */
 
 /*
  * sendhim()
@@ -144,7 +145,6 @@ void
 run(void)
 {
 	ulong args[2];
-	static int ever_ran = 0;
 	extern void show_here(void);
 
 	/*
@@ -309,4 +309,33 @@ dump_breakpoints(void)
 	if (nbpoint) {
 		printf("\n");
 	}
+}
+
+/*
+ * wait_exec()
+ *	Fiddle flags and wait for child process to finish exec()'iing
+ */
+wait_exec(void)
+{
+	ulong args[2];
+
+	/*
+	 * Tell him to break on exec completion
+	 */
+	args[0] = PD_EXEC;
+	args[1] = 0;
+	if (sendhim(PD_MASK, args) < 0) {
+		printf("Failed to catch child exec\n");
+		exit(1);
+	}
+
+	/*
+	 * Run to that point.  We're in control, so short-circuit
+	 * run()'s desire to choose a working mask for now.  Set it
+	 * back so they can be set when we run him the first time
+	 * "for real".
+	 */
+	ever_ran = 1;
+	run();
+	ever_ran = 0;
 }
