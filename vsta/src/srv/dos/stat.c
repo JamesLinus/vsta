@@ -241,7 +241,7 @@ dos_wstat(struct msg *m, struct file *f)
 	 * Use the root protection node for root dir, a private
 	 * copy otherwise.
 	 */
-	if (n == rootdir) {
+	if (n == procroot) {
 		prot = &dos_prot;
 	} else {
 		struct directory d;

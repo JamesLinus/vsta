@@ -3,6 +3,7 @@
  *	Main loop for message processing
  */
 #include "dos.h"
+#include "fat.h"	/* For fat_size */
 #include <sys/fs.h>
 #include <sys/perm.h>
 #include <sys/namer.h>
@@ -89,8 +90,8 @@ new_client(struct msg *m)
 	 * possesses.  For an M_CONNECT, the message is
 	 * from the kernel, and trusted.
 	 */
-	f->f_node = rootdir;
-	ref_node(rootdir);
+	f->f_node = procroot;
+	ref_node(procroot);
 	f->f_pos = 0L;
 	f->f_perm = uperms;
 
@@ -507,7 +508,7 @@ main(int argc, char *argv[])
 	/*
 	 * Start serving requests for the filesystem
 	 */
-	syslog(LOG_INFO, "filesystem established");
+	syslog(LOG_INFO, "FAT%d filesystem established", fat_size);
 	dos_main();
 	return(0);
 }

@@ -1,10 +1,10 @@
-CC= gcc
-LD= ld
-INCS= -I../../../include
-CFLAGS= -Wall -DDEBUG $(INCS) -O
-LDFLAGS= -L../../lib
-OBJS= main.o fat.o node.o dir.o open.o rw.o stat.o fat16.o fat12.o
-LIBS= -lsrv
+CC=gcc
+LD=ld
+INCS=-I../../../include
+CFLAGS=-Wall -DDEBUG $(INCS) -O
+LDFLAGS=-L../../lib
+OBJS=main.o fat.o node.o dir.o open.o rw.o stat.o fat16.o fat12.o fat32.o
+LIBS=-lsrv
 
 all: dos
 .c.o:

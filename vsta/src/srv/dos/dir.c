@@ -13,7 +13,8 @@
 #include <sys/assert.h>
 #include <syslog.h>
 
-struct node *rootdir;		/* Root dir always here */
+struct node *rootdir,		/* Flag special root handling: FAT12/16 */
+	*procroot;		/* Starting CWD for new attachees */
 static uint rootsize;		/* # bytes in root dir data */
 static int root_dirty = 0;	/*  ...needs to be flushed to disk */
 static struct directory		/* Root dir contents */
@@ -23,6 +24,7 @@ static uint cldirs,		/* # dir entries in a cluster */
 struct hash *dirhash;		/* Maps dirs to nodes */
 static struct hash
 	*rename_pending;	/* Tabulate pending renames */
+claddr_t root_cluster;		/* Root cluster #, if FAT32 */
 
 /*
  * ddirty()
@@ -70,39 +72,61 @@ dir_init(void)
 	/*
 	 * Get the root dir, fill it in
 	 */
-	n = rootdir = malloc(sizeof(struct node));
+	n = procroot = malloc(sizeof(struct node));
 	if (n == 0) {
 		syslog(LOG_ERR, "dir_init: root");
 		exit(1);
 	}
 	n->n_type = T_DIR;
-	n->n_clust = 0;		/* Flag root dir */
-	n->n_inum = 0L;		/* Root is inode 0 */
+	n->n_inum = 0L;			/* Root is inode 0 */
 	n->n_mode = 0;
-	n->n_refs = 1;		/* Always ref'ed */
+	n->n_refs = 1;			/* Always ref'ed */
 	n->n_files = hash_alloc(16);
 
-	/*
-	 * The root dir is special in many ways.  Its directory
-	 * entries exist in data blocks which are not addressible
-	 * using the cluster values used by everyone else; in fact,
-	 * I can't find any reason to assume the size will even be
-	 * in multiples of clusters.  Therefore we read the entire
-	 * contents into a malloc()'ed buffer, and flush the buffer
-	 * back in units of sectors as needed.
-	 */
-	rootsize = dirents * sizeof(struct directory);
-	rootdirents = malloc(rootsize);
-	if (rootdirents == 0) {
-		syslog(LOG_ERR, "dir_init: rootdirents");
-		exit(1);
-	}
-	lseek(blkdev,
-		(bootb.nrsvsect+(bootb.nfat * bootb.fatlen))*(ulong)SECSZ,
-		0);
-	if (read(blkdev, rootdirents, rootsize) != rootsize) {
-		syslog(LOG_ERR, "dir_init: unable to read root");
-		exit(1);
+	if (!root_cluster) {
+		/*
+		 * For FAT12 and FAT16:
+		 * The root dir is special in many ways.  Its directory
+		 * entries exist in data blocks which are not addressible
+		 * using the cluster values used by everyone else; in fact,
+		 * I can't find any reason to assume the size will even be
+		 * in multiples of clusters.  Therefore we read the entire
+		 * contents into a malloc()'ed buffer, and flush the buffer
+		 * back in units of sectors as needed.
+		 */
+		rootsize = dirents * sizeof(struct directory);
+		rootdirents = malloc(rootsize);
+		if (rootdirents == 0) {
+			syslog(LOG_ERR, "dir_init: rootdirents");
+			exit(1);
+		}
+		lseek(blkdev,
+			(bootb.nrsvsect+(bootb.nfat * bootb.fatlen))*(ulong)SECSZ,
+			0);
+		if (read(blkdev, rootdirents, rootsize) != rootsize) {
+			syslog(LOG_ERR, "dir_init: unable to read root");
+			exit(1);
+		}
+
+		/*
+		 * This root directory pointer keys all the special cases
+		 * for dealing with a non-cluster allocated root.
+		 */
+		n->n_clust = 0;
+		rootdir = n;
+	} else {
+		/*
+		 * The root directory is a normal cluster-based entity
+		 * in FAT32.  We'll always hold the root node in core,
+		 * but we need a pseudo directory entry in order to set
+		 * up the cluster chain.
+		 */
+		struct directory d;
+
+		ASSERT_DEBUG(root_cluster < 65536, "dir_init: root dir high");
+		d.start = root_cluster;
+		d.startHi = 0;
+		n->n_clust = alloc_clust(&d);
 	}
 
 	/*

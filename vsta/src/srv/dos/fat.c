@@ -13,7 +13,6 @@
 #include <sys/param.h>
 #include <sys/assert.h>
 #include <fcntl.h>
-#include <syslog.h>
 
 uint clsize;		/* Size of cluster, in bytes */
 uint dirents;		/* # directory entries */
@@ -41,23 +40,21 @@ fat_init(void)
 	 */
 	ASSERT((bootb.secsize0 + (bootb.secsize1 << 8)) == SECSZ,
 		"fat_init: bad sector size");
-	dirents = bootb.dirents0 + (bootb.dirents1 << 8);
 	clsize = bootb.clsize * SECSZ;
 
 	/*
 	 * Figure out FAT size
 	 */
 	if (bootb.fatlen == 0) {
+		extern struct fatops fat32ops;
+
 		/*
 		 * If the FAT size in the base of the boot sector is 0,
 		 * we know it's FAT32 (and the actual FAT size is in a
-		 * FAT32 extension).
+		 * FAT32 extension, which the FAT32 fatops will handle).
 		 */
-		ASSERT(0, "fat32: not supported yet");
-		/* fat_size = 32;
+		fat_size = 32;
 		fatops = &fat32ops;
-		XXX make sure fat32_init fills in nclust and data0!
-		*/
 	} else {
 		/*
 		 * Figure out the filesystem size.
@@ -65,6 +62,7 @@ fat_init(void)
 		 * of the FAT12/16 code.
 		 */
 		uint x = bootb.psect0 + (bootb.psect1 << 8);
+		dirents = bootb.dirents0 + (bootb.dirents1 << 8);
 		data0 = bootb.nrsvsect + (bootb.nfat * bootb.fatlen) +
 			(dirents * sizeof(struct directory)) / SECSZ;
 		if (x > 0) {

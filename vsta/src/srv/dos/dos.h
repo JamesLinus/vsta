@@ -189,7 +189,7 @@ extern uint clsize;
  * Node handling routines
  */
 extern void rw_init(void);
-extern struct node *rootdir;
+extern struct node *rootdir, *procroot;
 extern struct node *do_lookup(struct node *, char *);
 extern void ref_node(struct node *),
 	deref_node(struct node *);
@@ -241,5 +241,6 @@ extern struct boot bootb;
 extern uint dirents;
 extern struct node *rootdir;
 extern ulong data0;
+extern claddr_t root_cluster;
 
 #endif /* _DOS_H */
