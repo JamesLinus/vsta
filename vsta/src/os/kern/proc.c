@@ -371,6 +371,7 @@ fork(void)
 	tnew->t_hd = tnew->t_tl = tnew;
 	tnew->t_next = 0;
 	tnew->t_wchan = 0;
+	tnew->t_intr = 0;
 	init_sema(&tnew->t_msgwait);
 	tnew->t_probe = 0;
 	tnew->t_err[0] = '\0';
