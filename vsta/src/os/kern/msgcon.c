@@ -14,17 +14,18 @@
 #include <sys/proc.h>
 #include <sys/thread.h>
 
+#define START_ROTOR (1024)	/* Where we start searching for an open # */
+
 extern void *malloc();
 extern void disable_isr();
 extern struct portref *delete_portref();
 extern struct port *delete_port();
 
-#define M (1024*1024)		/* A meg */
-
 static sema_t name_sema;	/* Mutex for portnames and rotor */
 static struct hash		/* Map port names->addresses */
 	*portnames;
-static ulong rotor = 128*M;	/* Where we start searching for an open # */
+static ulong rotor =		/* Rotor for searching next ID */
+	START_ROTOR;
 
 /*
  * ref_port()
@@ -95,7 +96,7 @@ deref_port(struct port *port, struct portref *pr)
  * If port_name is 0, we generate one for them.
  */
 port_t
-msg_port(port_name arg_port)
+msg_port(port_name arg_port, port_name *arg_portp)
 {
 	struct port *port;
 	struct proc *p = curthread->t_proc;
@@ -139,9 +140,12 @@ msg_port(port_name arg_port)
 	 * If needed, pick a new number
 	 */
 	p_sema(&name_sema, PRIHI);
-	if (!p) {
-		while (!hash_lookup(portnames, rotor)) {
+	if (arg_port == 0) {
+		while (hash_lookup(portnames, rotor)) {
 			++rotor;
+			if (rotor == 0) {
+				rotor = START_ROTOR;
+			}
 		}
 		arg_port = rotor++;
 	} else {
@@ -168,6 +172,13 @@ msg_port(port_name arg_port)
 	 */
 	p->p_ports[slot] = port;
 	v_sema(&p->p_sema);
+
+	/*
+	 * If non-NULL second argument, return name to caller
+	 */
+	if (arg_portp) {
+		(void)copyout(arg_portp, &arg_port, sizeof(arg_port));
+	}
 	return(slot+PROCOPENS);
 }
 
