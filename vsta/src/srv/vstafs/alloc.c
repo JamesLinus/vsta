@@ -128,7 +128,9 @@ alloc_block(uint nblk)
 	/*
 	 * Sync the free list.
 	 */
-	write_sec(fr->fr_this, &fr->fr_free);
+	if (fr) {
+		write_sec(fr->fr_this, &fr->fr_free);
+	}
 	return(d);
 }
 
