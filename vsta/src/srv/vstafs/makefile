@@ -1,15 +1,16 @@
 CC=gcc
 LD=ld
 INCS=-I../../../include
-CFLAGS=-DDEBUG -Wall $(INCS)
+CFLAGS=-O -DDEBUG -Wall $(INCS)
 OBJS=main.o alloc.o secio.o buf.o node.o rw.o open.o stat.o
-LIBS=-L../../lib -lusr -lc
+LIBS=-L../../lib -lusr -lc_s
+CRT0=../../lib/crt0srv.o
 
 .c.o:
 	$(CC) $(CFLAGS) -c $*.c
 
 vstafs: $(OBJS)
-	$(LD) -o vstafs ../../lib/crt0.o $(OBJS) $(LIBS)
+	$(LD) -o vstafs $(CRT0) $(OBJS) $(LIBS)
 
 clean:
 	rm -f *.o
