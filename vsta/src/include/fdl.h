@@ -19,4 +19,10 @@ struct port {
 	uint p_refs;	/* # FD's mapping to this port # */
 };
 
+/*
+ * Internal routines
+ */
+extern uint __fd_size(void);
+extern void __fd_save(char *, ulong), __fd_restore(char *);
+
 #endif /* _FDL_H */
