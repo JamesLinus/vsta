@@ -34,8 +34,6 @@
 #include <sys/malloc.h>
 /* #define WATCHMEM /* */
 
-extern struct portref *swapdev;
-
 #define CONTAINS(base, cnt, num) \
 	(((num) >= (base)) && ((num) < ((base)+(cnt))))
 
