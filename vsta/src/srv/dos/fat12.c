@@ -374,5 +374,6 @@ struct fatops fat12ops = {
 	fat12_init,
 	fat12_setlen,
 	fat12_alloc,
-	fat12_sync
+	fat12_sync,
+	NULL
 };

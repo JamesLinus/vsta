@@ -150,6 +150,53 @@ dos_write(struct msg *m, struct file *f)
 }
 
 /*
+ * dos_prealloc()
+ *	Preallocate contiguous storage to file
+ *
+ * Note that this routine is invoked in response to a wstat().
+ */
+void
+dos_prealloc(struct msg *m, struct file *f, ulong newsize)
+{
+	struct node *n = f->f_node;
+
+	/*
+	 * Can only change files, and only if open for writing
+	 */
+	if ((n->n_type == T_DIR) || !(f->f_perm & ACC_WRITE)) {
+		msg_err(m->m_sender, EPERM);
+		return;
+	}
+
+	/*
+	 * Must be zero length until now
+	 */
+	if (n->n_len > 0) {
+		msg_err(m->m_sender, EBUSY);
+		return;
+	}
+
+	/*
+	 * Try to get the clusters
+	 */
+	if (clust_prealloc(n->n_clust, newsize)) {
+		msg_err(m->m_sender, ENOSPC);
+		return;
+	}
+
+	/*
+	 * It worked; update the file's state
+	 */
+	n->n_len = newsize;
+	write_zero(n, 0, newsize);
+	n->n_flags |= N_DIRTY;
+
+	/* Return success */
+	m->m_arg = m->m_arg1 = m->m_nseg = 0;
+	msg_reply(m->m_sender, m);
+}
+
+/*
  * pack_name()
  *	Pack a DOS name into a UNIX-ish format
  */

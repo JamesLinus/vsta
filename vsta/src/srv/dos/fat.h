@@ -15,6 +15,7 @@ struct fatops {
 	struct clust *((*alloc)			/* Allocate new */
 		(struct clust *, struct directory *));
 	void (*sync)(void);			/* Flush to disk */
+	int (*prealloc)(struct clust *, uint);	/* Allocate contiguous */
 };
 
 /*

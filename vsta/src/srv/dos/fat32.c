@@ -507,11 +507,103 @@ fat32_sync(void)
 }
 
 /*
+ * fat32_prealloc()
+ *	Allocate contiguous blocks
+ *
+ * Returns 0 if it could be done; 1 if it failed.
+ */
+static int
+fat32_prealloc(struct clust *c, uint newclust)
+{
+	uint clust_cnt, x;
+	claddr_t cl, cl2, *ctmp;
+
+	/*
+	 * Scan for a contiguous run of blocks which satisfy
+	 * the requested amount.
+	 */
+	clust_cnt = 0;
+	for (cl = 0; cl < nclust; ++cl) {
+		/* Allocated... continue scan */
+		if (get(cl)) {
+			continue;
+		}
+
+		/* See if there's enough starting from here */
+		cl2 = cl;
+		clust_cnt = 0;
+		for (cl2 = cl; cl2 < nclust; ++cl2) {
+			if (get(cl2)) {
+				cl = cl2;
+				break;
+			}
+			if (++clust_cnt >= newclust) {
+				break;
+			}
+		}
+
+		/* End loop if we found a sufficient run here */
+		if (clust_cnt >= newclust) {
+			break;
+		}
+	}
+
+	/*
+	 * If we couldn't find it, return failure
+	 */
+	if (clust_cnt < newclust) {
+		return(1);
+	}
+
+	/*
+	 * Get the cluster list to hold these blocks
+	 */
+	ctmp = malloc(newclust * sizeof(claddr_t));
+	if (ctmp == NULL) {
+		return(1);
+	}
+
+	/*
+	 * Fill in list of cluster numbers and mark FAT entries consumed
+	 */
+	for (x = 0; x < newclust; ++x) {
+		cl2 = ctmp[x] = cl + x;
+
+		/*
+		 * All but the last points to the next one up.  The
+		 * last flags EOF.
+		 */
+		if (x < newclust-1) {
+			set(cl2, cl2 + 1);
+		} else {
+			set(cl2, FAT_EOF);
+		}
+	}
+
+	/*
+	 * Attach to the cluster struct
+	 */
+	c->c_clust = ctmp;
+	c->c_nclust = newclust;
+
+	/*
+	 * Update the free list count
+	 */
+	if (info) {
+		info->free -= newclust;
+	}
+
+	fat_dirty = 1;
+	return(0);
+}
+
+/*
  * Our registered vectors
  */
 struct fatops fat32ops = {
 	fat32_init,
 	fat32_setlen,
 	fat32_alloc,
-	fat32_sync
+	fat32_sync,
+	fat32_prealloc
 };

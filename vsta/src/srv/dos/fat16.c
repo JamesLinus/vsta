@@ -324,5 +324,6 @@ struct fatops fat16ops = {
 	fat16_init,
 	fat16_setlen,
 	fat16_alloc,
-	fat16_sync
+	fat16_sync,
+	NULL
 };

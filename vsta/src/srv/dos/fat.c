@@ -209,3 +209,26 @@ get_clust(struct clust *c, uint idx)
 	ASSERT_DEBUG(c->c_nclust > idx, "get_clust: bad index");
 	return(c->c_clust[idx]);
 }
+
+/*
+ * prealloc()
+ *	Allocate contiguous disk storage to a file
+ *
+ * Returns 0 on success, 1 on failure.
+ */
+int
+clust_prealloc(struct clust *c, ulong newlen)
+{
+	ulong newclust = roundup(newlen, clsize) / clsize;
+
+	/* Can't have any existing space allocated */
+	ASSERT_DEBUG(c->c_nclust == 0, "clust_prealloc: nclust > 0");
+
+	/* Make sure the FAT layer supports it */
+	if (!fatops->prealloc) {
+		return(1);
+	}
+
+	/* Vector out to the FAT layer */
+	return(fatops->prealloc(c, newclust));
+}

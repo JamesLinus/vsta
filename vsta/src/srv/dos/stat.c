@@ -178,7 +178,8 @@ dos_stat(struct msg *m, struct file *f)
 		(void)dir_copy(n->n_dir, n->n_slot, &d);
 		p = result;
 	} else {
-		sprintf(result, "clsize=%d\n", CLSIZE);
+		sprintf(result, "clsize=%d\ndata0=%lu\n",
+			CLSIZE, data0);
 		p = result + strlen(result);
 	}
 	sprintf(p,
@@ -253,7 +254,7 @@ accum_ro(struct prot *p)
 void
 dos_wstat(struct msg *m, struct file *f)
 {
-	char *field, *val;
+	char *field, *val = NULL;
 	struct prot *prot, tmp_prot;
 	struct node *n = f->f_node;
 	int was_ro = 0;
@@ -287,7 +288,7 @@ dos_wstat(struct msg *m, struct file *f)
 		}
 		return;
 	}
-	if (!strcmp(field, "mtime")) {
+	if (!strcmp(field, "mtime") && val) {
 		time_t t;
 
 		/*
@@ -297,11 +298,14 @@ dos_wstat(struct msg *m, struct file *f)
 		dir_timestamp(n, t);
 	} else if (!strcmp(field, "atime")) {
 		/* Do nothing, but don't return an error */ ;
-	} else if (!strcmp(field, "type")) {
+	} else if (!strcmp(field, "type") && val) {
 		if (dir_set_type(f, val)) {
 			msg_err(m->m_sender, EINVAL);
 			return;
 		}
+	} else if (!strcmp(field, "contig") && val) {
+		ulong sz = atoi(val);
+		dos_prealloc(m, f, sz);
 	} else {
 		/*
 		 * Unsupported operation

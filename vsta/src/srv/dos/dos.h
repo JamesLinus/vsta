@@ -242,7 +242,8 @@ extern void clust_init(void);
 extern struct clust *alloc_clust(struct directory *);
 extern void free_clust(struct clust *);
 extern void fat_sync(void);
-extern int clust_setlen(struct clust *, ulong);
+extern int clust_setlen(struct clust *, ulong),
+	clust_prealloc(struct clust *, ulong);
 extern claddr_t get_clust(struct clust *, uint);
 
 /*
@@ -266,7 +267,8 @@ extern void dos_open(struct msg *, struct file *),
 	dos_remove(struct msg *, struct file *),
 	dos_stat(struct msg *, struct file *),
 	dos_wstat(struct msg *, struct file *),
-	dos_fid(struct msg *, struct file *);
+	dos_fid(struct msg *, struct file *),
+	dos_prealloc(struct msg *, struct file *, ulong);
 extern void timestamp(struct directory *, time_t),
 	dir_timestamp(struct node *, time_t);
 extern int dir_set_type(struct file *, char *);
