@@ -304,6 +304,7 @@ main(int argc, char *argv[])
 	rootnode.n_internal = 1;
 	ll_init(&rootnode.n_elems);
 	rootnode.n_refs = 1;	/* Always at least 1 */
+	rootnode.n_owner = 0;
 
 	/*
 	 * Block device looks good.  Last check is that we can register
