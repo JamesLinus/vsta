@@ -2,6 +2,7 @@
  * dir.c
  *	Do readdir() operation
  */
+#include <stdio.h>
 #include <sys/fs.h>
 #include <std.h>
 #include "wd.h"
@@ -16,7 +17,7 @@ extern struct disk disks[];
  *
  * Returns 1 if it wouldn't fit, 0 if it fits and was added.
  */
-static
+static int
 add_ent(char *buf, char *p, uint len)
 {
 	uint left, x;
@@ -39,7 +40,7 @@ void
 wd_readdir(struct msg *m, struct file *f)
 {
 	uint x, y, entries, len, nent = 0;
-	char *buf, *p, tmp[32];
+	char *buf;
 	struct disk *d;
 
 	/*
@@ -69,28 +70,17 @@ wd_readdir(struct msg *m, struct file *f)
 		}
 
 		/*
-		 * Whole disk counts as an entry
-		 */
-		if (entries >= f->f_pos) {
-			sprintf(tmp, "wd%d", x);
-			nent++;
-			if (add_ent(buf, tmp, len)) {
-				goto done;
-			}
-		}
-		entries++;
-
-		/*
 		 * Scan partition table
 		 */
 		d = &disks[x];
-		for (y = 0; y < NPART; ++y) {
-			if (d->d_parts[y].p_val == 0) {
+		for (y = 0; y <= MAX_PARTS; ++y) {
+			if ((d->d_parts[y] == NULL)
+					|| (d->d_parts[y]->p_val == 0)) {
 				continue;
 			}
 			if (entries >= f->f_pos) {
 				nent++;
-				if (add_ent(buf, d->d_parts[y].p_name, len)) {
+				if (add_ent(buf, d->d_parts[y]->p_name, len)) {
 					goto done;
 				}
 			}
@@ -146,7 +136,7 @@ wd_open(struct msg *m, struct file *f)
 	}
 
 	/*
-	 * Next digit is always unit #
+	 * Next digit is always the unit number
 	 */
 	unit = p[2] - '0';
 	if (unit > NWD) {
@@ -155,24 +145,13 @@ wd_open(struct msg *m, struct file *f)
 	}
 
 	/*
-	 * If its's just "wdN", it's the whole-disk interface
-	 * XXX add per-partition protection
-	 */
-	if (strlen(p) == 3) {
-		f->f_node = MKNODE(unit, WHOLE_DISK);
-		m->m_nseg = m->m_arg = m->m_arg1 = 0;
-		msg_reply(m->m_sender, m);
-		return;
-	}
-
-	/*
 	 * Otherwise scan names for a match
 	 */
-	for (x = 0; x < NPART; ++x) {
+	for (x = FIRST_PART; x <= LAST_PART; ++x) {
 		struct part *part;
 
-		part = &disks[unit].d_parts[x];
-		if (part->p_val == 0) {
+		part = disks[unit].d_parts[x];
+		if ((part == NULL) || (part->p_val == 0)) {
 			continue;
 		}
 		if (!strcmp(part->p_name, p)) {

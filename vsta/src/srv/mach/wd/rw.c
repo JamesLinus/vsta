@@ -2,10 +2,12 @@
  * rw.c
  *	Reads and writes to the hard disk
  */
+#include <stdio.h>
 #include <sys/fs.h>
 #include <llist.h>
 #include <sys/assert.h>
-#include <std.h>
+#include <stdlib.h>
+#include <syslog.h>
 #include "wd.h"
 
 extern void wd_readdir();
@@ -13,17 +15,25 @@ extern void wd_readdir();
 /*
  * Busy/waiter flags
  */
-int busy;		/* Busy, and unit # */
+int busy;			/* Busy, and unit # */
 int busy_unit;
-struct llist waiters;	/* Who's waiting */
+struct llist waiters;		/* Who's waiting */
+char *secbuf = NULL;
 
-extern int upyet;	/* All partitioning read yet? */
+extern uint partundef;		/* All partitioning read yet? */
+extern char configed[];
+extern struct disk disks[];
+extern struct wdparms parm[];
+
+
+static int update_partition_list(int, int);
+
 
 /*
  * queue_io()
  *	Record parameters of I/O, queue to unit
  */
-static
+static int
 queue_io(struct msg *m, struct file *f)
 {
 	uint unit, cnt;
@@ -35,7 +45,8 @@ queue_io(struct msg *m, struct file *f)
 	/*
 	 * Get a block offset based on partition
 	 */
-	switch (get_offset(f->f_node, f->f_pos / SECSZ, &part_off, &cnt)) {
+	switch (dpart_get_offset(disks[unit].d_parts, NODE_SLOT(f->f_node),
+				 f->f_pos / SECSZ, &part_off, &cnt)) {
 	case 0:			/* Everything's OK */
 		break;
 	case 1:			/* At end of partition (EOF) */
@@ -141,7 +152,7 @@ wd_rw(struct msg *m, struct file *f)
 	/*
 	 * Check size and alignment
 	 */
-	if ((m->m_arg & (SECSZ-1)) ||
+	if ((m->m_arg & (SECSZ - 1)) ||
 			(m->m_arg > MAXIO) ||
 			(m->m_arg == 0) ||
 			(f->f_pos & (SECSZ-1))) {
@@ -170,49 +181,51 @@ wd_rw(struct msg *m, struct file *f)
  * iodone()
  *	Called from disk level when an I/O is completed
  *
- * This routine has two modes; before upyet, we are just iteratively
- * reading first sectors of configured disks, and firing up our
- * partition interpreter to get partitioning information.  Once
- * we've done this for all disks, this routine becomes your standard
- * "finish one, start another" handler.
+ * This routine has two modes; before partundef is 0, we are just iteratively
+ * reading first sectors of configured disks, and firing up our partition
+ * interpreter to get partitioning information.  Once we've done this for all
+ * disks, this routine becomes your standard "finish one, start another"
+ * handler.
  */
 void
 iodone(void *tran, int result)
 {
-	int x;
 	uint unit;
 	struct file *f;
 
 	ASSERT_DEBUG(tran != 0, "iodone: null tran");
 
 	/*
-	 * Special case before we're "upyet"
+	 * Special case when the partition entries are undefined
 	 */
-	if (!upyet) {
-		extern char *secbuf;
-
+	if (partundef) {
 		/*
 		 * "tran" is just our unit #, casted
 		 */
 		unit = ((uint)tran) - 1;
-		ASSERT(unit < NWD, "iodone: !upyet bad unit");
-		init_part(unit, secbuf);
-
-		/*
-		 * Find next unit to process
-		 */
-		for (x = unit+1; x < NWD; ++x) {
-			if (configed[x]) {
-				wd_io(FS_READ, (void *)(x+1),
-					x, 0L, secbuf, 1);
-				return;
-			}
+		ASSERT(unit < NWD, "iodone: partundef bad unit");
+		if (update_partition_list(unit, 0) == 0) {
+			return;
 		}
 
 		/*
-		 * We've covered all--ready for clients!
+		 * OK, have we now read all of the partition data?
 		 */
-		upyet = 1;
+		if (partundef) {
+			int i;
+
+			for (i = 0; i < NWD; i++) {
+				if (partundef & (1 << i)) {
+					if (configed[i]) {
+						update_partition_list(i, 1);
+						return;
+					} else {
+						partundef &= (0xffffffff
+							      ^ (1 << i));
+					}
+				}
+			}		
+		}
 		return;
 	}
 
@@ -266,4 +279,98 @@ void
 rw_init(void)
 {
 	ll_init(&waiters);
+}
+
+
+/*
+ * rw_readpartitions()
+ *	Read the drive partition tables for the specified disk
+ *
+ * We start with the assumption that any parameters we already have must be
+ * invalidated, so we perform the invalidation first.  Note that if other
+ * partition lists have been invalidated elsewhere that these will be
+ * refetched when we fetch these
+ */
+void
+rw_readpartitions(int unit)
+{
+	/*
+	 * First, bounce any requests to non-configured drives
+	 */
+	if (!configed[unit]) {
+		return;
+	}
+
+	/*
+	 * Ensure that we have a suitable sector buffer with which to work
+	 */
+	if (secbuf == NULL) {
+		secbuf = malloc(SECSZ * 2);
+		if (secbuf == NULL) {
+			syslog(LOG_ERR, "wd: sector buffer");
+			return;
+		}
+		secbuf = (char *)roundup((long)secbuf, SECSZ);
+	}
+
+	/*
+	 * Reset the partition valid flag for this unit
+	 */
+	partundef |= (1 << unit);
+
+	/*
+	 * We now issue successive calls to read any unknown partition
+	 * information
+	 */
+	update_partition_list(unit, 1);
+}
+
+
+/*
+ * update_partition_list()
+ *	Update the partition data for the specified disk unit
+ *
+ * This routine is called to carry out the management of disk partition
+ * data.  It is responsible for issuing read requests and tracking which
+ * device is being talked to
+ *
+ * Returns 1 when the update is complete, 0 if it's only partway done.
+ */
+static int
+update_partition_list(int unit, int initiating)
+{
+	static int sector_num, next_part;
+
+	/*
+	 * Are we initiating a partition read?
+	 */
+	if (initiating) {
+		/*
+		 * OK, zero down the reference markers, establish the
+		 * "whole disk" parameters and do the 1st read
+		 */
+		dpart_init_whole("wd", unit, parm[unit].w_size,
+				 disks[unit].d_parts);
+		sector_num = 0;
+		next_part = FIRST_PART;
+		wd_io(FS_READ, (void *)(unit + 1), unit, 0L, secbuf, 1);
+		return 0;
+	} else {
+		/*
+		 * We must bein the middle of an update so sort out the
+		 * table manipulations and start any further reads
+		 */
+		if (dpart_init("wd", unit, secbuf, &sector_num,
+			       disks[unit].d_parts, &next_part) == 0) {
+			sector_num = 0;
+		}
+		if (sector_num != 0) {
+			wd_io(FS_READ, (void *)(unit + 1), unit,
+			      sector_num, secbuf, 1);
+			return 0;
+		} else {
+			partundef &= (0xffffffff ^ (1 << unit));
+			return 1;
+	        }
+	}
 }

@@ -9,7 +9,11 @@
 #include <sys/fs.h>
 #include <sys/assert.h>
 #include <mach/nvram.h>
+#include <mach/io.h>
 #include <syslog.h>
+#include <std.h>
+#include <stdio.h>
+#include <time.h>
 #include "wd.h"
 
 static int wd_cmd(int);
@@ -100,7 +104,7 @@ wd_init(int argc, char **argv)
 	 * Ask him if he's OK
 	 */
 	if (wd_cmd(WDC_DIAG) < 0) {
-		syslog(LOG_ERR, "WD controller fails diagnostic\n");
+		syslog(LOG_ERR, "wd: controller fails diagnostic\n");
 		exit(1);
 	}
 	inportb(WD_PORT+WD_ERROR);
@@ -189,6 +193,7 @@ wd_init(int argc, char **argv)
  *
  * Returns 0 on successfully initiated I/O, 1 on error.
  */
+int
 wd_io(int op, void *handle, uint unit, ulong secnum, void *va, uint secs)
 {
 	ASSERT_DEBUG(unit < NWD, "wd_io: bad unit");
@@ -313,7 +318,7 @@ wd_isr(void)
 		void *v;
 
 		syslog(LOG_ERR, "wd: hard error unit %d sector %d error=0x%x\n",
-			cur_unit, cur_sec, inportb(WD_PORT+WD_ERROR));
+		       cur_unit, cur_sec, inportb(WD_PORT+WD_ERROR));
 		v = busy;
 		busy = 0;
 		iodone(v, -1);
@@ -380,7 +385,7 @@ wd_isr(void)
  *
  * Returns -1 on error, otherwise value of status byte.
  */
-static
+static int
 wd_cmd(int cmd)
 {
 	uint count;
@@ -417,16 +422,17 @@ wd_cmd(int cmd)
  * readp_data()
  *	After sending a READP command, wait for data and place in buffer
  */
-static
+static int
 readp_data(void)
 {
 	uint count;
-	int stat;
 
 	/*
 	 * Wait for data or error
 	 */
-	for (;;) {
+	for (count = 200000; count > 0; --count) {
+		uint stat;
+
 		stat = inportb(WD_PORT + WD_STATUS);
 		if (stat & WDS_ERROR) {
 			return(-1);
@@ -434,10 +440,8 @@ readp_data(void)
 		if (stat & WDS_DRQ) {
 			return(stat);
 		}
-		if (--count == 0) {
-			return(-1);
-		}
 	}
+	return(-1);
 }
 
 /*
@@ -551,7 +555,7 @@ wd_cmos(int unit)
 	 */
 	if (unit > 1) {
 		syslog(LOG_ERR,
-			"wd%d: only 0 and 1 have CMOS information\n", unit);
+		       "wd%d: only 0 and 1 have CMOS information\n", unit);
 		return;
 	}
 

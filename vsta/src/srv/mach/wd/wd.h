@@ -6,7 +6,7 @@
  */
 #include <sys/types.h>
 #include <sys/perm.h>
-#include "fdisk.h"
+#include <mach/dpart.h>
 
 #define NWD (2)		/* Max # WD units supported */
 
@@ -113,6 +113,15 @@ struct wdparms {
 };
 
 /*
+ * Values for f_nodes
+ */
+#define ROOTDIR (-1)		/* Root */
+#define NODE_UNIT(n) ((n >> 4) & 0xFF)
+				/* Unit number */
+#define NODE_SLOT(n) (n & 0xF)	/* Partition in unit */
+#define MKNODE(unit, slot) ((((unit) & 0xFF) << 4) | (slot))
+				/* Merge unit and slot to make node number */
+/*
  * State of an open file
  */
 struct file {
@@ -132,39 +141,18 @@ struct file {
 };
 
 /*
- * Values for f_node
- */
-#define ROOTDIR (-1)				/* Root */
-#define NODE_UNIT(n) ((n >> 4) & 0xFF)		/* Unit # */
-#define NODE_SLOT(n) (n & 0xF)			/* Partition in unit */
-#define WHOLE_DISK (0xF)			/*  ...last is whole disk */
-#define MKNODE(unit, slot) ((((unit) & 0xFF) << 4) | (slot))
-
-/*
- * Shape of a partition
- */
-struct part {
-	char p_name[16];	/* Symbolic name */
-	ulong p_off;		/* Sector offset */
-	ulong p_len;		/*  ...length */
-	int p_val;		/* Valid slot? */
-	struct prot		/* Protection for partition */
-		p_prot;
-};
-
-/*
  * State of a disk
  */
 struct disk {
 	struct prot		/* Protection for whole-disk */
 		d_prot;
 	struct part		/* Partitions */
-		d_parts[NPART];
+		*d_parts[MAX_PARTS];
 };
 
-extern int get_offset(int, ulong, ulong *, uint *);
 extern void wd_init(int, char **);
 extern void iodone();
 extern char configed[];
+extern int wd_io(int, void *, uint, ulong, void *, uint);
 
 #endif /* _WD_H */

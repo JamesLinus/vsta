@@ -5,12 +5,15 @@
 #include <sys/param.h>
 #include <sys/perm.h>
 #include <sys/fs.h>
+#include <std.h>
+#include <stdio.h>
 #include "wd.h"
 
 extern char *perm_print();
 extern struct wdparms parm[];
 extern struct disk disks[];
 extern struct prot wd_prot;
+extern int do_wstat();
 
 /*
  * find_prot()
@@ -30,7 +33,7 @@ find_prot(int node)
 		if (part == WHOLE_DISK) {
 			p = &disks[unit].d_prot;
 		} else {
-			p = &disks[unit].d_parts[part].p_prot;
+			p = &disks[unit].d_parts[part]->p_prot;
 		}
 	}
 	return(p);
@@ -44,7 +47,7 @@ void
 wd_stat(struct msg *m, struct file *f)
 {
 	char buf[MAXSTAT];
-	uint size, node, part1;
+	uint size, node;
 	char type;
 	struct prot *p;
 
@@ -61,7 +64,7 @@ wd_stat(struct msg *m, struct file *f)
 		if (part == WHOLE_DISK) {
 			size = parm[unit].w_size;
 		} else {
-			size = disks[unit].d_parts[part].p_len;
+			size = disks[unit].d_parts[part]->p_len;
 		}
 		size *= SECSZ;
 		type = 's';

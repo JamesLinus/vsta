@@ -10,18 +10,21 @@
 #include <stdio.h>
 #include <sys/param.h>
 #include <sys/assert.h>
+#include <sys/syscall.h>
 #include <std.h>
 #include <syslog.h>
 #include "wd.h"
 
 extern void wd_rw(), wd_init(), rw_init(), wd_isr(),
-	wd_stat(), wd_wstat(), wd_readdir(), wd_open();
+	wd_stat(), wd_wstat(), wd_readdir(), wd_open(),
+	rw_readpartitions();
+extern int valid_fname();
 
 static struct hash *filehash;	/* Map session->context structure */
 
 port_t wdport;		/* Port we receive contacts through */
 port_name wdname;	/*  ...its name */
-int upyet;		/* Can we take clients yet? */
+uint partundef;		/* Can we take clients yet? */
 char *secbuf;		/* Sector-aligned buffer for bootup */
 extern uint first_unit;	/* Lowerst unit # configured */
 
@@ -180,7 +183,7 @@ loop:
 	f = hash_lookup(filehash, msg.m_sender);
 	switch (msg.m_op) {
 	case M_CONNECT:		/* New client */
-		if (!upyet) {
+		if (partundef) {
 			msg_err(msg.m_sender, EBUSY);
 			break;
 		}
@@ -259,10 +262,13 @@ loop:
  * main()
  *	Startup of the WD hard disk server
  */
+int
 main(argc, argv)
 	int argc;
 	char **argv;
 {
+	int i;
+
 	/*
 	 * Allocate handle->file hash table.  8 is just a guess
 	 * as to what we'll have to handle.
@@ -288,7 +294,7 @@ main(argc, argv)
 	 * Enable I/O for the needed range
 	 */
 	if (enable_io(WD_LOW, WD_HIGH) < 0) {
-		syslog(LOG_ERR, "wd: I/O enable");
+		syslog(LOG_ERR, "wd: I/O");
 		exit(1);
 	}
 
@@ -307,7 +313,7 @@ main(argc, argv)
 	 * Register as WD hard drive
 	 */
 	if (namer_register("disk/wd", wdname) < 0) {
-		syslog(LOG_ERR, "WD: can't register name\n");
+		syslog(LOG_ERR, "wd: can't register name\n");
 		exit(1);
 	}
 
@@ -320,20 +326,18 @@ main(argc, argv)
 	}
 
 	/*
-	 * Kick off I/O's to get the first sector of each disk.
+	 * Kick off I/O's to get the disk partition table entries.
 	 * We will reject clients until this process is finished.
 	 */
-	upyet = 0;
-	secbuf = malloc(SECSZ*2);
-	if (secbuf == 0) {
-		syslog(LOG_ERR, "wd: sector buffer");
+	partundef = 0;
+	for (i = first_unit; i < NWD; i++) {
+		partundef |= (1 << i);
 	}
-	secbuf = (char *)roundup((ulong)secbuf, SECSZ);
-	wd_io(FS_READ, (void *)(first_unit+1),
-		first_unit, 0L, secbuf, 1);
+	rw_readpartitions(first_unit);
 
 	/*
 	 * Start serving requests for the filesystem
 	 */
 	wd_main();
+	return(0);
 }
