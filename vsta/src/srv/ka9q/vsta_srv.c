@@ -590,7 +590,7 @@ inetfs_open(struct msg *m, struct client *cl)
 			/*
 			 * Only other entry is "clone"
 			 */
-			if (!strcmp(m->m_buf, "clone")) {
+			if (strcmp(m->m_buf, "clone")) {
 				msg_err(m->m_sender, ESRCH);
 				return;
 			}
