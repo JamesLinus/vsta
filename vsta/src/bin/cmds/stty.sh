@@ -31,7 +31,7 @@ else
 		isig) stat -w - isig=1 ;;
 		-onlcr) stat -w - onlcr=0 ;;	# Auto-CR addition
 		onlcr) stat -w - onlcr=1 ;;
-		sane) stat -w - reset ;;
+		sane | -sane) stat -w - reset ;;
 		*) echo Unknown option: $x ;;
 		esac
 	done
