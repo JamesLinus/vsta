@@ -19,9 +19,22 @@ struct prot {
 		prot_bits[PERMLEN];
 };
 
-#ifdef KERNEL
+/*
+ * Macros for fiddling perms
+ */
+#define PERM_ACTIVE(p) ((p)->perm_len < PERMLEN)
+#define PERM_DISABLE(p) ((p)->perm_len |= 0x80)
+#define PERM_DISABLED(p) ((p)->perm_len & 0x80)
+#define PERM_ENABLE(p) ((p)->perm_len &= ~0x80)
+#define PERM_NULL(p) ((p)->perm_len = PERMLEN)
+#define PERM_LEN(p) ((p)->perm_len % PERMLEN)
+
+/*
+ * Prototypes
+ */
 extern int perm_calc(struct perm *, int, struct prot *);
 extern void zero_ids(struct perm *, int);
-#endif
+extern int perm_dominates(struct perm *, struct perm *);
+extern int perm_ctl(int, struct perm *, struct perm *);
 
 #endif /* _PERM_H */
