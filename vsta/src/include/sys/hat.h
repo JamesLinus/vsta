@@ -53,4 +53,10 @@ extern void hat_detach(struct pview *pv);
  */
 extern void hat_fork(struct vas *, struct vas *);
 
+/*
+ * hat_getbits()
+ *	Get bits from mapping, clear bits from HAT layer simultaneously
+ */
+extern int hat_getbits(struct pview *, void *);
+
 #endif /* _HAT_H */
