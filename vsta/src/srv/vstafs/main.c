@@ -282,6 +282,7 @@ static void
 usage(void)
 {
 	printf("Usage is: vstafs [-d <disk>] [-n <name>] [-p] [-f]\n");
+	syslog(LOG_ERR, "Illegal command line arguments");
 	exit(1);
 }
 
