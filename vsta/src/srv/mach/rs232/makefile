@@ -1,7 +1,7 @@
 CC= gcc
 LD= ld
 INCS= -I../../../include
-CFLAGS= -DDEBUG $(INCS) -g
+CFLAGS= -DDEBUG $(INCS) -O
 LDFLAGS= -L../../../libc -L../../../lib
 OBJS= fifo.o main.o rw.o isr.o stat.o
 LIBS= -lusr -lc
