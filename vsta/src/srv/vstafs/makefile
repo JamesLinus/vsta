@@ -10,6 +10,7 @@ CRT0=../../lib/crt0srv.o
 	$(CC) $(CFLAGS) -c $*.c
 
 vstafs: $(OBJS)
+	rm -f vstafs
 	$(LD) -o vstafs $(CRT0) $(OBJS) $(LIBS)
 
 clean:
