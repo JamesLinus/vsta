@@ -35,4 +35,6 @@ ENTRY(page_release, S_PAGE_RELEASE)
 ENTRY(enable_dma, S_ENABLE_DMA)
 ENTRY(time_get, S_TIME_GET)
 ENTRY(time_sleep, S_TIME_SLEEP)
+ENTRY(dbg_enter, S_DBG_ENTER)
+ENTRY(exec, S_EXEC)
 
