@@ -30,8 +30,6 @@
 #include <sys/malloc.h>
 #include <sys/assert.h>
 
-extern void page_lock(), page_unlock();
-
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
 
 /*
