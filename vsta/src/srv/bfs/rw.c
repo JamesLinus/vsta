@@ -97,11 +97,12 @@ bfs_write(struct msg *m, struct file *f)
 	/*
 	 * Copy out the buffer
 	 */
-	if (do_write(d.d_start, f->f_pos, m->m_buf, m->m_buflen) {
+	if (do_write(d.d_start, f->f_pos, m->m_buf, m->m_buflen)) {
 		msg_err(m->m_sender, strerror());
 		return;
 	}
 	m->m_arg = m->m_buflen;
+	f->f_pos += m->m_buflen;
 	m->m_buflen = m->m_arg1 = m->m_nseg = 0;
 	msg_reply(m->m_sender, m);
 }
@@ -180,7 +181,7 @@ bfs_readdir(struct msg *m, struct file *f)
 	 */
 	m->m_buf = buf;
 	m->m_arg = m->m_buflen = x;
-	m->m_nseg = 1;
+	m->m_nseg = ((x > 0) ? 1 : 0);
 	m->m_arg1 = 0;
 	msg_reply(m->m_sender, m);
 	free(buf);
@@ -223,7 +224,6 @@ bfs_read(struct msg *m, struct file *f)
 	 * EOF?
 	 */
 	if (f->f_pos >= d.d_len) {
-		bfree(handle);
 		m->m_arg = m->m_arg1 = m->m_buflen = m->m_nseg = 0;
 		msg_reply(m->m_sender, m);
 		return;
@@ -287,4 +287,5 @@ bfs_read(struct msg *m, struct file *f)
 	m->m_arg1 = 0;
 	msg_reply(m->m_sender, m);
 	free(buf);
+	f->f_pos += cnt;
 }
