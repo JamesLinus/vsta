@@ -306,7 +306,7 @@ my_wstat(char *p)
 static void
 my_cmd(char *str)
 {
-	int x, len, matches = 0, match;
+	int x, len, matches = 0, match = 0;
 	char *p;
 
 	p = strchr(str, ' ');
