@@ -236,6 +236,7 @@ retry:
 		case PD_RDREG:	/* Read register */
 			args[0] = getreg(args[0]);
 			break;
+
 		case PD_WRREG:	/* Write register */
 			args[0] = setreg(args[0], args[1]);
 			break;
@@ -254,6 +255,7 @@ retry:
 			  }
 			}
 			break;
+
 		case PD_WRMEM:	/* Write memory */
 			if (copyout((void *)args[0], &args[1],
 					sizeof(args[1]))) {
@@ -263,6 +265,7 @@ retry:
 			}
 			args[0] = 0;
 			break;
+
 		case PD_MEVENT:	/* Read/write event string */
 			x = args[0] & 0xFF;
 			if (x > ERRLEN) {
@@ -281,6 +284,12 @@ retry:
 				}
 			}
 			break;
+
+		case PD_PID:	/* Tell him our PID/TID */
+			args[0] = p->p_pid;
+			args[1] = t->t_pid;
+			break;
+
 		default:	/* Bogus--drop him */
 			v_sema(&pr->p_sema);
 			(void)msg_disconnect(port);
