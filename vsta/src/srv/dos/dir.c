@@ -6,6 +6,7 @@
 #include "dos.h"
 #include <ctype.h>
 #include <std.h>
+#include <stdio.h>
 #include <hash.h>
 #include <time.h>
 #include <fcntl.h>
@@ -27,6 +28,8 @@ static struct hash
 claddr_t root_cluster;		/* Root cluster #, if FAT32 */
 
 static int mystrcasecmp(const char *s1, const char *s2);
+
+static const char illegal[] = ";+=[]',\"*\\<>/?:|";
 
 /*
  * ddirty()
@@ -152,7 +155,6 @@ map_filename(char *file, char *f1, char *f2)
 {
 	char *p, c;
 	int len;
-	static const char illegal[] = ";+=[]',\"*\\<>/?:|";
 
 	/*
 	 * Scan filename for illegal characters.
@@ -626,6 +628,20 @@ get_inum(struct node *dir, int idx)
 }
 
 /*
+ * node_search()
+ *	Scan either a cluster-based directory or the root
+ */
+static int
+node_search(struct node *n, char *fname, char *fname2, struct directory *d)
+{
+	if (n == rootdir) {
+		return(root_search(fname, fname2, d));
+	} else {
+		return(dir_search(n, fname, fname2, d));
+	}
+}
+
+/*
  * dir_look()
  *	Given dir node and filename, look up entry
  */
@@ -656,11 +672,7 @@ dir_look(struct node *n, char *file)
 	/*
 	 * Search dir; special case for root
 	 */
-	if (n == rootdir) {
-		x = root_search(fname, fname2, &d);
-	} else {
-		x = dir_search(n, fname, fname2, &d);
-	}
+	x = node_search(n, fname, fname2, &d);
 
 	/*
 	 * If not present, return failure
@@ -932,15 +944,13 @@ dir_remove(struct node *n)
  * dir_findslot()
  *	Find an open slot in the directory
  *
- * Returns a struct directory pointer on success, else 0.  The handle
- * is either 0 for root, or a get handle for the cluster containing
- * the directory entry.
+ * Returns a directory index on success, otherwise -1.
  */
-static struct directory *
-dir_findslot(struct node *n, void **handlep)
+static int
+dir_findslot(struct node *n, int nentry)
 {
-	struct directory *d, *endd;
-	uint x;
+	struct directory *base, *d, *endd;
+	uint x, start = 0, got = 0;
 	struct clust *c = n->n_clust;
 	void *handle;
 	uint ch;
@@ -949,15 +959,41 @@ dir_findslot(struct node *n, void **handlep)
 		/*
 		 * Root is a single linear scan
 		 */
-		*handlep = 0;
 		endd = rootdirents+dirents;
 		for (d = rootdirents; d < endd; ++d) {
+			/*
+			 * When we find a deleted entry, include
+			 * it in our attempt to find "nentry" of
+			 * them in a row.
+			 */
 			ch = (d->name[0] & 0xFF);
 			if ((ch == 0) || (ch == DN_DEL)) {
-				return(d);
+				/*
+				 * First one--remember beginning of run
+				 */
+				if (got++ == 0) {
+					start = d - rootdirents;
+				}
+
+				/*
+				 * Got all we needed?  Return the
+				 * needed one(s).
+				 */
+				if (got == nentry) {
+					return(start);
+				}
+			/*
+			 * Didn't find enough in a row--start over
+			 */
+			} else if (got > 0) {
+				got = 0;
 			}
 		}
-		return(0);
+
+		/*
+		 * Sorry.
+		 */
+		return(-1);
 	}
 
 	/*
@@ -976,13 +1012,26 @@ dir_findslot(struct node *n, void **handlep)
 		/*
 		 * Scan
 		 */
-		d = index_buf(handle, 0, CLSIZE);
+		base = d = index_buf(handle, 0, CLSIZE);
 		endd = d+cldirs;
 		for ( ; d < endd; ++d) {
 			ch = (d->name[0] & 0xFF);
 			if ((ch == 0) || (ch == DN_DEL)) {
-				*handlep = handle;
-				return(d);
+				/*
+				 * First one--remember beginning of run
+				 */
+				if (got++ == 0) {
+					start = (d - base) + (x * cldirs);
+				}
+
+				/*
+				 * Got all we needed?  Return the
+				 * needed one(s).
+				 */
+				if (got == nentry) {
+					unlock_buf(handle);
+					return(start);
+				}
 			}
 		}
 		unlock_buf(handle);
@@ -1001,13 +1050,209 @@ dir_findslot(struct node *n, void **handlep)
 	/*
 	 * Zero block, return pointer to base
 	 */
-	*handlep = handle = find_buf(BOFF(c->c_clust[c->c_nclust-1]),
+	handle = find_buf(BOFF(c->c_clust[c->c_nclust-1]),
 		CLSIZE, ABC_FILL);
+	ASSERT_DEBUG(handle, "dir_findslot: no handle on extend");
 	lock_buf(handle);
 	d = index_buf(handle, 0, CLSIZE);
 	bzero(d, clsize);
 	ddirty(handle);
-	return(d);
+	unlock_buf(handle);
+	return(x * cldirs);
+}
+
+/*
+ * unicode_set_chars()
+ *	Do a run of characters in a buffer
+ *
+ * Return 1 if we see end-of-string, 0 otherwise.
+ */
+static int
+unicode_set_chars(uchar *ubuf, char *buf, uint len)
+{
+	char c;
+	uint x;
+
+	for (x = 0; x < len; ++x) {
+		c = *buf++;
+		*ubuf++ = c;
+		*ubuf++ = 0;
+		if (c == '\0') {
+			return(1);
+		}
+	}
+	return(0);
+}
+
+/*
+ * mymemset()
+ *	Private memset()
+ */
+static void
+mymemset(uchar *buf, uchar fill, uint size)
+{
+	uint x;
+
+	for (x = 0; x < size; ++x) {
+		*buf++ = fill;
+	}
+}
+
+/*
+ * unicode_set()
+ *	Insert up to the next VSE_MAX_NAME characters into the "dv" entry
+ */
+static void
+unicode_set(struct dirVSE *dv, char *name)
+{
+	/*
+	 * Mickysoft seems to want trailing 0xFF chars.
+	 */
+	mymemset(dv->dv_name1, 0xFF, VSE_1SIZE*2);
+	mymemset(dv->dv_name2, 0xFF, VSE_2SIZE*2);
+	mymemset(dv->dv_name3, 0xFF, VSE_3SIZE*2);
+
+	/*
+	 * Fill in from string until string exhausted
+	 */
+	if (unicode_set_chars(dv->dv_name1, name, VSE_1SIZE)) {
+		return;
+	}
+	if (unicode_set_chars(dv->dv_name2, name+VSE_1SIZE, VSE_2SIZE)) {
+		return;
+	}
+	(void)unicode_set_chars(dv->dv_name3,
+		name+VSE_1SIZE+VSE_2SIZE, VSE_3SIZE);
+}
+
+/*
+ * unique_filename()
+ *	Create a unique filename within the directory at node "n"
+ *
+ * I've not gone to any particular trouble to exactly mimic W95's
+ * behavior, but the results should always be legal under W95.
+ *
+ * The resulting filename is built into f1 (base name) and f2 (extension).
+ */
+static void
+unique_filename(char *file, char *f1, char *f2, struct node *n)
+{
+	char c, mod[9], *p;
+	int x, baselen, len, tilde = 0;
+	struct directory d;
+
+	/*
+	 * Assemble the base, up to 8 characters
+	 */
+	strcpy(f1, "        ");
+	for (x = 0; x < 8; ++x) {
+		/*
+		 * End of string?
+		 */
+		c = file[x];
+		if (c == '\0') {
+			break;
+		}
+
+		/*
+		 * Map illegals to "_"
+		 */
+		if (strchr(illegal, c)) {
+			c = '_';
+		}
+
+		/*
+		 * If it's the first ".", we have the base of our name
+		 */
+		if (c == '.') {
+			/*
+			 * We need a generated name if there's more
+			 * than one dot in the filename.
+			 */
+			if (strchr(file+x+1, '.')) {
+				tilde = 1;
+			}
+			break;
+		}
+
+
+		/*
+		 * Bring it across
+		 */
+		f1[x] = toupper(c);
+	}
+	baselen = x;
+
+	/*
+	 * We also need a generated name if the "real" name is too long
+	 */
+	if (x == 8) {
+		if (file[x] && (file[x] != '.')) {
+			tilde = 1;
+		}
+	}
+
+	/*
+	 * Assemble up to three chars from after the last dot in the
+	 * filename.
+	 */
+	strcpy(f2, "   ");
+	p = strrchr(file, '.');
+	if (p) {
+		for (++p, x = 0; x < 3; ++x) {
+			c = p[x];
+			if (c == '\0') {
+				break;
+			}
+			if (strchr(illegal, c)) {
+				c = '_';
+			}
+			f2[x] = toupper(c);
+		}
+
+		/*
+		 * We also need a generated name if the extension is
+		 * too long.
+		 */
+		if ((x == 3) && p[x]) {
+			tilde = 1;
+		}
+	}
+
+	/*
+	 * If there's no need to add a unique filename generation
+	 * to the filename, we can return now.
+	 */
+	if (!tilde) {
+		return;
+	}
+
+	/*
+	 * Now tack on a "~<number>" to the base filename, bumping
+	 * the number until we find an unused one.
+	 * TBD: this could be optimized quite a bit over this simple
+	 *  scan.
+	 */
+	for (x = 1; ; x += 1) {
+		/*
+		 * Generate the next name to try
+		 */
+		(void)sprintf(mod, "~%d", x);
+		len = strlen(mod);
+		if ((baselen + len) > 8) {
+			bcopy(mod, f1 + (8 - len), len);
+		} else {
+			bcopy(mod, f1 + baselen, len);
+		}
+
+		/*
+		 * See if it can be found in the directory
+		 */
+		x = node_search(n, f1, f2, &d);
+		if (x == -1) {
+			return;
+		}
+	}
 }
 
 /*
@@ -1024,13 +1269,92 @@ dir_newfile(struct file *f, char *file, int isdir)
 	struct clust *c;
 	void *handle, *dirhandle;
 	char f1[9], f2[4], ochar0;
-	int error = 0;
+	int x, slot, nslot, error = 0;
+	uchar cksum;
 	struct node *n = f->f_node;
 
 	/*
-	 * Get a slot
+	 * Get a DOS version of the name, put in place
 	 */
-	dir = dir_findslot(n, &dirhandle);
+	switch (map_filename(file, f1, f2)) {
+	case 1:
+		/*
+		 * Create a unique short filename entry
+		 */
+		unique_filename(file, f1, f2, n);
+
+		/*
+		 * Allocate enough slots all in a row to hold the long
+		 * filename VSE's, along with the short filename entry.
+		 */
+		nslot = roundup(strlen(file), VSE_NAME_SIZE) / VSE_NAME_SIZE;
+		slot = dir_findslot(n, nslot+1);
+		if (slot == -1) {
+			return(0);
+		}
+
+		/*
+		 * Fill in the long filename VSE's.  We'll then drop into
+		 * common code to create the short filename entry, along
+		 * with the rest of the file.
+		 *
+		 * Because W95 gets annoyed otherwise, the entries are
+		 * actually inserted in reverse order.  So the last
+		 * entry is the earliest in the order of directory
+		 * entries.  I suspect this is a micro-optimization at
+		 * Microsoft so they could pre-size the VSE assembly
+		 * area?
+		 */
+		cksum = short_checksum(f1, f2);
+		for (x = 0; x < nslot; ++x) {
+			struct dirVSE *dv;
+
+			/*
+			 * Note: we purposely location (x == 0) at the
+			 * last allocated slot.  See the note on W95
+			 * behavior above.
+			 */
+			dv = (struct dirVSE *)get_dirent(n,
+				slot + ((nslot-1) - x), &handle);
+			bzero(dv, sizeof(struct dirVSE));
+			dv->dv_attr = VSE_ATTR_VFAT;
+			dv->dv_id = x+1;
+			dv->dv_sum = cksum;
+			unicode_set(dv, file + (x * VSE_NAME_SIZE));
+			if (x == (nslot-1)) {
+				dv->dv_id |= VSE_ID_LAST;
+			}
+			ddirty(handle);
+			dfree(handle);
+		}
+
+		/*
+		 * Leave "slot" at the slot for the short filename.
+		 */
+		slot += nslot;
+		break;
+
+	case 0:
+		/*
+		 * For short filenames, only need the single entry
+		 */
+		slot = dir_findslot(n, 1);
+		break;
+
+	case 2:
+		/*
+		 * Invalid filename
+		 */
+		return(0);
+	default:
+		ASSERT_DEBUG(0, "dir_newfile: invalid file parse");
+		return(0);
+	}
+
+	/*
+	 * Access the slot
+	 */
+	dir = get_dirent(n, slot, &dirhandle);
 	if (dir == 0) {
 		/*
 		 * Sorry...
@@ -1039,13 +1363,6 @@ dir_newfile(struct file *f, char *file, int isdir)
 	}
 	ochar0 = dir->name[0];	/* In case we have to undo this */
 
-	/*
-	 * Get a DOS version of the name, put in place
-	 */
-	if (map_filename(file, f1, f2)) {
-		error = 1;
-		goto out;
-	}
 	bcopy(f1, dir->name, sizeof(dir->name));
 	bcopy(f2, dir->ext, sizeof(dir->ext));
 	dir->attr = 0;
