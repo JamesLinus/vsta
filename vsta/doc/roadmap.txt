@@ -51,7 +51,15 @@ have a makefile.
 3. Building the world
 	Go to the root, and invoke the "mkclean" batch file.
 	Now invoke the "mkall" batch file.  It will move around through
-the source and build things in the right order.
+the source and build things in the right order.  Currently, the GNU C
+compiler isn't cleaned out or built.  It's big, and it pretty much
+stays the same, since I'm not a compiler type of person.  You can go
+in there and build it for yourself if you'd like.  Be careful, though,
+since the output of it will be used by later invokations of the compiler
+in that directory--I usually build a pass (gcc, or cc1, or cpp) and
+then move it immediately to the c:\bin directory (c:\bin isn't even in
+my DOS path--I use d:\bin instead).  Similarly for "gas", which is
+in its own directory, and "ld", which is in binutl.
 
 4. Putting a boot filesystem in place
 	Initial binaries are in the root directory in root.t, which
