@@ -39,7 +39,7 @@ extern void hat_deletetrans(struct pview *pv, void *vaddr, uint pfn);
  * hat_attach()
  *	Try to attach a new view
  */
-extern int hat_attach(struct pview *pv, void *vaddr);
+extern int hat_attach(struct pview *pv);
 
 /*
  * hat_detach()
