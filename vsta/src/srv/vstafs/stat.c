@@ -54,7 +54,7 @@ vfs_stat(struct msg *m, struct file *f)
 			/*
 			 * End loop when can't get more
 			 */
-			if (!bmap(fs, idx, sizeof(struct fs_dirent),
+			if (!bmap(b, fs, idx, sizeof(struct fs_dirent),
 					(char **)&d, &ent_len)) {
 				break;
 			}
@@ -66,6 +66,7 @@ vfs_stat(struct msg *m, struct file *f)
 			}
 			idx += sizeof(struct fs_dirent);
 		}
+		unlock_buf(b);
 	} else {
 		len = fs->fs_len - sizeof(struct fs_file);
 	}
