@@ -56,9 +56,11 @@ key_event(uchar c)
 	}
 
 	/*
-	 * Oops.
+	 * Arrow keys and stuff like that--ignore for now.
 	 */
-	ASSERT_DEBUG(ch != 0x80, "key_event: shift in data");
+	if (ch == 0x80) {
+		return;
+	}
 
 	/*
 	 * Convert to control characters if CTL key down
