@@ -152,4 +152,10 @@ path(char *p)
 		free(curpath);
 	}
 	curpath = strdup(p);
+#ifndef STAND
+	/*
+	 * For child processes who use the regular execvp()
+	 */
+	setenv("PATH", curpath);
+#endif
 }
