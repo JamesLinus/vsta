@@ -1,0 +1,36 @@
+#
+# Table of programs launched by the init program
+#
+# Includes some examples of further servers to run if you
+# have the appropriate hardware.
+#
+bg:/vsta/boot/pipe
+bg:/vsta/boot/env
+bg:/vsta/boot/tmpfs fs/tmp
+bg:/vsta/boot/devnull
+bg:/vsta/boot/proc
+bg:/vsta/boot/selfs
+#
+# Enable this if you use MGR, or other apps using pseudo-tty's.
+#
+# bg:/vsta/boot/pty
+#
+# Serial port driver; device COM1, advertised as name tty/tty01
+# bg:/vsta/boot/rs232 com1 tty/tty01
+#
+# vstafs entry runs a VSTa filesystem on the wd0_p1 partition
+# of the WD driver.  It would be mounted globally from /vsta/etc/fstab.
+# bg:/vsta/boot/vstafs -p disk/wd:wd0_p1 fs/vfs
+#
+# NE2000 ethernet driver; card at base I/O 0x300 with IRQ 5
+# bg:/vsta/boot/ne 0x300,5
+#
+fg:/vsta/bin/setime
+fg:/vsta/bin/runrc
+again:/vsta/bin/login CONS:0
+again:/vsta/bin/login CONS:1
+again:/vsta/bin/login CONS:2
+again:/vsta/bin/login CONS:3
+#
+# Enable this if you enable com1 (tty/tty01) above
+# again:/vsta/bin/login tty/tty01

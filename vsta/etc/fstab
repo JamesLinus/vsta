@@ -1,0 +1,7 @@
+fs/root /
+# NAMER /namer
+fs/tmp /tmp
+# fs/pipe /pipe
+null /dev/null
+# fs/vfs /v
+fs/root:vsta/bin /bin

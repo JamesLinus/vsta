@@ -1,0 +1,12 @@
+#
+# Bootup for ether attached system vsta.vsta.org
+#
+attach eth eth0 1500 //net/ne:0
+# Or for 3c509 flavors: attach eth eth0 1500 //net/el3:0
+ip addr 10.0.0.69
+route add default eth0
+host vsta
+domain suffix vsta.org
+domain addserver 10.0.0.2
+password xyzzy
+start vsta

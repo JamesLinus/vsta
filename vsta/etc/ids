@@ -1,0 +1,15 @@
+sys:1
+	sys:1
+	io:2
+	dos:3
+	misc:4
+bad:2
+	bad:2
+usr:3
+	vandys:1
+	jtk:2
+	guest:3
+	ken:4
+	root:99
+guest:4
+	guest:1

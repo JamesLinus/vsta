@@ -1,0 +1,92 @@
+#
+# TERMCAP - Terminal Capabilities Database
+#
+
+#
+# NANSI with insert/delete line
+#
+nansi|pcterm|NANSI enhanced ansi.sys driver:\
+	:co#80:li#25:cl=\E[2J:am:bs:cm=\E[%i%2;%2H:nd=\E[C:up=\E[A:\
+	:ce=\E[K:\
+	:so=\E[7m:se=\E[m:\
+	:do=\E[B:mi:ms:\
+	:kd=\EP:kl=\EK:ku=\EH:kr=\EM:kh=\EG:\
+	:AL=\E[%dL:al=\E[L:\
+	:DL=\E[%dM:dl=\E[M:\
+	:IC=\E[%d@:ic=\E[@:\
+	:DC=\E[%dP:dc=\E[P:
+
+#
+# MGR Windowing system terminal emulation
+#
+mgr|MGR terminal:\
+  :am:bs:im=:ta=^I:\
+  :AL=\E%da:al=\Ea:\
+  :cd=\EC:ce=\Ec:cl=^L:\
+  :cm=\E%r%d,%dM:\
+  :co#80:li#24:\
+  :cs=\E%d,%dt:\
+  :DC=\E%dE:dc=\EE:\
+  :DL=\E%dd:dl=\Ed:\
+  :do=\Ef:up=\Eu:nd=\Er:\
+  :IC=\E%dA:ic=\EA:\
+  :se=\En:so=\Ei:\
+  :ve=\Ev:vs=\EV:
+
+#
+# Hersey Micro-Consulting's FANSI-CONSOLE
+#
+fc|fansi|Hersey Micro-Consultings Fast ANSI Console Driver:\
+	:co#80:li#25:am:bs:cm=\E[%i%2;%2H:nd=\E[C:up=\E[A:\
+	:cd=\E[J:cl=\E[;H\E[2J:ce=\E[K:\
+	:al=\E[L:dl=\E[M:AL=\E[%2L:DL=\E[%2M:\
+	:sc=\E[s:rc=\E[u:\
+	:dc=\E[P:\
+	:sf=\ED:sr=\EM:\
+	:so=\E[7m:se=\E[m:\
+	:do=\E[B:mi:ms:\
+	:kd=\EP:kl=\EK:ku=\EH:kr=\EM:kh=\EG:\
+	:k1=\E^A:k2=\E^B:k3=\E^D:k4=\E^E:k5=\E^F:\
+	:ti=\E[0;72;27;72p\E[0;80;27;80p\E[0;77;27;77p\E[0;75;27;75p\E[0;73;2p\E[0;81;6p\E[0;71;27;71p\E[0;59;27;1p\E[0;60;27;2p\E[0;61;27;4p\E[0;62;27;5p:\
+	:te=\E[0;72;0;72p\E[0;80;0;80p\E[0;77;0;77p\E[0;75;0;75p\E[0;73;0;73p\E[0;81;0;81p\E[0;71;0;71p\E[0;59;0;59p\E[0;60;0;60p\E[0;61;0;61p\E[0;62;0;62p:
+
+#
+# Digital Equipment Corporation (DEC) VT-100
+#
+vt100|vt-100|DEC vt100:\
+	:am:co#80:li#24:bs:cm=5\E[%i%2;%2H:\
+	:ce=3\E[K:cd=50\E[J:cl=50\E[;H\E[2J:\
+	:if=/lib/vt100.tab:pt:\
+	:so=2\E[7m:se=2\E[m:\
+	:nd=2\E[C:up=2\E[A:\
+	:is=\E>\E[?3l\E[?4l\E[?5l\E[?7h\E[?8h:\
+	:ks=\E[?1h\E=:ke=\E[?1l\E>:\
+	:ku=\EOA:kd=\EOB:kr=\EOC:kl=\EOD:kh=\E[H:\
+	:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:k5=\EOT:\
+	:k6=\EOU:k7=\EOV:k8=\EOW:k9=\EOX:\
+	:sr=5\EM:
+
+#
+# American National Standard Institute (ANSI) Definition
+#  of a "Standard Terminal" (note the similarity to VT-100 - guess
+#  who was on the standards committee!).
+#
+ANSI|ansi|American National Standard Terminal:\
+	:am:co#80:li#24:bs:cm=5\E[%i%2;%2H:\
+	:ce=3\E[K:cd=5\E[J:cl=5\E[;H\E[2J:\
+	:al=1\E[L:dl=1\E[M:\
+	:AL=2\E[%2L:DL=2\E[%2M:\
+	:pt:if=/lib/std.tab:\
+	:so=2\E[7m:se=2\E[m:\
+	:nd=2\E[C:up=2\E[A:do=\E[B\
+	:is=\E>\E[?3l\E[?4l\E[?5l\E[?7h\E[?8h:\
+	:ks=\E[?1h\E=:ke=\E[?1l\E>:\
+	:ku=\E[A:kd=\E[B:kr=\E[C:kl=\E[D:kh=\E[H:\
+	:k1=\E[001z:k2=\E[002z:k3=\E[003z:k4=\E[004z:k5=\E[005z:\
+	:k6=\E[006z:k7=\E[007z:k8=\E[007z:k9=\E[009z:\
+	:sf=\ED:sr=\EM:
+
+#
+# Generic "dumb" terminal
+#
+dumb|unknown:co#80:os:am:

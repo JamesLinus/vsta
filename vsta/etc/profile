@@ -1,0 +1,4 @@
+#
+# Global .profile for sh users
+#
+cat /vsta/etc/motd

@@ -1,0 +1,18 @@
+#
+# Commands executed once during bootup
+#
+
+#
+# Global environment variables
+#	These are values likely to be the same among all users
+#
+echo -n vt100 > /env/TERM
+echo -n "/vsta/bin:." > /env/PATH
+echo -n 'vsta$ ' > /env/PS1
+echo -n "-c" > /env/LESS
+echo -n PST8PDT > /env/TZ
+echo -n /tmp > /env/TMPDIR
+echo -n /bin/sh > /env/SHELL
+
+# All done
+exit 0
