@@ -13,7 +13,7 @@
 #include <sys/qio.h>
 #include <sys/sched.h>
 #include <sys/xclock.h>
-#include "../mach/vm.h"
+#include "../mach/vminline.h"
 #include "../mach/mutex.h"
 #include <sys/malloc.h>
 #include <sys/core.h>

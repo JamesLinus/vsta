@@ -28,7 +28,7 @@
 #include <sys/fs.h>
 #include <sys/malloc.h>
 #include <sys/assert.h>
-#include "../mach/vm.h"
+#include "../mach/vminline.h"
 #include "../mach/mutex.h"
 #include "pset.h"
 

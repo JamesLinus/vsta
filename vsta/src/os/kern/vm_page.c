@@ -11,7 +11,7 @@
 #include <sys/param.h>
 #include <rmap.h>
 #include "../mach/mutex.h"
-#include "../mach/vm.h"
+#include "../mach/vminline.h"
 
 extern char *heapstart, *heap;
 extern int bootpgs;
