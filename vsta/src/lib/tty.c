@@ -381,3 +381,23 @@ tcgetattr(int fd, struct termios *t)
 	*t = tty_state;
 	return(0);
 }
+
+/*
+ * cfgetispeed()
+ *	Return TTY baud rate
+ */
+ulong
+cfgetispeed(struct termios *t)
+{
+	return(t->c_ispeed);
+}
+
+/*
+ * cfgetospeed()
+ *	Return TTY baud rate
+ */
+ulong
+cfgetospeed(struct termios *t)
+{
+	return(t->c_ospeed);
+}
