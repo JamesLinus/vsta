@@ -415,7 +415,6 @@ msg_send(port_t arg_port, struct msg *arg_msg)
 		 * Attach the returned segments to the user address
 		 * space.
 		 */
-		segrefs.s_refs[0] = 0;
 		if (mapsegs(p, &sm, &segrefs) == -1) {
 			error = -1;
 			goto out1;
@@ -426,18 +425,19 @@ msg_send(port_t arg_port, struct msg *arg_msg)
 		 */
 		error = copyoutsegs(&sm);
 		unmapsegs(&segrefs);
-		if (error == -1) {
-			sm.sm_nseg = 0;	/* unmapsegs() got'em */
-			goto out1;
-		}
 
 		/*
-		 * Translate rest of message to user format, give back
-		 * to user.
+		 * Flag that we received buffers (so we wake the
+		 * msg_reply()'er below), then clear our count to
+		 * indicate that unmapsegs() scrubbed them.
 		 */
-		sm_to_m(&sm);
-		if (copyout(arg_msg, &sm.sm_msg, sizeof(struct msg))) {
-			error = err(EFAULT);
+		sm.sm_msg.m_nseg = sm.sm_nseg;
+		sm.sm_nseg = 0;
+
+		/*
+		 * Error?  Flag it and we're done.
+		 */
+		if (error == -1) {
 			goto out1;
 		}
 	}
@@ -765,7 +765,7 @@ msg_reply(long arg_who, struct msg *arg_msg)
 			om->sm_sender = sm.sm_sender;
 			om->sm_segs = sm.sm_segs;
 			om->sm_errs = sm.sm_errs;
-			
+
 			sm.sm_nseg = 0;		/* He has them */
 			pr->p_msg = 0;
 
