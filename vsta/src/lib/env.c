@@ -287,6 +287,7 @@ add_envs(char *path, char **envp, DIR *d)
 		envp[x] = malloc(len + 1 + sb.st_size + 1);
 		sprintf(envp[x], "%s=", de->d_name);
 		(void)read(fd, envp[x]+len+1, sb.st_size);
+		envp[x][len+1+sb.st_size] = '\0';
 
 		/*
 		 * We have our new entry; clean up and continue
