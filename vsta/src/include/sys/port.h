@@ -10,17 +10,17 @@
 
 struct port {
 	lock_t p_lock;		/* Mutex for modifying port */
-	struct sysmsg		/* FIFO list of messages */
-		*p_hd,
-		*p_tl;
+	uchar p_flags;		/* See below */
 	sema_t p_sema;		/* For serializing receivers */
 	sema_t p_wait;		/* For sleeping to receive a message */
-	ushort p_flags;		/* See below */
-	struct portref		/* Linked list of references to this port */
-		*p_refs;
 	sema_t p_mapsema;	/* Mutex for p_maps */
 	struct hash		/* Map file-ID -> pset */
 		*p_maps;
+	struct sysmsg		/* FIFO list of messages */
+		*p_hd,
+		*p_tl;
+	struct portref		/* Linked list of references to this port */
+		*p_refs;
 	port_name p_name;	/* Name of this port */
 };
 
@@ -44,10 +44,11 @@ struct portref {
 	sema_t p_sema;		/* Only one I/O through a port at a time */
 	struct port *p_port;	/* The port we access */
 	lock_t p_lock;		/* Master mutex */
+	uchar p_state,		/* State & flags; see below */
+		p_flags,
+		p_dummy1;
 	sema_t p_iowait;	/* Where proc sleeps for I/O */
 	sema_t p_svwait;	/*  ...server, while client copies out */
-	ushort p_state;		/* See below */
-	ushort p_flags;		/* Flags; see below also */
 	struct sysmsg		/* The message descriptor */
 		*p_msg;
 	struct portref		/* Linked list of refs to a port */
