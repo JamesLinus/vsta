@@ -434,9 +434,9 @@ resolve(char *name)
 		time(&starttime);
 		/* Wait for something to happen */
 		for (;;) {
-			extern void yield(void);
+			extern void proc_yield(void);
 
-			yield();
+			proc_yield();
 			if (Dsignal)
 				break;
 			time(&now);

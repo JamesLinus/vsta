@@ -64,7 +64,7 @@ static struct daemon {
 
 static pid_t curtid;	/* Current thread holding ka9q_lock */
 lock_t ka9q_lock;	/* Mutex among threads */
-static uint nbg;	/* # of background threads from yield() */
+static uint nbg;	/* # of background threads from proc_yield() */
 static int
 	time_idx = -1,	/* Timer task thread index in daemons[] */
 	cons_idx = -1;	/*  ...console watcher */
@@ -334,7 +334,7 @@ sysreset()
 
 /*
  * do_mainloop()
- *	Call mainloop(), handle yield()'ed threads on return
+ *	Call mainloop(), handle proc_yield()'ed threads on return
  */
 int
 do_mainloop(void)
@@ -349,7 +349,7 @@ do_mainloop(void)
 	didstuff = mainloop();
 
 	/*
-	 * We yield()'ed under mainloop() somewhere, and thus are
+	 * We proc_yield()'ed under mainloop() somewhere, and thus are
 	 * no longer a needed thread.  Exit.
 	 */
 	if (curtid != mytid) {
@@ -377,7 +377,8 @@ timechange(char *event)
 	 */
 	if (strcmp(event, "recalc")) {
 		printf("Event: %s\n", event);
-		_exit(1);
+		notify_handler(0);
+		notify(0, 0, event);
 	}
 }
 
@@ -920,7 +921,7 @@ iostop()
 }
 
 /*
- * yield()
+ * proc_yield()
  *	Release thread of control
  *
  * This is called from the misbegotten places in the ka9q code where
@@ -930,7 +931,7 @@ iostop()
  * thread returns back out of mainloop(), it is destroyed.
  */
 void
-yield(void)
+proc_yield(void)
 {
 	uint x;
 	pid_t mytid = gettid();
