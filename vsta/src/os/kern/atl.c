@@ -30,6 +30,12 @@ add_atl(struct perpage *pp, void *ptr, uint off, uint flags)
 {
 	struct atl *a;
 
+#ifdef DEBUG
+	for (a = pp->pp_atl; a; a = a->a_next) {
+		ASSERT((a->a_ptr != ptr) || (a->a_idx != off),
+			"add_atl: already there");
+	}
+#endif
 	a = MALLOC(sizeof(struct atl), MT_ATL);
 	a->a_ptr = ptr;
 	a->a_idx = off;
