@@ -38,7 +38,7 @@ syslog(int level, const char *msg, ...)
 	port_t p;
 	int fd;
 	char buf[256];
-	va_args ap;
+	va_list ap;
 
 	p = path_open("CONS:0", ACC_WRITE);
 	if (p < 0) {
@@ -47,7 +47,7 @@ syslog(int level, const char *msg, ...)
 	fd = __fd_alloc(p);
 	va_start(ap, msg);
 	sprintf(buf, "syslog: %s: ", levelmsg(level));
-	sprintf(buf + strlen(buf), msg, ap);
+	vsprintf(buf + strlen(buf), msg, ap);
 	if (buf[strlen(buf)-1] != '\n') {
 		strcat(buf, "\n");
 	}
