@@ -25,7 +25,7 @@ syserr:	movb	$0,___err
 	ret
 
 #define ENTRY(n, v)	.globl	_##n ; \
-	_##n: movl $(v),%eax ; int $0xFF ; jc syserr; ret
+	_##n##: movl $(v),%eax ; int $0xFF ; jc syserr; ret
 
 ENTRY(msg_port, S_MSG_PORT)
 ENTRY(msg_connect, S_MSG_CONNECT)
