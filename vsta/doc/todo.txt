@@ -2,6 +2,7 @@ copyin/copyout--put in locore.s, use user's segment
 	-- Worse than I thought.  Bug in i386 allows ring 0 code to write
 	to a read-only mapping.  So COW is a bust when one would expect
 	it to work for a copyout.  Walk translations manually?  Bleh.
+	Use copy-on-reference for i386.
 
 X TLB staleness--how split HAT/portable?  Assume TLB shootdown is
 X relatively cheap and if not assume HAT will do the gyrations
@@ -84,23 +85,32 @@ X being created?
 Convert m_connect() (and others?) to use kernmsg_send().  I think I
 can make the code quite a bit smaller.
 
-Add code to put a proc on the "cheated" queue.
+X Add code to put a proc on the "cheated" queue.
+	-- Done.  Also have to keep a CPU hog counter, as otherwise
+	a CPU hog gets bumped once by a "cheated" process, and becomes
+	a "cheated" process itself.
 
-Should "allprocs" be doubly-linked?
+X Should "allprocs" be doubly-linked?
+	-- Done.  Useful for at least one flavor of pstat() to keep
+	marker for place in proc list.  Also gives the obvious benefit
+	of an O(1) removal on exit().
 
 Once up, should invalidate all vaddr's above heap
 
-Clean up scheduling node on exit
+X Clean up scheduling node on exit
+	-- Done.  "memleak" function of kdb is your friend....
 
 X Implement mmap()
 	-- Done.
 
-In fork() the portref array is mutexed across the entire dup_port()
-	using p_sema from the proc structure.  This is at least overkill,
-	perhaps worse.  The code should use find_portref(), scanning the
-	old portref array and attempting to get portrefs through the
-	usual interface.  This shares more code, and considerably narrows
-	the time for which the proc sema must be held.
+X In fork() the portref array is mutexed across the entire dup_port()
+X 	using p_sema from the proc structure.  This is at least overkill,
+X 	perhaps worse.  The code should use find_portref(), scanning the
+X 	old portref array and attempting to get portrefs through the
+X 	usual interface.  This shares more code, and considerably narrows
+X 	the time for which the proc sema must be held.
+	-- Done.  Became acute with pstat() interlocking against such
+	processes.  Now is released as we step along.
 
 XAdd a flag for pviews to tell if they should be copied/inherited on
 X	a fork().  Make sure transient pviews from msg_receive()'s
@@ -139,11 +149,15 @@ Caching of executables is indefinite.  Need two things: first, a way
 	get rid of a cache entry for a file being removed.
 	-- 2nd part done; DOS initiates an unhash and returns EAGAIN.
 	unlink() will try 2 times, with a 0.1 sec sleep in between.
+	First part is nasty, since kernel would need to close connection
+	with server.  Bum server could hang up the kernel.
 
-Some problems with mutexing of semaphores and treatment of priorities.
-	I don't think we're honoring PRIHI right now.  Also, I think
-	p_sema needs to take the runq lock sooner, to provide mutexing
-	between sleeping and being handed an event.
+X Some problems with mutexing of semaphores and treatment of priorities.
+X 	I don't think we're honoring PRIHI right now.  Also, I think
+X 	p_sema needs to take the runq lock sooner, to provide mutexing
+X 	between sleeping and being handed an event.
+	-- PRIHI does the right thing now.  I think semaphores are taking
+	lock at the right time.
 
 Definitely a problem with free_proc() letting go of the root of our
 	page table before we're off it.  idle_stack() needs to get onto
@@ -160,3 +174,17 @@ Definitely a problem with free_proc() letting go of the root of our
 
 X vm_fault.c's description of fault handling is out of date.
 X	Done.
+
+XDOSFS can't uncache an executable after it's been renamed.  Problem appears
+X	to be that "inode number" changes after rename, and thus can't
+X	hunt down the right node to clear.
+	-- Fixed.  inode number can simply be node address; more efficient,
+	and keeps inum from changing due to rename.
+
+VM can't reclaim cached pages which have no current attach list entry.
+	We currently allow valid pset slots with ref count of 0.  Should
+	probably have pset_fod type psets keep a cache pseudo-vas and then
+	free memory under a pset when ref count goes to 0.
+
+There are a couple more pset operations which should be vectors instead
+	of special cases in a switch statement.
