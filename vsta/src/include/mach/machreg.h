@@ -12,9 +12,9 @@
  * delivered.
  */
 struct evframe {
-	ulong ev_prevsp;
-	ulong ev_previp;
-	char ev_event[EVLEN];
+	ulong ev_prevsp;		/* Points to ev_previp, actually */
+	char ev_event[EVLEN];		/* Event delivered */
+	ulong ev_previp;		/* Previous IP */
 };
 
 /*
