@@ -18,6 +18,7 @@ struct boot_task {
 	uint b_text;		/* # pages of text */
 	void *b_dataaddr;	/* Address of data */
 	uint b_data;		/* # pages data */
+	uint b_bss;		/*  ...BSS (follows data) */
 	uint b_pfn;		/* Physical address of task */
 };
 #ifdef KERNEL
