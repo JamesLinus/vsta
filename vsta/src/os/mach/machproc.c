@@ -27,7 +27,7 @@ extern void retuser(), reload_dr(struct dbg_regs *);
  * to start him at, and he runs with a clean stack.
  */
 void
-dup_stack(struct thread *old, struct thread *new, voidfun f)
+dup_stack(struct thread *old, struct thread *new, voidfun f, ulong arg)
 {
 	ASSERT_DEBUG(old->t_uregs, "dup_stack: no old");
 
@@ -44,11 +44,17 @@ dup_stack(struct thread *old, struct thread *new, voidfun f)
 	 * A thread fork moves to a new, empty stack.  A process
 	 * fork has a copy of the stack at the same virtual address,
 	 * so the stack location doesn't have to be updated.
+	 * Copy the argument in to its place as the argument to
+	 * the thread's starting function "call".  This takes advantage
+	 * of the fact that thread forks share address space.
 	 */
 	if (f) {
+		ulong sp;
+
 		new->t_uregs->ebp =
-		new->t_uregs->esp =
-		 (ulong)(new->t_ustack + UMINSTACK) - sizeof(long);
+		sp = new->t_uregs->esp =
+		 (ulong)(new->t_ustack + UMINSTACK) - (2 * sizeof(ulong));
+		(void)copyout((uchar *)sp + sizeof(ulong), &arg, sizeof(arg));
 		new->t_uregs->eip = (ulong)f;
 	}
 

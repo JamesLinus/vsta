@@ -47,7 +47,7 @@ struct syscall {
 	{msg_err, 3},				/*  7 */
 	{do_exit, 1},				/*  8 */
 	{fork, 0},				/*  9 */
-	{fork_thread, 1},			/* 10 */
+	{fork_thread, 2},			/* 10 */
 	{enable_io, 2},				/* 11 */
 	{enable_isr, 2},			/* 12 */
 	{mmap, 6},				/* 13 */

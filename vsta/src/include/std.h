@@ -16,7 +16,7 @@ extern void *malloc(unsigned int), *realloc(void *, unsigned int);
 extern void *calloc(unsigned int, unsigned int);
 extern void free(void *);
 extern char *strerror( /* ... */ );
-extern int fork(void), vfork(void), tfork(voidfun);
+extern int fork(void), vfork(void), tfork(voidfun, ulong);
 extern long __cwd_size(void);
 extern void __cwd_save(char *);
 extern char *__cwd_restore(char *);

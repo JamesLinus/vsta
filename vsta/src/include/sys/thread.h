@@ -72,7 +72,7 @@ struct thread {
 #define T_MAX_OINK (32)
 
 #ifdef KERNEL
-extern void dup_stack(struct thread *, struct thread *, voidfun);
+extern void dup_stack(struct thread *, struct thread *, voidfun, ulong);
 #endif
 
 #endif /* _THREAD_H */
