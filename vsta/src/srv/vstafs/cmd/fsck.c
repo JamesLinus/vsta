@@ -593,4 +593,5 @@ main(int argc, char **argv)
 	printf("Check directory tree\n");
 	(void)check_tree(ROOT_SEC, "/");
 	check_lostblocks();
+	return(0);
 }
