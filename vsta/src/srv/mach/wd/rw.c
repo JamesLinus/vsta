@@ -24,9 +24,28 @@ extern int upyet;	/* All partitioning read yet? */
  *	Record parameters of I/O, queue to unit
  */
 static
-queue_io(uint unit, struct msg *m, struct file *f)
+queue_io(struct msg *m, struct file *f)
 {
-	ASSERT_DEBUG(unix < NWD, "queue_io: bad unit");
+	uint unit, cnt;
+	ulong part_off;
+
+	unit = NODE_UNIT(f->f_node);
+	ASSERT_DEBUG(unit < NWD, "queue_io: bad unit");
+
+	/*
+	 * Get a block offset based on partition
+	 */
+	switch (get_offset(f->f_node, f->f_pos / SECSZ, &part_off, &cnt)) {
+	case 0:			/* Everything's OK */
+		break;
+	case 1:			/* At end of partition (EOF) */
+		m->m_nseg = m->m_arg = m->m_arg1 = 0;
+		msg_reply(m->m_sender, m);
+		return(1);
+	case 2:			/* Illegal offset */
+		msg_err(m->m_sender, EINVAL);
+		return(1);
+	}
 
 	/*
 	 * If they didn't provide a buffer, generate one for
@@ -36,16 +55,19 @@ queue_io(uint unit, struct msg *m, struct file *f)
 		f->f_buf = malloc(m->m_arg);
 		if (f->f_buf == 0) {
 			msg_err(m->m_sender, ENOMEM);
-			return;
+			return(1);
 		}
 		f->f_local = 1;
 	} else {
 		f->f_buf = m->m_buf;
 		f->f_local = 0;
 	}
-	f->f_count = m->m_arg/SECSZ;
+	f->f_count = m->m_arg / SECSZ;
+	if (f->f_count > cnt) {
+		f->f_count = cnt;
+	}
 	f->f_unit = unit;
-	f->f_blkno = f->f_pos/SECSZ;
+	f->f_blkno = part_off;
 	f->f_op = m->m_op;
 	if ((f->f_list = ll_insert(&waiters, f)) == 0) {
 		if (f->f_local) {
@@ -64,7 +86,7 @@ queue_io(uint unit, struct msg *m, struct file *f)
  * If there's nothing, clears "busy"
  */
 static void
-run_queue()
+run_queue(void)
 {
 	struct file *f;
 
@@ -117,7 +139,7 @@ wd_rw(struct msg *m, struct file *f)
 	}
 
 	/*
-	 * Check size
+	 * Check size and alignment
 	 */
 	if ((m->m_arg & (SECSZ-1)) ||
 			(m->m_arg > MAXIO) ||
@@ -138,7 +160,7 @@ wd_rw(struct msg *m, struct file *f)
 	/*
 	 * Queue I/O to unit
 	 */
-	if (!queue_io(NODE_UNIT(f->f_node), m, f) && !busy) {
+	if (!queue_io(m, f) && !busy) {
 		run_queue();
 	}
 }
@@ -158,7 +180,13 @@ iodone(void *tran, int result)
 {
 	int x;
 	uint unit;
+	struct file *f;
 
+	ASSERT_DEBUG(tran != 0, "iodone: null tran");
+
+	/*
+	 * Special case before we're "upyet"
+	 */
 	if (!upyet) {
 		extern char *secbuf;
 		extern int configed[];
@@ -187,6 +215,47 @@ iodone(void *tran, int result)
 		upyet = 1;
 		return;
 	}
+
+	/*
+	 * I/O completion
+	 */
+	f = tran;
+	if (result == -1) {
+		/*
+		 * I/O error; complete this operation
+		 */
+		msg_err(f->f_sender, EIO);
+	} else {
+		struct msg m;
+
+		/*
+		 * Success.  Return count of bytes processed and
+		 * buffer if local.
+		 */
+		m.m_arg = f->f_count * SECSZ;
+		if (f->f_local) {
+			m.m_nseg = 1;
+			m.m_buf = f->f_buf;
+			m.m_buflen = m.m_arg;
+		} else {
+			m.m_nseg = 0;
+		}
+		m.m_arg1 = 0;
+		msg_reply(f->f_sender, &m);
+	}
+
+	/*
+	 * Free local buffer, clear busy field
+	 */
+	if (f->f_local) {
+		free(f->f_buf);
+	}
+	f->f_list = 0;
+
+	/*
+	 * Run next request, if any
+	 */
+	run_queue();
 }
 
 /*
