@@ -299,10 +299,14 @@ main(void)
 	/*
 	 * Root filesystem
 	 */
-	pn = namer_find("fs/root");
-	if (pn < 0) {
-		printf("init: can't find root\n");
-		exit(1);
+	for (;;) {
+		pn = namer_find("fs/root");
+		if (pn < 0) {
+			printf("init: can't find root, sleeping\n");
+			sleep(5);
+		} else {
+			break;
+		}
 	}
 	p = msg_connect(pn, ACC_READ);
 	if (p < 0) {
