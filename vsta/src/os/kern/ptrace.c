@@ -227,7 +227,7 @@ retry:
 			break;
 
 		case PD_MASK:	/* Set debug event mask */
-			p->p_dbg.pd_flags = args[1];
+			p->p_dbg.pd_flags = args[0];
 			break;
 
 		case PD_RDMEM:	/* Read memory */
