@@ -12,23 +12,26 @@
  * The obvious errors (no pview for vaddr, slot couldn't be filled, etc.)
  * are handled.
  *
- * Each physical page enumerates the mappings which exist for it using
- * the attach list (atl) which hangs off of the per-physical-page
- * structure (core).  psop_fillslot operates in terms of the pset, and
- * thus has no concept of these mappings.  Thus, the calling fault
- * handler must add the atl around the time it sets up the hat translation.
- * There is no check for an existing atl entry; the HAT must ensure that
- * translations are not lost until deleted.
+ * Each physical page points back to the pset using the page, and
+ * the index within that pset.  All further state is kept in the
+ * per-page struct "perpage".  This includes reference counting,
+ * a record of the page's state (modified, referenced, etc.), and
+ * a the head of a linked list of struct "atl"s.  The atl enumerates
+ * the mappings which are active, each atl entry listing a pview,
+ * an index, and a next pointer.
+ *
+ * In general, the reference count in the perpage reflects the number
+ * of atl's hanging off the perpage.
  *
  * A pset which is a view of a file (via a port) has some unique needs.
  * A copy-on-write (COW) set which references a file may transfer from
- * the file's image to a private copy on write.  This would usually leave
- * the file's slot with zero references--which would free the page.  To
- * cache file contents in this event, a file's pset can maintain its own
- * view.  On psop_fillslot it will add a reference using its own view,
- * so the page may survive intact across multiple runs of an a.out.  Since
- * it is a view, and has an atl, it can still be paged out using the usual
- * paging mechanisms.
+ * the file's image to a private copy on write, but shares access to
+ * the page until the write occurs (if ever).  COW sets are linked off
+ * the master fill-on-demand pset mapping the file.  The perpage slot
+ * under the COW set counts as a single reference, even though there is
+ * no atl and the COW's perpage has a reference count of 0.
+ *
+ * This is an exception to the general rule noted two paragraphs back.
  *
  * Copy-on-write (COW) sets are tricky.  The affected slot in the cow pset
  * is locked first; then the psop_fillslot is called on this slot.  Within
@@ -36,6 +39,7 @@
  * further psop_fillslot is invoked.
  *
  * XXX move some of this discussion to where it belongs--pset.c maybe?
+ * XXX yeah, well, maybe, but at least it's a little bit correct now.
  */
 #include <sys/types.h>
 #include <mach/param.h>
