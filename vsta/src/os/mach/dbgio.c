@@ -3,6 +3,8 @@
  *	I/O port access
  */
 #ifdef KDB
+#include "../mach/locore.h"
+
 extern char *strchr();
 
 /*

@@ -11,6 +11,8 @@
 #include <sys/vm.h>
 #define MALLOC_INTERNAL
 #include <sys/malloc.h>
+#include "../mach/locore.h"
+#include "../mach/vm.h"
 
 #define DBG_PAGES (4)
 #define VOFF (NBPG-1)
@@ -44,12 +46,10 @@ init_debug(void)
  *	Convert kernel virtual into physical
  */
 static ulong
-dbg_vtop(addr)
-	ulong addr;
+dbg_vtop(ulong addr)
 {
 	pte_t *pt;
 	ulong l, pfn;
-	extern ulong get_cr3();
 
 	/*
 	 * Get level 1 PTE
@@ -220,7 +220,7 @@ memleaks(void)
 			dump_buck(b, b2);
 		}
 	}
-	bcopy(buckets, obuckets, sizeof(buckets));
+	bcopy(buckets, obuckets, sizeof(obuckets));
 
 #ifdef DEBUG
 	/*

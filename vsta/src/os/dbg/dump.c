@@ -48,8 +48,7 @@ prpad(unsigned long n, int len)
  * Numbers, numbers with 0x, and numbers with 0 are treated accordingly.
  * Letters are looked up as a symbol in the symbol table.
  */
-get_num(str)
-	char *str;
+get_num(char *str)
 {
 	char *p;
 	char buf[128];
@@ -85,8 +84,7 @@ get_num(str)
  *	Dump strings
  */
 static void
-dump_s(off, count, phys)
-	int off, count, phys;
+dump_s(int off, int count, int phys)
 {
 	int x, col = 0;
 	char *buf;
@@ -134,8 +132,7 @@ dump_s(off, count, phys)
  *	Dump a bunch of hex longwords
  */
 static void
-dump_X(off, count, phys)
-	int off, count, phys;
+dump_X(int off, int count, int phys)
 {
 	int x, col = 0;
 	long *buf;
@@ -158,9 +155,7 @@ dump_X(off, count, phys)
  *	Central workhorse to do the actual memory examination
  */
 static void
-do_dump(phys, args)
-	int phys;
-	char *args;
+do_dump(int phys, char *args)
 {
 	char fmt;
 	int count;
@@ -235,8 +230,7 @@ do_dump(phys, args)
  * dump_phys()
  *	Dump memory given physical address
  */
-dump_phys(args)
-	char *args;
+dump_phys(char *args)
 {
 	do_dump(1, args);
 }
@@ -245,8 +239,7 @@ dump_phys(args)
  * dump_virt()
  *	 Dump memory given kernel virtual address
  */
-dump_virt(args)
-	char *args;
+dump_virt(char *args)
 {
 	do_dump(0, args);
 }
@@ -255,10 +248,9 @@ dump_virt(args)
  * dump_instr()
  *	Dump memory, virtual, using instruction format
  */
-dump_instr(args)
-	char *args;
+dump_instr(char *args)
 {
-	int count = 10, x;
+	int count = 10, x, i;
 
 	/*
 	 * Next argument is address
@@ -284,7 +276,12 @@ dump_instr(args)
  	for (x = 0; x < count; ++x) {
  		extern char *symloc();
 
- 		printf("%s\t", symloc(dot));
+ 		printf("%s", symloc(dot));
+		i = strlen(symloc(dot));
+		do {
+			printf(" ");
+			i++;
+		} while (i < 20);
  		dot = db_disasm(dot, 0);
  	}
 }
@@ -516,19 +513,19 @@ dump_sysmsg(char *p)
 		printf("Bad addr\n");
 		return;
 	}
-	printf("op: "); opname(sm->m_op);
+	printf("op: "); opname(sm->sm_op);
 	printf(" arg 0x%x arg1 0x%x nseg %d\n",
-		sm->m_arg, sm->m_arg1, sm->m_nseg);
-	if (sm->m_nseg) {
+		sm->sm_arg, sm->sm_arg1, sm->sm_nseg);
+	if (sm->sm_nseg) {
 		int x;
 
 		printf(" Segments:");
-		for (x = 0; x < sm->m_nseg; ++x) {
-			printf(" 0x%x", sm->m_seg[x]);
+		for (x = 0; x < sm->sm_nseg; ++x) {
+			printf(" 0x%x", sm->sm_seg[x]);
 		}
 		printf("\n");
 	}
 	printf(" sender 0x%x next 0x%x err '%s'\n",
-		sm->m_sender, sm->m_next, sm->m_err);
+		sm->sm_sender, sm->sm_next, sm->sm_err);
 }
 #endif /* KDB */

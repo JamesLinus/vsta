@@ -55,25 +55,36 @@ static struct sym *
 find_ent(char *nm)
 {
 	struct sym *s;
+	int x, loops = 1;
 
 	/*
-	 * Ignore leading '_'
+	 * Ignore leading '_' on the first pass through the name table
 	 */
 	if (nm[0] == '_') {
 		++nm;
+		loops = 2;
 	}
 
 	/*
 	 * Walk table looking for the symbol
 	 */
-	for (s = dbg_start; s->s_type != DBG_END; s = NEXTSYM(s)) {
-		/*
-		 * Match?  Return entry.
-		 */
-		if (!strcmp(s->s_name, nm)) {
-			return(s);
+	for (x = 0; x < loops; x++) {
+		for (s = dbg_start; s->s_type != DBG_END; s = NEXTSYM(s)) {
+			/*
+			 * Match?  Return entry.
+			 */
+			if (!strcmp(s->s_name, nm)) {
+				return(s);
+			}
 		}
+
+		/*
+		 * If we started with an underscore, let's see if it
+		 * really was important!
+		 */
+		--nm;
 	}
+
 	return(0);
 }
 
@@ -84,8 +95,7 @@ find_ent(char *nm)
  * longjmp()'s on failure
  */
 ulong
-symval(name)
-	char *name;
+symval(char *name)
 {
 	struct sym *s;
 
@@ -103,9 +113,7 @@ symval(name)
  * Will warn if overwriting an existing symbol
  */
 void
-setsym(name, val)
-	char *name;
-	ulong val;
+setsym(char *name, ulong val)
 {
 	struct sym *s;
 
@@ -124,8 +132,7 @@ setsym(name, val)
  *	Give a symbol for the named value
  */
 char *
-nameval(loc)
-	ulong loc;
+nameval(ulong loc)
 {
 	struct sym *s;
 
@@ -145,8 +152,7 @@ nameval(loc)
  *	Return pointer to string describing the given location
  */
 char *
-symloc(loc)
-	off_t loc;
+symloc(off_t loc)
 {
 	ulong closest = 99999999L;
 	struct sym *s, *sclosest = 0;

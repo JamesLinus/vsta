@@ -3,8 +3,7 @@
  * crash.c
  *	Main routine for crash program
  */
-#include <sys/types.h>
-#include <mach/setjmp.h>
+#include "../mach/locore.h"
 
 extern void dump_phys(), dump_virt(), dump_procs(), dump_pset(),
 	dump_instr(), trace(), trapframe(), dump_vas(), dump_port(),
@@ -130,8 +129,7 @@ set_mem(char *p)
  *	Print out value in multiple formats
  */
 static void
-calc(str)
-	char *str;
+calc(char *str)
 {
 	int x;
 
@@ -144,8 +142,7 @@ calc(str)
  *	Given command string, look up and invoke handler
  */
 static void
-do_cmd(str)
-	char *str;
+do_cmd(char *str)
 {
 	int x, len, matches = 0, match;
 	char *p;
@@ -235,8 +232,7 @@ yyerror()
  *	Set a symbol to a value
  */
 static void
-set(s)
-	char *s;
+set(char *s)
 {
 	off_t o;
 	char *n = s;

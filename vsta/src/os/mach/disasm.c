@@ -8,8 +8,9 @@
  * Copyright (c) 1991,1990 Carnegie Mellon University
  * All Rights Reserved.
  */
+#include <sys/types.h>
+
 extern char *nameval();
-typedef unsigned long off_t;
 
 #define TRUE 1		/* DUH */
 #define FALSE 0
@@ -828,9 +829,8 @@ int db_lengths[] = {
  * Wrapper function to interface to maploc()
  * XXX should allow for physical memory disassembly
  */
-static
-readloc2(loc, size)
-	int loc, size;
+static int
+readloc2(int loc, int size, int is_signed)
 {
 	char a; short b; int c;
 	void *p;
@@ -840,33 +840,41 @@ readloc2(loc, size)
 	switch (size) {
 	case 1:
 		a = *(char *)p;
-		return(a & 0xFF);
+		if (is_signed) {
+			return(a & (char)0xFF);
+		} else {
+			return(a & (uchar)0xFF);
+		}
 	case 2:
 		b = *(short *)p;
-		return(b & 0xFFFF);
+		if (is_signed) {
+			return(b & (short)0xFFFF);
+		} else {
+			return(b & (ushort)0xFFFF);
+		}
 	case 4:
 		c = *(int *)p;
-		return(c);
+		if (is_signed) {
+			return(c);
+		} else {
+			return((uint)c);
+		}
 	default:
 		return(0);
 	}
 }
 
 #define	get_value_inc(result, loc, size, is_signed) \
-	result = readloc2(loc, size); \
+	result = readloc2(loc, size, is_signed); \
 	(loc) += (size);
 
 /*
  * Read address at location and return updated location.
  */
 off_t
-db_read_address(loc, short_addr, regmodrm, addrp)
-	off_t	loc;
-	int		short_addr;
-	int		regmodrm;
-	struct i_addr	*addrp;		/* out */
+db_read_address(off_t loc, int short_addr, int regmodrm, struct i_addr *addrp)
 {
-	int		mod, rm, sib, index, ss, disp;
+	int		mod, rm, sib, index, disp;
 
 	mod = f_mod(regmodrm);
 	rm  = f_rm(regmodrm);
@@ -945,8 +953,7 @@ db_read_address(loc, short_addr, regmodrm, addrp)
 }
 
 static void
-db_printsym(off)
-	int off;
+db_printsym(int off)
 {
 	char *p;
 
@@ -958,13 +965,8 @@ db_printsym(off)
 }
 
 void
-db_print_address(seg, size, addrp)
-	char *		seg;
-	int		size;
-	struct i_addr	*addrp;
+db_print_address(char *seg, int size, struct i_addr *addrp)
 {
-	char *p;
-
 	if (addrp->is_reg) {
 	    printf("%s", db_reg[size][addrp->disp]);
 	    return;
@@ -989,12 +991,7 @@ db_print_address(seg, size, addrp)
  * and return updated location.
  */
 off_t
-db_disasm_esc(loc, inst, short_addr, size, seg)
-	off_t	loc;
-	int		inst;
-	int		short_addr;
-	int		size;
-	char *		seg;
+db_disasm_esc(off_t loc, int inst, int short_addr, int size, char *seg)
 {
 	int		regmodrm;
 	struct finst	*fp;
@@ -1033,7 +1030,7 @@ db_disasm_esc(loc, inst, short_addr, size, seg)
 		default:
 		    break;
 	    }
-	    printf("\t");
+	    printf(" ");
 	    db_print_address(seg, BYTE, &address);
 	}
 	else {
@@ -1043,21 +1040,21 @@ db_disasm_esc(loc, inst, short_addr, size, seg)
 	    switch (fp->f_rrmode) {
 		case op2(ST,STI):
 		    name = (fp->f_rrname) ? fp->f_rrname : fp->f_name;
-		    printf("%s\t%%st,%%st(%d)",name,f_rm(regmodrm));
+		    printf("%s %%st,%%st(%d)",name,f_rm(regmodrm));
 		    break;
 		case op2(STI,ST):
 		    name = (fp->f_rrname) ? fp->f_rrname : fp->f_name;
-		    printf("%s\t%%st(%d),%%st",name, f_rm(regmodrm));
+		    printf("%s %%st(%d),%%st",name, f_rm(regmodrm));
 		    break;
 		case op1(STI):
 		    name = (fp->f_rrname) ? fp->f_rrname : fp->f_name;
-		    printf("%s\t%%st(%d)",name, f_rm(regmodrm));
+		    printf("%s %%st(%d)",name, f_rm(regmodrm));
 		    break;
 		case op1(X):
 		    printf("%s", ((char **)fp->f_rrname)[f_rm(regmodrm)]);
 		    break;
 		case op1(XA):
-		    printf("%s\t%%ax",
+		    printf("%s %%ax",
 				 ((char **)fp->f_rrname)[f_rm(regmodrm)]);
 		    break;
 		default:
@@ -1075,9 +1072,7 @@ db_disasm_esc(loc, inst, short_addr, size, seg)
  * next instruction.
  */
 off_t
-db_disasm(loc, altfmt)
-	off_t	loc;
-	int	altfmt;
+db_disasm(off_t loc, int altfmt)
 {
 	int	inst;
 	int	size;
@@ -1222,7 +1217,7 @@ db_disasm(loc, altfmt)
 		    printf("l");
 	    }
 	}
-	printf("\t");
+	printf(" ");
 	for (first = TRUE;
 	     i_mode != 0;
 	     i_mode >>= 8, first = FALSE)

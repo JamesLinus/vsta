@@ -8,6 +8,7 @@
 #include <mach/trap.h>
 #include <mach/machreg.h>
 #include <mach/setjmp.h>
+#include "../mach/locore.h"
 
 extern char etext[];
 extern jmp_buf dbg_errjmp;
@@ -34,7 +35,6 @@ void
 trace(int dummy)
 {
 	ulong ebp, eip;
-	ulong x;
 
  	/*
  	 * Loop, reading pairs of frame pointers and return addresses
