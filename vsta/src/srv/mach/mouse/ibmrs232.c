@@ -119,8 +119,7 @@ rs232_read(void)
 static void
 ibm_serial_check_status(void)
 {
-	short new_x, new_y;
-	char x_off, y_off, changed = 0;
+	char x_off, y_off, changed;
 	int i = 0, x, buttons, got_packet;
 	struct ibm_serial_config *m_data = &ibm_serial_data[ibm_serial_model];
 	uchar *buffer;
@@ -138,11 +137,7 @@ ibm_serial_check_status(void)
 
 	set_semaphore(&ibm_serial_update_allowed, FALSE);
 
-	new_x = p->x;
-	new_y = p->y;
-
 	rs232_read();
-
 restart:
 	/*
 	 * Find a header byte
@@ -215,35 +210,11 @@ restart:
 		/*
 		 * If they've changed, update the current coordinates
 		 */
-		if (x_off != 0 || y_off != 0) {
-			new_x += x_off;
-			new_y += y_off;
-			/*
-			 * Make sure we honour the bounding box
-			 */
-			if (new_x < p->bx1) {
-				new_x = p->bx1;
-			}
-			if (new_x > p->bx2) {
-				new_x = p->bx2;
-			}
-			if (new_y < p->by1) {
-				new_y = p->by1;
-			}
-			if (new_y > p->by2) {
-				new_y = p->by2;
-			}
-
-			/*
-			 * Set up the new mouse position
-			 */
-			p->x = new_x;
-			p->y = new_y;
-			changed = 1;
-		}
-		changed |= (p->buttons != buttons);
-		p->buttons = buttons;
+		p->dx += x_off;
+		p->dy += y_off;
 	}
+	changed = p->dx || p->dy || (p->buttons != buttons);
+	p->buttons = buttons;
 
 	/*
 	 * After all that, do we need to shunt our buffers about?
@@ -463,13 +434,9 @@ ibm_serial_initialise(int argc, char **argv)
 	 *  Initialise the system data.
 	 */
 	m->functions = ibm_serial_functions;
-	m->pointer_data.x = 320;
-	m->pointer_data.y = 320;
+	m->pointer_data.dx =
+	m->pointer_data.dy = 0;
 	m->pointer_data.buttons = 0;
-	m->pointer_data.bx1 = 0;
-	m->pointer_data.by1 = 0;
-	m->pointer_data.bx2 = 639;
-	m->pointer_data.by2 = 399;
 	m->irq_number = 0;
 	m->update_frequency = ibm_serial_delay_period;
 

@@ -26,12 +26,9 @@ static mouse_function_table ms_bus_functions = {
 void
 ms_bus_interrupt(void)
 {
-	short new_x, new_y;
-	uchar dx, dy, buttons, changed = 0;
+	char dx, dy;
+	uchar buttons, changed;
 	mouse_pointer_data_t *p = &mouse_data.pointer_data;
-
-	new_x = p->x;
-	new_y = p->y;
 
 	outportb(MS_BUS_CONTROL_PORT, MS_BUS_COMMAND_MODE);
 	outportb(MS_BUS_DATA_PORT, (inportb(MS_BUS_DATA_PORT) | 0x20));
@@ -51,29 +48,8 @@ ms_bus_interrupt(void)
 	/*
 	 *  If they've changed, update  the current coordinates
 	 */
-	if (dx || dy) {
-		new_x += dx;
-		new_y += dy;
-
-		/*
-		 *  Make sure we honour the bounding box
-		 */
-		if (new_x < p->bx1)
-			new_x = p->bx1;
-		if (new_x > p->bx2)
-			new_x = p->bx2;
-		if (new_y < p->by1)
-			new_y = p->by1;
-		if (new_y > p->by2)
-			new_y = p->by2;
-
-		/*
-		 *  Set up the new mouse position
-		 */
-		p->x = new_x;
-		p->y = new_y;
-		changed = 1;
-	}
+	p->dx += dx;
+	p->dy += dy;
 
 	/*
 	 * Not sure about this... but I assume that the MS mouse is the
@@ -98,7 +74,7 @@ ms_bus_interrupt(void)
 	 * Record change, update, and notify of button or position
 	 * changes
 	 */
-	changed |= (buttons != p->buttons);
+	changed = p->dx || p->dy || (buttons != p->buttons);
 	p->buttons = buttons;
 	if (changed) {
 		mouse_changed();
@@ -120,37 +96,11 @@ ms_bus_initialise(int argc, char **argv)
 	 *  Initialise the system data.
 	 */
 	m->functions = ms_bus_functions;
-	m->pointer_data.x = 320;
-	m->pointer_data.y = 320;
+	m->pointer_data.dx =
+	m->pointer_data.dy = 0;
 	m->pointer_data.buttons = 0;
-	m->pointer_data.bx1 = 0;
-	m->pointer_data.by1 = 0;
-	m->pointer_data.bx2 = 639;
-	m->pointer_data.by2 = 399;
 	m->irq_number = MS_BUS_IRQ;
 	m->update_frequency = 0;
-
-	/*
-	 * Parse our args...
-	 */
-	for (loop = 1; loop < argc; loop++) {
-		if (strcmp(argv[loop], "-x_size") == 0) {
-			if(++loop == argc){
-				syslog(LOG_ERR, "bad -x_size parameter");
-				break;
-			}
-			m->pointer_data.x = atoi(argv[loop]) / 2;
-			m->pointer_data.bx2 = atoi(argv[loop]);
-		}
-		if (strcmp(argv[loop], "-y_size") == 0) {
-			if(++loop == argc){
-				syslog(LOG_ERR, "bad -y_size parameter");
-				break;
-			}
-			m->pointer_data.y   = atoi(argv[loop])/2;
-			m->pointer_data.by2 = atoi(argv[loop]);
-		}
-	}
 
 	/*
 	 * Get our hardware ports.

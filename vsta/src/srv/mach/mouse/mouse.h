@@ -46,10 +46,8 @@ typedef struct {
  * Pointer related mouse data
  */
 typedef struct {
-	uchar buttons;			/* current button state */
-	ushort x;			/* current X coordinate */
-	ushort y;			/* current Y coordinate */
-	ushort bx1, by1, bx2, by2;	/* bounding box for the mouse */
+	uchar buttons;	/* current button state */
+	int dx, dy;	/* Change in position */
 } mouse_pointer_data_t;
 
 /*
@@ -69,7 +67,6 @@ extern port_t mouse_port;
 extern port_name mouse_name;
 extern uint mouse_accgen;
 extern mouse_data_t mouse_data;
-extern int oldx, oldy;
 
 extern void mouse_initialise(int, char **);
 extern void mouse_read(struct msg *, struct file *);

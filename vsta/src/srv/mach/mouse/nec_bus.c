@@ -42,8 +42,7 @@ static int pc98_delay_period = 100;
 static inline void
 pc98_bus_check_status(void)
 {
-	short new_x, new_y;
-	char x_off = 0, y_off = 0, changed = 0, buttons;
+	char x_off = 0, y_off = 0, changed, buttons;
 	uchar mask = inportb(PC98_MOUSE_RPORT_C) & 0xf0;
 	mouse_pointer_data_t *p = &mouse_data.pointer_data;
 
@@ -51,8 +50,6 @@ pc98_bus_check_status(void)
 		return;
 
 	set_semaphore(&pc98_update_allowed, FALSE);
-	new_x = p->x;
-	new_y = p->y;
 
 	/*
 	 *  First we read in the X offset
@@ -78,27 +75,8 @@ pc98_bus_check_status(void)
 		outportb(PC98_MOUSE_WPORT_C, 0x10);
 		outportb(PC98_MOUSE_WPORT_C, 0x90);
 		outportb(PC98_MOUSE_WPORT_C, 0x10);
-		new_x += x_off;
-		new_y += y_off;
-
-		/*
-		 *  Make sure we honour the bounding box
-		 */
-		if (new_x < p->bx1)
-			new_x = p->bx1;
-		if (new_x > p->bx2)
-			new_x = p->bx2;
-		if (new_y < p->by1)
-			new_y = p->by1;
-		if (new_y > p->by2)
-			new_y = p->by2;
-
-		/*
-		 *  Set up the new mouse position
-		 */
-		p->x = new_x;
-		p->y = new_y;
-		changed = 1;
+		p->dx += x_off;
+		p->dy += y_off;
 	}
 	mask = (inportb(PC98_MOUSE_RPORT_A) >> 5) & 0x5;
 	switch (mask) {		/* simulate a 3 button mouse here */
@@ -119,7 +97,7 @@ pc98_bus_check_status(void)
 	/*
 	 * Record change, update buttons
 	 */
-	changed |= (buttons != p->buttons);
+	changed = p->dx || p->dy || (buttons != p->buttons);
 	p->buttons = buttons;
 	set_semaphore(&pc98_update_allowed, TRUE);
 
@@ -222,13 +200,9 @@ pc98_bus_initialise(int argc, char **argv)
 	 *  Initialise the system data.
 	 */
 	m->functions = pc98_bus_functions;
-	m->pointer_data.x = 320;
-	m->pointer_data.y = 320;
+	m->pointer_data.dx =
+	m->pointer_data.dy = 0;
 	m->pointer_data.buttons = 0;
-	m->pointer_data.bx1 = 0;
-	m->pointer_data.by1 = 0;
-	m->pointer_data.bx2 = 639;
-	m->pointer_data.by2 = 399;
 	m->irq_number = pc98_irq_number;
 	m->update_frequency = pc98_delay_period;
 

@@ -46,10 +46,6 @@ mouse_data_t mouse_data = {
       0,                                 /* X coordinate                  */
       0,                                 /* Y coordinate                  */
       0,                                 /* Pressed buttons               */
-      0,                                 /* Bounding box X1               */
-      0,                                 /* "     "   Y1               */
-      0,                                 /* Bounding box X2               */
-      0,                                 /* "     "   Y2               */
    },
    -1,                                   /* irq_number                    */
    -1,                                   /* update_frequency              */
@@ -113,8 +109,7 @@ update_changes(void)
 	mouse_pointer_data_t *p = &mouse_data.pointer_data;
 
 	oldbut = p->buttons;
-	oldx = p->x;
-	oldy = p->y;
+	p->dx = p->dy = 0;
 }
 
 /*
@@ -126,7 +121,7 @@ check_changes(void)
 {
 	mouse_pointer_data_t *p = &mouse_data.pointer_data;
 
-	return((oldbut != p->buttons) || (oldx != p->x) || (oldy != p->y));
+	return((oldbut != p->buttons) || p->dx || p->dy);
 }
 
 /*

@@ -37,7 +37,7 @@ main(void)
 			atoi(__fieldval(statstr, "left")),
 			atoi(__fieldval(statstr, "middle")),
 			atoi(__fieldval(statstr, "right")),
-			atoi(__fieldval(statstr, "x")),
-			atoi(__fieldval(statstr, "y")));
+			atoi(__fieldval(statstr, "dx")),
+			atoi(__fieldval(statstr, "dy")));
 	}
 }
