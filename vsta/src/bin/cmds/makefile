@@ -10,7 +10,7 @@ CRT0=../../lib/crt0.o
 
 PROGS=test args cat id ls swapd rm cp sleep mkdir pwd kill mv stat \
 	dumpsect man fstab rmdir touch strings xargs echo du chmod \
-	tput basename uname fmt purge
+	tput basename uname fmt purge wc
 
 all: $(PROGS)
 
@@ -103,6 +103,9 @@ fmt: fmt.o
 
 purge: purge.o
 	$(LD) $(LDFLAGS) -o purge $(CRT0) purge.o -lc
+
+wc: wc.o
+	$(LD) $(LDFLAGS) -o wc $(CRT0) wc.o -lc
 
 clean:
 	rm -f *.o
