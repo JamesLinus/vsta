@@ -38,58 +38,34 @@ typedef struct __file {
  */
 extern int fgetc(FILE *), fputc(int, FILE *);
 
-#ifdef __GNUC__
 /*
- * The following in-line functions replace the more classic UNIX
- * approach of gnarly ?: constructs.  I think that inline C in
- * a .h is disgusting, but a step forward from unreadably
- * complex C expressions.
+ * The following could be inline functions, but GNU C has no reliable
+ * way to express inline functions which is operable across all levels
+ * of optimization.  So we're back to classic UNIX ?: constructs.
  */
 
 /*
  * getc()
  *	Get a char from a stream
  */
-inline extern int
-getc(FILE *fp)
-{
-	if (((fp->f_flags & (_F_READ|_F_DIRTY)) != _F_READ) ||
-			(fp->f_cnt == 0)) {
-		return(fgetc(fp));
-	}
-	fp->f_cnt -= 1;
-	fp->f_pos += 1;
-	return(fp->f_pos[-1]);
-}
+#define getc(fp) (\
+	(((fp->f_flags & (_F_READ|_F_DIRTY)) != _F_READ) || \
+			(fp->f_cnt == 0)) ? fgetc(fp) : \
+		(fp->f_cnt -= 1, fp->f_pos += 1, fp->f_pos[-1]))
 
 /*
  * putc()
  *	Put a char to a stream
  */
-inline extern int
-putc(char c, FILE *fp)
-{
-	if (((fp->f_flags & (_F_WRITE|_F_SETUP|_F_DIRTY)) !=
-			(_F_WRITE|_F_SETUP)) ||
-			(fp->f_cnt >= fp->f_bufsz) ||
-			((fp->f_flags & _F_LINE) && (c == '\n'))) {
-		return(fputc(c, fp));
-	}
-	*(fp->f_pos) = c;
-	fp->f_pos += 1;
-	fp->f_cnt += 1;
-	fp->f_flags |= _F_DIRTY;
-	return(0);
-}
-#else
-
-/*
- * For non-GNU C, just live with the function call overhead for now
- */
-#define getc(f) fgetc(f)
-#define putc(c, f) fputc(c, f)
-
-#endif
+#define putc(c, fp) (\
+	(((fp->f_flags & (_F_WRITE|_F_SETUP|_F_DIRTY)) != \
+			(_F_WRITE|_F_SETUP)) || \
+			(fp->f_cnt >= fp->f_bufsz) || \
+			((fp->f_flags & _F_LINE) && (c == '\n'))) ? \
+		fputc(c, fp) : \
+	(*(fp->f_pos) = c, fp->f_pos += 1, fp->f_cnt += 1, \
+	fp->f_flags |= _F_DIRTY, \
+	0))
 
 /*
  * Smoke and mirrors
