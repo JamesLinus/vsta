@@ -281,13 +281,13 @@ dir_look(struct node *n, char *file)
 		((d.attr & DA_READONLY) ? 0 : ACC_WRITE);
 	n2->n_refs = 1;
 	n2->n_flags = 0;	/* Not dirty to start */
-	n2->n_dir = n; ref_node(n);
 	n2->n_slot = x;
 	if (n2->n_type == T_DIR) {
 		/*
 		 * Get the file hash for directories
 		 */
 		n2->n_files = hash_alloc(8);
+		n2->n_dir = 0;
 		if (n2->n_files == 0) {
 			free_clust(n2->n_clust);
 			free(n2);
@@ -304,6 +304,7 @@ dir_look(struct node *n, char *file)
 		 * Fill in directory slot information for files
 		 */
 		n2->n_len = d.size;
+		n2->n_dir = n; ref_node(n);
 		if (hash_insert(n->n_files, x, n2)) {
 			free_clust(n2->n_clust);
 			free(n2);
