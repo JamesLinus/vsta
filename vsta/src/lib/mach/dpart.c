@@ -175,7 +175,7 @@ dpart_init(char *name, uint unit, char *secbuf,
 		 * sectors" that most other FAT fs implementations ignore :-(
 		 */
 		p->p_off = s->ps_start;
-		p->p_extoffs = s->ps_start;
+		p->p_extoffs = s->ps_start + ext_cur_offs;
 		p->p_len = s->ps_len;
 		if (cur_sec_num) {
 			/*
