@@ -283,6 +283,11 @@ main(void)
 	port_name pn;
 
 	/*
+	 * Fix our name
+	 */
+	set_cmd("init");
+
+	/*
 	 * A moment (2.5 sec) to let servers establish their ports
 	 */
 	__msleep(2500);

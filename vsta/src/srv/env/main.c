@@ -307,6 +307,13 @@ main(int argc, char *argv[])
 	port_t port;
 
 	/*
+	 * Set our name if we're standalone
+	 */
+	if (argc == 0) {
+		set_cmd("env");
+	}
+
+	/*
 	 * Allocate data structures we'll need
 	 */
         filehash = hash_alloc(16);

@@ -246,9 +246,16 @@ loop:
  * main()
  *	Startup of the screen server
  */
-main()
+main(int argc, char **argv)
 {
 	extern void init_screen();
+
+	/*
+	 * Set name if boot module
+	 */
+	if (argc == 0) {
+		set_cmd("cons");
+	}
 
 	/*
 	 * Allocate handle->file hash table.  16 is just a guess

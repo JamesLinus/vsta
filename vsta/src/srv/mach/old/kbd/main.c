@@ -231,8 +231,15 @@ loop:
  * main()
  *	Startup of the keyboard server
  */
-main()
+main(int argc, char **argv)
 {
+	/*
+	 * Set name for boot
+	 */
+	if (argc == 0) {
+		set_cmd("kbd");
+	}
+
 	/*
 	 * Allocate handle->file hash table.  16 is just a guess
 	 * as to what we'll have to handle.

@@ -288,6 +288,13 @@ main(int argc, char *argv[])
 	int chan, fd, x;
 
 	/*
+	 * Set name for boot
+	 */
+	if (argc == 0) {
+		set_cmd("namer");
+	}
+
+	/*
 	 * Allocate data structures we'll need
 	 */
         filehash = hash_alloc(16);
