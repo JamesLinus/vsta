@@ -152,7 +152,7 @@ main(argc, argv)  char **argv; {
 		read_profile("/vsta/etc/profile");
 state1:
 		state = 2;
-		read_profile("sh.profile");
+		read_profile(".shrc");
 	} else if ((sflag || minusc) && (shinit = getenv("SHINIT")) != NULL) {
 		state = 2;
 		evalstring(shinit);
