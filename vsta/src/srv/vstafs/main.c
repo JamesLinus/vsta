@@ -388,7 +388,7 @@ main(int argc, char *argv[])
 	/*
 	 * Open access to the root filesystem
 	 */
-	rootdir = alloc_node(ROOT_SEC);
+	rootdir = get_node(ROOT_SEC);
 	ASSERT(rootdir, "VFS: can't open root");
 
 	/*
