@@ -34,6 +34,7 @@ OBJS =	main.o arp.o arpcmd.o arpdump.o ax25.o ax25cmd.o \
 	enetdump.o vsta_srv.o
 
 net:	$(OBJS)
+	rm -f net
 	$(CC) $(CFLAGS) -o net $(OBJS) $(LIBS)
 
 clean:
