@@ -64,11 +64,11 @@ char *fingerpath = "/finger/";		/* Path to finger info files */
  * are used to specify the precise path.
  */
 char *netexe = "net";		/* where the binary lives; for reset */
-char *startup = "startup.net";		/* Initialization file */
+char *startup = "autoexec.net";		/* Initialization file */
 char *config = "config.net";		/* Device configuration list */
 char *userfile = "ftpusers";
 char *hosts = "hosts.net";
-char *Dfile = "domain.txt";
+char *Dfile = "/tmp/domain.txt";
 char *mailspool = "mail";
 char *mailqdir = "mqueue";
 char *mailqueue = "mqueue/*.wrk";
