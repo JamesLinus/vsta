@@ -71,7 +71,7 @@
  */
 #define UBASE (0x0)
 #define UOFF (0x80000000)
-#define USTACKADDR (0x80000000-UMINSTACK)
+#define USTACKADDR (0x80000000-UMAXSTACK)
 
 /*
  * Address of utility map used by hat_attach() on i386
