@@ -89,17 +89,19 @@ struct fs_dirent {
  * block allocation.  The file's contents follows.
  */
 struct fs_file {
-	daddr_t fs_prev;	/* Previous version of this file */
-	ulong fs_rev;		/* Revision # */
-	ulong fs_len;		/* File length in bytes */
-	ushort fs_type;		/* Type of file */
-	ushort fs_nlink;	/* # dir entries pointing to this */
-	struct prot		/* Protection on this file */
+	daddr_t fs_prev;	/* Previous version of this file 0 */
+	ulong fs_rev;		/* Revision # 4 */
+	ulong fs_len;		/* File length in bytes 8 */
+	ushort fs_type;		/* Type of file 12 */
+	ushort fs_nlink;	/* # dir entries pointing to this 14 */
+	struct prot		/* Protection on this file 16 */
 		fs_prot;
-	uint fs_owner;		/*  ...creator's UID */
-	uint fs_nblk;		/* # extents */
+	uint fs_owner;		/*  ...creator's UID 32 */
+	uint fs_nblk;		/* # extents 36 */
 	struct alloc		/* ...<start,off> tuples of extents */
-		fs_blks[MAXEXT];
+		fs_blks[MAXEXT];	/* 288 */
+	char fs_pad[24];	/* Pad to 32-byte boundary */
+				/*  ...this keeps fs_dirent's aligned */
 	char fs_data[0];	/* Data starts here */
 };
 
