@@ -56,7 +56,7 @@ ED=src/bin/ports/emacs src/bin/ports/ed src/bin/ports/vim \
 	src/bin/ports/vim-5.7
 
 # Games
-FUN=src/bin/ports/backgamm src/bin/ports/chess-5.00
+FUN=src/bin/ports/backgammon src/bin/ports/chess-5.00
 
 # "bc" calculator
 BC=src/bin/ports/bc
