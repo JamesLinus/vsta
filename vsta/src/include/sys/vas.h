@@ -33,6 +33,7 @@ extern void free_vas(struct vas *);
 extern void *alloc_zfod(struct vas *, uint, uint),
 	*alloc_zfod_vaddr(struct vas *, uint, void *);
 extern void fork_vas(struct vas *, struct vas *);
+extern int overlapping_pview(struct vas *, void *, uint);
 #endif /* KERNEL */
 
 #endif /* _VAS_H */
