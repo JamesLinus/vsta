@@ -103,6 +103,14 @@ syscall(struct trapframe *f)
 #endif
 
 	/*
+	 * Interrupted system calls vector here
+	 */
+	if (setjmp(curthread->t_qsav)) {
+		err(EINTR);
+		return;
+	}
+
+	/*
 	 * Call function with needed number of arguments
 	 */
 	switch (s->s_narg) {
