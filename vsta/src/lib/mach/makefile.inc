@@ -4,8 +4,7 @@
 #
 
 # Objects to be contributed to libc.a
-MACHOBJS=io.o mem.o misc.o setjmp.o crt0.o crt0srv.o gnufuncs.o \
-	exec.o syscalls.o
+MACHOBJS=io.o mem.o misc.o setjmp.o gnufuncs.o exec.o syscalls.o
 
 # Extra targets to be built
 MACHTARGS=libdpart.a
