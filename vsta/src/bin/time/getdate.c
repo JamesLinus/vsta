@@ -115,8 +115,10 @@ read_time(void)
 	ulong sec;
 	uint leap, day_week, t, yd;
 	uint sa, s;
+#ifdef XXX
 	const uint dayst = 119,		/* Daylight savings, sort of */
 		dayen = 303;
+#endif
 
 	/*
 	 * Bail if no real-time clock
@@ -149,10 +151,12 @@ read_time(void)
 	sec += bcd(nvread(rtc_min)) * 60;			/* minutes */
 	sec += bcd(nvread(rtc_sec));				/* seconds */
 
+#ifdef XXX
 	/* Convert to daylight saving */
 	yd = yd / (24*60*60);
 	if ((yd >= dayst) && ( yd <= dayen)) {
 		sec -= 60*60;
 	}
+#endif
 	return(sec);
 }
