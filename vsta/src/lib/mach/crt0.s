@@ -34,3 +34,8 @@ start:
 1:	call	_exit
 	movl	$0,(%esp)
 	jmp	1b
+
+/* Dummy for GCC 2.X hooks into C++ */
+	.globl	___main
+___main:
+	ret
