@@ -59,6 +59,7 @@ extern int fclose(FILE *),
 	fileno(FILE *);
 extern off_t fseek(FILE *, off_t, int), ftell(FILE *);
 extern char *gets(char *), *fgets(char *, int, FILE *);
+extern int puts(char *), fputs(char *, FILE *);
 extern void clearerr(FILE *), setbuf(FILE *, char *);
 
 /*
