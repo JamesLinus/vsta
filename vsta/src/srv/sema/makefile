@@ -5,16 +5,17 @@ CFLAGS=-Wall $(INCS)
 LDFLAGS= -L../../lib
 OBJS= main.o open.o rw.o stat.o
 LIBS= -lusr -lc
+CRT0=../../lib/crt0.o
 
 all: sema
 .c.o:
 	$(CC) $(CFLAGS) -c $*.c
 
 sema: $(OBJS)
-	$(LD) $(LDFLAGS) -o sema ../../lib/crt0.o $(OBJS) $(LIBS)
+	$(LD) $(LDFLAGS) -o sema $(CRT0) $(OBJS) $(LIBS)
 
 test: test.o
-	$(LD) $(LDFLAGS) -o test ../../lib/crt0.o test.o $(LIBS)
+	$(LD) $(LDFLAGS) -o test $(CRT0) test.o $(LIBS)
 
 clean:
 	rm -f *.o
