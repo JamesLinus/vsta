@@ -383,7 +383,7 @@ alloc_open(struct proc *p)
 	}
 	ASSERT(slot < PROCOPENS, "msg_connect: wrong p_nopen");
 	p->p_open[slot] = PORT_RESERVED;
-	ATOMIC_INCW(&p->p_nopen);
+	ATOMIC_INCL(&p->p_nopen);
 	v_sema(&p->p_sema);
 	return(slot);
 }
@@ -399,7 +399,7 @@ void
 free_open(struct proc *p, int slot)
 {
 	p->p_open[slot] = 0;
-	ATOMIC_DECW(&p->p_nopen);
+	ATOMIC_DECL(&p->p_nopen);
 }
 
 /*
