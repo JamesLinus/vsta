@@ -10,7 +10,7 @@
 #include <make/assym.h>
 
 #define ENTRY(n, v)	.globl	_##n ; \
-	_##n: popl %ebx ; movl $v,%eax ; int $0xFF ; jmp %ebx
+	_##n: movl $v,%eax ; int $0xFF ; ret
 
 ENTRY(msg_port, S_MSG_PORT)
 ENTRY(msg_connect, S_MSG_CONNECT)
