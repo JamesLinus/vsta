@@ -93,9 +93,8 @@ alarm_wakeup(struct time *t)
  * it's ready.
  */
 void
-hardclock(uint x)
+hardclock(struct trapframe *f)
 {
-	struct trapframe *f = (struct trapframe *)&x;
 	struct percpu *c = &cpu;
 	struct thread *t;
 	struct time tm;
