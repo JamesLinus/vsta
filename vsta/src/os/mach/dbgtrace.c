@@ -121,34 +121,26 @@ static char *
 tname(uint t)
 {
 	static char buf[32];
-	char buf2[32];
 
-	if (t & T_KERNEL) {
-		strcpy(buf, "KERN|");
-		t &= ~T_KERNEL;
-	} else {
-		buf[0] = '\0';
-	}
 	switch (t) {
-	case T_DIV: strcat(buf, "DIV"); break;
-	case T_DEBUG: strcat(buf, "DEBUG"); break;
-	case T_NMI: strcat(buf, "NMI"); break;
-	case T_BPT: strcat(buf, "BPT"); break;
-	case T_OVFL: strcat(buf, "OVFL"); break;
-	case T_BOUND: strcat(buf, "BOUND"); break;
-	case T_INSTR: strcat(buf, "INSTR"); break;
-	case T_387: strcat(buf, "387"); break;
-	case T_DFAULT: strcat(buf, "DFAULT"); break;
-	case T_INVTSS: strcat(buf, "INVTSS"); break;
-	case T_SEG: strcat(buf, "SEG"); break;
-	case T_STACK: strcat(buf, "STACK"); break;
-	case T_GENPRO: strcat(buf, "GENPRO"); break;
-	case T_PGFLT: strcat(buf, "PGFLT"); break;
-	case T_NPX: strcat(buf, "NPX"); break;
-	case T_CPSOVER: strcat(buf, "CPSOVER"); break;
+	case T_DIV: strcpy(buf, "DIV"); break;
+	case T_DEBUG: strcpy(buf, "DEBUG"); break;
+	case T_NMI: strcpy(buf, "NMI"); break;
+	case T_BPT: strcpy(buf, "BPT"); break;
+	case T_OVFL: strcpy(buf, "OVFL"); break;
+	case T_BOUND: strcpy(buf, "BOUND"); break;
+	case T_INSTR: strcpy(buf, "INSTR"); break;
+	case T_387: strcpy(buf, "387"); break;
+	case T_DFAULT: strcpy(buf, "DFAULT"); break;
+	case T_INVTSS: strcpy(buf, "INVTSS"); break;
+	case T_SEG: strcpy(buf, "SEG"); break;
+	case T_STACK: strcpy(buf, "STACK"); break;
+	case T_GENPRO: strcpy(buf, "GENPRO"); break;
+	case T_PGFLT: strcpy(buf, "PGFLT"); break;
+	case T_NPX: strcpy(buf, "NPX"); break;
+	case T_CPSOVER: strcpy(buf, "CPSOVER"); break;
 	default:
-		sprintf(buf2, "%d", t);
-		strcat(buf, buf2);
+		sprintf(buf, "%d", t);
 		break;
 	}
 	return(buf);
