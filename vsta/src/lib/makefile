@@ -36,10 +36,11 @@ libc_s.a: $(OBJS) $(CRT)
 # addresses as it processes each.
 mklibs: mkshlib $(SHLIBIN) shlib.o
 	mkshlib $(DBS)
+	rm -f mklibs
 	touch mklibs
 
 # Utility for creating shared libraries
-mkshlib: mkshlib.o libc_s.a
+mkshlib: crt0.o mkshlib.o libc_s.a
 	$(LD) -o mkshlib crt0.o mkshlib.o libc_s.a
 
 # All shared libraries are created in both .a (stub) and .shl (loadable
