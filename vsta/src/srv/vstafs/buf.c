@@ -164,6 +164,7 @@ find_buf(daddr_t d, uint nsec)
 	b->b_start = d;
 	b->b_nsec = nsec;
 	b->b_flags = 0;
+	b->b_locks = 0;
 	read_secs(d, b->b_data, nsec);
 	return(b);
 }
