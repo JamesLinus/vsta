@@ -253,7 +253,7 @@ dump_syms(void)
 
 	for (x = 0; x < nsym; ++x) {
 		s = &symtab[x];
-		printf("%s=%x\n", s->s_name, s->s_val);
+		printf("%s=%x\t", s->s_name, s->s_val);
 	}
 	printf("\n");
 }
