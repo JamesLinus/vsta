@@ -301,6 +301,15 @@ fork_vas(struct thread *t, struct vas *ovas)
 		pv->p_prot |= PROT_FORK;
 		(void)attach_pview(vas, pv);
 		pv->p_prot &= ~PROT_FORK;
+
+		/*
+		 * Connect to all the valid pages under the view
+		 */
+		attach_valid_slots(pv);
+
+		/*
+		 * Release our "safety" reference on the underlying pset
+		 */
 		deref_pset(ps);
 	}
 

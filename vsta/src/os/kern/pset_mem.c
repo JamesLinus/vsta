@@ -9,9 +9,10 @@
 #include "pset.h"
 
 static int mem_fillslot(), mem_writeslot(), mem_init();
-static void mem_dup(), mem_free();
+static void mem_dup(), mem_free(), mem_lastref();
 static struct psetops psop_mem =
-	{mem_fillslot, mem_writeslot, mem_init, mem_dup, mem_free};
+	{mem_fillslot, mem_writeslot, mem_init, mem_dup, mem_free,
+	 mem_lastref};
 
 /*
  * mem_init()
@@ -110,4 +111,14 @@ mem_dup(struct pset *ops, struct pset *ps)
 	ps->p_type = PT_ZERO;
 	ps->p_ops = &psop_zfod;
 	ps->p_swapblk = alloc_swap(ps->p_len);
+}
+
+/*
+ * mem_lastref()
+ *	Since just a view of physical memory, do nothing
+ */
+static void
+mem_lastref(void)
+{
+	/* Nothing */ ;
 }

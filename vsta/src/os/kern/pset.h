@@ -4,6 +4,7 @@
  * pset.h
  *	Inlined page set routines
  */
+#include <sys/vm.h>
 
 /*
  * find_pp()
@@ -29,15 +30,20 @@ ref_pset(struct pset *ps)
 
 /*
  * deref_slot()
- *	Decrement reference count on a page slot, free page on last ref
+ *	Decrement reference count on a page slot
  *
- * This routine assumes that it is being called under a locked slot.
+ * This routine assumes that it is being called under a locked slot.  On
+ * last reference, we let the pset layer know, then clear PP_V and free
+ * the page.
  */
 inline static void
 deref_slot(struct pset *ps, struct perpage *pp, uint idx)
 {
 	ASSERT_DEBUG(pp->pp_refs > 0, "deref_slot: zero");
-	pp->pp_refs -= 1;
+	if ((pp->pp_refs -= 1) == 0) {
+		ASSERT_DEBUG(pp->pp_flags & PP_V, "deref_slot: ref !v");
+		(*(ps->p_ops->psop_lastref))(ps, pp, idx);
+	}
 }
 
 /*

@@ -30,6 +30,7 @@ add_atl(struct perpage *pp, struct pview *pv, uint off)
 {
 	struct atl *a;
 
+	ASSERT_DEBUG(off < pv->p_len, "add_atl: out of bounds");
 	a = MALLOC(sizeof(struct atl), MT_ATL);
 	a->a_pview = pv;
 	a->a_idx = off;

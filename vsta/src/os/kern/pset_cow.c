@@ -24,9 +24,9 @@ extern struct portref *swapdev;
 extern int pset_writeslot();
 
 static int cow_fillslot(), cow_writeslot(), cow_init();
-static void cow_dup(), cow_free();
+static void cow_dup(), cow_free(), cow_lastref();
 static struct psetops psop_cow = {cow_fillslot, cow_writeslot, cow_init,
-	cow_dup, cow_free};
+	cow_dup, cow_free, cow_lastref};
 
 /*
  * cow_init()
@@ -155,47 +155,9 @@ cow_write(struct pset *ps, struct perpage *pp, uint idx)
 static void
 cow_free(struct pset *ps)
 {
-	uint x;
-	struct perpage *pp;
 	struct pset *ps2, **psp, *p;
 
-	/*
-	 * Free pages under pset
-	 */
-	pp = ps->p_perpage;
-	for (x = 0; x < ps->p_len; ++x,++pp) {
-		ASSERT_DEBUG(pp->pp_refs == 0, "cow_free: still refs");
-
-		/*
-		 * Non-valid slots--no problem
-		 */
-		if ((pp->pp_flags & PP_V) == 0) {
-			continue;
-		}
-
-		/*
-		 * Release reference to underlying pset's slot
-		 */
-		if (pp->pp_flags & PP_COW) {
-			struct perpage *pp2;
-			uint idx;
-			struct pset *ps2;
-
-			ps2 = ps->p_cow;
-			idx = ps->p_off + x;
-			p_lock_fast(&ps2->p_lock, SPL0);
-			pp2 = find_pp(ps2, idx);
-			lock_slot(ps2, pp2);
-			deref_slot(ps2, pp2, idx);
-			unlock_slot(ps2, pp2);
-			continue;
-		}
-
-		/*
-		 * Simple/private page, just free
-		 */
-		free_page(pp->pp_pfn);
-	}
+	ASSERT_DEBUG(!valid_pset_slots(ps), "cow_free: still refs");
 
 	/*
 	 * Free our reference to the master set on PT_COW
@@ -278,4 +240,31 @@ alloc_pset_cow(struct pset *psold, uint off, uint len)
 	add_cowset(psold, ps);
 
 	return(ps);
+}
+
+/*
+ * cow_lastref()
+ *	Last ref dropped on slot
+ */
+static void
+cow_lastref(struct pset *ps, struct perpage *pp, uint idx)
+{
+	struct perpage *pp2;
+	struct pset *ps2;
+
+	/*
+	 * On last ref of a COW slot, we clear the COW state
+	 * and remove the reference of the underlying master copy
+	 */
+	if (pp->pp_flags & PP_COW) {
+		ps2 = ps->p_cow;
+		idx += ps->p_off;
+		p_lock_fast(&ps2->p_lock, SPL0);
+		pp2 = find_pp(ps2, idx);
+		lock_slot(ps2, pp2);
+		deref_slot(ps2, pp2, idx);
+		unlock_slot(ps2, pp2);
+	}
+	pp->pp_flags &= ~(PP_COW | PP_V);
+	free_page(pp->pp_pfn);
 }

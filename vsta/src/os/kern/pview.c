@@ -67,7 +67,7 @@ copy_pview(struct pview *opv)
 	struct pview *pv;
 
 	pv = dup_pview(opv);
-	ps = copy_pset(opv->p_set);
+	ps = copy_pset(opv->p_set, pv->p_off, pv->p_len);
 	deref_pset(opv->p_set);
 	pv->p_set = ps;
 	ref_pset(ps);
@@ -89,4 +89,29 @@ remove_pview(struct vas *vas, void *vaddr)
 	pv = detach_pview(vas, vaddr);
 	deref_pset(pv->p_set);
 	FREE(pv, MT_PVIEW);
+}
+
+/*
+ * attach_valid_slots()
+ *	Walk through pview, attach translations for all valid slots
+ */
+void
+attach_valid_slots(struct pview *pv)
+{
+	uint x;
+	struct pset *ps = pv->p_set;
+	uint idx = pv->p_off;
+
+	for (x = 0; x < pv->p_len; ++x,++idx) {
+		struct perpage *pp;
+
+		pp = find_pp(ps, idx);
+		if (pp->pp_flags & PP_V) {
+			add_atl(pp, pv, x);
+			hat_addtrans(pv, (char *)pv->p_vaddr + ptob(x),
+				pp->pp_pfn, pv->p_prot |
+				((pp->pp_flags & PP_COW) ? PROT_RO : 0));
+			ref_slot(ps, pp, idx);
+		}
+	}
 }

@@ -14,7 +14,8 @@ extern int pset_writeslot();
 static int zfod_fillslot(), zfod_init();
 static void zfod_dup(), zfod_free();
 struct psetops psop_zfod =
-	{zfod_fillslot, pset_writeslot, zfod_init, zfod_dup, zfod_free};
+	{zfod_fillslot, pset_writeslot, zfod_init, zfod_dup, zfod_free,
+	 pset_lastref};
 
 /*
  * zfod_init()
@@ -66,23 +67,7 @@ zfod_fillslot(struct pset *ps, struct perpage *pp, uint idx)
 static void
 zfod_free(struct pset *ps)
 {
-	uint x;
-	struct perpage *pp;
-
-	/*
-	 * Free pages under pset
-	 */
-	pp = ps->p_perpage;
-	for (x = 0; x < ps->p_len; ++x,++pp) {
-		ASSERT_DEBUG(pp->pp_refs == 0, "zfod_free: still refs");
-
-		/*
-		 * Drop all valid pages
-		 */
-		if (pp->pp_flags & PP_V) {
-			free_page(pp->pp_pfn);
-		}
-	}
+	ASSERT_DEBUG(!valid_pset_slots(ps), "zfod_free: still refs");
 }
 
 /*

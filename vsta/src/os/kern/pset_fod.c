@@ -28,7 +28,7 @@ struct open_port {
 static int fod_fillslot(), fod_writeslot(), fod_init();
 static void fod_dup(), fod_free();
 static struct psetops psop_fod = {fod_fillslot, fod_writeslot, fod_init,
-	fod_dup, fod_free};
+	fod_dup, fod_free, pset_lastref};
 
 /*
  * fod_init()
@@ -47,28 +47,20 @@ fod_init(struct pset *ps)
 static void
 fod_free(struct pset *ps)
 {
-	uint x;
-	struct perpage *pp;
-
 #ifdef DEBUG
+	int x;
+
 	/*
 	 * We only allow read-only views of files
 	 */
 	for (x = 0; x < ps->p_len; ++x) {
+		struct perpage *pp;
+
 		pp = find_pp(ps, x);
 		ASSERT((pp->pp_flags & PP_M) == 0, "fod_free: dirty");
 	}
+	ASSERT(!valid_pset_slots(ps), "fod_free: still refs");
 #endif
-	/*
-	 * Free all valid pages under the set
-	 */
-	pp = ps->p_perpage;
-	for (x = 0; x < ps->p_len; ++x,++pp) {
-		ASSERT_DEBUG(pp->pp_refs == 0, "fod_free: still refs");
-		if (pp->pp_flags & PP_V) {
-			free_page(pp->pp_pfn);
-		}
-	}
 
 	/*
 	 * Close file connection

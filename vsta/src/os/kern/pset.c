@@ -251,19 +251,19 @@ copy_page(uint idx, struct perpage *opp, struct perpage *pp,
  *	Duplicate the contents of each slot under an old pset
  */
 static void
-dup_slots(struct pset *ops, struct pset *ps)
+dup_slots(struct pset *ops, struct pset *ps, uint low, uint cnt)
 {
 	uint x;
 	struct perpage *pp, *pp2;
 	int locked = 0;
 
-	for (x = 0; x < ps->p_len; ++x) {
+	for (x = 0; x < cnt; ++x) {
 		if (!locked) {
 			p_lock_fast(&ops->p_lock, SPL0);
 			locked = 1;
 		}
-		pp = find_pp(ops, x);
-		pp2 = find_pp(ps, x);
+		pp = find_pp(ops, x + low);
+		pp2 = find_pp(ps, x + low);
 		if (pp->pp_flags & (PP_V|PP_SWAPPED)) {
 			lock_slot(ops, pp);
 			locked = 0;
@@ -308,7 +308,7 @@ dup_slots(struct pset *ops, struct pset *ps)
  * But it's too complex, IMHO.
  */
 struct pset *
-copy_pset(struct pset *ops)
+copy_pset(struct pset *ops, uint low, uint cnt)
 {
 	struct pset *ps;
 
@@ -349,6 +349,44 @@ copy_pset(struct pset *ops)
 	/*
 	 * Now duplicate the contents
 	 */
-	dup_slots(ops, ps);
+	dup_slots(ops, ps, low, cnt);
 	return(ps);
 }
+
+/*
+ * pset_lastref()
+ *	Last ref dropped on slot
+ */
+void
+pset_lastref(struct pset *ps, struct perpage *pp, uint idx)
+{
+	pp->pp_flags &= ~PP_V;
+	free_page(pp->pp_pfn);
+}
+
+#ifdef DEBUG
+/*
+ * valid_pset_slots()
+ *	Tell if there are any valid pages under a pset
+ */
+int
+valid_pset_slots(struct pset *ps)
+{
+	struct perpage *pp;
+	uint x;
+
+	/*
+	 * Free pages under pset
+	 */
+	pp = ps->p_perpage;
+	for (x = 0; x < ps->p_len; ++x,++pp) {
+		/*
+		 * Non-valid slots--no problem
+		 */
+		if (pp->pp_flags & PP_V) {
+			return(1);
+		}
+	}
+	return(0);
+}
+#endif /* DEBUG */
