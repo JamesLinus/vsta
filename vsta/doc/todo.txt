@@ -139,3 +139,8 @@ Caching of executables is indefinite.  Need two things: first, a way
 	get rid of a cache entry for a file being removed.
 	-- 2nd part done; DOS initiates an unhash and returns EAGAIN.
 	unlink() will try 2 times, with a 0.1 sec sleep in between.
+
+Some problems with mutexing of semaphores and treatment of priorities.
+	I don't think we're honoring PRIHI right now.  Also, I think
+	p_sema needs to take the runq lock sooner, to provide mutexing
+	between sleeping and being handed an event.
