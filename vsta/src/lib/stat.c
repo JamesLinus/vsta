@@ -83,6 +83,7 @@ rstat(port_t fd, char *field)
 	 */
 	p = __fieldval(statbuf, field);
 	if (p == 0) {
+		(void)__seterr(ESRCH);
 		return(0);
 	}
 
