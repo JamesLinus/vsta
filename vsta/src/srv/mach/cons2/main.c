@@ -80,6 +80,14 @@ new_client(struct msg *m)
 	bzero(f, sizeof(struct file));
 	f->f_flags = uperms;
 	f->f_screen = ROOTDIR;
+	f->f_isig = F_ANY;
+
+	/*
+	 * Record perms so we can mimic their identity to send
+	 * TTY signals.
+	 */
+	f->f_nperm = nperms;
+	bcopy(perms, f->f_perms, sizeof(f->f_perms));
 
 	/*
 	 * Hash under the sender's handle
@@ -116,7 +124,7 @@ dup_client(struct msg *m, struct file *fold)
 	/*
 	 * Fill in fields.  Simply duplicate old file.
 	 */
-	*f = *fold;
+	bcopy(fold, f, sizeof(*f));
 
 	/*
 	 * Hash under the sender's handle
@@ -141,6 +149,20 @@ dup_client(struct msg *m, struct file *fold)
 static void
 dead_client(struct msg *m, struct file *f)
 {
+	struct screen *s = SCREEN(f->f_screen);
+
+	/*
+	 * If this is the leader of the process group, stop handing
+	 * this target keyboard-generated signals.
+	 */
+	if (s->s_pgrp_lead == f) {
+		s->s_pgrp_lead = 0;
+		s->s_pgrp = 0;
+	}
+
+	/*
+	 * Clean up
+	 */
 	(void)hash_delete(filehash, m->m_sender);
 	free(f);
 }
@@ -348,6 +370,18 @@ do_readdir(struct msg *m, struct file *f)
 }
 
 /*
+ * refresh_isig()
+ *	Whoever touches the device last gets to say what mode it's in.
+ */
+inline static void
+refresh_isig(struct file *f)
+{
+	if (f && (f->f_isig != F_ANY) && (f->f_screen != ROOTDIR)) {
+		SCREEN(f->f_screen)->s_isig = f->f_isig;
+	}
+}
+
+/*
  * screen_main()
  *	Endless loop to receive and serve requests
  */
@@ -386,9 +420,13 @@ loop:
 	}
 
 	/*
-	 * Categorize by basic message operation
+	 * Get client
 	 */
 	f = hash_lookup(filehash, msg.m_sender);
+
+	/*
+	 * Categorize by basic message operation
+	 */
 	switch (msg.m_op & MSG_MASK) {
 	case M_CONNECT:		/* New client */
 		new_client(&msg);
@@ -418,11 +456,28 @@ loop:
 			if (check_gen(&msg, f)) {
 				break;
 			}
+			refresh_isig(f);
 			kbd_read(&msg, f);
 		}
 		break;
 
 	case FS_WRITE:		/* Write file */
+		/*
+		 * Can't write to root
+		 */
+		if (f->f_screen == ROOTDIR) {
+			msg_err(msg.m_sender, EINVAL);
+			break;
+		}
+
+		/*
+		 * Check access generation
+		 */
+		if (check_gen(&msg, f)) {
+			break;
+		}
+
+
 		/*
 		 * If this is I/O to a different display than was
 		 * last rendered via write_string(), tell it to switch
@@ -433,15 +488,9 @@ loop:
 		}
 
 		/*
-		 * Check access generation
-		 */
-		if (check_gen(&msg, f)) {
-			break;
-		}
-
-		/*
 		 * Write data
 		 */
+		refresh_isig(f);
 		if (msg.m_buflen > 0) {
 			/*
 			 * Scribble the bytes onto the display, be it
@@ -607,6 +656,15 @@ main(int argc, char **argv)
 	}
 	screens[0].s_curimg = hw_screen;
 	ll_init(&screens[0].s_readers);
+
+	/*
+	 * Initialize signal state for all screens.
+	 */
+	for (i = 0; i < NVTY; ++i) {
+		screens[i].s_intr = '\3';	/* ^C */
+		screens[i].s_quit = '\34';	/* ^\ */
+		screens[i].s_isig = 1;
+	}
 
 	/*
 	 * Start serving requests for the filesystem

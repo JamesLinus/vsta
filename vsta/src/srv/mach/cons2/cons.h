@@ -19,7 +19,17 @@ struct file {
 	ushort f_screen;	/* Which virtual screen they're on */
 	uint f_readcnt;		/* # bytes requested for current op */
 	long f_sender;		/*  ...return addr for current op */
+	struct perm		/* Our abilities */
+		f_perms[PROCPERMS];
+	uchar f_nperm;
+	uchar f_isig;		/* Look for signal keys? */
 };
+
+/*
+ * Special value for f_isig boolean to indicate that it doesn't
+ * control TTY mode.
+ */
+#define F_ANY (2)
 
 /*
  * Per-virtual screen state
@@ -35,6 +45,11 @@ struct screen {
 		s_buf[KEYBD_MAXBUF];
 	ushort s_hd, s_tl;	/*  ...circularly buffered */
 	uint s_nbuf;		/*  ...amount buffered */
+	char s_quit, s_intr;	/* Signal keys */
+	uchar s_isig;		/*  ...do they generate sigs now? */
+	pid_t s_pgrp;		/* Process group to signal */
+	struct file		/* Client who opened the pgrp */
+		*s_pgrp_lead;
 };
 
 /*
@@ -52,6 +67,7 @@ struct screen {
 #define NVTY 8		/* # virtual screens supported */
 
 #define ROOTDIR NVTY	/* Special screen # for root dir */
+#define SCREEN(idx) (&screens[idx])
 
 /*
  * Top of respective adaptors

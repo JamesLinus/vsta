@@ -25,11 +25,14 @@ cons_stat(struct msg *m, struct file *f)
 	if (f->f_screen == ROOTDIR) {
 		sprintf(buf, "size=%d\ntype=d\nowner=0\ninode=0\n", NVTY);
 	} else {
-		struct screen *s = &screens[f->f_screen];
+		struct screen *s = SCREEN(f->f_screen);
 
 		sprintf(buf,
-"size=%d\ntype=c\nowner=0\ninode=%d\nrows=%d\ncols=%d\ngen=%d\n",
-			s->s_nbuf, f->f_screen, ROWS, COLS, s->s_gen);
+"size=%d\ntype=c\nowner=0\ninode=%d\nrows=%d\ncols=%d\ngen=%d\n"
+"quit=%d\nintr=%d\npgrp=%lu\nisig=%d\n",
+			s->s_nbuf, f->f_screen, ROWS, COLS, s->s_gen,
+			s->s_quit, s->s_intr, (ulong)(s->s_pgrp),
+			s->s_isig);
 	}
 	strcat(buf, perm_print(&cons_prot));
 	m->m_buf = buf;
@@ -47,7 +50,7 @@ void
 cons_wstat(struct msg *m, struct file *f)
 {
 	char *field, *val;
-	struct screen *s = &screens[f->f_screen];
+	struct screen *s = SCREEN(f->f_screen);
 
 	/*
 	 * See if common handling code can do it
@@ -69,7 +72,32 @@ cons_wstat(struct msg *m, struct file *f)
 		}
 		f->f_gen = s->s_gen;
 	} else if (!strcmp(field, "screen")) {
+		/*
+		 * Force screen switch
+		 */
 		select_screen(atoi(val));
+	} else if (!strcmp(field, "quit")) {
+		/*
+		 * Select keystroke which sends "abort" event
+		 */
+		s->s_quit = atoi(val);
+	} else if (!strcmp(field, "intr")) {
+		/*
+		 * ... "intr" event
+		 */
+		s->s_intr = atoi(val);
+	} else if (!strcmp(field, "pgrp")) {
+		/*
+		 * What process group will receive the keyboard
+		 * signal.
+		 */
+		s->s_pgrp = atoi(val);
+		s->s_pgrp_lead = f;
+	} else if (!strcmp(field, "isig")) {
+		/*
+		 * Look for event keys?
+		 */
+		s->s_isig = f->f_isig = (atoi(val) != 0);
 	} else {
 		/*
 		 * Not a field we support...

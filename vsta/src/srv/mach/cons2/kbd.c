@@ -8,6 +8,9 @@
 #include "cons.h"
 #include <sys/assert.h>
 #include <sys/seg.h>
+#include <sys/perm.h>
+#include <stdio.h>
+#include <fcntl.h>
 
 /*
  * kbd_read()
@@ -20,7 +23,7 @@
 void
 kbd_read(struct msg *m, struct file *f)
 {
-	struct screen *s = &screens[f->f_screen];
+	struct screen *s = SCREEN(f->f_screen);
 
 	/*
 	 * Handle easiest first--non-blocking read, no data
@@ -121,7 +124,7 @@ abort_read(struct file *f)
 	struct llist *l;
 	struct screen *s;
 
-	s = &screens[f->f_screen];
+	s = SCREEN(f->f_screen);
 	for (l = s->s_readers.l_forw; l != &s->s_readers; l = l->l_forw) {
 		if (l->l_data == f) {
 			ll_delete(l);
@@ -129,6 +132,58 @@ abort_read(struct file *f)
 		}
 	}
 	ASSERT_DEBUG(l != &s->s_readers, "abort_read: missing tran");
+}
+
+/*
+ * drop_root()
+ *	Turn off our root capability
+ */
+static void
+drop_root(void)
+{
+	struct perm perm;
+
+	zero_ids(&perm, 1);
+	perm.perm_len = 0;
+	PERM_DISABLE(&perm);
+	(void)perm_ctl(1, &perm, (void *)0);
+}
+
+/*
+ * add_root()
+ *	Turn on our root capability
+ */
+static void
+add_root(void)
+{
+	struct perm perm;
+
+	zero_ids(&perm, 1);
+	perm.perm_len = 0;
+	(void)perm_ctl(1, &perm, (void *)0);
+}
+
+/*
+ * send_sig()
+ *	Send a signal to a process group
+ *
+ * We do it via /proc so this can still work when there's more than
+ * one node.
+ */
+static void
+send_sig(pid_t pid, char *event)
+{
+	char buf[128];
+	int fd;
+
+	add_root();
+	(void) sprintf(buf, "//fs/proc:%lu/notepg", pid);
+	fd = open(buf, O_WRITE);
+	if (fd >= 0) {
+		(void)write(fd, event, strlen(event));
+		close(fd);
+	}
+	drop_root();
 }
 
 /*
@@ -142,6 +197,20 @@ kbd_enqueue(struct screen *s, uint c)
 	struct msg m;
 	struct file *f;
 	struct llist *l;
+
+	/*
+	 * If we're currently in "isig" mode, beam a process group
+	 * signal to the target.
+	 */
+	if (s->s_isig && s->s_pgrp) {
+		if (c == s->s_intr) {
+			send_sig(s->s_pgrp, "intr");
+			return;
+		} else if (c == s->s_quit) {
+			send_sig(s->s_pgrp, "abort");
+			return;
+		}
+	}
 
 	/*
 	 * If there's a waiter, just let'em have it

@@ -276,7 +276,7 @@ void
 kbd_isr(struct msg *m)
 {
 	uchar data, strobe;
-	struct screen *s = &screens[hwscreen];
+	struct screen *s = SCREEN(hwscreen);
 
 	ASSERT_DEBUG(m->m_arg == KEYBD_IRQ, "kbd_isr: bad IRQ");
 
