@@ -1,7 +1,8 @@
 OUT=test args cat id ls swapd rm cp sleep mkdir pwd kill mv stat \
 	dumpsect fstab rmdir touch strings xargs echo du \
 	tput basename uname fmt purge printf ps rcsdo changed \
-	which true false whoami egrep fgrep awk cc [ view ascii
+	which true false whoami egrep fgrep awk cc [ view ascii \
+	dirname
 
 OBJS= args.o basename.o cat.o changed.o chmod.o cp.o du.o dumpsect.o \
 	echo.o fmt.o fstab.o id.o kill.o ls.o mkdir.o \
@@ -9,7 +10,7 @@ OBJS= args.o basename.o cat.o changed.o chmod.o cp.o du.o dumpsect.o \
 	sleep.o stat.o strings.o swapd.o test.o touch.o tput.o \
 	uname.o wc.o which.o xargs.o dump.o operators.o true.o \
 	false.o whoami.o egrep.o fgrep.o awk.o cc.o [.o view.o \
-	ascii.o
+	ascii.o dirname.o
 
 include ../../makefile.all
 
@@ -147,6 +148,9 @@ view: view.o
 
 ascii: ascii.o
 	$(LD) $(LDFLAGS) -o ascii $(CRT0) ascii.o -lc
+
+dirname: dirname.o
+	$(LD) $(LDFLAGS) -o dirname $(CRT0) dirname.o -lc
 
 install: all
 	strip $(OUT)
