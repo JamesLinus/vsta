@@ -5,6 +5,7 @@
  * Use the underlying __doprnt() routine for their dirty work
  */
 #include <stdio.h>
+#include <std.h>
 #include <sys/param.h>
 
 extern void __doprnt();
@@ -63,11 +64,8 @@ sprintf(char *buf, char *fmt, int arg0, ...)
 void
 perror(char *msg)
 {
-	char errbuf[ERRLEN];
+	char *p;
 
-	(void)strerror(errbuf);
-	if (errbuf[0] == '\0') {
-		strcpy(errbuf, "no error");
-	}
-	fprintf(stderr, "%s: %s\n", (int)msg, errbuf);
+	p = strerror();
+	fprintf(stderr, "%s: %s\n", (int)msg, p);
 }
