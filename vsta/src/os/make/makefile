@@ -153,6 +153,9 @@ vsta: $(OBJS) dbsym
 	./dbsym vsta
 	$(STRIP) vsta
 
+nostrip: $(OBJS)
+	$(LD) -e _start -o vsta $(OBJS) $(LIBS)
+
 dbsym: ../dbg/dbsym.c
 	$(CC) $(DEFS) -o dbsym ../dbg/dbsym.c
 
