@@ -127,6 +127,14 @@ main(int argc, char **argv)
 		case '%':
 			putchar('%');
 			break;
+		case 'c':
+			if (sscanf(argv[arg++], "%d", &val) != 1) {
+				fprintf(stderr, "%s: bad char value '%s'\n",
+					prog, argv[arg-1]);
+				exit(1);
+			}
+			printf("%c", val);
+			break;
 		case 'x':
 		case 'X':
 			if (sscanf(argv[arg++], "%x", &val) != 1) {
