@@ -112,4 +112,16 @@
  * gen		Access generation--for protecting TTY's between sessions
  */
 
+/*
+ * Function prototypes for the VSTa stat mechanism
+ */
+extern char *rstat(port_t fd, char *field);
+extern int wstat(port_t fd, char *field);
+
+/*
+ * Additional function used to help servers process the general stat fields
+ */
+extern int do_wstat(struct msg *m, struct prot *prot,
+		    int acc, char **fieldp, char **valp);
+
 #endif /* _FS_H */
