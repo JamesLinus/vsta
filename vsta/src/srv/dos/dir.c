@@ -147,11 +147,11 @@ map_filename(char *file, char *f1, char *f2)
 }
 
 /*
- * bcmp()
+ * my_bcmp()
  *	Compare, binary style
  */
 static int
-bcmp(const void *s1, const void *s2, unsigned int n)
+my_bcmp(const void *s1, const void *s2, unsigned int n)
 {
 	const char *p = s1, *q = s2;
 
@@ -186,7 +186,7 @@ search_dir(struct directory *d, uint ndir, char *f1, char *f2)
 		/*
 		 * Compare both filename parts
 		 */
-		if (!bcmp(f1, d->name, 8) && !bcmp(f2, d->ext, 3)) {
+		if (!my_bcmp(f1, d->name, 8) && !my_bcmp(f2, d->ext, 3)) {
 			return(x);
 		}
 	}

@@ -34,7 +34,7 @@ loop:
 	/*
 	 * Categorize by basic message operation
 	 */
-	switch (m.m_op) {
+	switch (m.m_op & MSG_MASK) {
 
 	case M_CONNECT:		/* New client */
 		msg_accept(m.m_sender);

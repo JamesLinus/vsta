@@ -85,13 +85,13 @@ vfs_stat(struct msg *m, struct file *f)
 	} else {
 		typec = 'f';
 		len = fs->fs_len - sizeof(struct fs_file);
-		sprintf(buf2, "rev=%U\nprev=%U\n",
+		sprintf(buf2, "rev=%lu\nprev=%lu\n",
 			fs->fs_rev,
 			fs->fs_prev ? getrev(fs->fs_prev) : 0);
 		revs = buf2;
 	}
-	sprintf(buf, "size=%u\ntype=%c\nowner=%d\ninode=%u\n"
-		"ctime=%u\nmtime=%u\n%s",
+	sprintf(buf, "size=%u\ntype=%c\nowner=%d\ninode=%lu\n"
+		"ctime=%lu\nmtime=%lu\n%s",
 		len, typec, fs->fs_owner, fs->fs_blks[0].a_start,
 		fs->fs_ctime, fs->fs_mtime, revs);
 	strcat(buf, perm_print(&fs->fs_prot));

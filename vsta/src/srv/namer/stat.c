@@ -50,8 +50,8 @@ namer_stat(struct msg *m, struct file *f)
 		sprintf(buf2, "%d", n->n_port);
 		len = strlen(buf2);
 	}
-	sprintf(buf, "size=%d\ntype=%c\nowner=%d\ninode=%u\n",
-		len, n->n_internal ? 'd' : 'f', n->n_owner, n);
+	sprintf(buf, "size=%d\ntype=%c\nowner=%d\ninode=%lu\n",
+		len, n->n_internal ? 'd' : 'f', n->n_owner, (ulong)n);
 	strcat(buf, perm_print(&n->n_prot));
 	m->m_buf = buf;
 	m->m_arg = m->m_buflen = strlen(buf);

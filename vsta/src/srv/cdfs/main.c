@@ -403,7 +403,7 @@ loop:
 	 * Categorize by basic message operation
 	 */
 	f = hash_lookup(filehash, msg.m_sender);
-	switch (msg.m_op) {
+	switch (msg.m_op & MSG_MASK) {
 	case M_CONNECT:		/* New client */
 		/*
 		 * Open the block device.

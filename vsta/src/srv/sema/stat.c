@@ -47,8 +47,8 @@ sema_stat(struct msg *m, struct file *f)
 		 */
 		len = (o->o_count < 0) ? (- o->o_count) : 0;
 	}
-	sprintf(buf, "size=%d\ntype=%c\nowner=%d\ninode=%u\n",
-		len, o ? 'f' : 'd', owner, o);
+	sprintf(buf, "size=%d\ntype=%c\nowner=%d\ninode=%lu\n",
+		len, o ? 'f' : 'd', owner, (ulong)o);
 	if (o) {
 		strcat(buf, perm_print(&o->o_prot));
 		sprintf(buf + strlen(buf), "count=%d\n", o->o_count);

@@ -253,7 +253,7 @@ tmpfs_close(struct file *f)
 {
 	struct openfile *o;
 
-	if (o = f->f_file) {
+	if ((o = f->f_file)) {
 		o->o_refs -= 1;
 		if (o->o_deleted && (o->o_refs == 0)) {
 			nuke(o);

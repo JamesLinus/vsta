@@ -168,7 +168,7 @@ sema_close(struct file *f)
 {
 	struct openfile *o;
 
-	if (o = f->f_file) {
+	if ((o = f->f_file)) {
 		o->o_refs -= 1;
 		if (o->o_refs == 0) {
 			(void)hash_delete(files, o->o_iname);

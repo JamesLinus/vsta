@@ -156,7 +156,7 @@ dos_stat(struct msg *m, struct file *f)
 	}
 	if (n->n_type == T_DIR) {
 		sprintf(result,
- "perm=1/1\nacc=%s\nsize=%d\ntype=d\nowner=0\ninode=%U\nmtime=%ld\n",
+ "perm=1/1\nacc=%s\nsize=%d\ntype=d\nowner=0\ninode=%lu\nmtime=%ld\n",
 			dos_acc(&d), isize(n), inum(n),
 			cvt_time(d.date, d.time));
 	} else {
@@ -164,7 +164,7 @@ dos_stat(struct msg *m, struct file *f)
 		 * Otherwise look up file and get dope
 		 */
 		sprintf(result,
- "perm=1/1\nacc=%s\nsize=%d\ntype=f\nowner=0\ninode=%U\nmtime=%ld\n",
+ "perm=1/1\nacc=%s\nsize=%ld\ntype=f\nowner=0\ninode=%lu\nmtime=%ld\n",
 			dos_acc(&d), n->n_len, inum(n),
 			cvt_time(d.date, d.time));
 	}

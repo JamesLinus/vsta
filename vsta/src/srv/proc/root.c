@@ -96,7 +96,7 @@ root_read(struct msg *m, struct file *f, uint dummy)
 		 * If the next entry won't fit, return
 		 * what we have.
 		 */
-		sprintf(pid, "%d", f->f_proclist[f->f_pos]);
+		sprintf(pid, "%lu", f->f_proclist[f->f_pos]);
 		if ((x + strlen(pid) + 1) >= len) {
 			break;
 		}

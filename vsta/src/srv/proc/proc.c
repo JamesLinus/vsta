@@ -185,7 +185,7 @@ status_read(struct msg *m, struct file *f, uint len)
 	 * Generate our "contents"
 	 */
 	buf = buffer;
-	sprintf(buf, "%-6d %-8s %-6s %7d %5d/%-5d ", f->f_pid,
+	sprintf(buf, "%-6ld %-8s %-6s %7d %5ld/%-5ld ", f->f_pid,
 		f->f_proc.psp_cmd, statename(&f->f_proc),
 		f->f_proc.psp_nthread, f->f_proc.psp_usrcpu,
 		f->f_proc.psp_syscpu);
@@ -348,7 +348,7 @@ proc_stat(struct msg *m, struct file *f)
 	sprintf(buf, "nsize=4\ntype=d\nowner=0\ninode=%ld\n", f->f_pid);
 	strcat(buf, perm_print(&f->f_prot));
 	sprintf(buf+strlen(buf),
-		"cmd=%s\nstate=%s\nnthread=%d\nusrcpu=%d\nsyscpu=%d\n",
+		"cmd=%s\nstate=%s\nnthread=%d\nusrcpu=%ld\nsyscpu=%ld\n",
 		f->f_proc.psp_cmd, statename(&f->f_proc),
 		f->f_proc.psp_nthread, f->f_proc.psp_usrcpu,
 		f->f_proc.psp_syscpu);
@@ -387,7 +387,7 @@ kernel_read(struct msg *m, struct file *f, uint len)
 	 */
 	kernel_pstat(f);
 	buf = &buffer[0];
-	sprintf(buf, "%d %d %d %d %d %d", f->f_kern.psk_ncpu,
+	sprintf(buf, "%u %ld %ld %u %ld %ld", f->f_kern.psk_ncpu,
 		f->f_kern.psk_memory, f->f_kern.psk_freemem,
 		f->f_kern.psk_runnable, f->f_kern.psk_uptime.t_sec,
 		f->f_kern.psk_uptime.t_usec);
@@ -442,7 +442,7 @@ kernel_stat(struct msg *m, struct file *f)
 	kernel_pstat(f);
 	sprintf(buf,
 		"nsize=1\ntype=f\nowner=0\ninode=%d\nperm=1\nacc=70/0\n"
-		"mem=%u\nfree=%u\nnrun=%u\nuptime=%u\n",
+		"mem=%lu\nfree=%lu\nnrun=%u\nuptime=%lu\n",
 		INT_MAX,
 		f->f_kern.psk_memory, f->f_kern.psk_freemem,
 		f->f_kern.psk_runnable, f->f_kern.psk_uptime.t_sec);

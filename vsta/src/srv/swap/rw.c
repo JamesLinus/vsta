@@ -18,12 +18,12 @@ void
 swap_rw(struct msg *m, struct file *f, uint bytes)
 {
 	struct swapmap *s;
-	uint blk;
+	uint blk, op = m->m_op & MSG_MASK;
 
 	/*
 	 * Check for permission, page alignment
 	 */
-	if (((m->m_op == FS_WRITE) || (m->m_op == FS_ABSWRITE)) &&
+	if (((op == FS_WRITE) || (op == FS_ABSWRITE)) &&
 			!(f->f_perms & ACC_WRITE)) {
 		msg_err(m->m_sender, EPERM);
 		return;

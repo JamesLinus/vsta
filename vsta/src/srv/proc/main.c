@@ -161,7 +161,7 @@ loop:
 	 * Categorize by basic message operation
 	 */
 	f = hash_lookup(filehash, msg.m_sender);
-	switch (msg.m_op) {
+	switch (msg.m_op & MSG_MASK) {
 	case M_CONNECT:		/* New client */
 		new_client(&msg);
 		break;
@@ -197,7 +197,7 @@ loop:
 		(*(f->f_ops->wstat))(&msg, f);
 		break;
 	default:		/* Unknown */
-		syslog(LOG_INFO, "unhandled type %d", msg.m_op);
+		syslog(LOG_INFO, "unhandled type %d", msg.m_op & MSG_MASK);
 		msg_err(msg.m_sender, EINVAL);
 		break;
 	}
