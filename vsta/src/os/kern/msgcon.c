@@ -725,7 +725,7 @@ msg_err(long arg_tran, char *arg_why, int arg_len)
 		/*
 		 * A failed open needs the portref cleared
 		 */
-		(void)p_lock(&port->p_lock, SPL0);
+		(void)p_lock(&port->p_lock, SPLHI);
 		deref_port(port, pr);
 		v_lock(&port->p_lock, SPL0);
 

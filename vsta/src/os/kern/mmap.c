@@ -433,7 +433,7 @@ unhash(port_t arg_port, long arg_fid)
 		v_sema(&p->p_sema);
 		return(err(EBADF));
 	}
-	p_lock(&port->p_lock, SPL0);
+	p_lock(&port->p_lock, SPLHI);
 	v_sema(&p->p_sema);
 	p_sema_v_lock(&port->p_mapsema, PRIHI, &port->p_lock);
 
