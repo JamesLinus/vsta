@@ -148,7 +148,7 @@ non_canon(struct termios *t, TTYBUF *fp, struct port *port)
 		port->p_iocount += 1;
 		x = msg_send(port->p_port, &m);
 		if (x <= 0) {
-			return(-1);
+			return(x);
 		}
 
 		/*
@@ -329,6 +329,10 @@ tcsetattr(int fd, int flag, struct termios *t)
 			(tty_state.c_lflag & (ONLCR | ICANON))) {
 		sprintf(buf, "ocrnl=%d\n",
 			(t->c_lflag & (ONLCR | ICANON)) == (ONLCR | ICANON));
+		(void)wstat(port->p_port, buf);
+	}
+	if (t->c_ospeed != tty_state.c_ospeed) {
+		sprintf(buf, "baud=%u\n", t->c_ospeed);
 		(void)wstat(port->p_port, buf);
 	}
 	bcopy(t, &tty_state, sizeof(tty_state));
