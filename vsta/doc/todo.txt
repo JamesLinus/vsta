@@ -3,6 +3,7 @@ copyin/copyout--put in locore.s, use user's segment
 	to a read-only mapping.  So COW is a bust when one would expect
 	it to work for a copyout.  Walk translations manually?  Bleh.
 	Use copy-on-reference for i386.
+	Nah, ignore it and use the new bits of the i486 and later.
 
 X TLB staleness--how split HAT/portable?  Assume TLB shootdown is
 X relatively cheap and if not assume HAT will do the gyrations
@@ -76,7 +77,7 @@ X Add code to manage T_KERN bit of thread flags
 	-- Skip it.  Not worth the trouble.
 
 Add code to qio_msg_send to handle case of a "copyout".  A bcopy()
-to ptov(pfn) should suffice?
+to ptov(pfn) should suffice?  Who would use it?
 
 X Add handling for M_DUP messaging.  How correlate back to new portref
 X being created?
@@ -133,6 +134,11 @@ Add check to enable_dma() for conflict in DMA channels
 
 Check abort in wd/rw.c to see if we do the right thing when we're
 	DMA'ing into the would-be-aborters address space.
+	Definitely a problem... f_abort is set but not used.
+	The code does not really flag queued versus active;
+	aborting queued would be easy.  Active is going to require
+	waiting for the completion interrupt... probably not worth
+	hosing down the controller to try and speed that up.
 
 XCheck whether the right nodes get flagged dirty when we create
 X	a node within a dir.  Does the dir node need to be flagged?
@@ -153,6 +159,7 @@ Caching of executables is indefinite.  Need two things: first, a way
 	unlink() will try 2 times, with a 0.1 sec sleep in between.
 	First part is nasty, since kernel would need to close connection
 	with server.  Bum server could hang up the kernel.
+	Is this true?  MSG_DISCONNECT doesn't require a server ack.
 
 X Some problems with mutexing of semaphores and treatment of priorities.
 X 	I don't think we're honoring PRIHI right now.  Also, I think
@@ -207,6 +214,9 @@ Need to set up message operation interruption so even a completely
 	hosed server can't hang a client.  Client should be able to
 	interrupt operation without blocking ; client should be able
 	to disconnect without blocking.  DMA is a special case.
+	For M_READ this should be OK, but what about writing?
+	You can't make the buffer disappear.  Let the server continue
+	to reference it?
 
 X DOS file ID is OK for purposes of caching executables, but hoses things
 X 	like "du" which want to know if a particular file is a link to
@@ -230,6 +240,16 @@ Time to do a new level of path walk optimization.  chdir() should try
 	the fstab has a /vsta/foo/bar mount point, you need to stop
 	using the cached port_t when you walk from foo down into bar.
 	This cwd port_t probably needs to be dropped on an exec().
+	Further notes:
+		Probably need to keep a pointer to the winning mnttab.
+		If this is optimized correctly, you can use the cached
+			cwd port even if they specify an absolute path
+			(but its initial part matches the cwd)
+		This implies a full mnttab scan, but you probably need
+			to do this anyway just to see if there's a
+			more-specific mnttab match than the cwd.  Keeping
+			the cwd mntent lets you compare it to what falls
+			out of the mnttab scan.
 
 And for a *really* big change, FS_OPEN2 should be done; it takes the
 	entire path string, and walks it down within the server, rather
@@ -249,6 +269,11 @@ Also, again in do_exit(), there are definite problems with free'ing
 	memory during the exit path.  In cases where memory moves back
 	into the system pool, the thread can block with its data
 	structures partially destroyed.  Bad.
+
+And since we're ragging on do_exit(), note that ephemeral threads
+	should not determine the exit() status of the process.  The
+	exit status should be determined by the exit value of the last
+	non-ephemeral thread.
 
 SIGCHLD emulation is done with a second (ephemeral) thread.  This is fine,
 	except that this second thread needs to wait on the kernel
@@ -353,6 +378,9 @@ I've been trying to get a handle on a bug which hoses the first text
 	values for the kernel stack of the console server thread
 	itself.  Some really funky condition, and very hard to
 	reproduce.
+	X Fixed.  __end was being set before common symbols were
+	X folded in, resulting in GRUB being told to insert the boot
+	X modules too low in memory (on top of kernel BSS, in fact)
 
 In a release or so, /bin/ovim should go away.
 
@@ -360,3 +388,12 @@ The pipe server should be made to buffer data rather than always
 	lock a writer until there's a reader for his data.  It should
 	still, of course, do a direct writer->reader I/O op for
 	cases where the reader is present at the time of the write.
+
+There's a little tidying to be done with environment variable emulation.
+	The /env server has a "fork" wstat which doesn't appear to be
+	used.  With the change where fork() no longer even necessarily
+	clone()'s open connections, there really needs to be a way for
+	children /env/# entries to not propagate back to parents.  So
+	this seems like a need for wstat("fork") to come back in the
+	start.c code at a minimum, along with an explicit clone() of
+	the /env/ mount point port.
