@@ -91,17 +91,28 @@ vfs_wstat(struct msg *m, struct file *f)
 {
 	char *field, *val;
 	struct fs_file *fs;
+	struct buf *b;
+
+	/*
+	 * Can't modify files unless have write permission
+	 */
+	if (!(f->f_perm & (ACC_WRITE | ACC_CHMOD))) {
+		msg_err(m->m_sender, EPERM);
+		return;
+	}
 
 	/*
 	 * Get file's node
 	 */
-	fs = getfs(f->f_file, 0);
+	fs = getfs(f->f_file, &b);
 
 	/*
 	 * See if common handling code can do it
 	 */
-	if (do_wstat(m, &fs->fs_prot, f->f_perm, &field, &val) == 0)
+	if (do_wstat(m, &fs->fs_prot, f->f_perm, &field, &val) == 0) {
+		dirty_buf(b);
 		return;
+	}
 
 	/*
 	 * Not a field we support...

@@ -800,13 +800,15 @@ vfs_close(struct file *f)
 		 * the file's length to indicate just the true
 		 * data.
 		 */
-		if (f->f_perm & ACC_WRITE) {
-			struct fs_file *fs;
-			struct buf *b;
+		if (f->f_perm & (ACC_WRITE | ACC_CHMOD)) {
+			if (f->f_perm & ACC_WRITE) {
+				struct fs_file *fs;
+				struct buf *b;
 
-			fs = getfs(f->f_file, &b);
-			if (fs->fs_type != FT_DIR) {
-				file_shrink(o, o->o_hiwrite);
+				fs = getfs(f->f_file, &b);
+				if (fs->fs_type != FT_DIR) {
+					file_shrink(o, o->o_hiwrite);
+				}
 			}
 			sync();
 		}
