@@ -374,33 +374,74 @@ copy_pset(struct pset *ops, uint low, uint cnt)
 void
 pset_lastref(struct pset *ps, struct perpage *pp, uint idx)
 {
-	pp->pp_flags &= ~PP_V;
-	free_page(pp->pp_pfn);
+	/*
+	 * If there are still users of the pset, and the page
+	 * has unique (i.e., non-initial) contents, then create
+	 * a cache reference to it.
+	 *
+	 * Note that the policy of retaining non-modified pages
+	 * from FOD mapped files is implemented in pset_fod.c,
+	 * not here.
+	 */
+	if (ps->p_refs && (pp->pp_flags & PP_M)) {
+		pp->pp_refs = 1;
+		add_atl(pp, ps, idx, ATL_CACHE);
+	} else {
+		pp->pp_flags &= ~PP_V;
+		free_page(pp->pp_pfn);
+	}
 }
 
-#ifdef DEBUG
 /*
- * valid_pset_slots()
- *	Tell if there are any valid pages under a pset
+ * pset_free()
+ *	Called as pset is being freed
+ *
+ * Cleans up any residual cache references
  */
-int
-valid_pset_slots(struct pset *ps)
+void
+pset_free(struct pset *ps)
 {
-	struct perpage *pp;
 	uint x;
+	struct perpage *pp;
+	struct atl *a;
 
 	/*
-	 * Free pages under pset
+	 * Clean up pset.  There can still be cache pview references
+	 * to slots.
 	 */
-	pp = ps->p_perpage;
-	for (x = 0; x < ps->p_len; ++x,++pp) {
+	ASSERT_DEBUG(ps->p_refs == 0, "pset_free: still refs");
+	for (x = 0; x < ps->p_len; ++x) {
 		/*
-		 * Non-valid slots--no problem
+		 * Get per-page information.  Make sure nobody's
+		 * dirtied the page
+		 */
+		pp = find_pp(ps, x);
+
+		/*
+		 * Clean up residual valid pages
 		 */
 		if (pp->pp_flags & PP_V) {
-			return(1);
+			/*
+			 * Sanity.  Lots of sanity.
+			 */
+			a = pp->pp_atl;
+			ASSERT_DEBUG(a, "pset_free: v !atl");
+			ASSERT_DEBUG(a->a_flags & ATL_CACHE,
+				"pset_free: non-cache ref");
+			ASSERT_DEBUG(a->a_ptr == ps,
+				"pset_free: pset mismatch");
+			ASSERT_DEBUG(a->a_next == 0,
+				"pset_free: other refs");
+			ASSERT_DEBUG(pp->pp_refs == 1,
+				"pset_free: refs/atl mismatch");
+
+			/*
+			 * Drop reference to slot, which will free it
+			 */
+			deref_slot(ps, pp, a->a_idx);
+			FREE(a, MT_ATL);
+		} else {
+			ASSERT_DEBUG(pp->pp_atl == 0, "pset_free: !v atl");
 		}
 	}
-	return(0);
 }
-#endif /* DEBUG */

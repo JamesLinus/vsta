@@ -36,49 +36,11 @@ fod_init(struct pset *ps)
 static void
 fod_free(struct pset *ps)
 {
-	uint x;
 
 	/*
-	 * Clean up pset.  There can still be cache pview references
-	 * to slots.
+	 * Free slots
 	 */
-	for (x = 0; x < ps->p_len; ++x) {
-		struct perpage *pp;
-
-		/*
-		 * Get per-page information.  Make sure nobody's
-		 * dirtied the page
-		 */
-		pp = find_pp(ps, x);
-		ASSERT_DEBUG((pp->pp_flags & PP_M) == 0, "fod_free: dirty");
-
-		/*
-		 * Clean up residual valid pages
-		 */
-		if (pp->pp_flags & PP_V) {
-			struct atl *a = pp->pp_atl;
-
-			/*
-			 * Sanity.  Lots of sanity.
-			 */
-			ASSERT_DEBUG(a, "fod_free: v !atl");
-			ASSERT_DEBUG(a->a_flags & ATL_CACHE,
-				"fod_free: non-cache ref");
-			ASSERT_DEBUG(a->a_ptr == ps,
-				"fod_free: pset mismatch");
-			ASSERT_DEBUG(a->a_next == 0,
-				"fod_free: other refs");
-			ASSERT_DEBUG(pp->pp_refs == 1,
-				"fod_free: refs/atl mismatch");
-
-			/*
-			 * Drop reference to slot, which will free it
-			 */
-			deref_slot(ps, pp, a->a_idx);
-		} else {
-			ASSERT_DEBUG(pp->pp_atl == 0, "fod_free: !v atl");
-		}
-	}
+	pset_free(ps);
 
 	/*
 	 * Close file connection

@@ -21,11 +21,10 @@
  * Our pset ops
  */
 extern struct portref *swapdev;
-extern int pset_writeslot();
 
-static int cow_fillslot(), cow_writeslot(), cow_init();
+static int cow_fillslot(), cow_init();
 static void cow_dup(), cow_free(), cow_lastref();
-static struct psetops psop_cow = {cow_fillslot, cow_writeslot, cow_init,
+static struct psetops psop_cow = {cow_fillslot, pset_writeslot, cow_init,
 	cow_dup, cow_free, cow_lastref};
 
 /*
@@ -110,21 +109,6 @@ cow_fillslot(struct pset *ps, struct perpage *pp, uint idx)
 }
 
 /*
- * cow_writeslot()
- *	Write pset slot out to swap as needed
- *
- * The caller may sleep even with async set to true, if the routine has
- * to sleep waiting for a qio element.  The routine is called with the
- * slot locked.  On non-async return, the slot is still locked.  For
- * async I/O, the slot is unlocked on I/O completion.
- */
-static int
-cow_writeslot(struct pset *ps, struct perpage *pp, uint idx, voidfun iodone)
-{
-	return(pset_writeslot(ps, pp, idx, iodone));
-}
-
-/*
  * cow_write()
  *	Do the writing-cow action
  *
@@ -157,8 +141,6 @@ cow_free(struct pset *ps)
 {
 	struct pset *ps2, **psp, *p;
 
-	ASSERT_DEBUG(!valid_pset_slots(ps), "cow_free: still refs");
-
 	/*
 	 * Free our reference to the master set on PT_COW
 	 */
@@ -176,7 +158,12 @@ cow_free(struct pset *ps)
 	v_lock(&ps2->p_lock, SPL0_SAME);
 
 	/*
-	 * Remove our reference from him
+	 * Clean up any additional cache references
+	 */
+	pset_free(ps);
+
+	/*
+	 * Release our reference from the COW master
 	 */
 	deref_pset(ps2);
 }
@@ -264,8 +251,11 @@ cow_lastref(struct pset *ps, struct perpage *pp, uint idx)
 		lock_slot(ps2, pp2);
 		deref_slot(ps2, pp2, idx);
 		unlock_slot(ps2, pp2);
+		pp->pp_flags &= ~(PP_COW | PP_V);
 	} else {
-		free_page(pp->pp_pfn);
+		/*
+		 * Local contents, let central pset code handle it
+		 */
+		pset_lastref(ps, pp, idx);
 	}
-	pp->pp_flags &= ~(PP_COW | PP_V);
 }

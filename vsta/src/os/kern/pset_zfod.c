@@ -9,12 +9,11 @@
 #include <sys/assert.h>
 
 extern struct portref *swapdev;
-extern int pset_writeslot();
 
 static int zfod_fillslot(), zfod_init();
-static void zfod_dup(), zfod_free();
+static void zfod_dup();
 struct psetops psop_zfod =
-	{zfod_fillslot, pset_writeslot, zfod_init, zfod_dup, zfod_free,
+	{zfod_fillslot, pset_writeslot, zfod_init, zfod_dup, pset_free,
 	 pset_lastref};
 
 /*
@@ -58,16 +57,6 @@ zfod_fillslot(struct pset *ps, struct perpage *pp, uint idx)
 	pp->pp_pfn = pg;
 	pp->pp_refs = 1;
 	return(0);
-}
-
-/*
- * zfod_free()
- *	Release a page set; update pages it references
- */
-static void
-zfod_free(struct pset *ps)
-{
-	ASSERT_DEBUG(!valid_pset_slots(ps), "zfod_free: still refs");
 }
 
 /*
