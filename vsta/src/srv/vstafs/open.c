@@ -13,6 +13,30 @@
 static struct hash *rename_pending;
 
 /*
+ * dir_fillnew()
+ *	Zero out new directory space
+ *
+ * Note "off" is a byte offset, "len" is in sectors
+ */
+static void
+dir_fillnew(struct buf *b, struct fs_file *fs, ulong off, ulong len)
+{
+	ulong x;
+	struct buf *b2;
+	void *v;
+	uint dummy;
+
+	for (x = 0; x < len; ++x, off += SECSZ) {
+		b2 = bmap(b, fs, off, SECSZ, (char **)&v, &dummy);
+		ASSERT_DEBUG(dummy == SECSZ, "dir_fillnew: short sector");
+		ASSERT(b2, "dir_fillnew: can't fill");
+		bzero(v, SECSZ);
+		dirty_buf(b2);
+	}
+	sync();
+}
+
+/*
  * partial_trunc()
  *	Trim back the block allocation on an allocation unit
  */
@@ -341,11 +365,20 @@ create_file(struct file *f, uint type)
 	d = index_buf(b, 0, 1);
 
 	/*
+	 * Special handling; dir versus file
+	 */
+	if (type == FT_DIR) {
+		bzero(d, SECSZ);
+		d->fs_len = SECSZ;
+	} else {
+		d->fs_len = sizeof(struct fs_file);
+	}
+
+	/*
 	 * Fill in the fields
 	 */
 	d->fs_prev = 0;
 	d->fs_rev = 1;
-	d->fs_len = sizeof(struct fs_file);
 	d->fs_type = type;
 	d->fs_nlink = 1;
 	d->fs_nblk = 1;
@@ -415,6 +448,97 @@ uncreate_file(struct openfile *o)
 }
 
 /*
+ * dir_addspace()
+ *	Add space to the end of the named directory
+ *
+ * Return 1 on failure, 0 on success
+ */
+static int
+dir_addspace(struct buf *b, struct fs_file *fs, ulong off)
+{
+	uint x;
+	ulong got, newlen;
+	struct alloc *a;
+
+	/*
+	 * Shoot for an increment based on how many extents
+	 * are consumed.
+	 */
+	x = fs->fs_nblk - 1;
+	newlen = MIN(1 << (DIREXTSIZ + x), EXTSIZ);
+
+	/*
+	 * See if we can extend the current dir block
+	 */
+	a = &fs->fs_blks[x];
+	got = take_block(a->a_start + a->a_len, newlen);
+
+	/*
+	 * If we could add some space, go with it
+	 */
+	if (got > 0) {
+		uint topbase;
+
+		/*
+		 * Add space to extent table in file, update file size
+		 */
+		a->a_len += got;
+		fs->fs_len += stob(got);
+
+		/*
+		 * Mark file header modified
+		 */
+		dirty_buf(b);
+
+		/*
+		 * Tell buffer cache to resize buffer containing this,
+		 * Calculate "fs" location again.
+		 */
+		topbase = (a->a_len & ~(EXTSIZ-1));
+		resize_buf(a->a_start + topbase, a->a_len - topbase, 0);
+		fs = index_buf(b, 0, 1);
+
+		/*
+		 * Clear out space
+		 */
+		dir_fillnew(b, fs, off, got);
+
+		/*
+		 * Success
+		 */
+		return(0);
+	}
+
+	/*
+	 * Couldn't extend current space, grab a completely new extent
+	 */
+	if (fs->fs_nblk == MAXEXT) {
+		return(1);
+	}
+	a += 1;
+	x += 1;
+	newlen = MIN(1 << (DIREXTSIZ + x), EXTSIZ);
+	printf("newlen %d DIREXTSIZE %d ext %d EXTSIZ %d\n",
+		newlen, DIREXTSIZ, x, EXTSIZ);
+	a->a_start = alloc_block(newlen);
+	if (a->a_start == 0) {
+		return(1);
+	}
+	printf(" got 0x%x\n", a->a_start);
+
+	/*
+	 * Add the space on, and initialize it
+	 */
+	fs->fs_nblk += 1;
+	fs->fs_len += stob(newlen);
+	a->a_len = newlen;
+	dirty_buf(b);
+	dir_fillnew(b, fs, off, a->a_len);
+
+	return(0);
+}
+
+/*
  * dir_newfile()
  *	Create a new entry in the current directory
  *
@@ -425,16 +549,17 @@ dir_newfile(struct file *f, char *name, int type)
 {
 	struct buf *b, *b2;
 	struct fs_file *fs;
-	uint extent;
+	uint extent, dummy;
 	ulong off;
-	struct openfile *o;
+	struct openfile *dirf, *o;
 	struct fs_dirent *d;
 	int err = 0;
 
 	/*
 	 * Access file structure of enclosing dir
 	 */
-	fs = getfs(f->f_file, &b);
+	dirf = f->f_file;
+	fs = getfs(dirf, &b);
 	if (fs == 0) {
 		return(0);
 	}
@@ -502,22 +627,19 @@ dir_newfile(struct file *f, char *name, int type)
 	}
 
 	/*
-	 * No luck with existing blocks.  Use bmap() to map in some
-	 * more storage.
+	 * No luck with existing blocks.  Try to get some more, and
+	 * use the start of the new space if successful.
 	 */
 	ASSERT_DEBUG(off == fs->fs_len, "dir_newfile: off/len skew");
-	{
-		uint dummy;
-
-		b2 = bmap(b, fs, fs->fs_len, sizeof(struct fs_dirent),
-			(char **)&d, &dummy);
-		if (b2 == b) {
-			fs = index_buf(b, 0, 1);
-		}
-	}
-	if (b2 == 0) {
+	if (dir_addspace(b, fs, off)) {
 		err = 1;
+	} else {
+		fs = index_buf(b, 0, 1);
+		b2 = bmap(b, fs, off, sizeof(struct fs_dirent),
+			(char **)&d, &dummy);
+		ASSERT_DEBUG(b2, "dir_newfile: grow !buf");
 	}
+
 out:
 	/*
 	 * On error, release germinal file allocation, return 0
@@ -532,8 +654,8 @@ out:
 	 */
 	strcpy(d->fs_name, name);
 	d->fs_clstart = o->o_file;
-	if (off > f->f_file->o_hiwrite) {
-		f->f_file->o_hiwrite = off;
+	if (off > dirf->o_hiwrite) {
+		dirf->o_hiwrite = off;
 	}
 
 	/*
@@ -543,13 +665,7 @@ out:
 	if (off > fs->fs_len) {
 		fs->fs_len = off;
 		dirty_buf(b);
-	} else {
-		off = MAX(off, f->f_file->o_hiwrite);
-		if (fs->fs_len > off) {
-			file_shrink(f->f_file, off);
-		}
 	}
-
 	dirty_buf(b2);
 	sync_buf(b2);
 	sync_buf(b);
@@ -688,9 +804,15 @@ vfs_close(struct file *f)
 		 * data.
 		 */
 		if (f->f_perm & ACC_WRITE) {
-			file_shrink(o, o->o_hiwrite);
+			struct fs_file *fs;
+			struct buf *b;
+
+			fs = getfs(f->f_file, &b);
+			if (fs->fs_type != FT_DIR) {
+				file_shrink(o, o->o_hiwrite);
+			}
+			sync();
 		}
-		sync();
 	}
 	deref_node(o);
 }
@@ -946,11 +1068,11 @@ do_rename(struct file *fsrc, char *src, struct file *fdest, char *dest)
 }
 
 /*
- * dos_rename()
+ * vfs_rename()
  *	Rename one dir entry to another
  *
- * For move of directory, just protect against cycles and update
- * the ".." entry in the directory after the move.
+ * Handle registry of pending rename; run actual rename when we
+ * have the two halves.
  */
 void
 vfs_rename(struct msg *m, struct file *f)

@@ -19,6 +19,8 @@
 #define MAXNAMLEN (28)		/* Max chars in dir entry name */
 #define EXTSIZ (128)		/* File growth increment */
 				/*  ...must be power of 2! */
+#define DIREXTSIZ (3)		/* File growth for directories */
+				/*  1 << (DIREXTSIZ + extent#) */
 #define NCACHE (8*EXTSIZ)	/* Crank up if you have lots of users */
 #define CORESEC (512)		/* Sectors to buffer in core at once */
 
