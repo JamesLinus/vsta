@@ -390,3 +390,5 @@ _warnx
 _realpath
 _gettimeofday
 _gl_set_tab_hook
+_gethostname
+___fd_clone hidden
