@@ -46,9 +46,9 @@ extern int getdtablesize(void);
  * "global" data variables.
  */
 extern void *__getopt_ptr(int);
-#define optarg (*(char **)__getopt(ptr(3)))
-#define optind (*(int *)__getopt(ptr(1)))
-#define opterr (*(int *)__getopt(ptr(0)))
+#define optarg (*(char **)__getopt_ptr(3))
+#define optind (*(int *)__getopt_ptr(1))
+#define opterr (*(int *)__getopt_ptr(0))
 extern int getopt(int, char **, char *);
 
 /*
