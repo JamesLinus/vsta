@@ -33,6 +33,7 @@ struct portref *swapdev = 0;
 sema_t swap_wait;
 lock_t swap_lock;
 static ulong swap_pending = 0L;	/* Pages consumed before swapper up */
+ulong swap_leaked = 0L;		/* Pages lost before swap manager up */
 
 /*
  * seg_physcopy()
@@ -302,17 +303,16 @@ free_swap(ulong block, uint pages)
 {
 	long args[2];
 
-#ifdef DEBUG
 	/*
-	 * During debugging it can be convenient to not bother running
-	 * a swap manager, and just leak the swap space instead.
+	 * This is usually the case of an exec() (discarding
+	 * its old stack) during bootup.  We just leak the
+	 * space and hope we'll have a swap manager soon.  The
+	 * global is just to track how MUCH we leak.
 	 */
 	if (swapdev == 0) {
+		swap_leaked += pages;
 		return;
 	}
-#else
-	ASSERT(swapdev, "free_swap: manager dead");
-#endif
 	args[0] = block;
 	args[1] = pages;
 	p_sema(&swapdev->p_sema, PRIHI);
