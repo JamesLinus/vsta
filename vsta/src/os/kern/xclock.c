@@ -140,7 +140,10 @@ hardclock(uint x)
 		 * complete and there are others waiting to run,
 		 * timeslice.
 		 */
-		if ((t->t_runticks -= 1L) == 0) {
+		if (t->t_runticks > 0) {
+			t->t_runticks -= 1;
+		}
+		if (t->t_runticks == 0) {
 			do_preempt = 1;
 		}
 	}
@@ -156,6 +159,7 @@ hardclock(uint x)
 
 	/*
 	 * If pageout configured, invoke him periodically
+	 * XXX generalize
 	 */
 	if (pageout_secs > 0) {
 		if (pageout_wait >= pageout_secs) {
