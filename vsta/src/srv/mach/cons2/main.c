@@ -531,8 +531,26 @@ do_dbg_enter(void)
  *	Startup of the screen server
  */
 int
-main()
+main(int argc, char **argv)
 {
+	int vid_type = VID_CGA;
+	int i;
+
+	/*
+	 * First let's parse any command line options
+	 */
+	for (i = 1; i < argc; i++) {
+		if (!strcmp(argv[i], "-color")) {
+			vid_type = VID_CGA;
+		}
+		else if (!strcmp(argv[i], "-colour")) {
+			vid_type = VID_CGA;
+		}
+		else if (!strcmp(argv[i], "-mono")) {
+			vid_type = VID_MGA;
+		}
+	}
+
 	/*
 	 * Allocate handle->file hash table.  16 is just a guess
 	 * as to what we'll have to handle.
@@ -572,7 +590,7 @@ main()
 	/*
 	 * Let screen mapping get initialized
 	 */
-	init_screen();
+	init_screen(vid_type);
 
 	/*
 	 * Allocate memory for screen 0, the current screen.  Mark

@@ -15,6 +15,7 @@
  */
 static char *top, *bottom, *cur, *lastl;
 char *hw_screen;
+static int idx, dat, display;
 
 /*
  * load_screen()
@@ -72,10 +73,10 @@ cursor(void)
 {
 	ulong pos = (cur-top) >> 1;
 
-	outportb(IDX, 0xE);
-	outportb(DAT, (pos >> 8) & 0xFF);
-	outportb(IDX, 0xF);
-	outportb(DAT, pos & 0xFF);
+	outportb(idx, 0xE);
+	outportb(dat, (pos >> 8) & 0xFF);
+	outportb(idx, 0xF);
+	outportb(dat, pos & 0xFF);
 }
 
 /*
@@ -108,18 +109,33 @@ cls(void)
 /*
  * init_screen()
  *	Set up mapping of PC screen
+ *
+ * We accept either VID_MGA (mono) or VID_CGA (colour) for the type field
  */
 void
-init_screen(void)
+init_screen(int type)
 {
 	char *p;
+
+	/*
+	 * Establish the video adaptor parameters
+	 */
+	if (type == VID_MGA) {
+		idx = MGAIDX;
+		dat = MGADAT;
+		display = MGATOP;
+	} else {
+		idx = CGAIDX;
+		dat = CGADAT;
+		display = CGATOP;
+	}
 
 	/*
 	 * Open physical device, make it the current display
 	 * destination.
 	 */
-	p = mmap((void *)DISPLAY, SCREENMEM,
-		PROT_READ|PROT_WRITE, MAP_PHYS, 0, 0L);
+	p = mmap((void *)display, SCREENMEM, 
+		 PROT_READ|PROT_WRITE, MAP_PHYS, 0, 0L);
 	if (!p) {
 		exit(1);
 	}

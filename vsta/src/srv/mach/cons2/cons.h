@@ -68,17 +68,10 @@ struct screen {
 #define CONS_HIGH CGADAT
 
 /*
- * Which one we're using
+ * Types of adaptor supported
  */
-#ifdef CGA
-#define DISPLAY CGATOP
-#define IDX CGAIDX
-#define DAT CGADAT
-#else
-#define DISPLAY MGATOP
-#define IDX MGAIDX
-#define DAT MGADAT
-#endif
+#define VID_MGA 0
+#define VID_CGA 1
 
 /*
  * Shared routines
@@ -87,7 +80,7 @@ extern void save_screen(struct screen *), load_screen(struct screen *),
 	set_screen(char *, uint), cursor(void),
 	save_screen_pos(struct screen *);
 extern void select_screen(uint);
-extern void write_string(char *, uint), init_screen(void);
+extern void write_string(char *, uint), init_screen(int);
 extern void cons_stat(struct msg *, struct file *),
 	cons_wstat(struct msg *, struct file *);
 extern void kbd_isr(struct msg *);
