@@ -156,6 +156,7 @@ valid_block(daddr_t d)
 static void
 check_freelist(void)
 {
+	ulong nfree = 0, nfrag = 0;
 	struct free *fr;
 	daddr_t next, highest = FREE_SEC+1;
 
@@ -168,6 +169,11 @@ check_freelist(void)
 	do {
 		struct alloc *a;
 		uint x;
+
+		/*
+		 * Count fragments
+		 */
+		nfrag += 1;
 
 		/*
 		 * Get next sector, sanity check its format
@@ -220,8 +226,19 @@ printf("Free list sector %ld slot %d has out-of-order block %ld\n",
 			 * because our sort check above guarantees this.
 			 */
 			setbit(freemap, a->a_start, a->a_len);
+
+			/*
+			 * Tabulate free space
+			 */
+			nfree += a->a_len;
 		}
 	} while (next = fr->f_next);
+
+	/*
+	 * Report
+	 */
+	printf(" %ld free sectors tabulated in %ld sectors\n",
+		nfree, nfrag);
 }
 
 /*
