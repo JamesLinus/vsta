@@ -11,12 +11,12 @@ typedef unsigned int lock_t;
 /*
  * Inline
  */
-inline static void
+inline extern void
 v_lock(volatile lock_t *lp)
 {
 	*lp = 0;
 }
-inline static void
+inline extern void
 init_lock(lock_t *lp)
 {
 	*lp = 0;

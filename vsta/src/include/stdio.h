@@ -49,7 +49,7 @@ extern int fgetc(FILE *), fputc(int, FILE *);
  * getc()
  *	Get a char from a stream
  */
-static inline int
+inline extern int
 getc(FILE *fp)
 {
 	if (((fp->f_flags & (_F_READ|_F_DIRTY)) != _F_READ) ||
@@ -65,7 +65,7 @@ getc(FILE *fp)
  * putc()
  *	Put a char to a stream
  */
-static inline int
+inline extern int
 putc(char c, FILE *fp)
 {
 	if (((fp->f_flags & (_F_WRITE|_F_SETUP|_F_DIRTY)) !=
