@@ -21,4 +21,13 @@ extern char *strdup(const char *);
 extern int bcmp(const void *, const void *, unsigned int),
 	memcmp(const void *, const void *, size_t);
 extern void bcopy(const void *, void *, unsigned int);
+extern void bzero(void *, size_t);
+extern char *strtok(char *, const char *),
+	*strpbrk(const char *, const char *),
+	*strstr(const char *, const char *);
+extern size_t strspn(const char *, const char *);
+extern void *memmove(void *, const void *, size_t),
+	*memchr(const void *, unsigned char, size_t),
+	*memset(void *, int, size_t);
+
 #endif /* _STRING_H */

@@ -15,7 +15,7 @@ extern double atof();
  * atoi()
  *	Given numeric string, return value
  */
-atoi(char *p)
+atoi(const char *p)
 {
 	int val = 0, neg = 0;
 	char c;

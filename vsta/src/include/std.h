@@ -27,5 +27,6 @@ extern int execl(char *, char *, ...), execv(char *, char **),
 extern char *getenv(char *);
 extern int setenv(char *, char *);
 extern pid_t getpid(void), gettid(void), getppid(void);
+extern int atoi(const char *);
 
 #endif /* _STD_H */
