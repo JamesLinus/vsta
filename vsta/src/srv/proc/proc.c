@@ -77,19 +77,27 @@ notepg_write(struct msg *m, struct file *f, uint len)
 {
 	char *event;
 	
+	/*
+	 * Assemble event to send
+	 */
 	event = malloc(len);
 	seg_copyin(m->m_seg, m->m_nseg, event, len);
 	event[len] = '\0';
-	
-printf("notepg_write %x pid %d '%s'\n", f, f->f_pid, event);
-	
-/*
- *	kills init, too!
- */
+
+	/*
+	 * Become the client
+	 */
 	emulate_client_perms(f);
+
+	/*
+	 * Send the event, and un-become the client
+	 */
 	notify(f->f_pid, -1, event);
 	release_client_perms(f);
 
+	/*
+	 * Success
+	 */
 	m->m_buflen = m->m_arg1 = m->m_nseg = 0;
 	m->m_arg = len;
 	msg_reply(m->m_sender, m);
