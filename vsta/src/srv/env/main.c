@@ -324,6 +324,7 @@ main(int argc, char *argv[])
 	rootnode.n_flags = N_INTERNAL;
 	ll_init(&rootnode.n_elems);
 	rootnode.n_refs = 1;	/* Always at least 1 */
+	rootnode.n_owner = 0;
 
 	/*
 	 * Register our well-known address

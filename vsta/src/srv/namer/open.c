@@ -114,10 +114,11 @@ namer_open(struct msg *m, struct file *f)
 	 */
 	p = &n->n_prot;
 	bzero(p, sizeof(*p));
-	p->prot_len = f->f_perms[0].perm_len;
+	p->prot_len = PERM_LEN(&f->f_perms[0]);
 	bcopy(f->f_perms[0].perm_id, p->prot_id, PERMLEN);
 	p->prot_bits[p->prot_len-1] =
 		ACC_READ|ACC_WRITE|ACC_CHMOD;
+	n->n_owner = f->f_perms[0].perm_uid;
 	strcpy(n->n_name, m->m_buf);
 	n->n_internal = (m->m_arg & ACC_DIR) ? 1 : 0;
 	n->n_port = 0;

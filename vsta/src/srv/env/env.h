@@ -50,6 +50,7 @@ struct node {
 	uint n_refs;		/* # references to this node */
 	struct llist *n_list;	/* Our place in our parent's list */
 	struct node *n_up;	/*  ...out parent */
+	uint n_owner;		/* Owner UID # */
 };
 
 /*
