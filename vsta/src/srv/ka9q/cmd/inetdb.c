@@ -16,7 +16,8 @@ static FILE *tmpf;
 
 static void my_read(char *), my_stat(char *), my_write(char *),
 	my_wstat(char *), my_exit(char *);
-static void dump_s(char *, uint), my_sleep(char *), my_dot(char *);
+static void dump_s(char *, uint), my_sleep(char *), my_dot(char *),
+	my_term(char *);
 
 /*
  * Table of commands
@@ -30,10 +31,71 @@ static struct {
 	"read", my_read,
 	"sleep", my_sleep,
 	"stat", my_stat,
+	"term", my_term,
 	"write", my_write,
 	"wstat", my_wstat,
 	0, 0
 };
+
+/*
+ * reader()
+ *	Read and dump until terminated by signal
+ */
+static void
+reader(port_t rdport)
+{
+	struct msg m;
+	char buf[256];
+	int x;
+
+	for (;;) {
+		m.m_op = FS_READ | M_READ;
+		m.m_buf = buf;
+		m.m_arg = m.m_buflen = sizeof(buf);
+		m.m_nseg = 1;
+		m.m_arg1 = 0;
+		x = msg_send(rdport, &m);
+		if (x > 0) {
+			write(1, buf, x);
+		}
+	}
+}
+
+/*
+ * my_term()
+ *	Go into read/write terminal mode
+ */
+static void
+my_term(char *dummy)
+{
+	port_t port2;
+	pid_t readpid;
+	struct msg m;
+	char buf[256];
+
+	printf("Terminal mode.  Enter '.' to end.\n");
+	port2 = clone(port);
+	if (port2 < 0) {
+		perror("clone");
+		return;
+	}
+	readpid = tfork(reader, port2);
+	for (;;) {
+		fgets(buf, sizeof(buf), stdin);
+		if (*buf == '.') {
+			break;
+		}
+		m.m_op = FS_WRITE;
+		m.m_buf = buf;
+		m.m_arg = m.m_buflen = strlen(buf);
+		m.m_nseg = 1;
+		m.m_arg1 = 0;
+		msg_send(port, &m);
+	}
+	notify(0, readpid, "kill");
+	msg_disconnect(port2);
+	printf("Done with terminal mode\n");
+}
 
 /*
  * my_sleep()
