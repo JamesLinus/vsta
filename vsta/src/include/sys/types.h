@@ -18,6 +18,9 @@ typedef unsigned char u_char;
 typedef unsigned long ulong;
 typedef unsigned long ulong_t;
 typedef unsigned long u_long;
+typedef unsigned long long ulonglong;
+typedef unsigned long long ulonglong_t;
+typedef unsigned long long u_longlong;
 typedef unsigned long off_t;
 #ifndef _SIZE_T
 #define _SIZE_T
