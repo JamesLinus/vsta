@@ -10,7 +10,7 @@ LAW=readme license
 DEST=/dist
 
 # Binary distribution
-LIB=lib/bison.hairy lib/bison.simple lib/crt0.0 lib/crt0srv.o \
+LIB=lib/bison.hairy lib/bison.simple lib/crt0.o lib/crt0srv.o \
 	lib/ld.a lib/ld.shl lib/libc.a lib/libc.shl lib/libc_s.a \
 	lib/libcurses.a lib/libdpart.a lib/libg.a lib/libgcc.a \
 	lib/libm.a lib/libregex.a lib/libsrv.a lib/libtermcap.a \
