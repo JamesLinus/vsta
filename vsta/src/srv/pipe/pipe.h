@@ -22,11 +22,11 @@
 struct pipe {
 	struct llist *p_entry;	/* Link into list of pipes */
 	struct prot p_prot;	/* Protection of pipe */
-	uint p_refs;		/* # references */
+	int p_refs;		/* # references */
 	uint p_owner;		/* Owner UID */
 	struct llist p_readers,	/* List of read requests pending */
 		p_writers;	/*  ...writers */
-	uint p_nwrite;		/* # clients open for writing */
+	int p_nwrite;		/* # clients open for writing */
 };
 
 /*

@@ -8,6 +8,7 @@
 #include <fcntl.h>
 #include <std.h>
 #include <namer/namer.h>
+#include <sys/assert.h>
 
 #define NCACHE (16)	/* Roughly, # clients */
 
@@ -75,6 +76,7 @@ static void
 dup_client(struct msg *m, struct file *fold)
 {
 	struct file *f;
+	struct pipe *o;
 
 	/*
 	 * Get data structure
@@ -101,8 +103,14 @@ dup_client(struct msg *m, struct file *fold)
 	/*
 	 * Add ref
 	 */
-	if (f->f_file) {
-		f->f_file->p_refs += 1;
+	if (o = f->f_file) {
+		o->p_refs += 1;
+		ASSERT_DEBUG(o->p_refs > 0, "dup_client: overflow");
+		if (f->f_perm & ACC_WRITE) {
+			o->p_nwrite += 1;
+			ASSERT_DEBUG(o->p_nwrite > 0,
+				"dup_client: overflow");
+		}
 	}
 
 	/*
