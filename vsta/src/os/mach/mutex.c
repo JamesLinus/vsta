@@ -103,6 +103,7 @@ p_sema(sema_t *s, pri_t p)
 	t->t_state = TS_SLEEP;
 	ATOMIC_DEC(&num_run);
 	swtch();
+	cli();
 
 	/*
 	 * We're back.  If we have an event pending, give up on the
@@ -224,6 +225,7 @@ p_sema_v_lock(sema_t *s, pri_t p, lock_t *l)
 	t->t_state = TS_SLEEP;
 	ATOMIC_DEC(&num_run);
 	swtch();
+	cli();
 
 	/*
 	 * We're back.  If we have an event pending, give up on the

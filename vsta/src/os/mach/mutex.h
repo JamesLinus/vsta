@@ -249,4 +249,16 @@ adj_sema(sema_t *s, int cnt)
 	s->s_count += cnt;
 }
 
+/*
+ * splx()
+ *	Adjust interrupt handling without changing a spinlock
+ */
+inline static void
+splx(spl_t s)
+{
+	if (s == SPL0) {
+		sti();
+	}
+}
+
 #endif /* _MACH_MUTEX_H */

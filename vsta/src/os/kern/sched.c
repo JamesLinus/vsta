@@ -344,7 +344,7 @@ swtch(void)
 	idle_stack();
 	v_lock(&runq_lock, SPLHI_SAME);
 	resume();
-	ASSERT(0, "swtch: back from resume");
+	ASSERT_DEBUG(0, "swtch: back from resume");
 }
 
 /*
@@ -432,10 +432,34 @@ setrun(struct thread *t)
 static void
 timeslice(void)
 {
-	p_lock_void(&runq_lock, SPLHI);
+	spl_t s;
+
+	/*
+	 * Nest interrupt handling; hold run queue and disable interrupts
+	 */
+	s = p_lock(&runq_lock, SPLHI);
+
+	/*
+	 * We're off the CPU
+	 */
 	ATOMIC_DEC(&num_run);
+
+	/*
+	 * But we'd like to come back!
+	 */
 	lsetrun(curthread);
+
+	/*
+	 * Fall to the scheduler
+	 */
 	swtch();
+
+	/*
+	 * On return, the run queue is already released, but we're
+	 * still running with SPLHI.  Return to what we were previously
+	 * using (will still be SPLHI if we preempted from an ISR).
+	 */
+	splx(s);
 }
 
 /*

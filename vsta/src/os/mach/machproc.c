@@ -2,7 +2,6 @@
  * machproc.c
  *	Machine-dependent parts of process handling
  */
-#define LONGENA		/* longjmp() enables interrupts */
 #include <sys/proc.h>
 #include <sys/thread.h>
 #include <sys/vas.h>
@@ -83,7 +82,8 @@ dup_stack(struct thread *old, struct thread *new, voidfun f, ulong arg)
  *	Jump via the saved stack frame
  *
  * This works because in VSTa all stacks are at unique virtual
- * addresses.
+ * addresses.  Interrupts are disabled on entry, and remain so
+ * until the longjmp() out to start running in the new context.
  */
 void
 resume(void)
@@ -101,17 +101,14 @@ resume(void)
 	if ((cpu.pc_flags & CPU_DEBUG) || p->p_dbgr.dr7) {
 		/*
 		 * dr7 in a non-debugging process will be 0, so this
-		 * covers both cases.  We must mask against preemption
-		 * so that the debug registers match our flag.
+		 * covers both cases.
 		 */
-		cli();
 		reload_dr(&p->p_dbgr);
 		if (p->p_dbgr.dr7) {
 			cpu.pc_flags |= CPU_DEBUG;
 		} else {
 			cpu.pc_flags &= ~CPU_DEBUG;
 		}
-		sti();
 	}
 #endif
 
