@@ -103,6 +103,8 @@ deref_node(struct node *n)
 	 * Free file hash if a dir
 	 */
 	if (n->n_type == T_DIR) {
+		ASSERT_DEBUG(hash_size(n->n_files) == 0,
+			"deref_node: dir && !empty");
 		hash_dealloc(n->n_files);
 	}
 
