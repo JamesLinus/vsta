@@ -1,5 +1,6 @@
-CC= gcc
-AS= as
+CC=gcc
+AS=as
+LD=ld
 CPP= cpp
 INCS= -I../include
 CFLAGS= $(INCS) -O -DDEBUG
@@ -16,16 +17,45 @@ OBJS= syscalls.o syscall.o \
 .c.o:
 	$(CC) $(CFLAGS) -c $*.c
 
-LIBS=libc.a libusr.a libtermc.a libregex.a libpio.a libdpart.a
+# Libraries to be build
+LIBS=libc.a libc_s.a ld.a libusr.a libtermc.a libregex.a libpio.a libdpart.a
+
+# Databases for shared libraries
+DBS=ld.db libc.db
+SHLIBIN=ld.tmp libc.tmp
+
 all: $(LIBS) crt0.o crt0srv.o
 
-libc.a: $(OBJS) $(CRT)
-	rm -f libc.a
-	ar rsv libc.a $(OBJS) $(CRT)
+# Statically linkable version of libc
+libc_s.a: $(OBJS) $(CRT)
+	rm -f libc_s.a
+	ar rsv libc_s.a $(OBJS) $(CRT)
 
-libc.sh: $(OBJS)
-	rm -f libc.sh
-	ld -o libc.sh $(OBJS)
+
+# All shared libraries must be processed at once, as mkshlib assigns
+# addresses as it processes each.
+mklibs: mkshlib $(SHLIBIN) shlib.o
+	mkshlib $(DBS)
+	touch mklibs
+
+# Utility for creating shared libraries
+mkshlib: mkshlib.o libc_s.a
+	$(LD) -o mkshlib crt0.o mkshlib.o libc_s.a
+
+# All shared libraries are created in both .a (stub) and .shl (loadable
+# shared library) formats in the same step, "mklibs".
+libc.a: mklibs
+ld.a: mklibs
+
+# These are the versions of our shared libraries which are used as
+# input to mkshlib.  ld.tmp, which must operate as a dynamically
+# mapped standalone program, includes a minimal set of system calls
+libc.tmp: start.o $(OBJS)
+	rm -f libc.tmp
+	ld -r -o libc.tmp start.o $(OBJS)
+
+ld.tmp: ld.o shcalls.o
+	ld -r -o ld.tmp ld.o shcalls.o
 
 # Special version for boot servers
 startsrv.o: start.c
@@ -58,6 +88,12 @@ exec.o: mach/exec.c
 syscalls.o: mach/syscalls.s
 	$(CPP) -D__ASM__ $(INCS) mach/syscalls.s tmp.s
 	as -o syscalls.o tmp.s
+	rm -f tmp.s
+
+# Minimal version for shlib loading
+shcalls.o: mach/shcalls.s
+	$(CPP) -D__ASM__ $(INCS) mach/shcalls.s tmp.s
+	as -o shcalls.o tmp.s
 	rm -f tmp.s
 
 USROBJS= llist.o hash.o permsup.o permpr.o statsup.o \
@@ -99,10 +135,10 @@ dpart.o: mach/dpart.c
 	$(CC) $(CFLAGS) -c mach/dpart.c
 
 clean:
-	rm -f *.o
+	rm -f *.o *.tmp
 
 clobber: clean
-	rm -f *.a
+	rm -f mklibs *.a *.shl
 
 install: all
 	cp $(LIBS) crt0.o crt0srv.o ../lib
