@@ -87,9 +87,9 @@ ACCOUNT=root guest
 MISCLANG=$(PORTS)/pfe
 
 # Source distribution
-SRC=srcdist make txt sh ed fun bc gzip sc small gcc \
+SRC=make txt sh ed fun bc gzip sc small gcc \
 	mgrdist lang net python diff account graphics sim misc \
-	srccvs misclang contrib
+	srccvs misclang
 
 # Default: make a distribution
 dist: bindist $(SRC)
