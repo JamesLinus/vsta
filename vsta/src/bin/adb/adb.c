@@ -301,7 +301,11 @@ start(char *args)
 		perror("Debug port");
 		exit(1);
 	}
-	ptrace(corepid, pn);
+	if (ptrace(corepid, pn) < 0) {
+		perror("ptrace attach");
+		printf("Couldn't attach to %d on 0x%x\n", corepid, pn);
+		exit(1);
+	}
 	wait_exec();
 }
 
@@ -533,7 +537,12 @@ main(int argc, char **argv)
 		 * Tell ET to phone home.  He'll block until we start
 		 * listening on our port.
 		 */
-		ptrace(corepid, pn);
+		if (ptrace(corepid, pn) < 0) {
+			perror("ptrace: attach");
+			printf("Can't attach PID %d to 0x%x\n",
+				corepid, pn);
+			exit(1);
+		}
 	}
 
 	/*
