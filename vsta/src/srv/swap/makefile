@@ -3,7 +3,7 @@ LD= ld
 INCS= -I../../../include
 CFLAGS= -DDEBUG $(INCS)
 OBJS= main.o rw.o swap.o stat.o
-LIBS= -L../../lib -lusr -lc_s
+LIBS= -L../../lib -lusr -lsrv
 
 .c.o:
 	$(CC) $(CFLAGS) -c $*.c
