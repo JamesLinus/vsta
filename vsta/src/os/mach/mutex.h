@@ -121,8 +121,8 @@ p_lock(lock_t *l, spl_t s)
 		l->l_lock = 1;
 		return(x);
 	} else {
-		l->l_lock = 1;
 		ATOMIC_INCL_CPU_LOCKS();
+		l->l_lock = 1;
 		return(SPL0);
 	}
 }
