@@ -106,7 +106,7 @@ ACCOUNT=root guest
 MISCLANG=src/bin/ports/pfe
 
 # VSTa specific contributed software
-CONTRIB=src/contrib/rd
+CONTRIB=src/contrib/rd src/contrib/consexp
 
 # Default: make a distribution
 dist: bindist srcdist make txt sh ed fun bc gzip sc small gcc \
