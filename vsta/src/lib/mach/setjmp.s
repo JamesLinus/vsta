@@ -4,6 +4,20 @@
  */
 
 /*
+ * From genassym in the kernel, but not worth adding such nonsense
+ * here.
+ */
+R_EIP=0x00
+R_EDI=0x04
+R_ESI=0x08
+R_EBP=0x0C
+R_ESP=0x10
+R_EBX=0x14
+R_EDX=0x18
+R_ECX=0x1C
+R_EAX=0x20
+
+/*
  * setjmp()
  *	Save context, return 0
  */
