@@ -397,7 +397,7 @@ FILE *
 fopen(char *name, char *mode)
 {
 	char *p, c;
-	int m = 0, o = 0;
+	int m = 0, o = 0, x;
 	FILE *fp;
 
 	/*
@@ -445,10 +445,12 @@ fopen(char *name, char *mode)
 	/*
 	 * Open file
 	 */
-	if ((fp->f_fd = open(name, o)) < 0) {
+	x = open(name, o);
+	if (x < 0) {
 		free(fp);
 		return(0);
 	}
+	fp->f_fd = x;
 
 	/*
 	 * Set up rest of fp now that we know it's worth it
@@ -720,6 +722,7 @@ fread(void *buf, int size, int nelem, FILE *fp)
 	uint len, x;
 	int c;
 
+	p = buf;
 	len = size * nelem;
 	x = 0;
 	while (x < len) {
@@ -730,4 +733,93 @@ fread(void *buf, int size, int nelem, FILE *fp)
 		*p++ = c;
 		++x;
 	}
+	return(nelem);
+}
+
+/*
+ * ungetc()
+ *	Push back a character
+ */
+ungetc(int c, FILE *fp)
+{
+	/*
+	 * Ensure state of buffered file allows for pushback
+	 * of data.
+	 */
+	if ((c == EOF) ||
+			!(fp->f_flags & _F_READ) ||
+			(fp->f_buf == 0) ||
+			(fp->f_pos == fp->f_buf) ||
+			(fp->f_flags & (_F_DIRTY|_F_ERR))) {
+		return(EOF);
+	}
+
+	/*
+	 * If he hit EOF, then move back to pre-EOF state
+	 */
+	fp->f_flags &= ~(_F_EOF);
+
+	/*
+	 * Add data to buffer
+	 */
+	fp->f_pos -= 1;
+	(fp->f_pos)[0] = c;
+	fp->f_cnt += 1;
+	return(c);
+}
+
+/*
+ * ftell()
+ *	Tell position of file
+ *
+ * Needs to keep in mind both underlying file position and state
+ * of buffer.
+ */
+off_t
+ftell(FILE *fp)
+{
+	long l;
+
+	/*
+	 * Get basic position in file
+	 */
+	l = lseek(fp->f_fd, SEEK_END, 0L);
+
+	/*
+	 * Dirty buffer--position is file position plus amount
+	 * of buffered data.
+	 */
+	if (fp->f_flags & _F_DIRTY) {
+		return(l + fp->f_cnt);
+	}
+
+	/*
+	 * Clean buffer--position is file position minus amount
+	 * buffered but not yet read.
+	 */
+	return(l - fp->f_cnt);
+}
+
+/*
+ * fseek()
+ *	Set buffered file position
+ */
+off_t
+fseek(FILE *fp, off_t off, int whence)
+{
+	/*
+	 * Clear out any pending dirty data.  Reset buffering so
+	 * we will fill from new position.
+	 */
+	if (fp->f_flags & _F_DIRTY) {
+		flushbuf(fp);
+	} else {
+		fp->f_pos = fp->f_buf;
+		fp->f_cnt = 0;
+	}
+
+	/*
+	 * Let lseek() do its work and return result
+	 */
+	return(lseek(fp->f_fd, off, whence));
 }
