@@ -7,6 +7,7 @@
 #include <sys/pview.h>
 #include <sys/pset.h>
 #include <sys/port.h>
+#include <sys/fs.h>
 
 extern char *strchr();
 extern void *maploc();
@@ -478,5 +479,56 @@ dump_ref(char *p)
 	printf(" state %s sysmsg 0x%x next/prev 0x%x/0x%x segs 0x%x\n",
 		prstate(pr->p_state),
 		pr->p_msg, pr->p_next, pr->p_prev, &pr->p_segs);
+}
+
+/*
+ * opname()
+ *	Map msg_op to symbolic name
+ */
+static void
+opname(ulong op)
+{
+	if (op & M_READ) {
+		printf("M_READ | ");
+		op &= ~M_READ;
+	}
+	switch (op) {
+#define OP(op) case op: printf(#op); break
+	OP(M_CONNECT); OP(M_DISCONNECT); OP(M_DUP);
+	OP(M_ABORT); OP(M_ISR); OP(M_TIME);
+	OP(FS_OPEN); OP(FS_READ); OP(FS_SEEK); OP(FS_WRITE);
+	OP(FS_REMOVE); OP(FS_STAT); OP(FS_WSTAT);
+	OP(FS_ABSREAD); OP(FS_ABSWRITE); OP(FS_FID); OP(FS_RENAME);
+	default: printf("0x%x", op); break;
+	}
+}
+
+/*
+ * dump_sysmsg()
+ *	Dump system format of interprocess message
+ */
+void
+dump_sysmsg(char *p)
+{
+	struct sysmsg *sm;
+
+	if (!p || !p[0] || !(sm = (struct sysmsg *)get_num(p))) {
+		printf("Bad addr\n");
+		return;
+	}
+	printf("op: "); opname(sm->m_op);
+	printf(" arg 0x%x arg1 0x%x nseg %d\n",
+		sm->m_arg, sm->m_arg1, sm->m_nseg);
+	if (sm->m_nseg) {
+		int x;
+
+		printf(" Segments:");
+		for (x = 0; x < sm->m_nseg; ++x) {
+			printf(" 0x%x", sm->m_seg[x]);
+		}
+		printf("\n");
+	}
+	printf(" sender 0x%x next 0x%x err '%s'\n",
+		sm->m_sender, sm->m_next, sm->m_err);
 }
 #endif /* KDB */
