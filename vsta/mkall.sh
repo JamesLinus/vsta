@@ -1,12 +1,12 @@
 #!/bin/sh
 set -e
 set -x
-cd doc
-make $*
-cd ..
-cd boot
-make $*
-cd ..
+for x in doc boot lib etc
+do
+	cd $x
+	make $*
+	cd ..
+done
 cd src
 sh mkall.sh $*
 cd ..
