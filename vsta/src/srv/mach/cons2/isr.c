@@ -7,7 +7,8 @@
 #include <mach/io.h>
 #include <time.h>
 
-static int shift = 0,	/* Count # shift keys down */
+static int shiftL = 0,	/* Flag left/right shift key down */
+	shiftR = 0,
 	alt = 0,	/*  ...alt keys */
 	ctl = 0,	/*  ...ctl keys */
 	capstoggle = 0,	/* For toggling effect of CAPS */
@@ -35,6 +36,16 @@ static char shifted[] = {
 };
 
 /*
+ * shift()
+ *	Tell if either shift key is down
+ */
+static inline int
+shift(void)
+{
+	return(shiftL || shiftR);
+}
+
+/*
  * key_event()
  *	Process a key event
  *
@@ -52,12 +63,12 @@ key_event(struct screen *s, uchar c)
  	if (capstoggle) {
  		ch = normal[c];
  		if ((ch >= 'a') && (ch <= 'z')) {
- 			ch = shift ? normal[c] : shifted[c];
+ 			ch = shift() ? normal[c] : shifted[c];
  		} else {
- 			ch = shift ? shifted[c] : normal[c];
+ 			ch = shift() ? shifted[c] : normal[c];
  		}
 	} else {
-		ch = shift ? shifted[c] : normal[c];
+		ch = shift() ? shifted[c] : normal[c];
 	}
 
 	/*
@@ -144,8 +155,8 @@ cursor_key(struct screen *s, uchar c)
 	case 71:	/* home */
 	case 76:	/* 5 on numpad */
 	case 79:	/* end */
-		if ((!isE0) && ((numtoggle && !shift) ||
-				(!numtoggle && shift))) {
+		if ((!isE0) && ((numtoggle && !shift()) ||
+				(!numtoggle && shift()))) {
 			kbd_enqueue(s, (uint)shifted[c]);
 		}
 		return 1;
@@ -153,8 +164,8 @@ cursor_key(struct screen *s, uchar c)
 		return 0;
 	}
 
-	if ((!isE0) && ((numtoggle && !shift) ||
-			(!numtoggle && shift))) {
+	if ((!isE0) && ((numtoggle && !shift()) ||
+			(!numtoggle && shift()))) {
 		kbd_enqueue(s, shifted[c]);
 	} else {
 		if (s->s_xkeys) {
@@ -227,15 +238,19 @@ static int
 shift_key(uchar c)
 {
 	switch (c) {
-	case 0x36:		/* Shift key down */
+	case 0x36:		/* Shift keys down */
+		shiftL = 1;
+		break;
 	case 0x2a:
-		shift = 1;
+		shiftR = 1;
 		break;
-	case 0xb6:		/* Shift key up */
+	case 0xb6:		/* Shift keys up */
+		shiftL = 0;
+		break;
 	case 0xaa:
-		shift = 0;
+		shiftR = 0;
 		break;
-	case 0xe0:		/* Prefix for "left side" */
+	case 0xe0:		/* Extended keys */
  		isE0 = 1;
 		break;
 	case 0x1d:		/* Control key down */
