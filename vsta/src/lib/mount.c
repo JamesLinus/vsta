@@ -128,16 +128,16 @@ mount(char *point, char *what)
 		close(fd);
 		return(-1);
 	}
-	return(fd);
+	_fdclose(fd);
+	return(0);
 }
 
 /*
  * umount()
  *	Delete given entry from mount list
  *
- * If fd is -1, all mounts at the given point are removed.  Otherwise
- * only the mount with the given port (fd) will be removed.  XXX we
- * need to hunt down the FDL entry as well.
+ * If port is -1, all mounts at the given point are removed.  Otherwise
+ * only the mount with the given port will be removed.
  */
 umount(char *point, port_t port)
 {
@@ -175,6 +175,7 @@ umount(char *point, port_t port)
 			 */
 			if (me->m_port == port) {
 				*mp = me->m_next;
+				(void)msg_disconnect(me->m_port);
 				free(me);
 
 				/*
@@ -204,7 +205,7 @@ umount(char *point, port_t port)
 	 */
 	for (me = mt->m_entries; me; me = men) {
 		men = me->m_next;
-		msg_disconnect(me->m_port);
+		(void)msg_disconnect(me->m_port);
 		free(me);
 	}
 	free(mt->m_name);
