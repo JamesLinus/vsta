@@ -924,3 +924,24 @@ getdtablesize(void)
 	}
 	return(highest);
 }
+
+/*
+ * fionread()
+ *	Tell how many bytes are available on the TTY
+ */
+int
+fionread(int fd)
+{
+	char *p;
+	port_t port;
+
+	port = __fd_port(fd);
+	if (port < 0) {
+		return(-1);
+	}
+	p = rstat(port, "inbuf");
+	if (p == 0) {
+		return(__seterr(ENOTSUP));
+	}
+	return(atoi(p));
+}

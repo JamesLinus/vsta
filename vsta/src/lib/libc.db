@@ -380,3 +380,4 @@ _clock
 _usleep
 _setreuid
 _nice
+_fionread
