@@ -12,7 +12,7 @@
 #define MAXARGS (8)	/* Max # args to :r command */
 
 extern char *getnum();
-extern void breakpoints(void *, int), dump_breakpoints(void);
+extern void breakpoints(void *, int), dump_breakpoints(void), dump_syms();
 
 pid_t corepid;		/* PID we debug, if any */
 port_t dbg_port;	/*  ...port we talk to him via */
@@ -95,6 +95,18 @@ dollar_cmds(char *p)
 	case 'c':		/* Show C stack backtrace */
 		read_from = &coremap;
 		backtrace();
+		break;
+	case 's':		/* Load additional symbol file */
+		p += 1;
+		while (*p && isspace(*p)) {
+			p += 1;
+		}
+		if (*p) {
+			rdsym(p);
+		}
+		break;
+	case 'S':		/* Dump symbol table */
+		dump_syms();
 		break;
 	default:
 		printf("Unknown command: $%s\n", p);
