@@ -22,6 +22,7 @@ extern lock_t ka9q_lock;
 /*
  * Functions
  */
-extern void vsta_daemon(voidfun), do_mainloop(void);
+extern void vsta_daemon(voidfun), do_mainloop(void),
+	vsta_daemon_done(pid_t);
 
 #endif /* VSTA_H */

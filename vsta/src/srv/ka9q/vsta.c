@@ -99,6 +99,24 @@ vsta_daemon(voidfun fn)
 }
 
 /*
+ * vsta_daemon_done()
+ *	Clear a daemon entry
+ */
+void
+vsta_daemon_done(pid_t tid)
+{
+	uint x;
+
+	for (x = 0; x < MAXDAEMON; ++x) {
+		if (daemons[x].d_tid == tid) {
+			daemons[x].d_fn = 0;
+			daemons[x].d_tid = 0;
+			return;
+		}
+	}
+}
+
+/*
  * fileinit()
  *	Initialize names of all the files
  */
