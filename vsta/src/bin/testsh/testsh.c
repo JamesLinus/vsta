@@ -13,7 +13,7 @@
 
 extern char *__cwd;	/* Current working dir */
 static void cd(), md(), quit(), ls(), pwd(), mount(), cat(), sleep(),
-	sec();
+	sec(), null();
 
 static char *buf;	/* Utility page buffer */
 
@@ -32,6 +32,7 @@ struct {
 	"md", md,
 	"mkdir", md,
 	"mount", mount,
+	"null", null,
 	"pwd", pwd,
 	"quit", quit,
 	"sector", sec,
@@ -136,13 +137,41 @@ md(char *p)
 }
 
 /*
+ * null()
+ *	File I/O, quiet
+ */
+static void
+null(char *p)
+{
+	int fd, x;
+
+	if (!p || !p[0]) {
+		printf("Usage: null <name>\n");
+		return;
+	}
+	if (!p[0]) {
+		printf("Missing filename\n");
+		return;
+	}
+	fd = open(p, O_READ);
+	if (fd < 0) {
+		perror(p);
+		return;
+	}
+	while ((x = read(fd, buf, NBPG)) > 0) {
+		/* write(1, buf, x) */ ;
+	}
+	close(fd);
+}
+
+/*
  * cat()
  *	File I/O
  */
 static void
 cat(char *p)
 {
-	char *name, *val;
+	char *name;
 	int fd, x, output = 0;
 
 	if (!p || !p[0]) {
