@@ -10,15 +10,20 @@
 #include <sys/types.h>
 
 /*
+ * Lots of code expects this type to be used
+ */
+typedef char *caddr_t;
+
+/*
  * mmap()
  *	Map stuff
  */
-extern void *mmap(void *vaddr, ulong len, int prot, int flags,
+extern void *mmap(caddr_t vaddr, ulong len, int prot, int flags,
 	int fd, ulong offset);
-extern int munmap(void *vaddr, ulong len);
+extern int munmap(caddr_t vaddr, ulong len);
 #ifdef KERNEL
 extern void *add_map(struct vas *,
-	struct portref *, void *, ulong, ulong, int);
+	struct portref *, caddr_t, ulong, ulong, int);
 #endif /* KERNEL */
 
 /*
