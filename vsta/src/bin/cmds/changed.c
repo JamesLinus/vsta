@@ -20,6 +20,20 @@ do_dir(DIR *d)
 	struct stat sb;
 	char *rcsdir;
 
+	/*
+	 * Figure out name of RCS storage subdir, if any
+	 */
+	rcsdir = "RCS";
+	sprintf(buf, "%s/%s", curdir, rcsdir);
+	if (access(buf, 0) < 0) {
+		rcsdir = "rcs";
+		sprintf(buf, "%s/%s", curdir, rcsdir);
+		if (access(buf, 0) < 0) {
+			rcsdir = NULL;
+		}
+	}
+
+
 	olen = strlen(curdir);
 	while (de = readdir(d)) {
 		/*
@@ -65,16 +79,11 @@ do_dir(DIR *d)
 		}
 
 		/*
-		 * If not an RCS directory, ignore
+		 * If this level isn't RCS storage, don't bother
+		 * further checking.
 		 */
-		rcsdir = "rcs";
-		sprintf(buf, "%s/rcs", curdir);
-		if (access(buf, 0) < 0) {
-			rcsdir = "RCS";
-			sprintf(buf, "%s/RCS", curdir);
-			if (access(buf, 0) < 0) {
-				continue;
-			}
+		if (!rcsdir) {
+			continue;
 		}
 
 		/*
@@ -82,10 +91,15 @@ do_dir(DIR *d)
 		 */
 		sprintf(buf, "%s/%s/%s", curdir, rcsdir, de->d_name);
 		if (access(buf, 0) < 0) {
-			if (rflag) {
-				printf("%s/%s\n", curdir, de->d_name);
+			sprintf(buf, "%s/%s/%s,v",
+				curdir, rcsdir, de->d_name);
+			if (access(buf, 0) < 0) {
+				if (rflag) {
+					printf("%s/%s\n",
+						curdir, de->d_name);
+				}
+				continue;
 			}
-			continue;
 		}
 		if (rflag) {
 			continue;
