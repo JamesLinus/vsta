@@ -27,7 +27,7 @@ struct prot {
 #define PERM_DISABLED(p) ((p)->perm_len & 0x80)
 #define PERM_ENABLE(p) ((p)->perm_len &= ~0x80)
 #define PERM_NULL(p) ((p)->perm_len = PERMLEN)
-#define PERM_LEN(p) ((p)->perm_len % PERMLEN)
+#define PERM_LEN(p) (((p)->perm_len & ~0x80) % PERMLEN)
 
 /*
  * Prototypes
