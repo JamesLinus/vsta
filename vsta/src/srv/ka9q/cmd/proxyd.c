@@ -22,14 +22,22 @@
 #include <sys/fs.h>
 #include <stdio.h>
 #include <syslog.h>
-#include <llist.h>
 #include <hash.h>
 #include <std.h>
 #include <lock.h>
 #include <sys/syscall.h>
 #include <sys/assert.h>
+#include <time.h>
 
 extern port_t path_open(char *, int);
+
+/*
+ * A linked list of messages
+ */
+struct cmsg {
+	struct cmsg *c_next;	/* Next pointer */
+	struct msg c_msg;	/* The message */
+};
 
 /*
  * State of each distinct client under this proxy server
@@ -39,8 +47,7 @@ struct client {
 	struct msg c_msg;	/* Message from client */
 	pid_t c_pid;		/* PID of slave thread */
 	lock_t c_lock;		/* Mutext for c_queue */
-	struct llist c_queue;	/* Linked list FIFO queue */
-	int c_abort;		/* Client was interrupting */
+	struct cmsg *c_next;	/* Queue of messages to process */
 	long c_sender;		/* Record of client m_sender */
 };
 static void free_cl(struct client *);
@@ -62,6 +69,45 @@ static int num_clients;
 static port_t rxport, txport;
 
 /*
+ * Stuff which the slave threads would like to have free()'ed
+ */
+void **pending_free;
+lock_t pending_lock;
+
+/*
+ * q_free()
+ *	Queue something to be free()'ed
+ */
+static void
+q_free(void *ptr)
+{
+	p_lock(&pending_lock);
+	*(void **)ptr = pending_free;
+	pending_free = ptr;
+	v_lock(&pending_lock);
+}
+
+/*
+ * unq_free()
+ *	Free up everything which is pending
+ */
+static void
+unq_free(void)
+{
+	void *ptr, *next;
+
+	p_lock(&pending_lock);
+	ptr = pending_free;
+	pending_free = 0;
+	v_lock(&pending_lock);
+	while (ptr) {
+		next = *(void **)ptr;
+		free(ptr);
+		ptr = next;
+	}
+}
+
+/*
  * cleanup()
  *	Toss out the server ports, arranging for TCP reset back to client
  */
@@ -78,10 +124,11 @@ cleanup(void)
  * rxmsg()
  *	Receive next message from the TCP byte stream
  */
-struct msg *
+struct cmsg *
 rxmsg(void)
 {
 	struct msg *mp;
+	struct cmsg *cm;
 	int x, msgleft, bodyleft;
 	char *bufp, *clmsgp, *body = 0, *bodyp;
 	char clbuf[1024];
@@ -91,7 +138,8 @@ rxmsg(void)
 	/*
 	 * Optimism; get message header and buffer
 	 */
-	mp = malloc(sizeof(struct msg));
+	cm = malloc(sizeof(struct cmsg));
+	mp = &cm->c_msg;
 
 	/*
 	 * Initialize state to "receiving message header"
@@ -215,14 +263,14 @@ rxmsg(void)
 		/*
 		 * We're at the end of the message, return it
 		 */
-		return(mp);
+		return(cm);
 	}
 
 out:
 	/*
 	 * This is only used for error cleanup
 	 */
-	free(mp);
+	free(cm);
 	if (body) {
 		free(body);
 	}
@@ -274,9 +322,9 @@ send_err(long clid)
 static void
 serve_slave(struct client *cl)
 {
+	struct cmsg *cm;
 	struct msg *mp;
 	int x;
-	struct llist *ll;
 	char *rxbuf;
 
 	for (;;) {
@@ -298,27 +346,30 @@ serve_slave(struct client *cl)
 		 * Grab next operation message
 		 */
 		p_lock(&cl->c_lock);
-		ll = LL_NEXT(&cl->c_queue);
-		mp = ll->l_data;
-		(void)ll_delete(ll);
+		cm = cl->c_next;
+		cl->c_next = cm->c_next;
 		v_lock(&cl->c_lock);
+		mp = &cl->c_msg;
 
 		/*
 		 * Client out on the remote side interrupted an
 		 * operation.  The signal from our master will have kicked
 		 * us out of our own I/O; when we see the actual
 		 * M_ABORT message in the queue, we send back our
-		 * acknowledgement.
+		 * acknowledgement.  Once that's done, we flag that
+		 * we've caught up with the interrupt request by
+		 * clearing the m_op field; out master is watching
+		 * this and will free the message at that point.
 		 */
 		if (mp->m_op == M_ABORT) {
-			cl->c_abort = 0;
+			mp->m_op = FS_WRITE;
 			mp->m_sender = cl->c_sender;
 			mp->m_buf = mp;
 			mp->m_arg = mp->m_buflen = sizeof(struct msg);
 			mp->m_nseg = 1;
 			mp->m_arg1 = 0;
 			(void)msg_send(txport, mp);
-			free(mp);
+			mp->m_op = 0;
 			continue;
 		}
 
@@ -326,6 +377,7 @@ serve_slave(struct client *cl)
 		 * A remote peer disconnected
 		 */
 		if (mp->m_op == M_DISCONNECT) {
+			q_free(cm);
 			free_cl(cl);
 			_exit(0);
 		}
@@ -363,10 +415,10 @@ serve_slave(struct client *cl)
 		/*
 		 * Free up memory buffers from rxmsg()
 		 */
-		free(mp);
 		if (rxbuf) {
-			free(rxbuf);
+			q_free(rxbuf);
 		}
+		q_free(cm);
 	}
 }
 
@@ -375,22 +427,21 @@ serve_slave(struct client *cl)
  *	Take forwarded message, direct it out to the local server
  */
 static void
-do_msg_send(struct client *cl, struct msg *mp)
+do_msg_send(struct client *cl, struct cmsg *cm)
 {
 	/*
-	 * If this is the first I/O, allocate an I/O buffer and
-	 * launch a thread to serve
+	 * If this is the first I/O, launch a thread to serve
 	 */
 	if (cl->c_pid == 0) {
 		cl->c_pid = tfork(serve_slave, (ulong)cl);
 	}
 
 	/*
-	 * Buffer the message.  After we take the lock, the client
-	 * may have returned to the idle case.
+	 * Buffer the message.
 	 */
 	p_lock(&cl->c_lock);
-	(void)ll_insert(&cl->c_queue, mp);
+	cm->c_next = cl->c_next;
+	cl->c_next = cm;
 	v_lock(&cl->c_lock);
 
 	/*
@@ -410,7 +461,6 @@ alloc_cl(void)
 
 	cl = malloc(sizeof(struct client));
 	bzero(cl, sizeof(struct client));
-	ll_init(&cl->c_queue);
 	init_lock(&cl->c_lock);
 	return(cl);
 }
@@ -422,19 +472,18 @@ alloc_cl(void)
 static void
 free_cl(struct client *cl)
 {
-	struct llist *ll;
 	struct msg *mp;
+	struct cmsg *cm;
 
-	while (!LL_EMPTY(&cl->c_queue)) {
-		ll = LL_NEXT(&cl->c_queue);
-		mp = ll->l_data;
-		ll_delete(ll);
+	while (cm = cl->c_next) {
+		cl->c_next = cm->c_next;
+		mp = &cm->c_msg;
 		if (mp->m_nseg) {
-			free(mp->m_buf);
+			q_free(mp->m_buf);
 		}
-		free(mp);
+		q_free(cm);
 	}
-	free(cl);
+	q_free(cl);
 }
 
 /*
@@ -444,6 +493,7 @@ free_cl(struct client *cl)
 static void
 serve_clients(void)
 {
+	struct cmsg *cm;
 	struct msg *mp;
 	struct client *cl;
 
@@ -460,13 +510,21 @@ serve_clients(void)
 
 	for (;;) {
 		/*
+		 * Hook for releasing pending memory
+		 */
+		if (pending_free) {
+			unq_free();
+		}
+
+		/*
 		 * Get next message
 		 */
-		mp = rxmsg();
-		if (!mp) {
+		cm = rxmsg();
+		if (!cm) {
 			cleanup();
 			exit(1);
 		}
+		mp = &cm->c_msg;
 
 		/*
 		 * Get client pointer based on client ID
@@ -493,10 +551,11 @@ serve_clients(void)
 			(void)hash_insert(clients, mp->m_arg, newcl);
 			num_clients += 1;
 			}
+			free(cm);
 			break;
 
 		case M_DISCONNECT:
-			do_msg_send(cl, mp); mp = 0;
+			do_msg_send(cl, cm);
 			(void)hash_delete(clients, cl->c_sender);
 			if (--num_clients == 0) {
 				cleanup();
@@ -508,18 +567,19 @@ serve_clients(void)
 			/*
 			 * Tell the slave thread to try and interrupt
 			 */
-			do_msg_send(cl, mp); mp = 0;
-			if (cl->c_abort == 0) {
-				cl->c_abort = 1;
+			do_msg_send(cl, cm);
+			do {
 				notify(0, cl->c_pid, "wakeup");
-			}
+				__msleep(100);
+			} while (mp->m_op == M_ABORT);
+			free(mp);
 			break;
 
 		default:
 			/*
 			 * Send it via a slave thread
 			 */
-			do_msg_send(cl, mp); mp = 0;
+			do_msg_send(cl, cm);
 			break;
 		}
 	}
@@ -533,8 +593,8 @@ static void
 serve_client(port_t clport)
 {
 	struct client *cl;
-	struct llist *ll;
 	struct msg *mp;
+	struct cmsg *cm;
 
 	/*
 	 * First, get a client data structure
@@ -551,18 +611,13 @@ serve_client(port_t clport)
 	 * Receive first message, which must be an FS_OPEN telling
 	 * us where to attach locally
 	 */
-	if (rxmsg() == 0) {
+	cm = rxmsg();
+	if (cm == 0) {
 		syslog(LOG_DEBUG, "err on FS_OPEN");
 		cleanup();
 		exit(1);
 	}
-
-	/*
-	 * Get the message rxmsg() has received
-	 */
-	ll = LL_NEXT(&cl->c_queue);
-	mp = ll->l_data;
-	ll_delete(ll);
+	mp = &cm->c_msg;
 
 	/*
 	 * The first message has to be the path to attach
@@ -657,6 +712,11 @@ main(int argc, char **argv)
 	 * Set up for syslogging
 	 */
 	(void)openlog("proxyd", LOG_PID, LOG_DAEMON);
+
+	/*
+	 * Memory lock
+	 */
+	init_lock(&pending_lock);
 
 	/*
 	 * Start serving filesystem requests
