@@ -146,7 +146,7 @@ wd_open(struct msg *m, struct file *f)
 	/*
 	 * Otherwise scan names for a match
 	 */
-	for (x = 0; x <= MAX_PARTS; ++x) {
+	for (x = 0; x < MAX_PARTS; ++x) {
 		struct part *part;
 
 		part = disks[unit].d_parts[x];
