@@ -12,6 +12,7 @@
 #include <lib/alloc.h>
 
 extern struct portref *swapdev;
+extern struct psetops psop_zfod;
 
 /*
  * find_pp()
@@ -377,7 +378,6 @@ alloc_pset_zfod(uint pages)
 {
 	struct pset *ps;
 	uint swapblk;
-	extern struct psetops psop_zfod;
 
 	/*
 	 * Get backing store first
@@ -540,14 +540,30 @@ copy_pset(struct pset *ops)
 	init_lock(&ps->p_lock);
 	init_sema(&ps->p_lockwait); set_sema(&ps->p_lockwait, 0);
 
-	/*
-	 * For files, we must get our own portref.  For copy-on-write,
-	 * we must add a reference to the master pset.
-	 */
-	if (ps->p_type == PT_FILE) {
+	switch (ps->p_type) {
+	case PT_FILE:
+		/*
+		 * We are a new reference into the file.  Ask
+		 * the server for duplication.
+		 */
 		ps->p_pr = dup_port(ps->p_pr);
-	} else if (ps->p_type == PT_COW) {
+		break;
+	case PT_COW:
+		/*
+		 * This is a new COW reference into the master pset
+		 */
 		ref_pset(ps->p_cow);
+		break;
+	case PT_MEM:
+		/*
+		 * Map fork() of memory based psets (ala boot processes)
+		 * into a ZFOD pset which happens to be filled.  The mem
+		 * pset doesn't have swap, so we get it here.
+		 */
+		ps->p_type = PT_ZERO;
+		ps->p_ops = &psop_zfod;
+		ps->p_swapblk = alloc_swap(ps->p_len);
+		break;
 	}
 
 	/*
