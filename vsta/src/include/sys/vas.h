@@ -30,7 +30,7 @@ extern void *attach_pview(struct vas *, struct pview *);
 extern void remove_pview(struct vas *, void *);
 extern struct pview *find_ivew(struct vas *, void *);
 extern void free_vas(struct vas *);
-extern void *alloc_zfod(struct vas *, uint),
+extern void *alloc_zfod(struct vas *, uint, uint),
 	*alloc_zfod_vaddr(struct vas *, uint, void *);
 extern void fork_vas(struct vas *, struct vas *);
 #endif /* KERNEL */
