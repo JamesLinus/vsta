@@ -48,7 +48,8 @@ typedef ulong fat32_t;
  */
 static fat32_t **fatv;	/* Our in-core FAT sections */
 static uint fatlen,	/*  ...length of overall FAT */
-	fatvlen;	/*  ...size of fatv array */
+	nfatv,		/*  ...number of slots in fatv array */
+	fatvlen;	/*  ...byte size of fatv array */
 static uchar *dirtymap;	/* Map of sectors with dirty FAT entries */
 static uint		/*  ...size of map */
 	dirtymapsize;
@@ -95,6 +96,11 @@ lookup(claddr_t idx)
 	/*
 	 * If it isn't there yet, need to go fetch it now
 	 */
+	if (idx >= nfatv) {
+		syslog(LOG_ERR, "bad seg %d limit %d idx %ld",
+			seg, nfatv, idx);
+	}
+	ASSERT_DEBUG(idx < nfatv, "fat32 lookup: bad index");
 	fatp = fatv[seg];
 	if (fatp == 0) {
 		/*
@@ -184,8 +190,8 @@ fat32_init(void)
 	 */
 	fatbase = bootb.nrsvsect;
 	fatlen = bootb.u.fat32.bigFat * SECSZ;
-	fatvlen = (roundup(fatlen, FATSEGSIZE) / FATSEGSIZE) *
-		sizeof(fat32_t *);
+	nfatv = roundup(fatlen, FATSEGSIZE) / FATSEGSIZE;
+	fatvlen = nfatv * sizeof(fat32_t *);
 	fatv = malloc(fatvlen);
 	if (fatv == 0) {
 		perror("fat32_init");
