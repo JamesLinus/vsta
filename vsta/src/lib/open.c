@@ -156,6 +156,7 @@ try_open(port_t newfile, char *file, int mask, int mode)
 {
 	char *p;
 	struct msg m;
+	int x;
 
 	/*
 	 * The mount point itself is a special case
@@ -176,7 +177,7 @@ try_open(port_t newfile, char *file, int mask, int mode)
 		}
 		p = strchr(file, '/');
 		if (p) {
-			*p++ = '\0';
+			*p = '\0';
 		}
 
 		/*
@@ -188,7 +189,11 @@ try_open(port_t newfile, char *file, int mask, int mode)
 		m.m_nseg = 1;
 		m.m_arg = p ? ACC_EXEC : mode;
 		m.m_arg1 = p ? 0 : mask;
-		if (msg_send(newfile, &m) < 0) {
+		x = msg_send(newfile, &m);
+		if (p) {
+			*p++ = '/';	/* Restore path seperator */
+		}
+		if (x < 0) {		/* Return error if any */
 			msg_disconnect(newfile);
 			return(1);
 		}
