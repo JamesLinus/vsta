@@ -32,6 +32,7 @@ struct trapframe {
 	ulong eflags;
 	ulong esp, ess;
 };
+#define NREG (sizeof(struct trapframe) / sizeof(ulong))
 
 /*
  * Tell if given descriptor is from user mode
@@ -61,5 +62,19 @@ struct trapframe {
 #define EC_KERNEL 4	/* Fault from kernel mode */
 #define EC_WRITE 2	/* Access was a write */
 #define EC_PROT 1	/* Page valid, but access modes wrong */
+
+#ifdef PROC_DEBUG
+/*
+ * This stuff is only needed in the context of proc.h, and only
+ * then when process debugging is configured.
+ *
+ * WARNING: locore.s knows about this struct, so don't fiddle it
+ * until you've looked at how locore.s uses it.
+ */
+struct dbg_regs {
+	ulong dr[4];	/* DR0..3--linear addr to break on */
+	ulong dr7;	/* Debug control register */
+};
+#endif /* PROC_DEBUG */
 
 #endif /* _MACHREG_H */
