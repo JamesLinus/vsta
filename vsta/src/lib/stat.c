@@ -257,30 +257,20 @@ stat(char *f, struct stat *s)
 }
 
 /*
- * __isatty()
- *	Internal version which works on a port, not a fd
- */
-__isatty(port_t port)
-{
-	char *p;
-
-	p = rstat(port, "type");
-	if (p && (p[0] == 'c') && (p[1] == '\0')) {
-		return(1);
-	}
-	return(0);
-}
-
-/*
  * isatty()
  *	Tell if given port talks to a TTY-like device
  */
 isatty(int fd)
 {
 	port_t port;
+	char *p;
 
 	if ((port = __fd_port(fd)) < 0) {
 		return(0);
 	}
-	return(__isatty(port));
+	p = rstat(port, "type");
+	if (p && (p[0] == 'c') && (p[1] == '\0')) {
+		return(1);
+	}
+	return(0);
 }
