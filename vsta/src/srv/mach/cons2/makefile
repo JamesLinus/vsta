@@ -4,7 +4,7 @@ INCS= -I../../../include
 CFLAGS= -Wall -DDEBUG $(INCS) -O
 LDFLAGS= -L../../../libc
 OBJS= main.o cons.o stat.o isr.o rw.o
-LIBS= -lusr -lc
+LIBS= -lusr -lc_s
 
 .c.o:
 	$(CC) $(CFLAGS) -c $*.c

@@ -7,7 +7,7 @@ LDFLAGS	= -L../../../libc
 OBJS	= main.o rw.o dir.o stat.o
 CLIB	= ../../../libc/libc.a
 LIBS	= -lusr -lc
-CRT0	= ../../../libc/crt0srv.o
+CRT0	= ../../../libc/crt0.o
 
 .c.o:
 	$(CC) $(CFLAGS) -c $*.c

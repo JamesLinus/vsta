@@ -12,7 +12,7 @@ all: ne
 	$(CC) $(CFLAGS) -c $*.c
 
 ne: $(OBJS)
-	$(LD) $(LDFLAGS) -o ne ../../../libc/crt0srv.o $(OBJS) $(LIBS)
+	$(LD) $(LDFLAGS) -o ne ../../../libc/crt0.o $(OBJS) $(LIBS)
 
 clean:
 	rm -f *.o

@@ -4,7 +4,7 @@ INCS= -I../../../include
 CFLAGS= -Wall -DDEBUG $(INCS) -O
 LDFLAGS= -L../../../libc
 OBJS= main.o rw.o wd.o dir.o stat.o
-LIBS= -lusr -ldpart -lc
+LIBS= -lusr -ldpart -lc_s
 
 all: wd
 

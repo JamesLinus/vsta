@@ -11,7 +11,7 @@ all: tmpfs
 	$(CC) $(CFLAGS) -c $*.c
 
 tmpfs: $(OBJS)
-	$(LD) $(LDFLAGS) -o tmpfs ../../libc/crt0srv.o $(OBJS) $(LIBS)
+	$(LD) $(LDFLAGS) -o tmpfs ../../libc/crt0.o $(OBJS) $(LIBS)
 
 clean:
 	rm -f *.o
