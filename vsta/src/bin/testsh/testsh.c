@@ -13,7 +13,7 @@
 
 extern char *__cwd;	/* Current working dir */
 static void cd(), md(), quit(), ls(), pwd(), mount(), cat(), sleep(),
-	sec(), null(), run(), do_wstat();
+	sec(), null(), run(), do_wstat(), do_fork();
 
 static char *buf;	/* Utility page buffer */
 
@@ -28,6 +28,7 @@ struct {
 	"cd", cd,
 	"chdir", cd,
 	"exit", quit,
+	"fork", do_fork,
 	"ls", ls,
 	"md", md,
 	"mkdir", md,
@@ -41,6 +42,27 @@ struct {
 	"wstat", do_wstat,
 	0, 0
 };
+
+/*
+ * do_fork()
+ *	Fork, and have the child exit immediately
+ */
+static void
+do_fork(void)
+{
+	int x, y;
+
+	x = fork();
+	if (x < 0) {
+		perror("fork");
+		return;
+	}
+	if (x == 0) {
+		_exit(0);
+	}
+	y = waits((void *)0);
+	printf("Child: %d, return stat %d\n", x, y);
+}
 
 /*
  * do_wstat()
