@@ -25,11 +25,9 @@ The console driver supports both MGA and CGA text screen locations.
 It is not auto-detect.  The keyboard driver expects the AT scan
 codes.  The floppy driver supports most common formats, although
 I've only tested 1.2M/5.25" and 1.44M/3.5".  My smallest system
-has 8M of RAM, and that seems to be plenty.  Systems with up to 16
-Meg have been booted.  There is code for > 16 M, but it is not yet
-complete, and memory is quietly truncated back to 16 M so this
-configuration will run correctly.  If you use the C compiler, you'll
-need a CPU with a floating point unit.
+has 8M of RAM, and that seems to be plenty.  Systems with up to 256
+Meg have been booted.  If you use the C compiler, you'll need a CPU
+with a floating point unit.
 
 The binaries distributed with VSTa include a port of the GNU C
 compiler.  Self-hosted VSTa compiles are the method of choice.
@@ -40,7 +38,8 @@ interesting parts.
 
 Boot loading happens using the Multiboot standard.  The most common
 Multiboot compliant boot loader is GRUB (GRand Unified Bootloader),
-and a copy of GRUB is included in the VSTa binary distribution.
+and a copy of GRUB is included in the VSTa binary distribution.  VSTa
+also works with the Free Software Foundation's version of GRUB.
 
 1. Loading the VSTa files onto your disk.
 
@@ -65,7 +64,7 @@ Accounts are in /vsta/etc/passwd, with a parallel file /vsta/etc/shadow
 holding the actual passwords, which are in the clear.  Feel free
 to edit these files using a DOS editor; VSTa tries to accomodate
 both DOS \r\n and UNIX \n conventions for line-oriented data.  The
-format is described in lib/passwd.c, but should be familiar to
+format is described in src/lib/passwd.c, but should be familiar to
 anyone who's messed with UN*X-like password files.  The group you
 belong to in the passwd file causes you to get more abilities; see
 /vsta/etc/group.  Finally, numeric format IDs are mapped to symbolic
@@ -92,10 +91,12 @@ course, are not kept under RCS.
 	src/srv/mach	i386/ISA servers (disk, keyboard, etc.)
 	src/bin		Command source
 	src/lib		Library source
+	src/bin/ports	Ports of other UN*X-ish utilities
 
 If your tree includes the 68030 Amiga port, you will also see mach.ami
 directories.  The mach.r4k subdirectory probably isn't present, but holds
-code for a MIPS R4000 port of VSTa.
+code for a MIPS R4000 port of VSTa.  Both of these ports are in the
+unsupported/historical category.
 
 3. Booting the kernel, the first time
 
@@ -139,6 +140,9 @@ full instructions for setting your PC up to use GRUB as your
 bootloader.  This may be found on:
 
 	http://www.uruk.org/~erich/grub
+
+This site also has a pointer to the FSF version of GRUB, which will
+soon become VSTa's "standard" version for booting.
 
 A snapshot of the GRUB distribution is included in /vsta/grub.
 
@@ -196,7 +200,9 @@ changes to undo in order to get a usable system again.
 
 NOTE: some binaries (emacs, rc, gcc & friends) are in their own
 distribution tar file.  They are probably not present in your source
-tree unless you explicitly loaded them.
+tree unless you explicitly loaded them.  A lot of the stuff in
+src/bin/ports is not part of the regular/formal "VSTa system build"
+process.
 
 7. Documentation
 
