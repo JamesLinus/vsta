@@ -2,7 +2,10 @@
 #define _SYSCALL_H
 /*
  * syscall.h
- *	Values for system calls
+ *	Values/prototypes for system calls
+ *
+ * Not all of the system calls have prototypes defined here.  The ones that
+ * are missing from here can be found in other (more appropriate) .h files
  */
 #define S_MSG_PORT 0
 #define S_MSG_CONNECT 1
@@ -40,5 +43,30 @@
 #define S_TIME_SET 33
 #define S_PTRACE 34
 #define S_HIGH S_PTRACE
+
+/*
+ * Some syscall prototypes
+ */
+#ifndef __ASM__
+#include <sys/types.h>
+
+extern int enable_io(int arg_low, int arg_high);
+extern int enable_isr(port_t arg_port, int irq);
+extern int clone(port_t arg_port);
+extern int page_wire(void *arg_va, void **arg_pa);
+extern int page_release(uint arg_handle);
+extern int enable_dma(void);
+extern int time_get(struct time *arg_time);
+extern int time_sleep(struct time *arg_time);
+extern void dbg_enter(void);
+extern int set_swapdev(port_t arg_port);
+extern void run_qio(void);
+extern int set_cmd(char *arg_cmd);
+extern int pageout(void);
+extern int unhash(port_t arg_port, long arg_fid);
+extern int time_set(struct time *arg_time);
+extern int ptrace(pid_t pid, port_name name);
+
+#endif /* __ASM__ */
 
 #endif /* _SYSCALL_H */
