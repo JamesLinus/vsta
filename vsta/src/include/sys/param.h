@@ -19,6 +19,8 @@
 #define ERRLEN 16	/*  ...in error string */
 #define MSGSEGS 4	/* Max # segments to a message */
 			/* Does not include m_seg0, so add one for kernel */
+#define NPROC 64	/* Rough idea of # procs on system; used to */
+			/*  size hash tables */
 #define KSTACK_SIZE \
 	(NBPG)		/* Size of kernel stack */
 #define MAX_WIRED (32)	/* Max # pages wired for DMA at once */
