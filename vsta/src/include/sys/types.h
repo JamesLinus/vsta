@@ -20,4 +20,9 @@ typedef long pid_t;
 typedef void (*voidfun)();
 typedef int (*intfun)();
 
+/*
+ * For talking about a structure without knowing its definition
+ */
+#define STRUCT_REF(type) typedef struct type __##type##_;
+
 #endif /* _TYPES_H */

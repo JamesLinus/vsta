@@ -28,12 +28,17 @@ struct pview {
 #define PROT_FORK (8)		/* View is in process of fork() */
 
 #ifdef KERNEL
+STRUCT_REF(pset);
+STRUCT_REF(vas);
+
 /*
  * Routines
  */
 extern void free_pview(struct pview *);
 extern struct pview *dup_pview(struct pview *),
 	*copy_pview(struct pview *);
-#endif
+extern struct pview *alloc_pview(struct pset *);
+extern void remove_pview(struct vas *, void *);
 
+#endif /* KERNEL */
 #endif /* _PVIEW_H */
