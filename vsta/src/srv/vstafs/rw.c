@@ -156,8 +156,10 @@ bmap(struct fs_file *fs, ulong pos, uint cnt, char **blkp, uint *stepp)
 	 */
 	a = &fs->fs_blks[0];
 	extoff = nsize = btos(pos);
+	osize = 0;
 	for (x = 0; x < fs->fs_nblk; ++x,++a) {
-		if ((nsize >= a->a_start) && (nsize < (a->a_start+a->a_len))) {
+		osize += a->a_len;
+		if (nsize < osize) {
 			break;
 		}
 		extoff -= a->a_len;
@@ -167,8 +169,11 @@ bmap(struct fs_file *fs, ulong pos, uint cnt, char **blkp, uint *stepp)
 	/*
 	 * Find the appropriate EXTSIZ part of the extent to use, since
 	 * our buffer pool operates on chunks of EXTSIZ in length.
+	 * nsize holds the absolute sector index of the desired position.
+	 * extoff holds the absolute sector for the start of the
+	 *  current extent.
 	 */
-	extstart = (extoff & ~(EXTSIZ-1));
+	extstart = ((nsize - extoff) & ~(EXTSIZ-1));
 	start = a->a_start + extstart;
 	len = a->a_len - extstart;
 	if (len > EXTSIZ) {
