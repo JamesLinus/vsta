@@ -1,10 +1,6 @@
 /*
  * syscalls.c
  *	Actual entry points into the VSTa operating system
- *
- * We keep the return address in a register so that tfork() will
- * return correctly even though the child thread returns on a new
- * stack.
  */
 #include <sys/syscall.h>
 
