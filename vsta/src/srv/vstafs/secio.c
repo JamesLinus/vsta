@@ -16,8 +16,60 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/assert.h>
+#include <stdio.h>
+#include <std.h>
 
 extern int blkdev;
+
+/*
+ * do_read()/do_write()/do_seek()
+ *	Wrappers so we can share debugging complaints
+ */
+static void
+do_read(void *buf, uint nbyte)
+{
+	int x;
+
+	x = read(blkdev, buf, nbyte);
+#ifdef DEBUG
+	if (x != nbyte) {
+		perror("read");
+		fprintf(stderr, "read(%d, %x, %d) returns %d\n",
+			blkdev, (uint)buf, nbyte, x);
+	}
+#endif
+	ASSERT(x == nbyte, "do_read: I/O failed");
+}
+static void
+do_write(void *buf, uint nbyte)
+{
+	int x;
+
+	x = write(blkdev, buf, nbyte);
+#ifdef DEBUG
+	if (x != nbyte) {
+		perror("write");
+		fprintf(stderr, "write(%d, %x, %d) returns %d\n",
+			blkdev, (uint)buf, nbyte, x);
+	}
+#endif
+	ASSERT(x == nbyte, "do_write: I/O failed");
+}
+static void
+do_lseek(off_t off)
+{
+	off_t o;
+
+	o = lseek(blkdev, off, SEEK_SET);
+#ifdef DEBUG
+	if (o != off) {
+		perror("lseek");
+		fprintf(stderr, "lseek(%d, %ld) returns %ld\n",
+			blkdev, off, o);
+	}
+#endif
+	ASSERT(o == off, "do_lseek: seek failed");
+}
 
 /*
  * read_sec()
@@ -26,11 +78,8 @@ extern int blkdev;
 void
 read_sec(daddr_t d, void *p)
 {
-	off_t o;
-
-	o = (off_t)stob(d);
-	ASSERT(lseek(blkdev, o, SEEK_SET) == o, "read_sec: seek error");
-	ASSERT(read(blkdev, p, SECSZ) == SECSZ, "read_sec: I/O error");
+	do_lseek(stob(d));
+	do_read(p, SECSZ);
 }
 
 /*
@@ -40,11 +89,8 @@ read_sec(daddr_t d, void *p)
 void
 write_sec(daddr_t d, void *p)
 {
-	off_t o;
-
-	o = (off_t)stob(d);
-	ASSERT(lseek(blkdev, o, SEEK_SET) == o, "write_sec: seek error")
-	ASSERT(write(blkdev, p, SECSZ) == SECSZ, "write_sec: I/O error");
+	do_lseek(stob(d));
+	do_write(p, SECSZ);
 }
 
 /*
@@ -54,12 +100,8 @@ write_sec(daddr_t d, void *p)
 void
 read_secs(daddr_t d, void *p, uint nsec)
 {
-	off_t o;
-	uint sz = stob(nsec);
-
-	o = (off_t)stob(d);
-	ASSERT(lseek(blkdev, o, SEEK_SET) == o, "read_sec: seek error");
-	ASSERT(read(blkdev, p, sz) == sz, "read_secs: I/O error");
+	do_lseek(stob(d));
+	do_read(p, stob(nsec));
 }
 
 /*
@@ -69,10 +111,6 @@ read_secs(daddr_t d, void *p, uint nsec)
 void
 write_secs(daddr_t d, void *p, uint nsec)
 {
-	off_t o;
-	uint sz = stob(nsec);
-
-	o = (off_t)stob(d);
-	ASSERT(lseek(blkdev, o, SEEK_SET) == o, "write_sec: seek error");
-	ASSERT(write(blkdev, p, sz) == sz, "write_secs: I/O error");
+	do_lseek(stob(d));
+	do_write(p, stob(nsec));
 }
