@@ -15,6 +15,7 @@
 #include <select.h>
 #include <std.h>
 #include <fdl.h>
+#include <limits.h>
 
 /*
  * This lets us know when we're a new process with a need for new handles
@@ -35,7 +36,9 @@ static ulong selfs_key;
  */
 static uint cache_nfd;
 static struct cache {
-	uint c_mask;
+	uint c_mask;		/* Events we last looked for */
+	struct select_complete
+		c_event;	/* Events we last got */
 } *cache;
 
 /*
@@ -91,7 +94,7 @@ clear_entry(int fd)
 	m.m_arg = m.m_buflen = sizeof(msg);
 	m.m_nseg = 1;
 	(void)msg_send(__fd_port(fd), &m);
-	cache[fd].c_mask = 0;
+	bzero(&cache[fd], sizeof(struct cache));
 }
 
 /*
@@ -128,7 +131,7 @@ set_entry(int fd, uint mask)
 	/*
 	 * Build setup message
 	 */
-	sprintf(buf, "select=%u,%ld,%d,%lu,%s\n",
+retry:	sprintf(buf, "select=%u,%ld,%d,%lu,%s\n",
 		mask, selfs_clid, fd, selfs_key, hostname);
 	m.m_op = FS_WSTAT;
 	m.m_buf = buf;
@@ -140,6 +143,17 @@ set_entry(int fd, uint mask)
 	 * Send it
 	 */
 	if (msg_send(__fd_port(fd), &m) < 0) {
+		/*
+		 * If we find ourselves conflicting with some other
+		 * process or thread under this client connection,
+		 * spawn a new one instead.
+		 */
+		if (!strcmp(strerror(), EBUSY)) {
+			if (__fd_clone(fd) < 0) {
+				return(-1);
+			}
+			goto retry;
+		}
 		return(1);
 	}
 
@@ -172,6 +186,21 @@ zero(fd_set *s, uint nfd)
 }
 
 /*
+ * within_range()
+ *	Tell if an iocount value is equal or greater than ours
+ *
+ * Takes into account the free-running nature of I/O counts
+ */
+static int
+within_range(ulong ours, ulong new)
+{
+	if (new >= ours) {
+		return ((new-ours) < ULONG_MAX/4);
+	}
+	return((new + (ULONG_MAX-ours)) < ULONG_MAX/4);
+}
+
+/*
  * select()
  *	Block on zero or more pending I/O events, or timeout
  */
@@ -179,6 +208,7 @@ int
 select(uint nfd, fd_set *rfds, fd_set *wfds, fd_set *efds, struct timeval *t)
 {
 	int x, unsupp, count;
+	ulong iocount;
 	uint newmask;
 	struct cache *c;
 	struct msg m;
@@ -231,6 +261,7 @@ select(uint nfd, fd_set *rfds, fd_set *wfds, fd_set *efds, struct timeval *t)
 	 * Walk the file descriptors, clearing unused ones and creating
 	 * selfs associations for new ones.
 	 */
+	count = 0;
 	for (unsupp = x = 0, c = cache; x < nfd; ++x, ++c) {
 		newmask = ((rfds && FD_ISSET(x, rfds)) ? ACC_READ : 0) |
 			((wfds && FD_ISSET(x, wfds)) ? ACC_WRITE : 0) |
@@ -251,6 +282,17 @@ select(uint nfd, fd_set *rfds, fd_set *wfds, fd_set *efds, struct timeval *t)
 					c->c_mask |= ACC_UNSUPP;
 				}
 			}
+
+		/*
+		 * If this one's set up, and they're select()'ing on
+		 * an FD which previously had already select()'ed
+		 * true (without having done I/O in between), then
+		 * arrange to return the same answer as last time.
+		 */
+		} else if (c->c_event.sc_mask &&
+				(c->c_event.sc_iocount == __fd_iocount(x))) {
+			bcopy(&c->c_event, &events[count++],
+				sizeof(struct select_complete));
 		}
 	}
 
@@ -280,34 +322,59 @@ select(uint nfd, fd_set *rfds, fd_set *wfds, fd_set *efds, struct timeval *t)
 	}
 
 	/*
-	 * We're finally ready to rumble.  Post a read for wakeup events.
+	 * If we have previously available events, we'll just
+	 * run with those.
 	 */
-	count = 0;
-retry:	m.m_op = FS_READ | M_READ;
-	m.m_buf = events;
-	m.m_arg = m.m_buflen = sizeof(events);
-	m.m_arg1 = (t->tv_sec * 1000) + (t->tv_usec / 1000);
-	m.m_nseg = 1;
-	x = msg_send(selfs_port, &m);
-	if (x < 0) {
-		return(-1);
-	}
+	if (count > 0) {
+		x = count * sizeof(struct select_complete);
+	} else {
 
-	/*
-	 * A return with length 0 means a timeout.  Clear all the
-	 * descriptor masks.
-	 */
-	if (x == 0) {
-		if (rfds) {
-			zero(rfds, nfd);
+		/*
+		 * We're finally ready to rumble.
+		 * Post a read for wakeup events.
+		 */
+		count = 0;
+retry:		m.m_op = FS_READ | M_READ;
+		m.m_buf = events;
+		m.m_arg = m.m_buflen = sizeof(events);
+
+		/*
+		 * If there's a timeout struct, calculate the delay.
+		 * For the special case of a time of 0, we send across
+		 * -1, which means simply poll for existing events.
+		 * If there's no timeout struct, we send 0, which means
+		 * sleep until something's available.
+		 */
+		if (t) {
+			m.m_arg1 = (t->tv_sec * 1000) + (t->tv_usec / 1000);
+			if (m.m_arg1 == 0) {
+				m.m_arg1 = -1;
+			}
+		} else {
+			m.m_arg1 = 0;
 		}
-		if (wfds) {
-			zero(wfds, nfd);
+		m.m_nseg = 1;
+		x = msg_send(selfs_port, &m);
+		if (x < 0) {
+			return(-1);
 		}
-		if (efds) {
-			zero(efds, nfd);
+
+		/*
+		 * A return with length 0 means a timeout.  Clear all the
+		 * descriptor masks.
+		 */
+		if (x == 0) {
+			if (rfds) {
+				zero(rfds, nfd);
+			}
+			if (wfds) {
+				zero(wfds, nfd);
+			}
+			if (efds) {
+				zero(efds, nfd);
+			}
+			return(0);
 		}
-		return(0);
 	}
 
 	/*
@@ -339,9 +406,20 @@ retry:	m.m_op = FS_READ | M_READ;
 		 * also ignore it (a new event, if any, will arrive
 		 * later).
 		 */
-		if (sc->sc_iocount != __fd_iocount(fd)) {
-			continue;
+		iocount = __fd_iocount(fd);
+		if (sc->sc_iocount != iocount) {
+			if (within_range(iocount, sc->sc_iocount)) {
+				__fd_set_iocount(fd, sc->sc_iocount);
+			} else {
+				continue;
+			}
 		}
+
+		/*
+		 * Record the event, in case they just re-select
+		 * without doing any I/O.
+		 */
+		c->c_event = *sc;
 
 		/*
 		 * Ok, we're really going to wake up now.  The first time
