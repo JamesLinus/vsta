@@ -214,6 +214,7 @@ int
 msg_send(port_t arg_port, struct msg *arg_msg)
 {
 	struct portref *pr;
+	struct port *port;
 	struct sysmsg sm;
 	struct proc *p = curthread->t_proc;
 	int error = 0;
@@ -260,6 +261,19 @@ msg_send(port_t arg_port, struct msg *arg_msg)
 		error = -1;
 		goto out2;
 	}
+
+	/*
+	 * Get the port, I/O error if the server's gone
+	 */
+	port = pr->p_port;
+	if (port == 0) {
+		v_lock(&pr->p_lock, SPL0);
+		return(err(EIO));
+	}
+
+	/*
+	 * Record us as sender
+	 */
 	sm.sm_sender = pr;
 
 	/*
@@ -271,7 +285,7 @@ msg_send(port_t arg_port, struct msg *arg_msg)
 	/*
 	 * Put message on queue
 	 */
-	inline_queue_msg(pr->p_port, &sm, SPL0);
+	inline_queue_msg(port, &sm, SPL0);
 
 	/*
 	 * Now wait for the I/O to finish or be interrupted
@@ -290,7 +304,6 @@ msg_send(port_t arg_port, struct msg *arg_msg)
 		switch (pr->p_state) {
 		case PS_IOWAIT: {
 			struct sysmsg sm2, *s;
-			struct port *port = pr->p_port;
 
 			/*
 			 * If our message has not yet been dequeued,
