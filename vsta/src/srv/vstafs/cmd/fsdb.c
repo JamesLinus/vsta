@@ -5,6 +5,10 @@
 #include "../vstafs.h"
 #include <std.h>
 #include <stdio.h>
+#include <fcntl.h>
+#include <ctype.h>
+
+extern char *perm_print();
 
 static int fsfd;	/* Open file descriptor to filesystem */
 static char *secbuf;	/* Utility sector buffer */
@@ -142,7 +146,7 @@ dump_fs(int argc, char **argv)
 		x = 0;
 		printf("Pending:");
 		while ((x < BASE_FREESECS) && a->a_start) {
-			printf(" %x..%x",
+			printf(" %lx..%lx",
 				a->a_start,
 				a->a_start + a->a_len - 1);
 			x += 1;
@@ -176,10 +180,10 @@ dump_free(int argc, char **argv)
 		return;
 	}
 	f = (struct free *)secbuf;
-	printf("next @ %lx, nfree %ld\n", f->f_next, f->f_nfree);
+	printf("next @ %lx, nfree %d\n", f->f_next, f->f_nfree);
 	a = f->f_free;
 	for (x = 0; x < f->f_nfree; ++x,++a) {
-		printf(" %X..%X", a->a_start, a->a_start + a->a_len - 1);
+		printf(" %lx..%lx", a->a_start, a->a_start + a->a_len - 1);
 	}
 	printf("\n");
 }
@@ -252,7 +256,7 @@ dump_file(int argc, char **argv)
 		return;
 	}
 	fs = (struct fs_file *)secbuf;
-	printf("prev @ 0x%lx, revision %U, len %U, type %s\n",
+	printf("prev @ 0x%lx, revision %lu, len %lu, type %s\n",
 		fs->fs_prev, fs->fs_rev, fs->fs_len,
 		(fs->fs_type == FT_DIR) ? "dir" : "file");
 	printf("nlink %d prot %s\n",
@@ -311,8 +315,8 @@ save_sectors(int argc, char **argv)
 		printf("Usage is: save <low> <high> <file>\n");
 		return;
 	}
-	(void)sscanf(argv[0], "%X", &low);
-	(void)sscanf(argv[1], "%X", &high);
+	(void)sscanf(argv[0], "%lx", &low);
+	(void)sscanf(argv[1], "%lx", &high);
 	fp = fopen(argv[2], "w");
 	if (fp == NULL) {
 		perror(argv[2]);
@@ -525,6 +529,7 @@ usage(void)
 	exit(1);
 }
 
+int
 main(int argc, char **argv)
 {
 	prog = argv[0];
@@ -543,17 +548,8 @@ main(int argc, char **argv)
 			exit(1);
 		}
 	} else {
-		port_t p;
-
-		if (strcmp(argv[1], "-p")) {
-			usage();
-		}
-		p = path_open(argv[2], ACC_READ);
-		if (p < 0) {
-			perror(argv[2]);
-			exit(1);
-		}
-		fsfd = __fd_alloc(p);
+		usage();
 	}
 	cmd();
+	return(0);
 }

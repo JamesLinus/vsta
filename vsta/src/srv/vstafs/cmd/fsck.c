@@ -642,7 +642,7 @@ printf("No blocks allocated for %s at %lx\n", name, sec);
 		return(1);
 	}
 	if (fs->fs_nblk > MAXEXT) {
-printf("Too many extents in file %s: %U\n", name, fs->fs_nblk);
+printf("Too many extents in file %s: %u\n", name, fs->fs_nblk);
 		return(1);
 	}
 	if (fs->fs_len < sizeof(struct fs_file)) {
@@ -682,7 +682,7 @@ printf("Dir entry for %s at block %lx mismatches alloc information\n",
 			return(0);
 		}
 		fs = get_sec(prev);
-		sprintf(buf, ",,%U", fs->fs_rev);
+		sprintf(buf, ",,%lu", fs->fs_rev);
 		p = concat(name, buf);
 		res = check_tree(prev, name);
 		if (res) {
@@ -767,6 +767,7 @@ usage(void)
 	exit(1);
 }
 
+int
 main(int argc, char **argv)
 {
 	prog = argv[0];
