@@ -11,6 +11,8 @@
 extern char *getnum();
 
 static pid_t corepid;	/* PID we debug, if any */
+port_t dbg_port;	/*  ...port we talk to him via */
+
 uint addr, count = 1;	/* Addr/count for each command */
 static FILE *objfile;	/* Open FILE * to object file */
 jmp_buf errjmp;		/* Recovery from parse errors */
@@ -41,14 +43,13 @@ ulong
 readloc(ulong addr, int size)
 {
 	ulong off;
+	uchar c;
+	ushort w;
+	ulong l;
 
 	if (read_from == &coremap) {
-		abort();
+		return(read_procmem(addr, size));
 	} else {
-		uchar c;
-		ushort w;
-		ulong l;
-
 		/*
 		 * vaddr 0x1000 maps to offset 0 in an a.out
 		 */
@@ -65,7 +66,6 @@ readloc(ulong addr, int size)
 		case 2:	fread(&w, sizeof(w), 1, objfile); return(w);
 		case 4:	fread(&l, sizeof(l), 1, objfile); return(l);
 		}
-		abort();
 	}
 }
 
@@ -393,8 +393,9 @@ main(int argc, char **argv)
 		/*
 		 * Create server port he will talk to us via
 		 */
-		p = msg_port(0, &pn);
-		if (p < 0) {
+		dbg_port = msg_port(0, &pn);
+		printf("port name 0x%x\n", pn);
+		if (dbg_port < 0) {
 			perror("Debug port");
 			exit(1);
 		}

@@ -1,7 +1,7 @@
 CC=gcc
 LD=ld
 CFLAGS=-I../../include -g
-OBJS=adb.o disasm.o expr.o lex.o sym.o map.o
+OBJS=adb.o disasm.o expr.o lex.o sym.o map.o proc.o
 LIBS=-L../../libc -lc
 CRT0=../../libc/crt0.o
 
