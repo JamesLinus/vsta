@@ -21,6 +21,7 @@ __strtosig(char *e)
 {
 #define MAP(s, evname) if (!strcmp(evname, e)) {return(s);};
 	MAP(SIGINT, EINTR);
+	MAP(SIGILL, EILL);
 	MAP(SIGFPE, EMATH);
 	MAP(SIGKILL, EKILL);
 	MAP(SIGSEGV, EFAULT);
@@ -39,7 +40,7 @@ sigtostr(int s)
 	case SIGHUP: return("hup");
 	case SIGINT: return(EINTR);
 	case SIGQUIT: return("quit");
-	case SIGILL: return("instr");
+	case SIGILL: return(EILL);
 	case SIGFPE: return(EMATH);
 	case SIGKILL: return(EKILL);
 	case SIGSEGV: return(EFAULT);
