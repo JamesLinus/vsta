@@ -8,6 +8,7 @@
  * VSTa only supports a subset of their interface.
  */
 #include <sys/types.h>
+#include <mach/mman.h>
 
 /*
  * Lots of code expects this type to be used
@@ -24,6 +25,8 @@ extern int munmap(caddr_t vaddr, ulong len);
 #ifdef KERNEL
 extern void *add_map(struct vas *,
 	struct portref *, caddr_t, ulong, ulong, int);
+extern char *mach_page_wire(uint flags, struct pview *pv,
+	struct perpage *pp, void *va, uint idx);
 #endif /* KERNEL */
 
 /*
@@ -42,5 +45,18 @@ extern void *add_map(struct vas *,
 #define MAP_PRIVATE (8)		/* copy-on-write */
 #define MAP_SHARED (16)		/* share same memory */
 #define MAP_PHYS (32)		/* talk to physical memory */
+
+/*
+ * Physical DMA support stuff
+ */
+extern int page_wire(void *arg_va, void **arg_pa, uint flags);
+extern int page_release(uint arg_handle);
+
+/*
+ * Flags for page_wire()
+ */
+#define WIRE_MACH1 0x01		/* Hooks for platform specific */
+#define WIRE_MACH2 0x02		/*  handling. */
+#define WIRE_MACH (WIRE_MACH1 | WIRE_MACH2)
 
 #endif /* _MMAN_H */

@@ -57,5 +57,6 @@ STRUCT_REF(perm);
 STRUCT_REF(port);
 STRUCT_REF(portref);
 STRUCT_REF(qio);
+STRUCT_REF(perpage);
 
 #endif /* _TYPES_H */
