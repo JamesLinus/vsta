@@ -167,6 +167,7 @@ get_pstat_kernel(void *pst_info, uint pst_size)
 	psk.psk_freemem = freemem * NBPG;
 	uptime(&psk.psk_uptime);
 	psk.psk_runnable = num_run;
+	psk.psk_hz = HZ;
 
 	/*
 	 * Give the info back to the user

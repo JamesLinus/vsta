@@ -41,6 +41,7 @@ struct pstat_kernel {
 	ulong psk_freemem;	/* Bytes of free memory */
 	struct time psk_uptime;	/* How long has the system been up? */
 	uint psk_runnable;	/* Number of runnable threads */
+	uint psk_hz;		/* Clock ticks/second */
 };
 
 /*
