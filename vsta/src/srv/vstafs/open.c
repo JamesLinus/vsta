@@ -544,7 +544,7 @@ dir_addspace(struct buf *b, struct fs_file *fs, ulong off)
 static struct openfile *
 dir_newfile(struct file *f, char *name, int type)
 {
-	struct buf *b, *b2;
+	struct buf *b, *b2 = 0;
 	struct fs_file *fs;
 	uint extent, dummy;
 	ulong off;

@@ -349,6 +349,7 @@ vfs_readdir(struct msg *m, struct file *f)
 	struct buf *b;
 	struct fs_file *fs;
 	uint step;
+	struct fs_dirent *d;
 
 	/*
 	 * Get a buffer of the requested size, but put a sanity
@@ -377,8 +378,8 @@ vfs_readdir(struct msg *m, struct file *f)
 	 */
 	bufcnt = 0;
 	step = 0;
+	d = 0;	/* For -Wall */
 	for (;;) {
-		struct fs_dirent *d;
 		uint slen;
 
 		/*
