@@ -13,11 +13,14 @@ all: sema
 sema: $(OBJS)
 	$(LD) $(LDFLAGS) -o sema ../../lib/crt0.o $(OBJS) $(LIBS)
 
+test: test.o
+	$(LD) $(LDFLAGS) -o test ../../lib/crt0.o test.o $(LIBS)
+
 clean:
 	rm -f *.o
 
 clobber: clean
-	rm -f sema
+	rm -f sema test
 
 install: all
 	strip sema
