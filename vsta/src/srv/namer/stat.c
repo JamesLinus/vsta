@@ -68,12 +68,23 @@ void
 namer_wstat(struct msg *m, struct file *f)
 {
 	char *field, *val;
+	struct node *n = f->f_node;
 
 	/*
 	 * See if common handling code can do it
 	 */
-	if (do_wstat(m, &f->f_node->n_prot, f->f_mode, &field, &val) == 0)
+	if (do_wstat(m, &n->n_prot, f->f_mode, &field, &val) == 0)
 		return;
+
+	/*
+	 * Set/clear "node pending deletion" flag
+	 */
+	if (!strcmp(field, "deleted")) {
+		n->n_deleted = (val && val[0] && (val[0] != '0'));
+		m->m_arg = m->m_arg1 = m->m_nseg = 0;
+		msg_reply(m->m_sender, m);
+		return;
+	}
 
 	/*
 	 * Not a field we support...
