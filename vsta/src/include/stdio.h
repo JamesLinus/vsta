@@ -141,6 +141,13 @@ extern int vscanf(const char *, va_list),
 extern FILE *tmpfile(void);
 
 /*
+ * Pseudo-FDL at the FILE * layer
+ */
+extern FILE *funopen(void *, intfun, intfun, void *, intfun);
+#define fropen(cookie, readfn) funopen(cookie, readfn, 0, 0, 0)
+#define fwopen(cookie, writefn) funopen(cookie, 0, writefn, 0, 0)
+
+/*
  * Buffer strategy constants
  */
 #define _IOFBF 0		/* Fully buffered */
