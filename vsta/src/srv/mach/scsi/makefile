@@ -59,7 +59,7 @@ clobber: clean
 
 install: cam
 		strip cam
-		cp cam ../../../boot
+		cp cam ../../../../boot
 
 cam.tar:
 		tar cvf cam.tar makefile README *.h *.c mt
