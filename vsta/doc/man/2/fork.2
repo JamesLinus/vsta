@@ -1,0 +1,46 @@
+.ll 74
+.he 'fork(2)'VSTa Manual'fork(2)'
+.fo ''%''
+.sp 2
+.bd 1
+NAME
+.br
+.ti +6
+fork - create new process
+.sp
+.bd 1
+SYNOPSIS
+.br
+.in +6
+.li 3
+#include <std.h>
+
+pid_t fork(void);
+.sp 1
+.in -6
+.bd 1
+DESCRIPTION
+.br
+.in +6
+The
+.ul 1
+fork()
+system call creates a new process, whose initial open
+files and virtual address space are a copy of
+.ul 1
+fork()'s
+calling process.  It is the single mechanism for creating a
+new process under VSTa.
+.sp
+On return,
+.ul 1
+fork()
+returns 0 in the child process, the child's PID in
+the parent process, or -1 in the parent process
+if the child could not be created.
+.sp
+Currently, it is illegal to call
+.ul 1
+fork()
+while more than one thread exists under the current
+process.
