@@ -479,6 +479,25 @@ _idle_stack:
 	jmp	%eax
 
 /*
+ * idle()
+ *	Idle waiting for work
+ *
+ * We watch for num_run to go non-zero; we use sti/halt to atomically
+ * enable interrupts and halt the CPU--this saves a fair amount of power
+ * and heat.
+ */
+	.globl	_idle,_num_run
+_idle:	cli
+	movl	_num_run,%eax
+	orl	%eax,%eax
+	jnz	1f
+	sti
+	hlt
+	jmp	_idle
+1:	sti
+	ret
+
+/*
  * Common macros to force segment registers to appropriate value
  */
 #define PUSH_SEGS pushw %ds ; pushw %es
