@@ -52,11 +52,16 @@ int blocked_sema(sema_t *);
 void init_sema(sema_t *);
 void set_sema(sema_t *, int);
 int p_sema_v_lock(sema_t *, pri_t, lock_t *);
+#define sema_count(s) ((s)->s_count)
 
 /*
  * Atomic increment/decrement.  Sometimes saves you a full lock operation.
  */
-extern void ATOMIC_INC(void *);
-extern void ATOMIC_DEC(void *);
+extern void ATOMIC_INCW(ushort *);
+extern void ATOMIC_DECW(ushort *);
+extern void ATOMIC_INCL(ulong *);
+extern void ATOMIC_DECL(ulong *);
+extern void ATOMIC_INC(uint *);
+extern void ATOMIC_DEC(uint *);
 
 #endif /* _MUTEX_H */
