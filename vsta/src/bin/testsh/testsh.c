@@ -12,7 +12,10 @@
 #include <ctype.h>
 
 extern char *__cwd;	/* Current working dir */
-static void cd(), md(), quit(), ls(), pwd(), mount(), cat(), sleep();
+static void cd(), md(), quit(), ls(), pwd(), mount(), cat(), sleep(),
+	sec();
+
+static char *buf;	/* Utility page buffer */
 
 /*
  * Table of commands
@@ -31,9 +34,67 @@ struct {
 	"mount", mount,
 	"pwd", pwd,
 	"quit", quit,
+	"sector", sec,
 	"sleep", sleep,
 	0, 0
 };
+
+/*
+ * sec()
+ *	Dump a sector from a device
+ */
+static void
+sec(char *p)
+{
+	uint secnum;
+	char *secp;
+	int fd, x;
+
+	if (!p || !p[0]) {
+		printf("Usage is: sector <file> <sector>\n");
+		return;
+	}
+
+	/*
+	 * Parse sector number, default to first sector
+	 */
+	secp = strchr(p, ' ');
+	if (!secp) {
+		secnum = 0;
+	} else {
+		*secp++ = '\0';
+		secnum = atoi(secp);
+	}
+
+	/*
+	 * Open device
+	 */
+	if ((fd = open(p, 0)) < 0) {
+		perror(p);
+		return;
+	}
+
+	/*
+	 * Set file position if needed
+	 */
+	if (secnum > 0) {
+		lseek(fd, 512L * secnum, 0);
+	}
+
+	/*
+	 * Read a block
+	 */
+	x = read(fd, buf, 512);
+	printf("Read sector %d returns %d\n", secnum, x);
+	if (x < 0) {
+		perror("read");
+	} else {
+		extern void dump_s();
+
+		dump_s(buf, (x > 128) ? 128 : x);
+	}
+	close(fd);
+}
 
 /*
  * sleep()
@@ -83,15 +144,7 @@ cat(char *p)
 {
 	char *name, *val;
 	int fd, x, output = 0;
-	static char *buf = 0;
 
-	if (buf == 0) {
-		buf = malloc(NBPG);
-		if (buf == 0) {
-			perror("cat");
-			return;
-		}
-	}
 	if (!p || !p[0]) {
 		printf("Usage: cat [>] <name>\n");
 		return;
@@ -119,6 +172,9 @@ cat(char *p)
 				break;
 			}
 			write(fd, buf, x);
+		}
+		if (x < 0) {
+			perror("read");
 		}
 	} else {
 		while ((x = read(fd, buf, NBPG)) > 0) {
@@ -329,7 +385,6 @@ do_cmd(str)
  */
 main(void)
 {
-	char buf[128];
 	int scrn, kbd;
 
 	kbd = msg_connect(PORT_KBD, ACC_READ);
@@ -337,6 +392,12 @@ main(void)
 	scrn = msg_connect(PORT_CONS, ACC_WRITE);
 	(void)__fd_alloc(scrn);
 	(void)__fd_alloc(scrn);
+
+	buf = malloc(NBPG);
+	if (buf == 0) {
+		perror("testsh buffer");
+		exit(1);
+	}
 
 	for (;;) {
 		printf("%% "); fflush(stdout);
