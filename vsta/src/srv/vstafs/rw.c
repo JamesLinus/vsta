@@ -317,6 +317,9 @@ vfs_write(struct msg *m, struct file *f)
 		 * Update position and count
 		 */
 		f->f_pos += s->s_buflen;
+		if (f->f_pos > o->o_hiwrite) {
+			o->o_hiwrite = f->f_pos;
+		}
 		cnt += s->s_buflen;
 	}
 
