@@ -417,6 +417,8 @@ uncreate_file(struct openfile *o)
 /*
  * dir_newfile()
  *	Create a new entry in the current directory
+ *
+ * On success new openfile will have one reference.
  */
 static struct openfile *
 dir_newfile(struct file *f, char *name, int type)
@@ -843,6 +845,9 @@ get_dirent(struct file *f, char *name, struct buf **bpp, char **errp,
 	 * If not there, see about creating
 	 */
 	if ((o == 0) && create) {
+		/*
+		 * Wire down parent buf, create new file
+		 */
 		lock_buf(b);
 		o = dir_newfile(f, name, FT_FILE);
 		if (o == 0) {
@@ -850,7 +855,13 @@ get_dirent(struct file *f, char *name, struct buf **bpp, char **errp,
 			*errp = EINVAL;
 			return(0);
 		}
+
+		/*
+		 * Get new dir entry, drop ref from dir_newfile()
+		 * now that dir_lookup() has taken one.
+		 */
 		o = dir_lookup(b, fs, name, &de, bpp);
+		deref_node(o);
 		unlock_buf(b);
 		ASSERT(o, "get_dirent: can't find created file");
 	}
@@ -875,6 +886,8 @@ get_dirent(struct file *f, char *name, struct buf **bpp, char **errp,
 	} else {
 		deref_node(o);
 	}
+	ASSERT_DEBUG(de, "get_dirent: !de");
+	lock_buf(*bpp);
 	return(de);
 }
 
