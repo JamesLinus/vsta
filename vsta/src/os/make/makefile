@@ -1,8 +1,9 @@
-CC= gcc
-AS= as
-CPP= cpp
-LD= ld
-INCS= -I../../../include -I.
+CC=gcc
+AS=as
+CPP=cpp
+LD=ld
+STRIP=strip
+INCS=-I../../../include -I.
 
 target: vsta
 
@@ -150,6 +151,7 @@ OBJS=$(MACHOBJS) \
 vsta: $(OBJS) dbsym
 	$(LD) -e _start -o vsta $(OBJS) $(LIBS)
 	./dbsym vsta
+	$(STRIP) vsta
 
 dbsym: ../dbg/dbsym.c
 	$(CC) $(DEFS) -o dbsym ../dbg/dbsym.c
@@ -161,5 +163,4 @@ clobber: clean
 	rm -f vsta
 
 install: vsta
-	strip vsta
 	cp vsta ../../../boot
