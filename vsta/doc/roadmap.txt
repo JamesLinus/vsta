@@ -14,16 +14,15 @@ locations.  It is not currently auto-detect.  The keyboard driver
 expects the AT scan codes.  The floppy driver only supports 1.2M and
 1.44M (not 360K, nor 360K in a 1.2M drive.) I don't have 1.44M, so again
 don't know if it works.  My system has 4M of RAM, and that seems to be
-plenty.  I load a lot more things than necessary as boot tasks, just
-because it's so easy.  Systems with up to 16 Meg have been booted.
-There is code for > 16 M, but it has not been tested and is certainly
-not complete.
+plenty.  Systems with up to 16 Meg have been booted.  There is code for
+> 16 M, but it has not been tested and is certainly not complete.
 
 	You will need the DJ Delorie GNU C compiler port.  The system
 will compile and run with any version from 1.39 up--both GCC 1.X and
 2.X based.  Nothing gets broken by the optimizer (that we've found!)
-I also assume you have a fairly decent "make" program.  Mine is "nmake"
-from masm 6.0, but I only use very vanilla make features in my makefiles.
+You can use your favorite "make"--we demand very little of it.  There
+is a copy of "pdmake" sitting on our FTP server where you got these
+files from.  It's ~28K, and does a fine job.
 
 	If you want to recompile the boot loader in boot/, you will
 need a DOS C compiler.  It uses large model, but doesn't do much of
@@ -37,24 +36,23 @@ if you want to change something.
 	All files are stored under RCS.  The RCS storage resides
 inside the RCS/ subdir in each source directory.
 
-For reference, here is the top-level VSTa source directory:
+	The source tree is organized along the lines of:
 
-bfs/	      env/	    libc/	  msgfake/	sys/
-bin/	      fd/	    license	  namer/	tmpfs/
-boot/	      include/	    mach/	  pipe/		wd/
-cons/	      kbd/	    make/	  rcs/
-dbg/	      kern/	    mkall.bat*	  readme
-dos/	      lib/	    mkclean.bat*  swap/
-
-	The kernel directories (mach, kern, sys) reside at the same
-level as the servers (bfs, cons, dos, env, fd, kbd, namer, pipe, swap,
-tmpfs, and wd).  Kernel and user mode share the library in lib.  The
-C library is in libc.  User commands are in the bin subdirectory.
+	os/		Kernel source
+	os/make		Where objects are compiled into
+	os/kern		Portable C source
+	os/mach		i386 C, as well as assembly
+	srv/		All portable servers (filesystems, etc.)
+	srv/mach	i386/ISA servers (disk, keyboard, etc.)
+	libc/		The C library
+	lib/		Utility libraries
+	bin/		Commands
+	doc/		Documentation, such as it is
 
 2. Building the kernel
 
 	Go into the lib subdir.  Do a "make".
-	Go into the ../make subdir.  Do a "make clean".  If this fails
+	Go into the ../os/make subdir.  Do a "make clean".  If this fails
 because there's no makefile, don't worry.
 	Build config: "gcc -o config config.c"
 	Run the kernel config program:  "go32 config".  Now you should
@@ -67,15 +65,8 @@ have a makefile.
 	Go to the root, and invoke the "mkclean" batch file.
 
 	Now invoke the "mkall" batch file.  It will move around through
-the source and build things in the right order.  Currently, the GNU C
-compiler isn't cleaned out or built.  It's big, and it pretty much
-stays the same, since I'm not a compiler type of person.  You can go
-in there and build it for yourself if you'd like.  Be careful, though,
-since the output of it will be used by later invokations of the compiler
-in that directory--I usually build a pass (gcc, or cc1, or cpp) and
-then move it immediately to the c:\bin directory (c:\bin isn't even in
-my DOS path--I use d:\bin instead).  Similarly for "gas", which is
-in its own directory, and "ld", which is in binutl.
+the source and build things in the right order.  GNU C is in its own
+archive; send me a note if you want to build it and have problems.
 
 	NOTE: some binaries (emacs, rc, gcc & friends) are in their
 own distribution tar file.  They may not even be present in your source
@@ -110,22 +101,25 @@ the parameters for your disk(s).
 
 	Invoke the batch file "go".
 
-	This will load the kernel in ..\make, and also load the
+	This will load the kernel in ..\os\make, and also load the
 boot servers listed in boot.lst.  All the servers should have been
 built by the "mkall", so there should be no problems.
 
 4. Kernel debugger
 
-	Debugging comes out of COM1 at 9600 baud 8N1.  Use the "pr"
-command to see the proc table, the "bt" command to see a stack back-
-trace of the current process.  "dv" will dump virtual addresses,
-and "dp" will dump physical.  You can look at the current user process'
-address space by OR'ing in 0x80000000 to the user address.  "dv" will
-complain if you try to look at a non-existent address.  "di" will dis-
-assemble at an address; symbols were put in during the kernel build,
-so the output should be fairly comprehensible (if you know i386 assembly!)
-The "=" will take expressions and print them in hex, decimal, and
-symbolically.
+	You have two options for kernel debugging.  As shipped,
+the on-screen kernel debugger is selected.  If you want to have
+the kernel debugger talk out the serial port, see os/mach/dbg*.c.
+
+	Use the "pr" command to see the proc table, the "bt" command
+to see a stack backtrace of the current process.  "dv" will dump virtual
+addresses, and "dp" will dump physical.  You can look at the current
+user process' address space by OR'ing in 0x80000000 to the user address.
+"dv" will complain if you try to look at a non-existent address.  "di"
+will disassemble at an address; symbols were put in during the kernel
+build, so the output should be fairly comprehensible (if you know i386
+assembly!)  The "=" will take expressions and print them in hex, decimal,
+and symbolically.
 
 	"pr <num>" will dump out a particular process with more detail.
 "vas <addr>" will dump out a virtual address space struct; similarly for
