@@ -12,13 +12,22 @@
 #include <std.h>
 #include <fcntl.h>
 #include <ctype.h>
+#include <unistd.h>
 
 extern char *__cwd;	/* Current working dir */
 static void cd(), md(), quit(), ls(), pwd(), mount(), cat(), sleep(),
 	sec(), null(), run(), do_wstat(), do_fork(), get(), set(),
-	do_umount(), rm();
+	do_umount(), rm(), source();
 extern void run(), path();
 static char *buf;	/* Utility page buffer */
+
+/*
+ * For nesting input
+ */
+#define MAXSTACK (4)
+static FILE *instack[MAXSTACK];
+static int insp = 0;
+static FILE *infile = stdin;
 
 /*
  * Table of commands
@@ -47,10 +56,38 @@ struct {
 	"sector", sec,
 	"set", set,
 	"sleep", sleep,
+	"source", source,
 	"umount", do_umount,
 	"wstat", do_wstat,
 	0, 0
 };
+
+/*
+ * source()
+ *	Push down input a new level
+ */
+static void
+source(char *p)
+{
+	FILE *fp;
+
+	if (!p || !p[0]) {
+		printf("Usage: source <file>\n");
+		return;
+	}
+	if (insp >= MAXSTACK) {
+		printf("Too deep\n");
+		return;
+	}
+	fp = fopen(p, "r");
+	if (fp == 0) {
+		perror(p);
+		return;
+	}
+	instack[insp] = infile;
+	insp += 1;
+	infile = fp;
+}
 
 /*
  * rm()
@@ -575,13 +612,15 @@ do_cmd(str)
 main(void)
 {
 #ifdef STAND
-	int scrn, kbd;
+	{
+		port_t scrn, kbd;
 
-	kbd = msg_connect(PORT_KBD, ACC_READ);
-	(void)__fd_alloc(kbd);
-	scrn = msg_connect(PORT_CONS, ACC_WRITE);
-	(void)__fd_alloc(scrn);
-	(void)__fd_alloc(scrn);
+		kbd = msg_connect(PORT_KBD, ACC_READ);
+		(void)__fd_alloc(kbd);
+		scrn = msg_connect(PORT_CONS, ACC_WRITE);
+		(void)__fd_alloc(scrn);
+		(void)__fd_alloc(scrn);
+	}
 #endif
 
 	buf = malloc(NBPG);
@@ -589,10 +628,29 @@ main(void)
 		perror("testsh buffer");
 		exit(1);
 	}
+	if (access("boot.bat", R_OK) >= 0) {
+		source("boot.bat");
+	}
 
 	for (;;) {
-		printf("%% "); fflush(stdout);
-		gets(buf);
+		if (infile == stdin) {
+			printf("%% ");
+			fflush(stdout);
+		}
+		if (fgets(buf, NBPG, infile) == 0) {
+			if (infile == stdin) {
+				printf("<EOF>\n");
+				clearerr(infile);
+			} else {
+				insp -= 1;
+				infile = instack[insp];
+			}
+			continue;
+		}
+		buf[strlen(buf)-1] = '\0';
+		if (buf[0] == '\0') {
+			continue;
+		}
 		do_cmd(buf);
 	}
 }
