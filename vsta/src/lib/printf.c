@@ -4,6 +4,7 @@
  *
  * Use the underlying __doprnt() routine for their dirty work
  */
+#define __PRINTF_INTERNAL
 #include <stdio.h>
 #include <std.h>
 #include <sys/param.h>
@@ -62,7 +63,7 @@ sprintf(char *buf, char *fmt, int arg0, ...)
  *	Print out error to stderr
  */
 void
-perror(char *msg)
+perror(const char *msg)
 {
 	char *p;
 
