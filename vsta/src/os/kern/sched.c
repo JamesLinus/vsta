@@ -224,7 +224,7 @@ savestate(struct thread *t)
  * of switching back to the current process is recognized and optimized.
  *
  * The use of local variables after the switch to idle_stack() is a little
- * risky; the *values* of the variables is not expected to be preserved.
+ * risky; the *values* of the variables are not expected to be preserved.
  * However, the variables themselves are still accessed.  The idle stack
  * is constructed with some room to make this possible.
  *
@@ -292,8 +292,8 @@ swtch(void)
 		 * Release lock, switch to idle stack, idle.
 		 */
 		idle_stack();
-		v_lock(&runq_lock, SPL0);
 		t = curthread = 0;
+		v_lock(&runq_lock, SPL0);
 		idle();
 		p_lock_void(&runq_lock, SPLHI);
 	}
