@@ -12,12 +12,11 @@
 
 extern void *malloc();
 extern struct portref *swapdev;
-extern int pset_writeslot();
+extern int pset_writeslot(), pset_deinit();
 
-static int cow_fillslot(), cow_writeslot(), cow_init(), cow_deinit(),
-	cow_unref();
+static int cow_fillslot(), cow_writeslot(), cow_init();
 struct psetops psop_cow = {cow_fillslot, cow_writeslot, cow_init,
-	cow_deinit, cow_unref};
+	pset_deinit};
 
 /*
  * cow_init()
@@ -25,16 +24,6 @@ struct psetops psop_cow = {cow_fillslot, cow_writeslot, cow_init,
  */
 static
 cow_init(struct pset *ps)
-{
-	return(0);
-}
-
-/*
- * cow_deinit()
- *	Tear down the goodies we set up in cow_init()
- */
-static
-cow_deinit(struct pset *ps)
 {
 	return(0);
 }
@@ -58,6 +47,7 @@ cow_fillslot(struct pset *ps, struct perpage *pp, uint idx)
 	 */
 	if (pp->pp_flags & PP_SWAPPED) {
 		pg = alloc_page();
+		set_core(pg, ps, idx);
 		if (pageio(pg, swapdev, ps->p_swapblk + idx,
 				NBPG, FS_ABSREAD)) {
 			free_page(pg);
@@ -133,54 +123,10 @@ cow_write(struct pset *ps, struct perpage *pp, uint idx)
 
 	pp2 = find_pp(ps->p_cow, idx2);
 	pg = alloc_page();
+	set_core(pg, ps, idx);
+	ASSERT(pp2->pp_flags & PP_V, "cow_write: !v");
 	bcopy(ptov(ptob(pp2->pp_pfn)), ptov(ptob(pg)), NBPG);
 	deref_slot(ps->p_cow, pp2, idx2);
 	pp->pp_pfn = pg;
 	pp->pp_flags &= ~PP_COW;
-}
-
-/*
- * cow_unref()
- *	Remove a COW reference
- */
-cow_unref(struct pset *ps, struct perpage *pp, uint idx)
-{
-	extern void iodone_free();
-
-	/*
-	 * If more references within pset, don't bother.
-	 */
-	if ((pp->pp_refs -= 1) > 0) {
-		return;
-	}
-
-	/*
-	 * If page is still in PP_COW state, then we simply have to
-	 * remove our reference from the underlying master copy.
-	 */
-	if (pp->pp_flags & PP_COW) {
-		struct perpage *pp2;
-		uint idx2;
-
-		ASSERT_DEBUG(!(pp->pp_flags & PP_M), "cow_unref: cow dirty");
-		idx2 = ps->p_off + idx;
-		pp2 = find_pp(ps->p_cow, idx2);
-		(*(ps->p_cow->p_ops->psop_unrefslot))(ps->p_cow, pp2, idx2);
-	} else {
-		/*
-		 * Otherwise we need to push dirty, or free the page.
-		 * Dirty will be freed on I/O completion.
-		 */
-		if ((ps->p_refs > 0) && (pp->pp_flags & PP_M)) {
-			(*(ps->p_ops->psop_writeslot))(ps, pp, idx,
-				iodone_free);
-			return;
-		}
-		free_page(pp->pp_pfn);
-	}
-
-	/*
-	 * Flag an invalid, clean slot
-	 */
-	pp->pp_flags &= ~(PP_M|PP_R|PP_V);
 }

@@ -8,55 +8,46 @@
 #include <sys/qio.h>
 #include <sys/fs.h>
 #include <sys/assert.h>
+#include <lib/alloc.h>
 
-extern void *malloc();
-
-extern int pset_unref();
-static int fod_fillslot(), fod_writeslot(), fod_init(), fod_deinit(),
-	fod_unref();
+extern int pset_deinit();
+static int fod_fillslot(), fod_writeslot(), fod_init(), fod_deinit();
 struct psetops psop_fod = {fod_fillslot, fod_writeslot, fod_init,
-	fod_deinit, pset_unref};
+	fod_deinit};
 
 /*
  * fod_init()
  *	Set up pset for mapping a port
- *
- * This would be really simple, except that we want to keep a pseudo-
- * view around so we can cache pages even when our COW reference breaks
- * away from us.  The hope is that the original view of a data page
- * will be desired multile times as the a.out is run again and again.
  */
 static
 fod_init(struct pset *ps)
 {
-	struct pview *pv;
-
-	/*
-	 * Get a pview, make it map 1:1 with our pset
-	 */
-	pv = ps->p_view = malloc(sizeof(struct pview));
-	pv->p_set = ps;
-	pv->p_vaddr = 0;
-	pv->p_len = ps->p_len;
-	pv->p_off = 0;
-	pv->p_vas = 0;		/* Flags pseudo-view */
-	pv->p_next = 0;
-	pv->p_prot = PROT_RO;
 	return(0);
 }
 
 /*
  * fod_deinit()
- *	Tear down the goodies we set up in fod_init()
+ *	Tear down the goodies we set up in fod_init(), free memory
  */
 static
 fod_deinit(struct pset *ps)
 {
-	free(ps->p_view);
 #ifdef DEBUG
-	ps->p_view = 0;
+	/*
+	 * We only allow read-only views of files
+	 */
+	{
+		int x;
+		struct perpage *pp;
+
+		for (x = 0; x < ps->p_len; ++x) {
+			pp = find_pp(ps, x);
+			ASSERT((pp->pp_flags & PP_M) == 0,
+				"fod_deinit: dirty");
+		}
+	}
 #endif
-	return(0);
+	return(pset_deinit(ps));
 }
 
 /*
@@ -71,6 +62,7 @@ fod_fillslot(struct pset *ps, struct perpage *pp, uint idx)
 	ASSERT_DEBUG(!(pp->pp_flags & (PP_V|PP_BAD)),
 		"fod_fillslot: valid");
 	pg = alloc_page();
+	set_core(pg, ps, idx);
 	if (pageio(pg, ps->p_pr, ptob(idx+ps->p_off), NBPG, FS_ABSREAD)) {
 		free_page(pg);
 		return(1);
@@ -80,14 +72,9 @@ fod_fillslot(struct pset *ps, struct perpage *pp, uint idx)
 	 * Fill in the new page's value
 	 */
 	pp->pp_flags |= PP_V;
-	pp->pp_refs = 2;
+	pp->pp_refs = 1;
 	pp->pp_flags &= ~(PP_M|PP_R);
 	pp->pp_pfn = pg;
-
-	/*
-	 * Add our own internal reference to the page
-	 */
-	add_atl(pg, ps->p_view, ptob(idx));
 	return(0);
 }
 

@@ -101,7 +101,7 @@ detach_pview(struct vas *vas, void *vaddr)
 		 * translation, and deref our use of the slot.
 		 */
 		lock_slot(ps, pp);
-		if (delete_atl(pfn, pv, x)) {
+		if (delete_atl(pp, pv, x) == 0) {
 			char *va;
 
 			/*

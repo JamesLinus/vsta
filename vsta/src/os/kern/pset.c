@@ -28,28 +28,57 @@ find_pp(struct pset *ps, uint idx)
 /*
  * free_pset()
  *	Release a page set; update pages it references
+ *
+ * This routines assumes the drudgery of getting the pset free from
+ * its pviews has been handled.  In particular, our caller is assumed to
+ * have waited until any asynch I/O is completed.
  */
 void
 free_pset(struct pset *ps)
 {
-	int x;
-	struct perpage *pp;
-
 	ASSERT_DEBUG(ps->p_refs == 0, "free_pset: refs > 0");
 	ASSERT(ps->p_locks == 0, "free_pset: locks > 0");
 
-#ifdef DEBUG
 	/*
-	 * Make sure there are no valid slots now that all the
-	 * views have been detached.
+	 * Free pages under pset.  Memory psets are not "real", and
+	 * thus you can't free the pages under them.
 	 */
 	if (ps->p_type != PT_MEM) {
-		for (x = 0, pp = ps->p_perpage; x < ps->p_len; ++x, ++pp) {
-			ASSERT(!(pp->pp_flags & PP_V),
-				"free_pset: valid pages");
+		int x;
+		struct perpage *pp;
+
+		pp = ps->p_perpage;
+		for (x = 0; x < ps->p_len; ++x,++pp) {
+			/*
+			 * Non-valid slots--no problem
+			 */
+			if ((pp->pp_flags & PP_V) == 0) {
+				continue;
+			}
+
+			/*
+			 * Release reference to underlying pset's slot
+			 */
+			if (pp->pp_flags & PP_COW) {
+				struct perpage *pp2;
+				uint idx;
+				struct pset *ps2;
+
+				ps2 = ps->p_cow;
+				idx = ps->p_off + x;
+				pp2 = find_pp(ps2, idx);
+				lock_slot(ps2, pp2);
+				deref_slot(ps2, pp2, idx);
+				unlock_slot(ps2, pp2);
+				continue;
+			}
+
+			/*
+			 * Free page
+			 */
+			free_page(pp->pp_pfn);
 		}
 	}
-#endif
 
 	/*
 	 * Free our reference to the master set on PT_COW
@@ -57,6 +86,10 @@ free_pset(struct pset *ps)
 	if (ps->p_type == PT_COW) {
 		deref_pset(ps->p_cow);
 	}
+
+	/*
+	 * Release our pset itself
+	 */
 	free(ps->p_perpage);
 	free(ps);
 }
@@ -83,6 +116,7 @@ physmem_pset(uint pfn, int npfn)
 	ps->p_type = PT_MEM;
 	ps->p_swapblk = 0;
 	ps->p_refs = 0;
+	ps->p_cowsets = 0;
 	ps->p_ops = &psop_mem;
 	init_lock(&ps->p_lock);
 	ps->p_locks = 0;
@@ -98,6 +132,7 @@ physmem_pset(uint pfn, int npfn)
 		pp->pp_flags = PP_V;
 		pp->pp_refs = 0;
 		pp->pp_lock = 0;
+		pp->pp_atl = 0;
 	}
 	return(ps);
 }
@@ -241,8 +276,8 @@ deref_pset(struct pset *ps)
 	 * When it reaches 0, ask for it to be freed
 	 */
 	if (ps->p_refs == 0) {
-		printf("free pset 0x%x\n", ps);
-		dbg_enter();
+		printf("free pset 0x%x\n", ps); dbg_enter();
+		(*(ps->p_ops->psop_deinit))(ps);
 		free_pset(ps);
 	} else {
 		/*
@@ -250,39 +285,6 @@ deref_pset(struct pset *ps)
 		 */
 		v_lock(&ps->p_lock, SPL0);
 	}
-}
-
-/*
- * pset_unref()
- *	Release a reference to a slot
- *
- * Generic code shared by objects which move dirty pages to swap--
- * zfod, nfod, cow.
- */
-pset_unref(struct pset *ps, struct perpage *pp, uint idx)
-{
-	extern void iodone_free();
-
-	/*
-	 * Take no further action if more refs
-	 */
-	if ((pp->pp_refs -= 1) > 0) {
-		return;
-	}
-
-	/*
-	 * Flush slot if dirty
-	 */
-	if ((ps->p_refs > 0) && (pp->pp_flags & PP_M)) {
-		(*(ps->p_ops->psop_writeslot))(ps, pp, idx, iodone_free);
-		return;
-	}
-
-	/*
-	 * Release page, clear slot
-	 */
-	free_page(pp->pp_pfn);
-	pp->pp_flags &= ~(PP_V|PP_M|PP_R);
 }
 
 /*
@@ -329,6 +331,7 @@ alloc_pset(uint pages)
 	ps->p_off = 0;
 	ps->p_locks = 0;
 	ps->p_refs = 0;
+	ps->p_cowsets = 0;
 	ps->p_swapblk = 0;	/* Caller has to allocate */
 	ps->p_perpage = malloc(sizeof(struct perpage) * pages);
 	bzero(ps->p_perpage, sizeof(struct perpage) * pages);
@@ -372,11 +375,13 @@ alloc_pset_zfod(uint pages)
  *	Make a copy of a page
  */
 static void
-copy_page(uint idx, struct perpage *opp, struct perpage *pp, struct pset *ps)
+copy_page(uint idx, struct perpage *opp, struct perpage *pp,
+	struct pset *ops, struct pset *ps)
 {
 	uint pfn;
 
 	pfn = alloc_page();
+	set_core(pfn, ps, idx);
 	if (opp->pp_flags & PP_V) {
 		/*
 		 * Valid means simple memory->memory copy
@@ -388,7 +393,7 @@ copy_page(uint idx, struct perpage *opp, struct perpage *pp, struct pset *ps)
 	 */
 	} else {
 		ASSERT(opp->pp_flags & PP_SWAPPED, "copy_page: !v !swap");
-		if (pageio(pfn, swapdev, ptob(idx+ps->p_swapblk),
+		if (pageio(pfn, swapdev, ptob(idx+ops->p_swapblk),
 				NBPG, FS_ABSWRITE)) {
 			/*
 			 * The I/O failed.  Mark the slot as bad.  Our
@@ -424,15 +429,30 @@ dup_slots(struct pset *ops, struct pset *ps)
 		if (pp->pp_flags & (PP_V|PP_SWAPPED)) {
 			lock_slot(ops, pp);
 			locked = 0;
+
 			/*
-			 * The state can have changed as we may
-			 * have slept on the slot lock.  But
-			 * there's still something in memory or
-			 * on swap to copy--copy_page() handles
-			 * both cases.
+			 * COW views can be shared
 			 */
-			copy_page(x, pp, pp2, ps);
-			unlock_slot(ops, pp);
+			if ((pp->pp_flags & (PP_V|PP_COW)) ==
+					(PP_V|PP_COW)) {
+				ASSERT_DEBUG(ps->p_type == PT_COW,
+					"dup_slots: !cow");
+				pp2->pp_pfn = pp->pp_pfn;
+				pp2->pp_flags = PP_V|PP_COW;
+				ref_slot(ps->p_cow, pp2, x);
+			} else {
+				/*
+				 * Valid page, need to copy.
+				 *
+				 * The state can have changed as we may
+				 * have slept on the slot lock.  But
+				 * there's still something in memory or
+				 * on swap to copy--copy_page() handles
+				 * both cases.
+				 */
+				copy_page(x, pp, pp2, ops, ps);
+				unlock_slot(ops, pp);
+			}
 		}
 	}
 
@@ -501,4 +521,39 @@ copy_pset(struct pset *ops)
 	 */
 	dup_slots(ops, ps);
 	return(ps);
+}
+
+/*
+ * deref_slot()
+ *	Decrement reference count on a page slot, free page on last ref
+ *
+ * This routine assumes that it is being called under a locked slot.
+ */
+void
+deref_slot(struct pset *ps, struct perpage *pp, uint idx)
+{
+	pp->pp_refs -= 1;
+}
+
+/*
+ * ref_slot()
+ *	Add a reference to a page slot
+ *
+ * Assumes caller holds the page slot locked.
+ */
+void
+ref_slot(struct pset *ps, struct perpage *pp, uint idx)
+{
+	pp->pp_refs += 1;
+}
+
+/*
+ * pset_deinit()
+ *	Common code to de-init a pset
+ *
+ * Currently does nothing.
+ */
+pset_deinit(struct pset *ps)
+{
+	return(0);
 }

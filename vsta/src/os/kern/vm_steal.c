@@ -36,6 +36,9 @@
 
 extern struct portref *swapdev;
 
+#define CONTAINS(base, cnt, num) \
+	(((num) >= (base)) && ((num) < ((base)+(cnt))))
+
 ulong failed_qios = 0L;		/* Number pushes which failed */
 
 /*
@@ -57,44 +60,79 @@ sema_t pageout_sema;
 static struct qio *pgio;	/* Our asynch I/O descriptor */
 
 /*
- * steal_page()
- *	Remove a page from a pset
+ * unvirt()
+ *	Unvirtualize all mappings for a given slot
  *
- * Called with page and slot locked.  On return page has been
- * removed and is perhaps queued for I/O.  The attach list entry
- * corresponding to this mapping has also been removed.  The
- * slot will either be freed on return or when the queued I/O
- * completes.
+ * Frees the attach list elements as well.
  */
-static void
-steal_page(struct pview *pv, uint idx, struct core *c)
+static uint
+unvirt(struct perpage *pp)
 {
-	struct pset *ps = pv->p_set;
-	struct perpage *pp;
-	uint setidx, nref;
+	struct atl *a, *an;
+	uint flags = 0;
 
-	/*
-	 * Get per-page information
-	 */
-	setidx = (idx - btop((ulong)pv->p_vaddr)) + pv->p_off;
-	pp = find_pp(ps, setidx);
-	ASSERT(pp, "steal_page: page not in set");
-	ASSERT(pp->pp_flags & PP_V, "steal_page: page not present");
+	for (a = pp->pp_atl; a; a = an) {
+		struct pview *pv;
 
-	/*
-	 * Snatch away from its poor users.  Anybody who now tries
-	 * to use it will fault in and wait for us to release
-	 * the pset.  Bring in the authoritative copy of the ref/mod
-	 * info now that our users can't touch it.
-	 */
-	hat_deletetrans(pv, (char *)pv->p_vaddr + ptob(idx),
-		pp->pp_pfn);
-	pp->pp_flags |= hat_getbits(pv, idx);
+		an = a->a_next;
+		pv = a->a_pview;
+		hat_deletetrans(pv, (char *)pv->p_vaddr + ptob(a->a_idx),
+			pp->pp_pfn);
+		flags |= hat_getbits(pv, (char *)pv->p_vaddr + ptob(a->a_idx));
+		free(a);
+		pp->pp_refs -= 1;
+	}
+	pp->pp_atl = 0;
+	return(flags);
+}
 
-	/*
-	 * Remove our reference.
-	 */
-	deref_slot(ps, pp, idx);
+/*
+ * steal_master()
+ *	Handle stealing of pages from master copy of COW
+ */
+steal_master(struct pset *ps, struct perpage *pp, uint idx)
+{
+	struct pset *ps2;
+	struct perpage *pp2;
+	uint idx2;
+
+	for (ps2 = ps->p_cowsets; ps2; ps2 = ps2->p_cowsets) {
+		/*
+		 * If the pset doesn't cover our range of the master,
+		 * it can't be involved so ignore it.
+		 */
+		if (!CONTAINS(ps2->p_off, ps2->p_len, idx)) {
+			continue;
+		}
+
+		/*
+		 * Try to lock.  Since the canonical order is
+		 * cow->master, we must back off on potential
+		 * deadlock.
+		 */
+		if (cp_lock(&ps2->p_lock, SPL0)) {
+			continue;
+		}
+
+		/*
+		 * Examine the page slot indicated.  Again, lock with
+		 * care as we're going rather backwards.
+		 */
+		idx2 = idx - ps2->p_off;
+		pp2 = find_pp(ps2,  idx2);
+		if (!clock_slot(ps2, pp2)) {
+			if (pp2->pp_flags & PP_COW) {
+				(void)unvirt(pp2);
+				ASSERT_DEBUG(pp2->pp_refs == 0,
+					"steal_master: pp2 refs");
+				pp2->pp_flags &= ~(PP_COW|PP_V|PP_R);
+				pp->pp_refs -= 1;
+			}
+			unlock_slot(ps2, pp2);
+		} else {
+			v_lock(&ps2->p_lock, SPL0);
+		}
+	}
 }
 
 /*
@@ -106,73 +144,84 @@ steal_page(struct pview *pv, uint idx, struct core *c)
 static void
 do_hand(struct core *c, int trouble, intfun steal)
 {
-	struct atl *a, *an, **ap;
+	struct pset *ps;
+	struct perpage *pp;
+	uint idx;
 	extern void iodone_unlock();
 
 	/*
-	 * Lock physical page.  Scan the attach list entries.
+	 * Lock physical page.  Point to the master pset.
 	 */
-	lock_page(c-core);
-	for (a = c->c_atl, ap = &c->c_atl; a; a = an) {
-		uint idx;
-		struct pset *ps;
-		struct perpage *pp;
-
-		an = a->a_next;
-		ps = a->a_pview->p_set;
-		idx = a->a_idx;
-
-		/*
-		 * Lock the set. cp_lock() would be too timid; I suspect
-		 * that busy psets might represent most of the memory on
-		 * a thrashing system.
-		 */
-		(void)p_lock(&ps->p_lock, SPL0);
-		pp = find_pp(ps, idx);
-		if (clock_slot(ps, pp)) {
-			v_lock(&ps->p_lock, SPL0);
-			break;
-		}
-		ASSERT_DEBUG(pp->pp_flags & PP_V, "do_hand: atl !v");
-
-		/*
-		 * Get and clear HAT copy of information
-		 */
-		pp->pp_flags |= hat_getbits(a->a_pview, idx);
-
-		/*
-		 * If any trouble, see if this page is should be
-		 * stolen.
-		 */
-		if (!(pp->pp_flags & PP_M) &&
-				(*steal)(pp->pp_flags, trouble)) {
-			/*
-			 * Yup.  Take it away and free the atl.
-			 * We *should* use free_atl(), but we're
-			 * already in the middle of the list, so we
-			 * can do it quicker this way.
-			 */
-			steal_page(a->a_pview, idx, c);
-			*ap = an;
-			free(a);
-		} else if (trouble && (pp->pp_flags & PP_M)) {
-			/*
-			 * It's dirty, and we're interested in getting
-			 * some memory soon.  Start cleaning pages.
-			 */
-			pp->pp_flags &= ~PP_M;
-			(*(ps->p_ops->psop_writeslot))(ps, pp, idx,
-				iodone_unlock);
-		} else {
-			/*
-			 * No, leave it alone.  Clear REF bit so we can
-			 * estimate its use in the future.
-			 */
-			pp->pp_flags &= ~(PP_R);
-			ap = &a->a_next;
-			unlock_slot(ps, pp);
-		}
+	if (clock_page(c-core)) {
+		return;
 	}
+	ps = c->c_pset;
+	idx = c->c_psidx;
+
+	/*
+	 * Lock master slot
+	 */
+	p_lock(&ps->p_lock, SPL0);
+	pp = find_pp(ps, idx);
+	if (clock_slot(ps, pp)) {
+		v_lock(&ps->p_lock, SPL0);
+		unlock_page(c-core);
+		return;
+	}
+
+	/*
+	 * If this is the target for COW psets, several assumptions
+	 * can be made, so handle in its own routine.
+	 */
+	if ((ps->p_type != PT_COW) && ps->p_cowsets) {
+		steal_master(ps, pp, idx);
+
+		/*
+		 * If he successfully stole all translations and
+		 * things are getting tight, go ahead and take the memory
+		 */
+		if ((pp->pp_refs == 0) && (*steal)(pp->pp_flags, trouble)) {
+			free_page(pp->pp_pfn);
+			pp->pp_flags &= ~(PP_R|PP_V);
+		}
+		goto out;
+	}
+
+	/*
+	 * Scan each attached view of the slot, update our notion of
+	 * page state.  Take away all translations so our notion will
+	 * remain correct until we release the page slot.
+	 */
+	pp->pp_flags |= unvirt(pp);
+	ASSERT(pp->pp_refs == 0, "do_hand: stale refs");
+
+	/*
+	 * If any trouble, see if this page is should be
+	 * stolen.
+	 */
+	if (!(pp->pp_flags & PP_M) &&
+			(*steal)(pp->pp_flags, trouble)) {
+		/*
+		 * Yup.  Take it away.
+		 */
+		free_page(pp->pp_pfn);
+		pp->pp_flags &= ~(PP_V|PP_R);
+	} else if (trouble && (pp->pp_flags & PP_M)) {
+		/*
+		 * It's dirty, and we're interested in getting
+		 * some memory soon.  Start cleaning pages.
+		 */
+		pp->pp_flags &= ~PP_M;
+		(*(ps->p_ops->psop_writeslot))(ps, pp, idx, iodone_unlock);
+	} else {
+		/*
+		 * No, leave it alone.  Clear REF bit so we can
+		 * estimate its use in the future.
+		 */
+		pp->pp_flags &= ~PP_R;
+	}
+out:
+	unlock_slot(ps, pp);
 	unlock_page(c-core);
 }
 

@@ -9,11 +9,11 @@
 #include <sys/assert.h>
 
 extern struct portref *swapdev;
-extern int pset_writeslot(), pset_unref();
+extern int pset_writeslot(), pset_deinit();
 
-static int zfod_fillslot(), zfod_init(), zfod_deinit();
+static int zfod_fillslot(), zfod_init();
 struct psetops psop_zfod =
-	{zfod_fillslot, pset_writeslot, zfod_init, zfod_deinit, pset_unref};
+	{zfod_fillslot, pset_writeslot, zfod_init, pset_deinit};
 
 /*
  * zfod_init()
@@ -21,16 +21,6 @@ struct psetops psop_zfod =
  */
 static
 zfod_init(struct pset *ps)
-{
-	return(0);
-}
-
-/*
- * zfod_deinit()
- *	Clean up--no action needed
- */
-static
-zfod_deinit(struct pset *ps)
 {
 	return(0);
 }
@@ -47,6 +37,7 @@ zfod_fillslot(struct pset *ps, struct perpage *pp, uint idx)
 	ASSERT_DEBUG(!(pp->pp_flags & (PP_V|PP_BAD)),
 		"zfod_fillslot: valid");
 	pg = alloc_page();
+	set_core(pg, ps, idx);
 	if (pp->pp_flags & PP_SWAPPED) {
 		if (pageio(pg, swapdev, ptob(idx+ps->p_swapblk),
 				NBPG, FS_ABSREAD)) {

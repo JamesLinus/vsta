@@ -6,10 +6,9 @@
 #include <sys/pset.h>
 #include <sys/assert.h>
 
-static int mem_fillslot(), mem_writeslot(), mem_init(), mem_deinit(),
-	mem_unref();
+static int mem_fillslot(), mem_writeslot(), mem_init(), mem_deinit();
 struct psetops psop_mem =
-	{mem_fillslot, mem_writeslot, mem_init, mem_deinit, mem_unref};
+	{mem_fillslot, mem_writeslot, mem_init, mem_deinit};
 
 /*
  * mem_init()

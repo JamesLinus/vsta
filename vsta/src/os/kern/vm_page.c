@@ -16,6 +16,7 @@
 
 extern void kern_addtrans(), kern_deletetrans();
 extern char *heapstart, *heap;
+extern int bootpgs;
 
 /*
  * Free list rooted here.  Since a free page can't be attached to
@@ -71,10 +72,10 @@ alloc_page(void)
 	 * its fields, and return it.
 	 */
 	c = freelist;
-	freelist = (struct core *)c->c_atl;
+	freelist = c->c_free;
 	v_lock(&mem_lock, SPL0);
 	c->c_flags = 0;
-	c->c_atl = 0;
+	c->c_free = 0;
 	return(c-core);
 }
 
@@ -89,12 +90,12 @@ free_page(uint pfn)
 
 	c = core+pfn;
 	p_lock(&mem_lock, SPL0);
-	ASSERT(c->c_atl == 0, "free_page: still attached");
-	c->c_atl = (struct atl *)freelist;
+	c->c_free = freelist;
 	freelist = c;
 	freemem += 1;
-	if (blocked_sema(&mem_sema))
+	if (blocked_sema(&mem_sema)) {
 		v_sema(&mem_sema);
+	}
 	v_lock(&mem_lock, SPL0);
 }
 
@@ -112,7 +113,6 @@ init_page(void)
 {
 	int x;
 	struct core *c;
-	extern int bootpgs;
 
 	ASSERT_DEBUG(heap != 0, "page_init: heap unavailable");
 
@@ -163,7 +163,7 @@ init_page(void)
 	for (c = core; c < coreNCORE; ++c) {
 		if (c->c_flags & (C_SYS|C_BAD))
 			continue;
-		c->c_atl = (struct atl *)freelist;
+		c->c_free = freelist;
 		freelist = c;
 		freemem += 1;
 	}
@@ -320,25 +320,16 @@ free_iodone(struct qio *q)
 }
 
 /*
- * deref_slot()
- *	Decrement reference count on a page slot, free page on last ref
- *
- * This routine assumes that it is being called under a locked slot.
+ * set_core()
+ *	Set pset/index information on a core entry
  */
 void
-deref_slot(struct pset *ps, struct perpage *pp, uint idx)
+set_core(uint pfn, struct pset *ps, uint idx)
 {
-	(*(ps->p_ops->psop_unrefslot))(ps, pp, idx);
-}
+	struct core *c;
 
-/*
- * ref_slot()
- *	Add a reference to a page slot
- *
- * Assumes caller holds the page slot locked.
- */
-void
-ref_slot(struct pset *ps, struct perpage *pp, uint idx)
-{
-	pp->pp_refs += 1;
+	ASSERT_DEBUG((pfn > 0) && (pfn < bootpgs), "set_core: bad index");
+	c = &core[pfn];
+	c->c_pset = ps;
+	c->c_psidx = idx;
 }

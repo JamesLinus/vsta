@@ -4,39 +4,37 @@
  *
  * To implement a two-handed clock paging algorithm, you need to be
  * able to enumerate the translations which are active on a physical
- * page.  This is done using linked lists of pviews and offsets.
+ * page.  This is done using a couple levels of back links.  The
+ * core entry points back to the "master" pset's slot using c_pset
+ * and c_psidx.  Each slot in the pset holds a linked list of attached
+ * views, starting at the p_atl field.  Finally, each COW pset can be
+ * enumerated via the p_cowsets field.
  *
- * Mutexing of the c_atl field is provided by the page lock for the
- * page.
+ * Mutexing of the p_atl field is provided by the slot lock for the
+ * slot in the pset.  Mutexing for the c_pset/c_psidx is done using
+ * the lock_page() interface.
  */
 #include <sys/types.h>
-#include <sys/core.h>
+#include <sys/pset.h>
 #include <sys/assert.h>
-#include <sys/vm.h>
-
-extern struct core *core;
-extern void *malloc();
+#include <lib/alloc.h>
 
 /*
  * add_atl()
  *	Add an attach list element for the given view
  *
- * Handles locking of page directly
+ * Assumes slot for perpage is already locked.
  */
 void
-add_atl(uint pfn, struct pview *pv, uint off)
+add_atl(struct perpage *pp, struct pview *pv, uint off)
 {
-	struct core *c;
 	struct atl *a;
 
 	a = malloc(sizeof(struct atl));
 	a->a_pview = pv;
 	a->a_idx = off;
-	c = &core[pfn];
-	lock_page(pfn);
-	a->a_next = c->c_atl;
-	c->c_atl = a;
-	unlock_page(pfn);
+	a->a_next = pp->pp_atl;
+	pp->pp_atl = a;
 }
 
 /*
@@ -44,21 +42,17 @@ add_atl(uint pfn, struct pview *pv, uint off)
  *	Delete the translation for the given view
  *
  * Return value is 0 if the entry could be found; 1 if not.
- * Handles locking within this routine.
+ * Page slot is assumed to be held locked.
  */
-delete_atl(uint pfn, struct pview *pv, uint off)
+delete_atl(struct perpage *pp, struct pview *pv, uint off)
 {
-	struct core *c;
 	struct atl *a, **ap;
-
-	c = &core[pfn];
-	ap = &c->c_atl;
 
 	/*
 	 * Search for the mapping into our view
 	 */
-	lock_page(pfn);
-	for (a = c->c_atl; a; a = a->a_next) {
+	ap = &pp->pp_atl;
+	for (a = pp->pp_atl; a; a = a->a_next) {
 		if ((a->a_pview == pv) && (a->a_idx == off)) {
 			*ap = a->a_next;
 			break;
@@ -67,7 +61,6 @@ delete_atl(uint pfn, struct pview *pv, uint off)
 			"delete_atl: multiple mapping?");
 		ap = &a->a_next;
 	}
-	unlock_page(pfn);
 
 	/*
 	 * If we didn't find it, return failure.

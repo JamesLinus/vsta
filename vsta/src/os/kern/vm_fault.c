@@ -48,8 +48,6 @@
 #include <sys/assert.h>
 #include <sys/core.h>
 
-extern struct perpage *find_pp();
-
 /*
  * vas_fault()
  *	Process a fault within the given address space
@@ -131,13 +129,11 @@ vas_fault(void *vas, void *vaddr, int write)
 	 * Break COW association when we write it
 	 */
 	if ((pp->pp_flags & PP_COW) && write) {
-		extern void cow_write();
-
 		if (wasvalid) {
 			/*
 			 * May or may not be there
 			 */
-			(void)delete_atl(pp->pp_pfn, pv, btop((ulong)vaddr));
+			(void)delete_atl(pp, pv, btop((ulong)vaddr));
 		}
 		cow_write(ps, pp, idx);
 		ASSERT(pp->pp_flags & PP_V, "vm_fault: lost the page 2");
@@ -147,8 +143,7 @@ vas_fault(void *vas, void *vaddr, int write)
 	 * With a valid slot, add a hat translation and tabulate
 	 * the entry with an atl.
 	 */
-	add_atl(pp->pp_pfn, pv,
-		btop((ulong)vaddr - (ulong)(pv->p_vaddr)));
+	add_atl(pp, pv, btop((ulong)vaddr - (ulong)(pv->p_vaddr)));
 	hat_addtrans(pv, vaddr, pp->pp_pfn, pv->p_prot |
 		((pp->pp_flags & PP_COW) ? PROT_RO : 0));
 
