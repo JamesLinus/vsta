@@ -16,7 +16,7 @@
 extern char *__cwd;	/* Current working dir */
 static void cd(), md(), quit(), ls(), pwd(), mount(), cat(), sleep(),
 	sec(), null(), run(), do_wstat(), do_fork(), get(), set(),
-	do_umount();
+	do_umount(), rm();
 extern void run(), path();
 static char *buf;	/* Utility page buffer */
 
@@ -42,6 +42,7 @@ struct {
 	"path", path,
 	"pwd", pwd,
 	"quit", quit,
+	"rm", rm,
 	"run", run,
 	"sector", sec,
 	"set", set,
@@ -50,6 +51,22 @@ struct {
 	"wstat", do_wstat,
 	0, 0
 };
+
+/*
+ * rm()
+ *	Remove an entry
+ */
+static void
+rm(char *p)
+{
+	if (!p || !p[0]) {
+		printf("Usage: rm <file>\n");
+		return;
+	}
+	if (unlink(p) < 0) {
+		perror(p);
+	}
+}
 
 /*
  * do_umount()
