@@ -97,16 +97,26 @@ get_cr3(void)
 /*
  * flush_tlb()
  *	Flush the processor page table "translation lookaside buffer"
+ *
+ * Shoot the whole thing on the i386; invalidate individual entries
+ * on the i486 and later.
  */
 inline static void
-flush_tlb(void)
+flush_tlb(void *va)
 {
+#ifndef __i486__
 	__asm__ __volatile__ (
 		"movl %%cr3, %%eax\n\t"
 		"movl %%eax, %%cr3\n\t"
 		: /* No output */
 		: /* No input */
 		: "ax");
+#else
+	__asm__ __volatile__ (
+		"invlpg ($0)\n\t"
+		: /* No output */
+		: "r" (vaddr));
+#endif
 }
 
 /*
@@ -239,8 +249,8 @@ idle_stack(void)
 	extern void *id_stack;
 
 	__asm__ __volatile__ (
-		"movl $_id_stack,%%esp\n\t"
-		"movl %%esp,%%ebp\n\t"
+		"movl $_id_stack-0x40,%%esp\n\t"
+		"movl $_id_stack,%%ebp\n\t"
 		: /* No output */
 		: /* No input */);
 }
