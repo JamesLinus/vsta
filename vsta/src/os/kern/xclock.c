@@ -35,8 +35,6 @@ static struct eventq		/* List of sleepers pending */
 	*eventq = 0;
 static lock_t time_lock;	/* Mutex on eventq */
 
-extern uint pageout_secs;	/* Interval to call pageout */
-static uint pageout_wait;	/* Secs since last call */
 static struct time		/* Time that the system booted */
 	boot_time = {0, 0};
 
@@ -109,6 +107,7 @@ hardclock(struct trapframe *f)
 	c->pc_flags |= CPU_CLOCK;
 	c->pc_time[0] += c->pc_ticks;
 	c->pc_ticks = 0;
+	NO_PREEMPT();
 	sti();
 
 	/*
@@ -117,7 +116,6 @@ hardclock(struct trapframe *f)
 	 */
 	c->pc_time[0] += 1;
 	while (c->pc_time[0] >= HZ) {
-		pageout_wait += 1;
 		c->pc_time[1] += 1;
 		c->pc_time[0] -= HZ;
 	}
@@ -161,6 +159,7 @@ hardclock(struct trapframe *f)
 	 * Clear flag & done
 	 */
 	c->pc_flags &= ~CPU_CLOCK;
+	PREEMPT_OK();
 }
 
 /*
