@@ -9,11 +9,12 @@
 #include <sys/assert.h>
 
 extern struct portref *swapdev;
-extern int pset_writeslot(), pset_deinit();
+extern int pset_writeslot();
 
 static int zfod_fillslot(), zfod_init();
+static void zfod_free();
 struct psetops psop_zfod =
-	{zfod_fillslot, pset_writeslot, zfod_init, pset_deinit};
+	{zfod_fillslot, pset_writeslot, zfod_init, zfod_free};
 
 /*
  * zfod_init()
@@ -56,4 +57,58 @@ zfod_fillslot(struct pset *ps, struct perpage *pp, uint idx)
 	pp->pp_pfn = pg;
 	pp->pp_refs = 1;
 	return(0);
+}
+
+/*
+ * zfod_free()
+ *	Release a page set; update pages it references
+ */
+static void
+zfod_free(struct pset *ps)
+{
+	uint x;
+	struct perpage *pp;
+
+	/*
+	 * Free pages under pset
+	 */
+	pp = ps->p_perpage;
+	for (x = 0; x < ps->p_len; ++x,++pp) {
+		ASSERT_DEBUG(pp->pp_refs == 0, "zfod_free: still refs");
+
+		/*
+		 * Drop all valid pages
+		 */
+		if (pp->pp_flags & PP_V) {
+			free_page(pp->pp_pfn);
+		}
+	}
+}
+
+/*
+ * alloc_pset_zfod()
+ *	Allocate a generic pset with all invalid pages
+ */
+struct pset *
+alloc_pset_zfod(uint pages)
+{
+	struct pset *ps;
+	uint swapblk;
+
+	/*
+	 * Get backing store first
+	 */
+	if ((swapblk = alloc_swap(pages)) == 0) {
+		return(0);
+	}
+
+	/*
+	 * Allocate pset, set it for our pset type
+	 */
+	ps = alloc_pset(pages);
+	ps->p_type = PT_ZERO;
+	ps->p_ops = &psop_zfod;
+	ps->p_swapblk = swapblk;
+
+	return(ps);
 }

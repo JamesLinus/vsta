@@ -15,153 +15,6 @@
 #include "pset.h"
 
 extern struct portref *swapdev;
-extern struct psetops psop_zfod;
-
-/*
- * free_pset()
- *	Release a page set; update pages it references
- *
- * This routines assumes the drudgery of getting the pset free from
- * its pviews has been handled.  In particular, our caller is assumed to
- * have waited until any asynch I/O is completed.
- */
-void
-free_pset(struct pset *ps)
-{
-	ASSERT_DEBUG(ps->p_refs == 0, "free_pset: refs > 0");
-	ASSERT(ps->p_locks == 0, "free_pset: locks > 0");
-
-	/*
-	 * Free pages under pset.  Memory psets are not "real", and
-	 * thus you can't free the pages under them.
-	 */
-	if (ps->p_type != PT_MEM) {
-		int x;
-		struct perpage *pp;
-
-		pp = ps->p_perpage;
-		for (x = 0; x < ps->p_len; ++x,++pp) {
-			ASSERT_DEBUG(pp->pp_refs == 0,
-				"free_pset: still refs");
-			/*
-			 * Non-valid slots--no problem
-			 */
-			if ((pp->pp_flags & PP_V) == 0) {
-				continue;
-			}
-
-			/*
-			 * Release reference to underlying pset's slot
-			 */
-			if (pp->pp_flags & PP_COW) {
-				struct perpage *pp2;
-				uint idx;
-				struct pset *ps2;
-
-				ps2 = ps->p_cow;
-				idx = ps->p_off + x;
-				p_lock_fast(&ps2->p_lock, SPL0);
-				pp2 = find_pp(ps2, idx);
-				lock_slot(ps2, pp2);
-				deref_slot(ps2, pp2, idx);
-				unlock_slot(ps2, pp2);
-				continue;
-			}
-
-			/*
-			 * Free page
-			 */
-			free_page(pp->pp_pfn);
-		}
-
-		/*
-		 * Release our swap space
-		 */
-		free_swap(ps->p_swapblk, ps->p_len);
-	}
-
-	/*
-	 * Free our reference to the master set on PT_COW
-	 */
-	if (ps->p_type == PT_COW) {
-		struct pset *ps2 = ps->p_cow, **pp, *p;
-
-		/*
-		 * Remove us from his COW list
-		 */
-		p_lock_fast(&ps2->p_lock, SPL0);
-		pp = &ps2->p_cowsets;
-		for (p = ps2->p_cowsets; p; p = p->p_cowsets) {
-			if (p == ps) {
-				*pp = p->p_cowsets;
-				break;
-			}
-			pp = &p->p_cowsets;
-		}
-		ASSERT(p, "free_pset: lost cow");
-		v_lock(&ps2->p_lock, SPL0_SAME);
-
-		/*
-		 * Remove our reference from him
-		 */
-		deref_pset(ps2);
-
-	/*
-	 * Need to disconnect from our server on mapped files
-	 */
-	} else if (ps->p_type == PT_FILE) {
-		(void)shut_client(ps->p_pr);
-	}
-
-	/*
-	 * Release our pset itself
-	 */
-	FREE(ps->p_perpage, MT_PERPAGE);
-	FREE(ps, MT_PSET);
-}
-
-/*
- * physmem_pset()
- *	Create a pset which holds a view of physical memory
- */
-struct pset *
-physmem_pset(uint pfn, int npfn)
-{
-	struct pset *ps;
-	struct perpage *pp;
-	int x;
-	extern struct psetops psop_mem;
-
-	/*
-	 * Initialize the basic fields of the pset
-	 */
-	ps = MALLOC(sizeof(struct pset), MT_PSET);
-	ps->p_perpage = MALLOC(npfn * sizeof(struct perpage), MT_PERPAGE);
-	ps->p_len = npfn;
-	ps->p_off = 0;
-	ps->p_type = PT_MEM;
-	ps->p_swapblk = 0;
-	ps->p_refs = 0;
-	ps->p_cowsets = 0;
-	ps->p_ops = &psop_mem;
-	init_lock(&ps->p_lock);
-	ps->p_locks = 0;
-	init_sema(&ps->p_lockwait);
-
-	/*
-	 * For each page slot, put in the physical page which
-	 * corresponds to the slot.
-	 */
-	for (x = 0; x < npfn; ++x) {
-		pp = find_pp(ps, x);
-		pp->pp_pfn = pfn + x;
-		pp->pp_flags = PP_V;
-		pp->pp_refs = 0;
-		pp->pp_lock = 0;
-		pp->pp_atl = 0;
-	}
-	return(ps);
-}
 
 /*
  * lock_slot()
@@ -300,8 +153,23 @@ deref_pset(struct pset *ps)
 	 * When it reaches 0, ask for it to be freed
 	 */
 	if (refs == 0) {
-		(*(ps->p_ops->psop_deinit))(ps);
-		free_pset(ps);
+		/*
+		 * Invoke pset-specific cleanup
+		 */
+		(*(ps->p_ops->psop_free))(ps);
+
+		/*
+		 * Release swap space, if any
+		 */
+		if (ps->p_swapblk) {
+			free_swap(ps->p_swapblk, ps->p_len);
+		}
+
+		/*
+		 * Release our pset itself
+		 */
+		FREE(ps->p_perpage, MT_PERPAGE);
+		FREE(ps, MT_PSET);
 	}
 }
 
@@ -324,7 +192,7 @@ iodone_unlock(struct qio *q)
  *
  * Caller is responsible for any swap allocations.
  */
-static struct pset *
+struct pset *
 alloc_pset(uint pages)
 {
 	struct pset *ps;
@@ -337,54 +205,6 @@ alloc_pset(uint pages)
 	init_lock(&ps->p_lock);
 	init_sema(&ps->p_lockwait);
 	set_sema(&ps->p_lockwait, 0);
-	return(ps);
-}
-
-/*
- * alloc_pset_zfod()
- *	Allocate a generic pset with all invalid pages
- */
-struct pset *
-alloc_pset_zfod(uint pages)
-{
-	struct pset *ps;
-	uint swapblk;
-
-	/*
-	 * Get backing store first
-	 */
-	if ((swapblk = alloc_swap(pages)) == 0) {
-		return(0);
-	}
-
-	/*
-	 * Allocate pset, set it for our pset type
-	 */
-	ps = alloc_pset(pages);
-	ps->p_type = PT_ZERO;
-	ps->p_ops = &psop_zfod;
-	ps->p_swapblk = swapblk;
-
-	return(ps);
-}
-
-/*
- * alloc_pset_fod()
- *	Allocate a fill-on-demand pset with all invalid pages
- */
-struct pset *
-alloc_pset_fod(struct portref *pr, uint pages)
-{
-	struct pset *ps;
-	extern struct psetops psop_fod;
-
-	/*
-	 * Allocate pset, set it for our pset type
-	 */
-	ps = alloc_pset(pages);
-	ps->p_type = PT_FILE;
-	ps->p_ops = &psop_fod;
-	ps->p_pr = pr;
 	return(ps);
 }
 
@@ -509,6 +329,7 @@ struct pset *
 copy_pset(struct pset *ops)
 {
 	struct pset *ps;
+	extern struct psetops psop_zfod;
 
 	/*
 	 * Allocate the new pset, set up its basic fields
@@ -570,18 +391,6 @@ copy_pset(struct pset *ops)
 	 */
 	dup_slots(ops, ps);
 	return(ps);
-}
-
-/*
- * pset_deinit()
- *	Common code to de-init a pset
- *
- * Currently does nothing.
- */
-int
-pset_deinit(struct pset *ps)
-{
-	return(0);
 }
 
 /*

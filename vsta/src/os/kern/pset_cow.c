@@ -13,11 +13,12 @@
 #include "pset.h"
 
 extern struct portref *swapdev;
-extern int pset_writeslot(), pset_deinit();
+extern int pset_writeslot();
 
 static int cow_fillslot(), cow_writeslot(), cow_init();
+static void cow_free();
 struct psetops psop_cow = {cow_fillslot, cow_writeslot, cow_init,
-	pset_deinit};
+	cow_free};
 
 /*
  * cow_init()
@@ -109,7 +110,7 @@ cow_fillslot(struct pset *ps, struct perpage *pp, uint idx)
  * slot locked.  On non-async return, the slot is still locked.  For
  * async I/O, the slot is unlocked on I/O completion.
  */
-static
+static int
 cow_writeslot(struct pset *ps, struct perpage *pp, uint idx, voidfun iodone)
 {
 	return(pset_writeslot(ps, pp, idx, iodone));
@@ -137,4 +138,75 @@ cow_write(struct pset *ps, struct perpage *pp, uint idx)
 	deref_slot(ps->p_cow, pp2, idx2);
 	pp->pp_pfn = pg;
 	pp->pp_flags &= ~PP_COW;
+}
+
+/*
+ * cow_free()
+ *	Release a COW page set
+ */
+static void
+cow_free(struct pset *ps)
+{
+	uint x;
+	struct perpage *pp;
+	struct pset *ps2, **psp, *p;
+
+	/*
+	 * Free pages under pset
+	 */
+	pp = ps->p_perpage;
+	for (x = 0; x < ps->p_len; ++x,++pp) {
+		ASSERT_DEBUG(pp->pp_refs == 0, "cow_free: still refs");
+
+		/*
+		 * Non-valid slots--no problem
+		 */
+		if ((pp->pp_flags & PP_V) == 0) {
+			continue;
+		}
+
+		/*
+		 * Release reference to underlying pset's slot
+		 */
+		if (pp->pp_flags & PP_COW) {
+			struct perpage *pp2;
+			uint idx;
+			struct pset *ps2;
+
+			ps2 = ps->p_cow;
+			idx = ps->p_off + x;
+			p_lock_fast(&ps2->p_lock, SPL0);
+			pp2 = find_pp(ps2, idx);
+			lock_slot(ps2, pp2);
+			deref_slot(ps2, pp2, idx);
+			unlock_slot(ps2, pp2);
+			continue;
+		}
+
+		/*
+		 * Simple/private page, just free
+		 */
+		free_page(pp->pp_pfn);
+	}
+
+	/*
+	 * Free our reference to the master set on PT_COW
+	 */
+	ps2 = ps->p_cow;
+	p_lock_fast(&ps2->p_lock, SPL0);
+	psp = &ps2->p_cowsets;
+	for (p = ps2->p_cowsets; p; p = p->p_cowsets) {
+		if (p == ps) {
+			*psp = p->p_cowsets;
+			break;
+		}
+		psp = &p->p_cowsets;
+	}
+	ASSERT(p, "cow_free: lost cow");
+	v_lock(&ps2->p_lock, SPL0_SAME);
+
+	/*
+	 * Remove our reference from him
+	 */
+	deref_pset(ps2);
 }
