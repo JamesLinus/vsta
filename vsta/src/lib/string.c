@@ -2,6 +2,7 @@
  * string.c
  *	Miscellaneous string utilities
  */
+#include <string.h>
 #include <std.h>
 
 /*
@@ -13,6 +14,24 @@ strcpy(char *dest, char *src)
 {
 	while (*dest++ = *src++)
 		;
+	return(dest);
+}
+
+/*
+ * strncpy()
+ *	Copy up to a limited length
+ */
+char *
+strncpy(char *dest, char *src, int len)
+{
+	char *lim;
+
+	lim = dest+len;
+	while (dest < lim) {
+		if ((*dest++ = *src++) == '\0') {
+			break;
+		}
+	}
 	return(dest);
 }
 
@@ -68,6 +87,25 @@ strcat(char *dest, char *src)
 		;
 	while (*p++ = *src++)
 		;
+	return(dest);
+}
+
+/*
+ * strncat()
+ *	Concatenate, with limit
+ */
+char *strncat(char *dest, char *src, int len)
+{
+	char *p, *lim;
+
+	lim = dest+len;
+	for (p = dest; *p; ++p)
+		;
+	while (p < lim) {
+		if ((*p++ = *src++) == '\0') {
+			break;
+		}
+	}
 	return(dest);
 }
 
