@@ -21,6 +21,7 @@ char *secbuf;			/* A sector buffer */
 struct boot bootb;		/* Image of boot sector */
 static struct hash *filehash;	/* Handle->filehandle mapping */
 int ncache = NCACHE;		/* # sectors we hold in block cache */
+int rofs;			/* Read-only filesystem? */
 
 extern port_t path_open(char *, int);
 
@@ -177,6 +178,22 @@ dead_client(struct msg *m, struct file *f)
 }
 
 /*
+ * check_rofs()
+ *	See if the requested mode should be permitted
+ *
+ * Sends an error and returns 1 if so; 0 if all is OK.
+ */
+inline static int
+check_rofs(struct msg *m)
+{
+	if (rofs && (m->m_arg & (ACC_WRITE|ACC_CREATE))) {
+		msg_err(m->m_sender, EROFS);
+		return(1);
+	}
+	return(0);
+}
+
+/*
  * dos_main()
  *	Endless loop to receive and serve requests
  */
@@ -223,15 +240,22 @@ loop:
 	 */
 	f = hash_lookup(filehash, msg.m_sender);
 	switch (msg.m_op & MSG_MASK) {
+
 	case M_CONNECT:		/* New client */
+		if (check_rofs(&msg)) {
+			break;
+		}
 		new_client(&msg);
 		break;
+
 	case M_DISCONNECT:	/* Client done */
 		dead_client(&msg, f);
 		break;
+
 	case M_DUP:		/* File handle dup during exec() */
 		dup_client(&msg, f);
 		break;
+
 	case M_ABORT:		/* Aborted operation */
 		/*
 		 * Clear pending rename if any
@@ -245,9 +269,13 @@ loop:
 		 */
 		msg_reply(msg.m_sender, &msg);
 		break;
+
 	case FS_OPEN:		/* Look up file from directory */
 		if (!valid_fname(msg.m_buf, msg.m_buflen)) {
 			msg_err(msg.m_sender, EINVAL);
+			break;
+		}
+		if (check_rofs(&msg)) {
 			break;
 		}
 		dos_open(&msg, f);
@@ -260,6 +288,7 @@ loop:
 		}
 		f->f_pos = msg.m_arg1;
 		/* VVV fall into VVV */
+
 	case FS_READ:		/* Read file */
 		dos_read(&msg, f);
 		break;
@@ -271,28 +300,47 @@ loop:
 		}
 		f->f_pos = msg.m_arg1;
 		/* VVV fall into VVV */
+
 	case FS_WRITE:		/* Write file */
+		if (rofs) {
+			msg_err(msg.m_sender, EROFS);
+			break;
+		}
 		dos_write(&msg, f);
 		break;
 
 	case FS_SEEK:		/* Set new file position */
 		dos_seek(&msg, f);
 		break;
+
 	case FS_REMOVE:		/* Get rid of a file */
+		if (rofs) {
+			msg_err(msg.m_sender, EROFS);
+			break;
+		}
 		dos_remove(&msg, f);
 		break;
+
 	case FS_STAT:		/* Tell about file */
 		dos_stat(&msg, f);
 		break;
+
 	case FS_WSTAT:		/* Set file status */
+		if (rofs) {
+			msg_err(msg.m_sender, EROFS);
+			break;
+		}
 		dos_wstat(&msg, f);
 		break;
+
 	case FS_FID:		/* File ID */
 		dos_fid(&msg, f);
 		break;
+
 	case FS_RENAME:		/* Rename file/dir */
 		dos_rename(&msg, f);
 		break;
+
 	default:		/* Unknown */
 		msg_err(msg.m_sender, EINVAL);
 		break;
@@ -326,6 +374,7 @@ usage(void)
  *
  * A DOS instance expects to start with a command line:
  *	$ dos [-f <FS name>] [-b <block device>] [-n <sectors i ncache>]
+ *		[-r]
  */
 int
 main(int argc, char *argv[])
@@ -343,7 +392,7 @@ main(int argc, char *argv[])
 	/*
 	 * Walk arguments
 	 */
-	while ((x = getopt(argc, argv, "f:b:n:")) > 0) {
+	while ((x = getopt(argc, argv, "f:b:n:r")) > 0) {
 		switch (x) {
 
 		case 'f':	/* Set name filesystem registers under */
@@ -379,6 +428,10 @@ main(int argc, char *argv[])
 				syslog(LOG_INFO, "cache size forced to %d",
 					ncache);
 			}
+			break;
+
+		case 'r':	/* Set read-only */
+			rofs = 1;
 			break;
 
 		default:
