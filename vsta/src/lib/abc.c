@@ -83,7 +83,8 @@ static uint bufsize;		/* # sectors held in memory currently */
 static struct hash *bufpool;	/* Hash daddr_t -> buf */
 static struct llist allbufs;	/* Time-ordered list, for aging */
 static port_t ioport;		/* I/O device */
-static int can_dma;		/*  ...supports DMA? */
+static int can_dma,		/*  ...supports DMA? */
+	can_blkio = 1;		/*  ...supports BLK{READ,WRITE} */
 static uint coresec;		/* # sectors allowed in core at once */
 static pid_t fg_pid, bg_pid;	/* Thread ID's for FG/BG */
 
@@ -129,32 +130,66 @@ read_secs(daddr_t start, void *buf, uint nsec)
 {
 	struct msg m;
 
+	/*
+	 * By default, we assume block I/O primitives are available
+	 */
+	if (can_blkio) {
+		m.m_op = FS_BLKREAD | (can_dma ? 0 : M_READ);
+		m.m_nseg = 1;
+		m.m_buf = buf;
+		m.m_arg = m.m_buflen = nsec;
+		m.m_arg1 = start;
+		if (msg_send(ioport, &m) >= 0) {
+			return;
+		}
+	}
+
+	/*
+	 * Try it the older way if we can
+	 */
+	ASSERT((start+nsec) <= 0x007fffff, "read_secs: io read > 4G");
+	can_blkio = 0;
 	m.m_op = FS_ABSREAD | (can_dma ? 0 : M_READ);
 	m.m_nseg = 1;
 	m.m_buf = buf;
 	m.m_arg = m.m_buflen = stob(nsec);
 	m.m_arg1 = stob(start);
 	if (msg_send(ioport, &m) < 0) {
-		ASSERT(0, "read_secs: io");
+		ASSERT(0, "read_secs: io error");
 	}
 }
 
 /*
  * write_secs()
  *	Do sector writes
+ *
+ * This routine is much like read_secs() above, so check its comments
+ * when reading this code.
  */
 static void
 write_secs(daddr_t start, void *buf, uint  nsec)
 {
 	struct msg m;
 
+	if (can_blkio) {
+		m.m_op = FS_BLKWRITE;
+		m.m_nseg = 1;
+		m.m_buf = buf;
+		m.m_arg = m.m_buflen = nsec;
+		m.m_arg1 = start;
+		if (msg_send(ioport, &m) >= 0) {
+			return;
+		}
+	}
+	ASSERT((start+nsec) <= 0x007fffff, "write_secs: io write > 4G");
+	can_blkio = 0;
 	m.m_op = FS_ABSWRITE;
 	m.m_nseg = 1;
 	m.m_buf = buf;
 	m.m_arg = m.m_buflen = stob(nsec);
 	m.m_arg1 = stob(start);
 	if (msg_send(ioport, &m) < 0) {
-		ASSERT(0, "write_secs: io");
+		ASSERT(0, "write_secs: io error");
 	}
 }
 
