@@ -182,13 +182,13 @@ dos_readdir(struct msg *m, struct file *f)
 		}
 
 		/*
-		 * Leave after last entry, skip deleted entries
+		 * Leave after last entry, skip deleted and vFAT entries
 		 */
 		c = (d.name[0] & 0xFF);
 		if (!c) {
 			break;
 		}
-		if (c == 0xe5) {
+		if ((c == 0xe5) || (d.attr == DA_VFAT)) {
 			continue;
 		}
 
