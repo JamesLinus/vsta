@@ -53,6 +53,11 @@ extern char *strset(char *s, int ch);
 extern char *strnset(char *s, int ch, size_t n);
 
 /*
+ * Random VSTa stuff
+ */
+extern char *__fieldval(char *, char *);
+
+/*
  * NULL defined here for the sake of completeness - I think this is needed
  * for ANSI C compliance
  */
