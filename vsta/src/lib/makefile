@@ -3,11 +3,12 @@ AS=as
 LD=ld
 CPP= cpp
 INCS= -I../../include
-CFLAGS= $(INCS) -O -DDEBUG -DFLOAT_SUPPORT
+CFLAGS= $(INCS) -O -DDEBUG
 CRT=start.o startsrv.o
 target: all
 
-include mach/Makefile.inc
+include mach/makefile.inc
+include libm/makefile.inc
 
 OBJS= syscall.o malloc.o \
 	string.o doprnt.o stdio.o printf.o tty.o ctype.o scanf.o seg.o \
@@ -23,7 +24,7 @@ OBJS= syscall.o malloc.o \
 	$(CC) $(CFLAGS) -c $*.c
 
 # Libraries to be build
-LIBS=libc.a libc_s.a ld.a libusr.a libtermc.a libregex.a \
+LIBS=libc.a libc_s.a ld.a libusr.a libtermc.a libregex.a libm.a \
 	$(MACHTARGS)
 
 # Databases for shared libraries
