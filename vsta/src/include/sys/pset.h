@@ -129,6 +129,8 @@ extern struct pset *alloc_pset_fod(struct portref *, uint);
 extern void pset_lastref(struct pset *, struct perpage *, uint);
 extern int valid_pset_slots(struct pset *);
 extern void iodone_unlock(struct qio *), iodone_free(struct qio *);
+extern void pset_free(struct pset *);
+extern int pset_writeslot(struct pset *, struct perpage *, uint, voidfun);
 #endif /* KERNEL */
 
 #endif /* _PSET_H */
