@@ -7,6 +7,7 @@
  */
 static char buf[80];		/* Typing buffer */
 static int dbg_init = 0;
+static int col = 0;		/* When to wrap */
 
 /*
  * 1 for COM1, 0 for COM2 (bleh)
@@ -68,12 +69,21 @@ rs232_getc(void)
 /*
  * putchar()
  *	Write a character to the debugger port
+ *
+ * Brain damage as my serial terminal doesn't wrap columns.
  */
 void
 putchar(int c)
 {
-	if (c == '\n')
+	if (c == '\n') {
+		col = 0;
 		rs232_putc('\r');
+	} else {
+		if (++col >= 78) {
+			rs232_putc('\r'); rs232_putc('\n');
+			col = 1;
+		}
+	}
 	rs232_putc(c);
 }
 
