@@ -76,7 +76,7 @@ do_wstat(struct msg *m, struct prot *prot,
 	 * Process each kind of field we can write
 	 */
 
-	if (!strcmp(field, "acc")) {
+	if (prot && !strcmp(field, "acc")) {
 		/*
 		 * Set default
 		 */
@@ -90,7 +90,7 @@ do_wstat(struct msg *m, struct prot *prot,
 		 * Set access bits
 		 */
 		(void)perm_set(prot->prot_bits, val);
-	} else if (!strcmp(field, "perm")) {
+	} else if (prot && !strcmp(field, "perm")) {
 		/*
 		 * Set permission values.  Might change prot_len,
 		 * so fix this field as well as cleaning up newly-used
