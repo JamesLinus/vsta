@@ -12,10 +12,10 @@ login: $(OBJS)
 	$(LD) $(LDFLAGS) -e start -o login ../../libc/crt0.o $(OBJS) $(LIBS)
 
 clean:
-	del *.o
+	rm -f *.o
 
 clobber: clean
-	del login
+	rm -f login
 
 install: login
 	strip login
