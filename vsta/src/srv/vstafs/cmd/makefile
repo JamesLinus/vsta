@@ -12,12 +12,15 @@ PROGS=mkfs fsdb fsck
 all:  $(PROGS)
 
 fsck: fsck.o
+	rm -f fsck
 	$(LD) -o fsck $(CRT0) fsck.o $(LIBS)
 
 mkfs: mkfs.o
+	rm -f mkfs
 	$(LD) -o mkfs $(CRT0) mkfs.o $(LIBS)
 
 fsdb: fsdb.o
+	rm -f fsdb
 	$(LD) -o fsdb $(CRT0) fsdb.o $(LIBS)
 
 clean:
