@@ -10,7 +10,13 @@ LAW=readme license
 DEST=/dist
 
 # Binary distribution
-BIN=$(LAW) bin boot doc etc grub include lib
+LIB=lib/bison.hairy lib/bison.simple lib/crt0.0 lib/crt0srv.o \
+	lib/ld.a lib/ld.shl lib/libc.a lib/libc.shl lib/libc_s.a \
+	lib/libcurses.a lib/libdpart.a lib/libg.a lib/libgcc.a \
+	lib/libm.a lib/libregex.a lib/libsrv.a lib/libtermcap.a \
+	lib/libusr.a lib/termcap
+
+BIN=$(LAW) bin boot doc etc grub include $(LIB)
 
 # Core servers
 SRCSRV=src/srv/bfs src/srv/cdfs src/srv/devnull src/srv/dos \
@@ -60,14 +66,20 @@ SMALL=src/bin/small
 GCC=src/bin/gcc2 src/bin/binutl2 src/bin/gdb
 
 # MGR windowing system
-MGR=mgr
+MGR=mgr lib/libbitbl.a lib/libmgr.a
 
 # Compiler tools
-LANG=src/bin/flex src/bin/bison src/bin/yacc
+LANG=src/bin/flex src/bin/bison src/bin/yacc lib/libfl.a
+
+# Python
+PYTHON=src/bin/python lib/python15
+
+# Diff utilities
+DIFF=src/bin/diffutl
 
 # Default: make a distribution
 dist: bindist srcdist make txt sh ed fun bc gzip sc small gcc \
-	mgrdist lang net
+	mgrdist lang net python diff
 
 bindist:
 	tar -cvf - $(BIN) | gzip -9 > $(DEST)/vsta.tz
@@ -113,3 +125,9 @@ lang:
 
 net:
 	tar -cvf - $(NET) | gzip -9 > $(DEST)/ka9q.tz
+
+python:
+	tar -cvf - $(PYTHON) | gzip -9 > $(DEST)/python.tz
+
+diff:
+	tar -cvf - $(DIFF) | gzip -9 > $(DEST)/diff.tz
