@@ -125,6 +125,8 @@ maploc(ulong off, uint size, int phys)
 		} else {
 			o = dbg_vtop(a);
 		}
+		ASSERT_DEBUG(pgidx < DBG_PAGES,
+			"maploc: too many pages");
 		kern_addtrans(dbg_utl + ptob(pgidx), btop(o));
 		pgidx += 1;
 	}
