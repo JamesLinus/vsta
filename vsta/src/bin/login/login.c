@@ -10,7 +10,8 @@
 #include <mnttab.h>
 
 #define BANNER "/vsta/etc/banner"	/* Login banner path */
-#define MOUNTRC "mount.rc"		/* Per-user desired mounts */
+#define SYSMOUNT "/vsta/etc/fstab"	/* Global mounts */
+#define MOUNTRC "mount.rc"		/* Per-user mounts */
 
 /*
  * cat()
@@ -59,7 +60,7 @@ get_str(char *buf, int buflen, int echo)
 			if (x >= buflen) {
 				continue;
 			}
-			buf[x++] = c;
+			buf[x] = c;
 			if (echo) {
 				write(1, &c, sizeof(c));
 			} else {
@@ -75,6 +76,7 @@ get_str(char *buf, int buflen, int echo)
 				write(1, stars, y);
 				nstar[x] = y;
 			}
+			x += 1;
 			continue;
 		}
 
@@ -125,22 +127,55 @@ static void
 login(struct uinfo *u)
 {
 	int x;
+	port_t port;
+	struct perm perm;
 
 	/*
-	 * Set our ID.  We skip slot 0, which is our superuser slot
+	 * Activate root abilities
+	 */
+	perm.perm_len = 0;
+	if (perm_ctl(1, &perm, (void *)0) < 0) {
+		printf("login: can't enable root\n");
+		exit(1);
+	}
+
+	/*
+	 * Set our ID.  We skip slot 1, which is our superuser slot
 	 * used to authorize the manipulation of all others.  Finish
-	 * by setting 0--after this, we only hold the abilities of
+	 * by setting 1--after this, we only hold the abilities of
 	 * the user logging on.
 	 */
 	for (x = 1; x < PROCPERMS; ++x) {
+		if (x == 1) {
+			continue;
+		}
 		perm_ctl(x, &u->u_perms[x], (void *)0);
 	}
-	perm_ctl(0, &u->u_perms[0], (void *)0);
 
 	/*
-	 * Initialize our environment
+	 * Initialize our environment.  Slot 0, our default ownership,
+	 * is now set, so we will own the nodes which appear.
 	 */
 	setenv_init(u->u_env);
+
+	/*
+	 * Give up our powers
+	 */
+	perm_ctl(1, &u->u_perms[0], (void *)0);
+
+	/*
+	 * Re-initialize.  The /env server otherwise still believes
+	 * we have vast privileges.
+	 */
+	setenv_init(u->u_env);
+
+	/*
+	 * Mount system default stuff.  Remove our root-capability
+	 * entry from the mount table.
+	 */
+	port = mount_port("/vsta");
+	mount_init(SYSMOUNT);
+	umount("/vsta", port);
 
 	/*
 	 * Put some stuff into our environment.  We place it in the
@@ -155,7 +190,7 @@ login(struct uinfo *u)
 	 * environment as requested.
 	 */
 	if (chdir(u->u_home) >= 0) {
-		init_mount(MOUNTRC);
+		mount_init(MOUNTRC);
 	} else {
 		printf("Note: can not chdir to home: %s\n", u->u_home);
 	}
@@ -193,7 +228,6 @@ do_login(void)
 	get_str(passwd, sizeof(passwd), 0);
 	if (strcmp(uinfo.u_passwd, passwd)) {
 		printf("Incorrect password.\n");
-		printf("Got '%s' wanted '%s'\n", passwd, uinfo.u_passwd);
 		return;
 	}
 	login(&uinfo);
