@@ -19,6 +19,31 @@ static daddr_t *free_pend = 0;
 static uint free_npend = 0;
 ulong lost_blocks = 0L;		/* No room--dropped them instead */
 
+#ifdef XXX
+/*
+ * dump_freelist()
+ *	printf() out the freelist, for debugging
+ */
+static void
+dump_freelist(void)
+{
+	struct freelist *fr;
+
+	for (fr = freelist; fr; fr = fr->fr_next) {
+		struct alloc *a;
+		uint x;
+		struct free *f = &fr->fr_free;
+
+		a = f->f_free;
+		for (x = 0; x < f->f_nfree; ++x, ++a) {
+			printf(" %d..%d", a->a_start,
+				a->a_start + a->a_len - 1);
+		}
+	}
+	printf("\n");
+}
+#endif /* DEBUG */
+
 /*
  * init_block()
  *	Initialize the block allocation routines
@@ -569,6 +594,7 @@ take_chunk(struct freelist *fr, uint idx, ulong nsec)
 		bcopy(a+1, a, f->f_nfree-idx);
 	} else {
 		a->a_start += nsec;
+		a->a_len -= nsec;
 	}
 
 	/*
