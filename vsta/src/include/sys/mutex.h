@@ -73,18 +73,18 @@ typedef uint pri_t;
 /*
  * Routines
  */
-spl_t p_lock(lock_t *, spl_t);		/* For locks */
-spl_t cp_lock(lock_t *, spl_t);
-void v_lock(lock_t *, spl_t);
-void init_lock(lock_t *);
-int p_sema(sema_t *, pri_t);		/* For semaphores */
-int cp_sema(sema_t *);
-void v_sema(sema_t *);
-void vall_sema(sema_t *);
-int blocked_sema(sema_t *);
-void init_sema(sema_t *);
-void set_sema(sema_t *, int);
-int p_sema_v_lock(sema_t *, pri_t, lock_t *);
+extern spl_t p_lock(lock_t *, spl_t);
+extern spl_t cp_lock(lock_t *, spl_t);
+extern void v_lock(lock_t *, spl_t);
+extern void init_lock(lock_t *);
+extern int p_sema(sema_t *, pri_t);
+extern int cp_sema(sema_t *);
+extern void v_sema(sema_t *);
+extern void vall_sema(sema_t *);
+extern int blocked_sema(sema_t *);
+extern void init_sema(sema_t *);
+extern void set_sema(sema_t *, int);
+extern int p_sema_v_lock(sema_t *, pri_t, lock_t *);
 #define sema_count(s) ((s)->s_count)
 
 #endif /* _MUTEX_H */
