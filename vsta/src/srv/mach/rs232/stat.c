@@ -45,13 +45,13 @@ rs232_stat(struct msg *m, struct file *f)
 	rs232_getinsigs();
 	sprintf(buf,
 		"size=0\ntype=c\nowner=0\ninode=0\ngen=%d\n%s" \
-		"dev=%d\nuart=%s\nbaseio=0x%x\nirq=%d\n" \
+		"uart=%s\nbaseio=0x%x\nirq=%d\n" \
 		"rxfifothr=%d\ntxfifothr=%d\noverruns=%ld\n" \
 		"baud=%d\ndatabits=%d\nstopbits=%s\nparity=%s\n" \
 		"dsr=%d\ndtr=%d\ncts=%d\nrts=%d\ndcd=%d\nri=%d\n" \
 		"inbuf=%d\noutbuf=%d\nonlcr=%d\nrows=%d\ncols=%d\n",
 		accgen, perm_print(&rs232_prot),
-		rs232port_name, uart_names[uart],
+		uart_names[uart],
 		iobase, irq,
 		rx_fifo_threshold, tx_fifo_threshold, overruns,
 		baud, databits,

@@ -73,10 +73,10 @@ fd_stat(struct msg *m, struct file *f)
 		type = 's';
 	}
 	sprintf(buf,
-		"size=%d\ntype=%c\nowner=0\ninode=%d\ndev=%d\n" \
+		"size=%d\ntype=%c\nowner=0\ninode=%d\n" \
 		"fdc=%s\nirq=%d\ndma=%d\nbaseio=0x%0x\nretries=%d\n" \
 		"messages=%s\n",
-		size, type, ino, fdport_name, fdc_names[fdc_type],
+		size, type, ino, fdc_names[fdc_type],
 		fd_irq, fd_dma, fd_baseio,
 		(f->f_slot == ROOTDIR ? fd_retries : fl->f_retries),
 		fdm_opts[(f->f_slot == ROOTDIR
