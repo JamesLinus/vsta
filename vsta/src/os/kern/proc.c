@@ -248,7 +248,7 @@ allocpid(void)
  * fork_thread()
  *	Launch a new thread within the same process
  */
-fork_thread(void)
+fork_thread(voidfun f)
 {
 	struct proc *p = curthread->t_proc;
 	struct thread *t;
@@ -264,7 +264,6 @@ fork_thread(void)
 	if (!ustack) {
 		return(err(ENOMEM));
 	}
-	t->t_ustack = ustack;
 
 	/*
 	 * Do an unlocked increment of the thread count.  The limit
@@ -297,7 +296,8 @@ fork_thread(void)
 	 * He needs his own kernel stack; user stack was attached above
 	 */
 	t->t_kstack = malloc(KSTACK_SIZE);
-	dup_stack(curthread, t);
+	t->t_ustack = ustack;
+	dup_stack(curthread, t, f);
 
 	/*
 	 * Initialize
@@ -307,6 +307,8 @@ fork_thread(void)
 	t->t_evsys[0] = t->t_evproc[0] = '\0';
 	init_sema(&t->t_evq);
 	t->t_err[0] = '\0';
+	t->t_runq = sched_thread(p->p_runq, t);
+	t->t_uregs = 0;
 
 	/*
 	 * Add new guy to the proc's list
@@ -394,7 +396,7 @@ fork(void)
 	 * Duplicate stack now that we have a viable thread/proc
 	 * structure.
 	 */
-	dup_stack(told, tnew);
+	dup_stack(told, tnew, 0);
 
 	/*
 	 * Get new PIDs for process and initial thread.  Insert

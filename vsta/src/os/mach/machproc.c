@@ -18,23 +18,37 @@ extern void retuser();
 /*
  * dup_stack()
  *	Duplicate stack during thread fork
+ *
+ * "f" is provided to give a starting point for the new thread.
+ * Unlike a true fork(), a thread fork gets its own stack within
+ * the same virtual address space, and therefore can't run with a
+ * copy of the existing stack image.  So we just provide a PC value
+ * to start him at, and he runs with a clean stack.
  */
 void
-dup_stack(struct thread *old, struct thread *new)
+dup_stack(struct thread *old, struct thread *new, voidfun f)
 {
 	ASSERT_DEBUG(old->t_uregs, "dup_stack: no old");
-	new->t_uregs = (struct trapframe *)new->t_kstack -
-		sizeof(struct trapframe);
+	new->t_uregs = (struct trapframe *)(
+		(new->t_kstack + KSTACK_SIZE) -
+		sizeof(struct trapframe));
 	bcopy(old->t_uregs, new->t_uregs, sizeof(struct trapframe));
-	new->t_uregs->esp = (ulong)(new->t_ustack + UMINSTACK);
-	new->t_kregs->esp = (ulong)(new->t_uregs);
+	new->t_uregs->ebp =
+	new->t_uregs->esp = (ulong)(new->t_ustack + UMINSTACK) - sizeof(long);
 
 	/*
-	 * New thread returns with 0 value; retuser() also does some
-	 * fixups for a new process.
+	 * New thread returns with 0 value; ESP is one lower so that
+	 * the resume() path has a place to write its return address.
+	 * This simulates the normal context switch mechanism of
+	 * setjmp/longjmp.
 	 */
-	new->t_uregs->eax = 0;
 	new->t_kregs->eip = (ulong)retuser;
+	new->t_kregs->ebp = (ulong)(new->t_uregs);
+	new->t_kregs->esp = (new->t_kregs->ebp) - sizeof(ulong);
+	if (f) {
+		new->t_uregs->eip = (ulong)f;
+	}
+	new->t_uregs->eax = 0;
 }
 
 /*
@@ -84,7 +98,7 @@ boot_regs(struct thread *t, struct boot_task *b)
 	 */
 	t->t_uregs = 0;
 	u = (struct trapframe *)
-		((t->t_kstack + NBPG) - sizeof(struct trapframe));
+		((t->t_kstack + KSTACK_SIZE) - sizeof(struct trapframe));
 
 	/*
 	 * Set up user frame to start executing at the boot
