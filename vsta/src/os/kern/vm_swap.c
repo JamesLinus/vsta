@@ -48,7 +48,6 @@ seg_physcopy(struct sysmsg *sm, uint pfn)
 	struct seg *s;
 	struct vas *vas = curthread->t_proc->p_vas;
 
-	printf("Copy %d segs to pfn 0x%x\n", sm->m_nseg, pfn);
 	p = (char *)ptov(ptob(pfn));
 	nbyte = NBPG;
 	for (x = 0; nbyte && (x < sm->m_nseg); ++x) {
@@ -89,7 +88,6 @@ seg_physcopy(struct sysmsg *sm, uint pfn)
 		p += cnt;
 		nbyte -= cnt;
 	}
-	printf(" ...copied\n"); dbg_enter();
 	return(0);
 }
 
@@ -109,8 +107,6 @@ pageio(uint pfn, struct portref *pr, uint off, uint cnt, int op)
 	ASSERT_DEBUG((op == FS_ABSREAD) || (op == FS_ABSWRITE),
 		"pageio: illegal op");
 
-	printf("pageio pfn 0x%x portref 0x%x off 0x%x cnt 0x%x op %d\n",
-		pfn, pr, off, cnt, op);
 	ASSERT(pr, "pageio: null portref");
 	/*
 	 * Construct a system message
@@ -133,7 +129,6 @@ pageio(uint pfn, struct portref *pr, uint off, uint cnt, int op)
 	 * If port gone, I/O error
 	 */
 	if (pr->p_port == 0) {
-		printf(" port gone\n");
 		error = 1;
 		goto out;
 	}
@@ -160,17 +155,13 @@ pageio(uint pfn, struct portref *pr, uint off, uint cnt, int op)
 	 * If the server indicates error, set it and leave
 	 */
 	if (sm->m_arg == -1) {
-		printf(" error returned\n");
 		error = 1;
 	} else {
-		printf(" got back sm nseg %d arg %d\n",
-			sm->m_nseg, sm->m_arg);
 		/*
 		 * If we got segments back, copy them out and let
 		 * them go.
 		 */
 		if (sm->m_nseg > 0) {
-			printf(" seg copy\n");
 			error = seg_physcopy(sm, pfn);
 			freesegs(sm);
 		}
@@ -181,7 +172,6 @@ pageio(uint pfn, struct portref *pr, uint off, uint cnt, int op)
 	 */
 	v_sema(&pr->p_svwait);
 out:
-	printf(" done\n");
 	/*
 	 * Clean up and return success/failure
 	 */
