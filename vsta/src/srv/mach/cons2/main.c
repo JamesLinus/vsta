@@ -528,6 +528,8 @@ loop:
 		msg.m_arg = x;
 		msg.m_buflen = msg.m_arg1 = msg.m_nseg = 0;
 		msg_reply(msg.m_sender, &msg);
+		f->f_selfs.sc_iocount += 1;
+		f->f_selfs.sc_needsel = 1;
 		break;
 
 	case FS_STAT:		/* Stat of file */
