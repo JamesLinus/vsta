@@ -128,7 +128,7 @@ explode(char *buf)
  *	Fork and execvp() out to the executable
  */
 static void
-run(char **argv)
+run(char **argv, int bg)
 {
 	pid_t pid;
 	long l;
@@ -144,8 +144,10 @@ run(char **argv)
 		perror(argv[0]);
 		_exit(1);
 	}
-	x = wait((long *)&l);
-	printf("sh: pid %d status 0x%x\n", x, l);
+	if (!bg) {
+		x = wait((long *)&l);
+		printf("sh: pid %d status 0x%x\n", x, l);
+	}
 }
 
 /*
@@ -165,14 +167,14 @@ builtin(char **argv)
 	if (!strcmp(cmd, "path")) {
 		if (narg != 2) {
 			printf("Usage is: path <list>\n");
-			return;
+			return(1);
 		}
 		setenv("PATH", argv[1]);
 		return(1);
 	} else if (!strcmp(cmd, "cd")) {
 		if (narg != 2) {
 			printf("Usage is: cd <path>\n");
-			return;
+			return(1);
 		}
 		if (chdir(argv[1]) < 0) {
 			perror(argv[1]);
@@ -181,7 +183,7 @@ builtin(char **argv)
 	} else if (!strcmp(cmd, "set")) {
 		if (narg != 3) {
 			printf("Usage is: set <var> <value>\n");
-			return;
+			return(1);
 		}
 		setenv(argv[1], argv[2]);
 		return(1);
@@ -200,6 +202,7 @@ builtin(char **argv)
 main()
 {
 	char *line, **argv;
+	int argc, bg = 0;
 
 	for (;;) {
 		printf("$ "); fflush(stdout);
@@ -209,10 +212,16 @@ main()
 			continue;
 		}
 		argv = explode(line);
+		for (argc = 0; argv[argc]; ++argc)
+			;
+		if (!strcmp(argv[argc-1], "&")) {
+			bg = 1;
+			argv[argc-1] = 0;
+		}
 		if (builtin(argv)) {
 			/* builtin() runs it */ ;
 		} else {
-			run(argv);
+			run(argv, bg);
 		}
 		free(argv);
 		free(line);
