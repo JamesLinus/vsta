@@ -320,3 +320,21 @@ inval_buf(daddr_t d, uint len)
 		free_buf(b);
 	}
 }
+
+/*
+ * sync()
+ *	Write all dirty buffers to disk
+ */
+void
+sync(void)
+{
+	struct llist *l;
+
+	for (l = LL_NEXT(&allbufs); l != &allbufs; l = LL_NEXT(l)) {
+		struct buf *b = l->l_data;
+
+		if (b->b_flags & B_DIRTY) {
+			sync_buf(b);
+		}
+	}
+}
