@@ -101,6 +101,7 @@ static void
 page_fault(struct trapframe *f)
 {
 	ulong l;
+	struct vas *vas;
 	extern ulong get_cr2();
 
 	ASSERT(curthread, "page_fault: no proc");
@@ -128,8 +129,8 @@ page_fault(struct trapframe *f)
 	/*
 	 * Let the portable code try to resolve it
 	 */
-	if (vas_fault(curthread->t_proc->p_vas, l,
-			f->errcode & EC_WRITE)) {
+	vas = curthread->t_proc->p_vas;
+	if (vas_fault(vas, l, f->errcode & EC_WRITE)) {
 		if (curthread->t_probe) {
 #ifdef DEBUG
 			printf("cpfail\n"); dbg_enter();
@@ -138,6 +139,21 @@ page_fault(struct trapframe *f)
 				"page_fault: probe from user");
 			f->eip = (ulong)(curthread->t_probe);
 		} else {
+			/*
+			 * Stack growth.  We try to grow it if it's
+			 * a "reasonable" depth below current stack.
+			 */
+			if ((l < USTACKADDR) &&
+					(l > (USTACKADDR-UMINSTACK))) {
+				if (alloc_zfod_vaddr(vas, btop(UMAXSTACK),
+						USTACKADDR-UMAXSTACK)) {
+					return;
+				}
+			}
+
+			/*
+			 * Shoot him
+			 */
 			selfsig(EFAULT);
 		}
 	}
