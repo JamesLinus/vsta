@@ -609,10 +609,10 @@ con_putchar(uchar c)
 				con_cursor_x -= 1;
 			break;
 		case '\t':	/* tab character                  */
-			if (con_cursor_x == 0)
+			con_putchar(' ');
+			while (con_cursor_x % con_tab_size) {
 				con_putchar(' ');
-			while (con_cursor_x % con_tab_size)
-				con_putchar(' ');
+			}
 			break;
 		case '\n':	/* line feed                      */
 			if (con_cursor_y == con_scroll_end - 1) {
