@@ -170,13 +170,13 @@ _reload_dr:
 	ret
 
 /*
- * __cpfail()
+ * _cpfail()
  *	A copy operation involving user-space has failed
  */
-	.globl	___cpfail
+	.globl	_cpfail
 	.align	4
 
-___cpfail:
+_cpfail:
 	movl	$-1,%eax
 	ret
 
@@ -206,12 +206,12 @@ ___cpalign:
 
 ___copyin:
 	addl	$0x80000000,%esi
-	jc	___cpfail
+	jc	_cpfail
 	movl	%ecx,%eax
 	cmpl	$0x40000000,%eax
-	jae	___cpfail
+	jae	_cpfail
 	addl	%esi,%eax
-	jc	___cpfail
+	jc	_cpfail
 	shrl	$2,%ecx
 	rep
 	movsl
@@ -228,12 +228,12 @@ ___copyin:
 
 ___copyout:
 	addl	$0x80000000,%edi
-	jc	___cpfail
+	jc	_cpfail
 	movl	%ecx,%eax
 	cmpl	$0x40000000,%eax
-	jae	___cpfail
+	jae	_cpfail
 	addl	%edi,%eax
-	jc	___cpfail
+	jc	_cpfail
 	shrl	$2,%ecx
 	rep
 	movsl
