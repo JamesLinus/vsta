@@ -10,9 +10,15 @@ CRT0=../../lib/crt0.o
 
 PROGS=test args cat id ls swapd rm cp sleep mkdir pwd kill mv stat \
 	dumpsect man fstab rmdir touch strings xargs echo du \
-	tput basename uname fmt purge printf ps
+	tput basename uname fmt purge printf ps rcsdo changed
 
 all: $(PROGS)
+
+rcsdo: rcsdo.o
+	$(LD) $(LDFLAGS) -o rcsdo $(CRT0) rcsdo.o -lc
+
+changed: changed.o
+	$(LD) $(LDFLAGS) -o changed $(CRT0) changed.o -lc
 
 uname: uname.o
 	$(LD) $(LDFLAGS) -o uname $(CRT0) uname.o -lc
