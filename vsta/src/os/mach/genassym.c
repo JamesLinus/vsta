@@ -76,7 +76,6 @@ main(int argc, char **argv)
 	OFF(t, t.t_uregs, T_UREGS);
 	OFF(t, t.t_kregs, T_KREGS);
 	OFF(t, t.t_kstack, T_KSTACK);
-	OFF(t, t.t_probe, T_PROBE);
 
 	/*
 	 * Per-CPU fields
