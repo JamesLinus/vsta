@@ -150,10 +150,13 @@ static void
 dump_s(int quote)
 {
 	uchar c;
-	uint x;
 
-	for (x = 0; x < count; ++x) {
+	for (;;) {
 		c = readloc(addr, sizeof(c));
+		if ((c == '\0') || (c == '\n')) {
+			printf("\n");
+			break;
+		}
 		if (quote) {
 			if (c & 0x80) {
 				printf("M-");
@@ -171,8 +174,8 @@ dump_s(int quote)
 		} else {
 			putchar(c);
 		}
+		addr += 1;
 	}
-	addr += count;
 }
 
 /*
@@ -246,7 +249,7 @@ start(char *args)
 	SKIP(args);
 	argv[0] = objname;
 	argc = 1;
-	while (*args) {
+	while (args && *args) {
 		char *q;
 
 		if (argc >= MAXARGS) {
@@ -257,9 +260,9 @@ start(char *args)
 		q = strchr(args, ' ');
 		if (q) {
 			*q++ = '\0';
-			args = q;
-			SKIP(args);
+			SKIP(q);
 		}
+		args = q;
 	}
 	argv[argc] = 0;
 
