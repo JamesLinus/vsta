@@ -1,24 +1,12 @@
-CC	= gcc
-LD	= ld
-INCS	= -I../../../../include
-CFLAGS	= $(INCS) -Wall
-LDFLAGS	= -L../../../lib
-CRT0	= ../../../lib/crt0.o
-OBJS	= mkbfs.o
-LIBS	= -lc
+COPTS=-Wall
+OBJS=mkbfs.o
+OUT=mkbfs
 
-.c.o:
-	$(CC) $(CFLAGS) -c $*.c
+include ../../../makefile.all
 
 mkbfs: $(OBJS)
-	$(LD) $(LDFLAGS) -o mkbfs $(OBJS) $(CRT0) $(LIBS)
+	$(LD) $(LDFLAGS) -o mkbfs $(CRT0) $(OBJS) -lc
 
-clean:
-	rm -f *.o
-
-clobber: clean
-	rm -f mkbfs
-
-install: mkbfs
+install: all
 	strip mkbfs
-	cp mkbfs ../../../../bin/mkfs_bfs
+	cp mkbfs $(ROOT)/bin/mkfs_bfs
