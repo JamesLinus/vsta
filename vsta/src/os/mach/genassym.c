@@ -8,14 +8,41 @@
 #include <sys/percpu.h>
 #include <mach/trap.h>
 
-#define CONST(n) printf("#define %s 0x%x\n", #n, n);
-#define OFF(base, field, name) \
-	printf("#define %s 0x%x\n", #name, (char *)&(field) - (char *)&base);
-main()
+static char buf[256];
+static int outfd;
+
+#define CONST(n) sprintf(buf, "#define %s 0x%x\n", #n, n), out(buf)
+#define OFF(base, field, name) sprintf(buf, "#define %s 0x%x\n", #name, \
+		(char *)&(field) - (char *)&base), \
+	out(buf)
+
+/*
+ * out()
+ *	Quick little "write string" routine
+ */
+static void
+out(char *p)
+{
+	(void)write(outfd, p, strlen(p));
+}
+
+main(int argc, char **argv)
 {
 	jmp_buf r;
 	struct thread t;
 	struct percpu pc;
+
+	/*
+	 * Single arg is output file
+	 */
+	if (argc != 2) {
+		printf("Usage is: genassym <outfile>\n");
+		exit(1);
+	}
+	if ((outfd = creat(argv[1], 0600)) < 0) {
+		perror(argv[1]);
+		exit(1);
+	}
 
 	/*
 	 * Simple constants
@@ -61,5 +88,6 @@ main()
 	CONST(T_DFAULT); CONST(T_INVTSS); CONST(T_SEG); CONST(T_STACK);
 	CONST(T_GENPRO); CONST(T_PGFLT); CONST(T_NPX); CONST(T_SYSCALL);
 
+	close(outfd);
 	return(0);
 }
