@@ -76,10 +76,17 @@ readloc(ulong addr, int size)
 static void
 dollar_cmds(char *p)
 {
-	if (*p == 'q') {	/* Quit */
+	extern void dump_regs(void);
+
+	switch (*p) {
+	case 'q':		/* Quit */
 		exit(0);
+	case 'r':		/* Dump registers */
+		dump_regs();
+		break;
+	default:
+		printf("Unknown command: $%s\n", p);
 	}
-	printf("Unknown commands: $%s\n", p);
 }
 
 /*
@@ -394,7 +401,6 @@ main(int argc, char **argv)
 		 * Create server port he will talk to us via
 		 */
 		dbg_port = msg_port(0, &pn);
-		printf("port name 0x%x\n", pn);
 		if (dbg_port < 0) {
 			perror("Debug port");
 			exit(1);

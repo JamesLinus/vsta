@@ -6,6 +6,7 @@
 #include <sys/msg.h>
 #define PROC_DEBUG
 #include <sys/proc.h>
+#include <mach/machreg.h>
 #include "map.h"
 
 extern port_t dbg_port;
@@ -127,4 +128,43 @@ read_procmem(ulong addr, int size)
 	case 4: return(l);
 	}
 	return(0);
+}
+
+/*
+ * run()
+ *	Tell slave to run
+ */
+void
+run(void)
+{
+	ulong args[2];
+
+	args[0] = args[1] = 0;
+	if (sendhim(PD_RUN, args) < 0) {
+		printf("Error telling child to run\n");
+	}
+}
+
+/*
+ * getregs()
+ *	Pull copy of register set
+ */
+void
+getregs(struct trapframe *tf)
+{
+	uint x;
+	ulong *t;
+
+	t = (ulong *)tf;
+	for (x = 0; x < sizeof(struct trapframe); x += sizeof(ulong)) {
+		ulong args[2];
+
+		args[0] = x/sizeof(ulong);
+		args[1] = 0;
+		if (sendhim(PD_RDREG, args) < 0) {
+			*t++ = 0;
+		} else {
+			*t++ = args[0];
+		}
+	}
 }
