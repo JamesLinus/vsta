@@ -32,5 +32,18 @@ dbg_ibm.o: ../mach/dbg_ibm.c
 dbg_ser.o: ../mach/dbg_ser.c
 	$(CC) $(CFLAGS) -c ../mach/dbg_ser.c
 
+disasm.o: ../mach/disasm.c
+	$(CC) $(CFLAGS) -c ../mach/disasm.c
+
+dbgmem.o: ../mach/dbgmem.c
+	$(CC) $(CFLAGS) -c ../mach/dbgmem.c
+
+dbgtrace.o: ../mach/dbgtrace.c
+	$(CC) $(CFLAGS) -c ../mach/dbgtrace.c
+
+dbgio.o: ../mach/dbgio.c
+	$(CC) $(CFLAGS) -c ../mach/dbgio.c
+
 MACHOBJS=locore.o init.o mutex.o hat.o dbg.o isr.o trap.o \
-	machproc.o syscall.o dbg_ibm.o dbg_ser.o
+	machproc.o syscall.o dbg_ibm.o dbg_ser.o disasm.o \
+	dbgmem.o dbgtrace.o dbgio.o
