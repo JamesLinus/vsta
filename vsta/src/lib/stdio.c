@@ -390,6 +390,74 @@ fputc(int c, FILE *fp)
 }
 
 /*
+ * fdopen()
+ *	Open FILE on an existing file descriptor
+ */
+FILE *
+fdopen(int fd, char *mode)
+{
+	char *p, c;
+	int m = 0, x;
+	FILE *fp;
+
+	/*
+	 * Get FILE *
+	 */
+	if ((fp = malloc(sizeof(FILE))) == 0) {
+		return(0);
+	}
+
+	/*
+	 * Get data buffer
+	 */
+	if ((fp->f_buf = malloc(BUFSIZ)) == 0) {
+		free(fp);
+		return(0);
+	}
+
+	/*
+	 * Interpret mode of file open
+	 */
+	for (p = mode; c = *p; ++p) {
+		switch (c) {
+		case 'r':
+			m |= _F_READ;
+			break;
+		case 'w':
+			m |= _F_WRITE;
+			break;
+		case 'b':
+			m |= /* _F_BINARY */ 0 ;
+			break;
+		case '+':
+			m |= _F_WRITE;
+			break;
+		default:
+			free(fp->f_buf);
+			free(fp);
+			return(0);
+		}
+	}
+
+	/*
+	 * Set up rest of fp now that we know it's worth it
+	 */
+	fp->f_fd = fd;
+	fp->f_flags = m;
+	fp->f_pos = fp->f_buf;
+	fp->f_bufsz = BUFSIZ;
+	fp->f_cnt = 0;
+	fp->f_next = 0;
+
+	/*
+	 * Insert in "all files" list
+	 */
+	add_list(&allfiles, fp);
+
+	return(fp);
+}
+
+/*
  * freopen()
  *	Open a buffered file on given FILE
  */
@@ -405,7 +473,7 @@ freopen(char *name, char *mode, FILE *fp)
 	if (fp->f_flags & _F_DIRTY) {
 		fflush(fp);
 	}
-	if (fp->f_buf) {
+	if (fp->f_buf && !(fp->f_flags & _F_UBUF)) {
 		free(fp->f_buf);
 	}
 
@@ -524,7 +592,7 @@ fclose(FILE *fp)
 	 * Close fd, free buffer space
 	 */
 	err |= close(fp->f_fd);
-	if (fp->f_buf) {
+	if (fp->f_buf && !(fp->f_flags & _F_UBUF)) {
 		free(fp->f_buf);
 	}
 	if ((fp < &__iob[0]) || (fp >= &__iob[3])) {
@@ -668,19 +736,29 @@ clearerr(FILE *fp)
 }
 
 /*
- * setbuf()
- *	Set buffering for file
+ * setbuffer()
+ *	Set buffer with given size
  */
 void
-setbuf(FILE *fp, char *buf)
+setbuffer(FILE *fp, char *buf, uint size)
 {
 	if (buf == 0) {
 		fp->f_flags |= _F_UNBUF;
 		return;
 	}
 	fp->f_pos = fp->f_buf = buf;
-	fp->f_bufsz = BUFSIZ;
+	fp->f_bufsz = size;
 	fp->f_cnt = 0;
+	fp->f_flags |= _F_UBUF;
+}
+/*
+ * setbuf()
+ *	Set buffering for file
+ */
+void
+setbuf(FILE *fp, char *buf)
+{
+	setbuffer(fp, buf, BUFSIZ);
 }
 
 /*
