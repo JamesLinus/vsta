@@ -19,7 +19,7 @@
 int
 umask(int newmask)
 {
-	return(0600);
+	return(0022);
 }
 
 /*
