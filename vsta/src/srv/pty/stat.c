@@ -12,6 +12,69 @@
 #include "pty.h"
 
 /*
+ * update_select()
+ *	Send out select() notifications as appropriate
+ */
+void
+update_select(struct pty *pty)
+{
+	uint event;
+	struct llist *start, *l;
+	struct file *f;
+
+	/*
+	 * Short circuit if select() not active
+	 */
+	start = &pty->p_selectors;
+	if (LL_EMPTY(start)) {
+		return;
+	}
+
+	/*
+	 * Generate events for the master first
+	 */
+	event = 0;
+	if (pty->p_ioqr.ioq_flags & IOQ_READABLE) {
+		event |= ACC_READ;
+		pty->p_ioqr.ioq_flags &= ~IOQ_READABLE;
+	}
+	if (pty->p_ioqw.ioq_flags & IOQ_WRITABLE) {
+		event |= ACC_WRITE;
+		pty->p_ioqw.ioq_flags &= ~IOQ_WRITABLE;
+	}
+	if (event) {
+		for (l = LL_NEXT(start); l != start;
+				l = LL_NEXT(l)) {
+			f = l->l_data;
+			if (f->f_master) {
+				sc_event(&f->f_selfs, event);
+			}
+		}
+	}
+
+	/*
+	 * Now slave events
+	 */
+	if (pty->p_ioqw.ioq_flags & IOQ_READABLE) {
+		event |= ACC_READ;
+		pty->p_ioqw.ioq_flags &= ~IOQ_READABLE;
+	}
+	if (pty->p_ioqr.ioq_flags & IOQ_WRITABLE) {
+		event |= ACC_WRITE;
+		pty->p_ioqr.ioq_flags &= ~IOQ_WRITABLE;
+	}
+	if (event) {
+		for (l = LL_NEXT(start); l != start;
+				l = LL_NEXT(l)) {
+			f = l->l_data;
+			if (!f->f_master) {
+				sc_event(&f->f_selfs, event);
+			}
+		}
+	}
+}
+
+/*
  * pty_stat()
  *	Do stat
  */
@@ -85,6 +148,15 @@ pty_wstat(struct msg *m, struct file *f)
 	 */
 	if (do_wstat(m, &pty->p_prot, f->f_perm, &field, &val) == 0)
 		return;
+
+	/*
+	 * select() setup?
+	 */
+	if (sc_wstat(m, &f->f_selfs, field, val) == 0) {
+		f->f_sentry = ll_insert(&pty->p_selectors, f);
+		update_select(pty);
+		return;
+	}
 
 	/*
 	 * Set geometry

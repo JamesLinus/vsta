@@ -51,6 +51,7 @@ new_client(struct msg *m)
 		return;
 	}
 	bzero(f, sizeof(struct file));
+	sc_init(&f->f_selfs);
 
 	/*
 	 * Fill in fields
@@ -96,6 +97,8 @@ dup_client(struct msg *m, struct file *fold)
 	 * Fill in fields
 	 */
 	bcopy(fold, f, sizeof(*f));
+	sc_init(&f->f_selfs);
+	f->f_sentry = NULL;
 
 	/*
 	 * Hash under the sender's handle
@@ -141,6 +144,9 @@ dead_client(struct msg *m, struct file *f)
 			pty->p_nslave -= 1;
 		}
 	}
+	if (f->f_sentry) {
+		ll_delete(f->f_sentry);
+	}
 	pty_close(f);
 	free(f);
 }
@@ -171,18 +177,23 @@ loop:
 	 */
 	f = hash_lookup(filehash, msg.m_sender);
 	switch (msg.m_op & MSG_MASK) {
+
 	case M_CONNECT:		/* New client */
 		new_client(&msg);
 		break;
+
 	case M_DISCONNECT:	/* Client done */
 		dead_client(&msg, f);
 		break;
+
 	case M_DUP:		/* File handle dup during exec() */
 		dup_client(&msg, f);
 		break;
+
 	case M_ABORT:		/* Aborted operation */
 		pty_abort(&msg, f);
 		break;
+
 	case FS_OPEN:		/* Look up file from directory */
 		if ((msg.m_nseg != 1) || !valid_fname(msg.m_buf,
 				msg.m_buflen)) {
@@ -191,15 +202,23 @@ loop:
 		}
 		pty_open(&msg, f);
 		break;
+
 	case FS_READ:		/* Read file */
+		f->f_selfs.sc_iocount += 1;
+		f->f_selfs.sc_needsel = 0;
 		pty_read(&msg, f);
 		break;
+
 	case FS_WRITE:		/* Write file */
+		f->f_selfs.sc_iocount += 1;
+		f->f_selfs.sc_needsel = 0;
 		pty_write(&msg, f);
 		break;
+
 	case FS_STAT:		/* Tell about file */
 		pty_stat(&msg, f);
 		break;
+
 	case FS_WSTAT:		/* Set stuff on file */
 		pty_wstat(&msg, f);
 		break;

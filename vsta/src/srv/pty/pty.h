@@ -14,12 +14,18 @@
 #include <sys/types.h>
 #include <sys/fs.h>
 #include <sys/perm.h>
+#include <selfs.h>
 #include <llist.h>
 
 /*
  * Number of PTY's offered... they are named "pty[0..9a..z]"
  */
 #define NPTY 8
+
+/*
+ * Max data queued before blocking
+ */
+#define IOQ_MAXBUF (8192)
 
 /*
  * A pipeline of data, including handling of queued I/O
@@ -31,7 +37,10 @@ struct ioq {
 	struct llist
 		ioq_write,	/* Queue waiting for room to write */
 		ioq_read;	/*  ...waiting for data to read */
+	uint ioq_flags;
 };
+#define IOQ_WRITABLE (0x01)	/* ioq_buf has gone empty */
+#define IOQ_READABLE (0x02)	/* ioq_buf has just gone non-empty */
 
 /*
  * Structure of a pty
@@ -44,24 +53,29 @@ struct pty {
 	uint p_nmaster,		/* Counts of masters/slaves */
 		p_nslave;
 	uint p_rows, p_cols;	/* Pseudo-geometry */
+	struct llist		/* select() clients */
+		p_selectors;
 };
 
 /*
  * Our per-open-file data structure
  */
 struct file {
-	struct pty	/* Current pty open */
+	struct pty		/* Current pty open */
 		*f_file;
-	uint f_master;	/* Hold of ptyX, otherwise just a ttyX user */
-	struct perm	/* Things we're allowed to do */
+	uint f_master;		/* Hold of ptyX, otherwise just a ttyX user */
+	struct perm		/* Things we're allowed to do */
 		f_perms[PROCPERMS];
 	uint f_nperm;
-	uint f_perm;	/*  ...for the current f_file */
-	struct llist	/* When request active, queue we're in */
+	uint f_perm;		/*  ...for the current f_file */
+	struct llist		/* When request active, queue we're in */
 		*f_q;
-	struct msg	/* For writes, segments of data */
-		f_msg;	/*  for reads, just reply addr & count */
-	uint f_pos;	/* Only for directory reads */
+	struct msg		/* For writes, segments of data */
+		f_msg;		/*  for reads, just reply addr & count */
+	uint f_pos;		/* Only for directory reads */
+	struct selclient	/* select() support */
+		f_selfs;
+	struct llist *f_sentry;
 };
 
 /*
@@ -84,5 +98,6 @@ extern void pty_open(struct msg *, struct file *),
 extern void ioq_init(struct ioq *), ioq_abort(struct ioq *),
 	ioq_add_data(struct file *, struct ioq *, struct msg *),
 	ioq_read_data(struct file *, struct ioq *, struct msg *);
+extern void update_select(struct pty *);
 
 #endif /* PTY_H */

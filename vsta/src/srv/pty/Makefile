@@ -8,6 +8,14 @@ pty: $(OBJS)
 	rm -f pty
 	$(LD) $(LDFLAGS) -o pty $(CRT0) $(OBJS) -lusr -lc
 
+tst: tst.o
+	rm -f tst
+	$(CC) -o tst tst.o
+
+ptysh: ptysh.o
+	rm -f ptysh
+	$(CC) -o ptysh ptysh.o
+
 install: all
 	strip pty
 	cp pty $(ROOT)/boot

@@ -8,8 +8,6 @@
 #include <std.h>
 #include "pty.h"
 
-#define IOQ_MAXBUF (8192)	/* Max data queued before blocking */
-
 /*
  * ioq_init()
  *	Initialize an I/O queue
@@ -166,6 +164,8 @@ run_readers(struct ioq *i)
 void
 ioq_add_data(struct file *f, struct ioq *i, struct msg *m)
 {
+	uint oldnbuf = i->ioq_nbuf;
+
 	/*
 	 * Directly buffer as much as possible.
 	 */
@@ -178,6 +178,7 @@ retry:	queue_data(m, i);
 	 */
 	if (m->m_nseg == 0) {
 		msg_reply(m->m_sender, m);
+		f->f_selfs.sc_needsel = 1;
 
 		/*
 		 * Let sleeping readers take what they can
@@ -200,6 +201,15 @@ retry:	queue_data(m, i);
 		bcopy(m, &f->f_msg, sizeof(*m));
 		f->f_q = ll_insert(&i->ioq_write, f);
 	}
+
+	/*
+	 * If data has become available, wake up any select()
+	 * clients.
+	 */
+	if ((oldnbuf == 0) && (i->ioq_nbuf > 0)) {
+		i->ioq_flags |= IOQ_READABLE;
+		update_select(f->f_file);
+	}
 }
 
 /*
@@ -214,6 +224,17 @@ ioq_read_data(struct file *f, struct ioq *i, struct msg *m)
 	 */
 	if (i->ioq_nbuf) {
 		dequeue_data(m, i);
+		f->f_selfs.sc_needsel = 1;
+
+		/*
+		 * When we transition to empty buffer, wake up
+		 * select clients waiting to write.
+		 */
+		if (i->ioq_nbuf == 0) {
+			i->ioq_flags |= IOQ_WRITABLE;
+			update_select(f->f_file);
+		}
+
 		return;
 	}
 
