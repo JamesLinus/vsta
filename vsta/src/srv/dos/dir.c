@@ -541,7 +541,7 @@ dir_search(struct node *n, char *f1, char *f2, struct directory *dp)
 		 * the VSE's may straddle clusters.
 		 */
 		if (!f2 && (cluster < c->c_nclust-1)) {
-			handle2 = find_buf(BOFF(c->c_clust[cluster]),
+			handle2 = find_buf(BOFF(c->c_clust[cluster+1]),
 				CLSIZE, ABC_FILL);
 			if (handle2) {
 				lock_buf(handle2);
@@ -1013,7 +1013,7 @@ dir_findslot(struct node *n, int nentry)
 			/*
 			 * Didn't find enough in a row--start over
 			 */
-			} else if (got > 0) {
+			} else {
 				got = 0;
 			}
 		}
@@ -1060,6 +1060,11 @@ dir_findslot(struct node *n, int nentry)
 					unlock_buf(handle);
 					return(start);
 				}
+			/*
+			 * Didn't find enough in a row--start over
+			 */
+			} else {
+				got = 0;
 			}
 		}
 		unlock_buf(handle);
