@@ -333,11 +333,19 @@ Fix edge condition where large reads from /tmp would complete with a
 Ported GNU chess 5.00
 Added basic CPU profiling support--see vsta/src/lib/mcount.c.
 Alias view->vi (for read-only viewing via vim)
-Port of Tiny Smalltalk 4.0, including so many changes that I've
-	bumped its version number.
 Fix annoying behavior where some program exceptions either don't
 	get caught by the debugger ("process exited normally") or
 	the stack frame doesn't include the failing routine.
 Fix environment variable inheritance between processes; in some cases,
 	you wouldn't get variables you expected.  In others, variables
 	would hang around in places which were not expected.
+Nice facelift to "ls" courtesy of Erik Dalen.
+Erik also contributed some section 1 man pages.
+A port of Tim Budd's latest/greatest "Tiny Smalltalk".  Actually, this was
+	 total revamp of his design, but he stopped working on it before
+	 it was really shaken out.  Check the RCS logs to get an idea of
+	 what I fixed. :->  The result is a pretty nice little language
+	 environment.
+Have fputc() honor unbuffered flag in IOB.  Fixes problem where things
+	like fprintf to stderr or perror would misplace a trailing newline.
+ash missing from "shells" package due to pathname mismatch... fixed.
