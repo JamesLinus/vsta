@@ -151,6 +151,19 @@ map_filename(char *file, char *f1, char *f2)
 	p = f1;
 	len = 0;
 	strcpy(f1, "        ");
+
+	/*
+	 * Map .<file> to _<file>
+	 */
+	if (*file == '.') {
+		len += 1;
+		file += 1;
+		*p++ = '_';
+	}
+
+	/*
+	 * Copy <file> part of <file>.<ext>
+	 */
 	while ((c = *file++)) {
 		c &= 0x7F;
 		if (c == '.') {
@@ -160,6 +173,10 @@ map_filename(char *file, char *f1, char *f2)
 			*p++ = toupper(c);
 		}
 	}
+
+	/*
+	 * Now <ext> part, if any
+	 */
 	strcpy(f2, "   ");
 	if (c == '.') {		/* Extension found */
 		p = f2;
