@@ -31,6 +31,7 @@ static struct {
 	{ ENOSPC, "no space" },
 	{ EROFS, "RO fs" },
 	{ EXDEV, "cross dev"},
+	{ EISDIR, "is dir"},
 	{ 0, 0 }
 };
 

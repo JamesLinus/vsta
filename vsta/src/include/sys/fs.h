@@ -64,6 +64,7 @@
 #define EBADF "bad file"
 #define EAGAIN "again"
 #define EXDEV "cross dev"
+#define EISDIR "is dir"
 
 /*
  * A stat of an entry returns a set of strings with newlines

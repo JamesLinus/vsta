@@ -37,5 +37,6 @@ extern int *__ptr_errno(void);
 #define EINTR	(15)
 #define ENOSPC	(16)
 #define EXDEV	(17)
+#define EISDIR	(18)
 
 #endif /* _ERRNO_H */
