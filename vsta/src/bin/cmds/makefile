@@ -7,7 +7,10 @@ LIBS= -lc
 .c.o:
 	$(CC) $(CFLAGS) -c $*.c
 
-all: test args cat
+all: test args cat id
+
+id: id.o
+	$(LD) $(LDFLAGS) -e start -o id ../../libc/crt0.o id.o -lc
 
 cat: cat.o
 	$(LD) $(LDFLAGS) -e start -o cat ../../libc/crt0.o cat.o -lc
