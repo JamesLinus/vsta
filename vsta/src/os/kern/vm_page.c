@@ -12,7 +12,7 @@
 #include <sys/param.h>
 #include <sys/vm.h>
 #include <sys/qio.h>
-#include <lib/rmap.h>
+#include <rmap.h>
 
 extern void kern_addtrans(), kern_deletetrans();
 extern char *heapstart, *heap;

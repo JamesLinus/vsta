@@ -9,18 +9,10 @@
 #include <sys/types.h>
 #include <sys/fs.h>
 #include <sys/ports.h>
-#include <lib/hash.h>
+#include <hash.h>
 #include <std.h>
-
-#ifdef IBM_CONSOLE
-#include <cons/con_ibm.h>
-#endif
-
-#ifdef NEC_CONSOLE
-#include <cons/con_nec.h>
-#endif
-
 #include <stdio.h>
+#include "cons.h"
 
 struct hash    *filehash;	/* Map session->context structure */
 port_t          con_port;	/* Port we receive contacts through */

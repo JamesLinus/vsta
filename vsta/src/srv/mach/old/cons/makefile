@@ -1,9 +1,9 @@
 CC        = gcc
 LD        = ld
-INCLUDES  = -I../include -I..
+INCLUDES  = -I../../../include
 CFLAGS    = -O -DDEBUG $(INCLUDES) $(MACHDEF)
 
-LDFLAGS   = -L../libc -L../lib
+LDFLAGS   = -L../../../libc -L../../../lib
 LIBS      = -lusr -lc
 
 MACHDEF   = -DIBM_CONSOLE
@@ -16,7 +16,7 @@ IBM_OBJS  = main.o con_ibm.o stat.o
 all: cons
 
 cons: $(IBM_OBJS)
-	$(LD) $(LDFLAGS) -e start -o cons ../libc/crt0srv.o $(IBM_OBJS) $(LIBS)
+	$(LD) $(LDFLAGS) -e start -o cons ../../../libc/crt0srv.o $(IBM_OBJS) $(LIBS)
 
 clean:
 	del *.o

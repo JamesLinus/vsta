@@ -8,7 +8,7 @@
 #include <sys/qio.h>
 #include <sys/fs.h>
 #include <sys/assert.h>
-#include <lib/alloc.h>
+#include <alloc.h>
 
 extern int pset_deinit();
 static int fod_fillslot(), fod_writeslot(), fod_init(), fod_deinit();

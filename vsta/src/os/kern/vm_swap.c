@@ -21,10 +21,10 @@
 #include <sys/percpu.h>
 #include <sys/proc.h>
 #include <sys/thread.h>
-#include <swap/swap.h>
+#include <sys/swap.h>
 #include <sys/mutex.h>
 #include <sys/assert.h>
-#include <lib/alloc.h>
+#include <alloc.h>
 
 extern struct seg *kern_mem();
 extern void freesegs();

@@ -3,7 +3,7 @@
  *	Do readdir() operation
  */
 #include <sys/fs.h>
-#include <fd/fd.h>
+#include "fd.h"
 
 extern void *malloc();
 

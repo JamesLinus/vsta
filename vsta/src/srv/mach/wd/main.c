@@ -5,16 +5,16 @@
 #include <sys/msg.h>
 #include <sys/perm.h>
 #include <sys/fs.h>
-#include <namer/namer.h>
-#include <lib/hash.h>
+#include <sys/namer.h>
+#include <hash.h>
 #include <stdio.h>
-#include <wd/wd.h>
 #include <sys/param.h>
 #include <sys/assert.h>
 #include <std.h>
 #ifdef DEBUG
 #include <sys/ports.h>
 #endif
+#include "wd.h"
 
 extern void wd_rw(), wd_init(), rw_init(), wd_isr(),
 	wd_stat(), wd_wstat(), wd_readdir(), wd_open();

@@ -7,9 +7,9 @@
  */
 #include <sys/types.h>
 #include <sys/fs.h>
-#include <wd/wd.h>
 #include <sys/assert.h>
 #include <mach/nvram.h>
+#include "wd.h"
 
 static int wd_cmd(int);
 static void wd_start(), wd_readp(int), wd_cmos(int),

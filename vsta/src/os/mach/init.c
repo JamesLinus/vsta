@@ -10,10 +10,10 @@
 #include <mach/vm.h>
 #include <sys/boot.h>
 #include <sys/mutex.h>
-#include <lib/rmap.h>
+#include <rmap.h>
 #include <mach/pte.h>
 #include <sys/vm.h>
-#include <kbd/kbd.h>
+#include <mach/kbd.h>
 
 #define K (1024)
 

@@ -4,7 +4,7 @@
  *	Stuff for keeping a namelist within the kernel image
  */
 #include <sys/types.h>
-#include <dbg/dbg.h>
+#include "../dbg/dbg.h"
 #include <sys/assert.h>
 
 /*

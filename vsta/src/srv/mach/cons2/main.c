@@ -6,8 +6,8 @@
 #include <sys/types.h>
 #include <sys/fs.h>
 #include <sys/ports.h>
-#include <lib/hash.h>
-#include <cons/cons.h>
+#include <hash.h>
+#include "cons.h"
 #include <stdio.h>
 
 extern void write_string(), *malloc(), cons_stat(), cons_wstat();

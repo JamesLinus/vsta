@@ -11,9 +11,9 @@
 #include <sys/boot.h>
 #include <sys/vm.h>
 #include <sys/sched.h>
-#include <lib/alloc.h>
+#include <alloc.h>
 #include <sys/param.h>
-#include <lib/hash.h>
+#include <hash.h>
 #include <sys/fs.h>
 #include <sys/assert.h>
 

@@ -3,8 +3,8 @@
  *	Do readdir() operation
  */
 #include <sys/fs.h>
-#include <wd/wd.h>
 #include <std.h>
+#include "wd.h"
 
 #define MAXDIRIO (1024)		/* Max # bytes in one dir read */
 

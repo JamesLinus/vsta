@@ -5,8 +5,8 @@
  *	Definitions for the block buffer code
  */
 #include <sys/types.h>
-#include <vstafs/vstafs.h>
-#include <lib/llist.h>
+#include "vstafs.h"
+#include <llist.h>
 
 /*
  * Description of a particular buffer of data

@@ -4,7 +4,7 @@
  *
  * We also lump the chmod/chown stuff here as well
  */
-#include <kbd/kbd.h>
+#include <mach/kbd.h>
 #include <sys/param.h>
 #include <sys/perm.h>
 #include <sys/fs.h>

@@ -4,15 +4,7 @@
  * Original code by Andy Valencia. Modified by G.T.Nicol for the the updated
  * console driver.
  */
-
-#ifdef IBM_CONSOLE
-#include <cons/con_ibm.h>
-#endif
-
-#ifdef NEC_CONSOLE
-#include <cons/con_nec.h>
-#endif
-
+#include "cons.h"
 #include <string.h>
 
 extern char    *perm_print();

@@ -9,7 +9,7 @@
 #include <sys/fs.h>
 #include <sys/port.h>
 #include <sys/vm.h>
-#include <lib/alloc.h>
+#include <alloc.h>
 
 extern struct portref *swapdev;
 extern struct psetops psop_zfod;

@@ -4,9 +4,9 @@
  */
 #include <sys/perm.h>
 #include <sys/fs.h>
-#include <lib/hash.h>
+#include <hash.h>
 #include <stdio.h>
-#include <kbd/kbd.h>
+#include <mach/kbd.h>
 #include <sys/assert.h>
 #include <sys/ports.h>
 

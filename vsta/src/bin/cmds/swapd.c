@@ -5,7 +5,7 @@
 #include <sys/types.h>
 #include <sys/ports.h>
 #include <sys/fs.h>
-#include <swap/swap.h>
+#include <sys/swap.h>
 
 #define NQIO (4)		/* # parallel qio's */
 

@@ -2,7 +2,7 @@
  * alloc.c
  *	Routines for managing the block free list
  */
-#include <vstafs/alloc.h>
+#include "alloc.h"
 #include <sys/assert.h>
 #include <stdlib.h>
 #include <stdio.h>

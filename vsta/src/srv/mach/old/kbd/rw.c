@@ -6,8 +6,8 @@
  * a little strange.
  */
 #include <sys/msg.h>
-#include <lib/llist.h>
-#include <kbd/kbd.h>
+#include <llist.h>
+#include <mach/kbd.h>
 #include <sys/assert.h>
 #include <sys/seg.h>
 

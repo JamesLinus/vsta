@@ -2,10 +2,10 @@
  * node.c
  *	Handling of open file nodes
  */
-#include <vstafs/vstafs.h>
-#include <vstafs/buf.h>
+#include "vstafs.h"
+#include "buf.h"
 #include <sys/assert.h>
-#include <lib/hash.h>
+#include <hash.h>
 #include <std.h>
 
 static struct hash *node_hash;

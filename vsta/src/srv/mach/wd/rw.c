@@ -2,11 +2,11 @@
  * rw.c
  *	Reads and writes to the hard disk
  */
-#include <wd/wd.h>
 #include <sys/fs.h>
-#include <lib/llist.h>
+#include <llist.h>
 #include <sys/assert.h>
 #include <std.h>
+#include "wd.h"
 
 extern void wd_readdir();
 

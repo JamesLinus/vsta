@@ -13,11 +13,10 @@
  * a 1.2M drive.
  */
 #include <sys/fs.h>
-#include <lib/llist.h>
-#include <fd/fd.h>
 #include <sys/assert.h>
 #include <sys/param.h>
 #include <std.h>
+#include "fd.h"
 
 static void unit_spinup(), unit_recal(), unit_seek(), unit_spindown(),
 	unit_io(), unit_iodone(), failed(), state_machine(),

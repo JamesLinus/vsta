@@ -14,7 +14,7 @@
 #include <sys/sched.h>
 #include <sys/assert.h>
 #include <sys/mutex.h>
-#include <lib/alloc.h>
+#include <alloc.h>
 
 extern ulong random();
 

@@ -19,7 +19,7 @@
 #include <sys/thread.h>
 #include <sys/proc.h>
 #include <sys/assert.h>
-#include <lib/hash.h>
+#include <hash.h>
 
 /* #define MSGTRACE /* */
 

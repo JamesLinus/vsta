@@ -5,7 +5,7 @@
 #include <sys/types.h>
 #include <sys/msg.h>
 #include <sys/fs.h>
-#include <lib/hash.h>
+#include <hash.h>
 #include <sys/mutex.h>
 #include <sys/percpu.h>
 #include <sys/proc.h>
@@ -13,7 +13,7 @@
 #include <sys/port.h>
 #include <sys/proc.h>
 #include <sys/thread.h>
-#include <lib/alloc.h>
+#include <alloc.h>
 
 #define START_ROTOR (1024)	/* Where we start searching for an open # */
 

@@ -30,8 +30,8 @@
 #include <sys/thread.h>
 #include <sys/mutex.h>
 #include <sys/fs.h>
-#include <lib/hash.h>
-#include <lib/alloc.h>
+#include <hash.h>
+#include <alloc.h>
 #include <sys/assert.h>
 
 extern sema_t pid_sema;

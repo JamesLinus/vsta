@@ -1,8 +1,8 @@
 CC= gcc
 LD= ld
-INCS= -I../include -I..
+INCS= -I../../../include
 CFLAGS= -DCGA -DDEBUG $(INCS) -O
-LDFLAGS= -L../libc -L../lib
+LDFLAGS= -L../../../libc -L../../../lib
 OBJS= main.o cons.o stat.o
 LIBS= -lusr -lc
 
@@ -10,7 +10,7 @@ LIBS= -lusr -lc
 	$(CC) $(CFLAGS) -c $*.c
 
 cons: $(OBJS)
-	$(LD) $(LDFLAGS) -e start -o cons ../libc/crt0srv.o $(OBJS) $(LIBS)
+	$(LD) $(LDFLAGS) -e start -o cons ../../../libc/crt0srv.o $(OBJS) $(LIBS)
 
 clean:
 	del *.o

@@ -9,7 +9,7 @@
 #include <sys/msg.h>
 #include <sys/mutex.h>
 #include <sys/fs.h>
-#include <lib/alloc.h>
+#include <alloc.h>
 #include <sys/assert.h>
 
 /*

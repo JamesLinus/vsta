@@ -10,7 +10,7 @@
 #include <sys/core.h>
 #include <sys/assert.h>
 #include <sys/hat.h>
-#include <lib/alloc.h>
+#include <alloc.h>
 
 /*
  * CONTAINS()

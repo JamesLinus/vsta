@@ -4,7 +4,7 @@
  */
 #include <sys/proc.h>
 #include <sys/assert.h>
-#include <lib/alloc.h>
+#include <alloc.h>
 
 /*
  * parent_exitgrp()

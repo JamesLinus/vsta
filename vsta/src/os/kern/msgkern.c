@@ -5,7 +5,7 @@
 #include <sys/msg.h>
 #include <sys/port.h>
 #include <sys/mutex.h>
-#include <lib/alloc.h>
+#include <alloc.h>
 #include <sys/assert.h>
 
 /*

@@ -8,11 +8,10 @@
  * updated.  This technique also means that after a crash the file's header
  * accurately describes the data associated with the file.
  */
-#include <vstafs/vstafs.h>
-#include <vstafs/alloc.h>
-#include <vstafs/buf.h>
-#include <lib/hash.h>
-#include <lib/llist.h>
+#include "vstafs.h"
+#include "alloc.h"
+#include "buf.h"
+#include <hash.h>
 #include <std.h>
 #include <sys/assert.h>
 #ifdef DEBUG

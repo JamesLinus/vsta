@@ -6,7 +6,7 @@
  */
 #include <sys/types.h>
 #include <sys/perm.h>
-#include <wd/fdisk.h>
+#include "fdisk.h"
 
 #define NWD (2)		/* Max # WD units supported */
 

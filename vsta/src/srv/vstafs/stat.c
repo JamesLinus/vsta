@@ -4,8 +4,8 @@
  *
  * We also lump the chmod/chown stuff here as well
  */
-#include <vstafs/vstafs.h>
-#include <vstafs/buf.h>
+#include "vstafs.h"
+#include "buf.h"
 #include <sys/perm.h>
 #include <stdio.h>
 #include <std.h>

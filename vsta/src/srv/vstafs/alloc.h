@@ -4,7 +4,7 @@
  * alloc.h
  *	Definitions for managing the free block list
  */
-#include <vstafs/vstafs.h>
+#include "vstafs.h"
 
 /*
  * We always keep the free list blocks in-core, and just flush out

@@ -5,7 +5,7 @@
 #include <sys/msg.h>
 #include <sys/types.h>
 #include <sys/assert.h>
-#include <kbd/kbd.h>
+#include <mach/kbd.h>
 
 int shift = 0,		/* Count # shift keys down */
 	alt = 0,	/*  ...alt keys */

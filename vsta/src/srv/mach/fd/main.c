@@ -5,12 +5,12 @@
 #include <sys/msg.h>
 #include <sys/perm.h>
 #include <sys/fs.h>
-#include <namer/namer.h>
-#include <lib/hash.h>
+#include <sys/namer.h>
+#include <hash.h>
 #include <stdio.h>
-#include <fd/fd.h>
 #include <sys/ports.h>
 #include <sys/assert.h>
+#include "fd.h"
 
 #define MAXBUF (32*1024)
 

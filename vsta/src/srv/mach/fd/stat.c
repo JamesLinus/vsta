@@ -2,10 +2,10 @@
  * stat.c
  *	Do the stat function
  */
-#include <fd/fd.h>
 #include <sys/param.h>
 #include <sys/perm.h>
 #include <sys/fs.h>
+#include "fd.h"
 
 extern char *perm_print();
 extern struct floppy *unit();

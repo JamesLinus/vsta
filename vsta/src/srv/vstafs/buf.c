@@ -10,11 +10,10 @@
  *
  * Each buffer is up to EXTSIZ sectors in size.
  */
-#include <vstafs/vstafs.h>
-#include <vstafs/buf.h>
+#include "vstafs.h"
+#include "buf.h"
 #include <sys/assert.h>
-#include <lib/llist.h>
-#include <lib/hash.h>
+#include <hash.h>
 #include <std.h>
 #ifdef DEBUG
 #include <stdio.h>

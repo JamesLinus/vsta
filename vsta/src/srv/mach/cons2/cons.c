@@ -3,7 +3,7 @@
  *	Routines for serving a console display device
  */
 #include <sys/types.h>
-#include <cons/cons.h>
+#include "cons.h"
 #include <sys/mman.h>
 
 /*

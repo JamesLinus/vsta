@@ -2,7 +2,7 @@
 /*
  * A standard lexical analyzer
  */
-#include <dbg/expr.h>
+#include "../dbg/expr.h"
 
 char *expr_line, *expr_pos;
 

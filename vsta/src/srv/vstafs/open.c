@@ -2,9 +2,9 @@
  * open.c
  *	Routines for opening, closing, creating  and deleting files
  */
-#include <vstafs/vstafs.h>
-#include <vstafs/alloc.h>
-#include <vstafs/buf.h>
+#include "vstafs.h"
+#include "alloc.h"
+#include "buf.h"
 #include <std.h>
 #include <sys/param.h>
 #include <sys/assert.h>

@@ -31,7 +31,7 @@
 #include <sys/thread.h>
 #include <sys/proc.h>
 #include <sys/percpu.h>
-#include <lib/alloc.h>
+#include <alloc.h>
 
 #define NRMAPSLOT (20)		/* # slots for our vaddr map */
 

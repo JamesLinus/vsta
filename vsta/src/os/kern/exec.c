@@ -14,7 +14,7 @@
 #include <sys/exec.h>
 #include <sys/port.h>
 #include <sys/assert.h>
-#include <lib/hash.h>
+#include <hash.h>
 
 extern void set_execarg(), reset_uregs();
 extern struct pset *alloc_pset_fod();

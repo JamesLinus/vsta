@@ -6,7 +6,7 @@
  */
 #include <sys/types.h>
 #include <sys/msg.h>
-#include <lib/llist.h>
+#include <llist.h>
 #include <mach/nvram.h>
 
 /*

@@ -12,11 +12,10 @@
  * the installable character sets, but I think I'll do a window system, and
  * do it there instead.
  */
-
-#include <cons/con_ibm.h>
 #include <sys/mman.h>
 #include <stdio.h>
 #include <string.h>
+#include "cons.h"
 #define  inline			/* erase this for inlining */
 
 uint            con_max_rows = 25;	/* size of the screen */

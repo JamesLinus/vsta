@@ -12,7 +12,7 @@
  * errors.  Lots of filesystems get scary after an I/O error.  Use a
  * mirror if you really care.
  */
-#include <vstafs/vstafs.h>
+#include "vstafs.h"
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/assert.h>

@@ -17,7 +17,7 @@
 #include <sys/types.h>
 #include <sys/pset.h>
 #include <sys/assert.h>
-#include <lib/alloc.h>
+#include <alloc.h>
 
 /*
  * add_atl()

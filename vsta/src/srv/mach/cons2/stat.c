@@ -4,7 +4,7 @@
  *
  * We also lump the chmod/chown stuff here as well
  */
-#include <cons/cons.h>
+#include "cons.h"
 #include <sys/param.h>
 #include <sys/perm.h>
 #include <sys/fs.h>

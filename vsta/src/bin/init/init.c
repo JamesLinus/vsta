@@ -15,7 +15,7 @@
 #include <sys/fs.h>
 #include <stdio.h>
 #include <std.h>
-#include <namer/namer.h>
+#include <sys/namer.h>
 #include <ctype.h>
 
 #define INITTAB "/vsta/etc/inittab"	/* Table of stuff to run */
