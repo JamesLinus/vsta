@@ -20,11 +20,45 @@ argc:	.long	0	/* Private variables for __start() to fill in */
 argv:	.long	0
 	.text
 
-	.globl	start,___start,_main,_exit
+	.globl	start,_main,_exit
 start:
+
+/*
+ * Special code for boot servers.  This is pretty ugly, but the benefits
+ * are large.  We put a static data area at the front of boot server
+ * a.out's, so that the boot loader program boot.exe can fill this
+ * area with an initial argument string, argc, and argv.
+ */
+#ifdef SRV
+
+/* These are made available by putting them into an initialized area */
+#define MAXNARG 8	/* Max # arguments */
+#define MAXARG 64	/* Max # bytes of argument string */
+
+	.globl	___bootargc,___bootargv,___bootarg
+	jmp	2f		/* Skip this data area */
+	nop ; nop		/* For future expansion */
+	nop ; nop ; nop ; nop
+___bootargc:
+	.long	0		/* argc */
+___bootargv:
+	.long	0xDEADBEEF
+	.word	MAXNARG,MAXARG
+	.space	((MAXNARG-2)*4)	/* argv */
+___bootarg:
+	.space	MAXARG		/*  ...rest of arg space */
+2:
+#endif /* SRV */
+
 	pushl	$argv
 	pushl	$argc
+#ifdef SRV
+	.globl	___start2
+	call	___start2	/* Need a special version to understand */
+#else				/*  the boot string rea */
+	.globl	___start
 	call	___start
+#endif
 	addl	$8,%esp
 	pushl	argv
 	pushl	argc
