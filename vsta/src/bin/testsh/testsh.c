@@ -271,7 +271,7 @@ sec(char *p)
 	/*
 	 * Open device
 	 */
-	if ((fd = open(p, 0)) < 0) {
+	if ((fd = open(p, O_RDONLY)) < 0) {
 		perror(p);
 		return;
 	}
@@ -645,7 +645,10 @@ main(void)
 #ifdef STAND
 	port_t scrn, kbd;
 
-	kbd = path_open("CONS:0", ACC_READ);
+	do {
+		sleep(1);
+		kbd = path_open("CONS:0", ACC_READ);
+	} while (kbd < 0);
 	(void)__fd_alloc(kbd);
 	scrn = path_open("CONS:0", ACC_WRITE);
 	(void)__fd_alloc(scrn);
