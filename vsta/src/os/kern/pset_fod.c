@@ -5,17 +5,22 @@
 #include <sys/types.h>
 #include <sys/pview.h>
 #include <sys/pset.h>
-#include <sys/qio.h>
 #include <sys/fs.h>
 #include <sys/port.h>
 #include <sys/assert.h>
-#include <alloc.h>
+#include <sys/malloc.h>
 #include "pset.h"
 
 /*
- * Map generic pset data to FOD use
+ * Map generic pset data to FOD use.  We have a struct containing
+ * the open port, as well as a pview used to leave cache references
+ * to pset slots
  */
-#define p_pr p_data
+#define DATA(ps) ((struct open_port *)(ps->p_data))
+struct open_port {
+	struct portref *o_pr;
+	struct pview o_pview;
+};
 
 /*
  * Our pset ops
@@ -68,7 +73,12 @@ fod_free(struct pset *ps)
 	/*
 	 * Close file connection
 	 */
-	(void)shut_client(ps->p_pr);
+	(void)shut_client(DATA(ps)->o_pr);
+
+	/*
+	 * Free our dynamic memory
+	 */
+	FREE(DATA(ps), MT_OPENPORT);
 }
 
 /*
@@ -84,7 +94,8 @@ fod_fillslot(struct pset *ps, struct perpage *pp, uint idx)
 		"fod_fillslot: valid");
 	pg = alloc_page();
 	set_core(pg, ps, idx);
-	if (pageio(pg, ps->p_pr, ptob(idx+ps->p_off), NBPG, FS_ABSREAD)) {
+	if (pageio(pg, DATA(ps)->o_pr, ptob(idx+ps->p_off),
+			NBPG, FS_ABSREAD)) {
 		free_page(pg);
 		return(1);
 	}
@@ -129,7 +140,8 @@ alloc_pset_fod(struct portref *pr, uint pages)
 	ps = alloc_pset(pages);
 	ps->p_type = PT_FILE;
 	ps->p_ops = &psop_fod;
-	ps->p_pr = pr;
+	ps->p_data = MALLOC(sizeof(struct open_port), MT_OPENPORT);
+	DATA(ps)->o_pr = pr;
 	return(ps);
 }
 
@@ -144,5 +156,5 @@ fod_dup(struct pset *ops, struct pset *ps)
 	 * We are a new reference into the file.  Ask
 	 * the server for duplication.
 	 */
-	ps->p_pr = dup_port(ops->p_pr);
+	DATA(ps)->o_pr = dup_port(DATA(ops)->o_pr);
 }
