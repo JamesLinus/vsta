@@ -90,13 +90,14 @@ mouse_read(uchar *buttons, ushort *x, ushort *y, int *freq,
     * Create out PIO buffer if needed. The size 1024 is actually
     * much too big.
     */
-   if(pio_buff == NULL) 
-     pio_buff = pio_create_buffer(NULL,1024);
+   if (pio_buff == NULL)  {
+     pio_buff = pio_create_buffer(NULL, 1024);
+   }
 
    /*
     * Read the data into the PIO buffer.
     */
-   size = read(__mouse_io_file,pio_buff->buffer,1024);
+   size = read(__mouse_io_file, pio_buff->buffer, 1024);
    if(size == -1) {
       fprintf(stderr,"Bad read on mouse device\n");
       return(-1);
@@ -105,8 +106,9 @@ mouse_read(uchar *buttons, ushort *x, ushort *y, int *freq,
    /*
     * Reset the buffer pointer and type 
     */
+   pio_reset_buffer(pio_buff);
    pio_buff->buffer_type = PIO_INPUT;
-   pio_buff->buffer_pos  = 0;
+   pio_buff->buffer_end = size;
 
    /*
     * Read in the actual data.
