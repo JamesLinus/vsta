@@ -17,6 +17,7 @@
 #include <fd/fd.h>
 #include <sys/assert.h>
 #include <sys/param.h>
+#include <std.h>
 
 static void unit_spinup(), unit_recal(), unit_seek(), unit_spindown(),
 	unit_io(), unit_iodone(), failed(), state_machine(),
@@ -25,8 +26,8 @@ static void unit_spinup(), unit_recal(), unit_seek(), unit_spindown(),
 extern port_t fdport;			/* Our server port */
 struct floppy floppies[NFD];		/* Per-floppy state */
 static void *bounceva, *bouncepa;	/* Bounce buffer */
-static seg_t bouncehandle;
 static int errors = 0;			/* Global error count */
+static int map_handle;			/* Handle for DMA mem mapping */
 
 /*
  * Floppies are such crocks that the only reasonable way to
@@ -179,16 +180,56 @@ queue_io(struct floppy *fl, struct msg *m, struct file *f)
 	f->f_unit = fl->f_unit;
 	f->f_blkno = f->f_pos/SECSZ;
 	calc_cyl(f, fp);
-	f->f_count = m->m_arg;
-	f->f_off = 0;
 	f->f_dir = m->m_op;
 	f->f_nseg = m->m_nseg;
-	bcopy(m->m_seg, f->f_seg, f->f_nseg*sizeof(seg_t));
+	f->f_buf = m->m_buf;
+	f->f_count = m->m_buflen;
+	f->f_off = 0;
 	if ((f->f_list = ll_insert(&waiters, f)) == 0) {
 		msg_err(m->m_sender, ENOMEM);
 		return(1);
 	}
 	return(0);
+}
+
+/*
+ * childproc()
+ *	Code to sleep, then send a message to the parent
+ */
+static int child_secs;
+static void
+childproc(void)
+{
+	static port_t selfport = 0;
+	struct time t;
+	struct msg m;
+	extern port_name fdname;
+
+	/*
+	 * Child waits, then sends
+	 */
+	if (selfport == 0) {
+		selfport = msg_connect(fdname, ACC_WRITE);
+		if (selfport < 0) {
+			selfport = 0;
+			exit(1);
+		}
+	}
+
+	/*
+	 * Wait the interval
+	 */
+	time_get(&t);
+	t.t_sec += child_secs;
+	time_sleep(&t);
+
+	/*
+	 * Send an M_TIME message
+	 */
+	m.m_op = M_TIME;
+	m.m_nseg = m.m_arg = m.m_arg1 = 0;
+	(void)msg_send(selfport, &m);
+	_exit(0);
 }
 
 /*
@@ -198,16 +239,31 @@ queue_io(struct floppy *fl, struct msg *m, struct file *f)
 static void
 timeout(int secs)
 {
-	struct time t;
+	static long child;
 
-	if (secs) {
-		(void)time(&t.t_sec);
-		t.t_sec += secs;
-		t.t_usec = 0L;
-		alarm_set(fdport, &t);
-	} else {
-		alarm_set(fdport, 0);
+	/*
+	 * If 0, or a child, cancel child
+	 */
+	if (child) {
+		notify(0, child, EKILL);
 	}
+	if (secs == 0) {
+		return;
+	}
+	child_secs = secs;
+
+	/*
+	 * We launch a child thread to send our timeout message
+	 */
+	child = tfork(childproc);
+	if (child == -1) {
+		return;
+	}
+
+	/*
+	 * Parent will hear on his main port
+	 */
+	return;
 }
 
 /*
@@ -439,9 +495,11 @@ setup_dma(struct file *f)
 	int dir;
 
 	/*
-	 * Try for straight map-down of user's memory
+	 * Try for straight map-down of user's memory.  Ignore virtual
+	 * address of mapping; we're doing DMA in this driver.
 	 */
-	if (seg_physmap(f->f_seg, f->f_nseg, f->f_off, SECSZ, &pa)) {
+	map_handle = page_wire(f->f_buf + f->f_off, &pa);
+	if (map_handle < 0) {
 		/*
 		 * Nope.  Use bounce buffer
 		 */
@@ -497,6 +555,11 @@ unit_iodone(int old, int new)
 	 * Shut off timeout
 	 */
 	timeout(0);
+
+	/*
+	 * Release memory lock-down, if any
+	 */
+	(void)page_release(map_handle);
 
 	/*
 	 * Read status
@@ -716,7 +779,8 @@ fd_init(void)
 	/*
 	 * Get a bounce buffer for misaligned I/O
 	 */
-	if (seg_getpage(&bounceva, &bouncepa, 1, &bouncehandle) < 0) {
+	bounceva = malloc(NBPG);
+	if (page_wire(bounceva, &bouncepa) < 0) {
 		printf("Can't get bounce buffer\n");
 		exit(1);
 	}
