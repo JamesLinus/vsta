@@ -22,8 +22,6 @@ _free_pfn: .space	4	/* PFN of first free page beyond data */
 _size_base: .space	4	/* # pages of base (< 640K) memory */
 _size_ext:  .space	4	/*  ... extended (> 1M) memory */
 _boot_pfn:  .space	4	/* PFN of first boot task */
-mainretmsg:
-	.asciz	"main returned"
 
 	.align	4
 	.space	0x1000
@@ -59,9 +57,7 @@ _start:
 	movl	$_id_stack,%esp
 	movl	$_id_stack,%ebp
 	call	_main
-1:	pushl	$mainretmsg
-	call	_panic
-	jmp	1b
+	hlt
 
 /*
  * fpu_disable()
