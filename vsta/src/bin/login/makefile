@@ -1,15 +1,12 @@
-CC= gcc
-LD= ld
-CFLAGS= -O -I../../../include
-LDFLAGS= -L../../lib
-LIBS= -lusr -lc
-OBJS= login.o
+CC=gcc
+LD=ld
+CFLAGS=-O -I../../../include
+LDFLAGS=-L../../lib
+LIBS=-lusr -lc
+OBJS=login.o
 CRT0=../../lib/crt0.o
 
 all: login runrc
-
-.c.o:
-	$(CC) $(CFLAGS) -c $*.c
 
 runrc: runrc.o
 	$(LD) $(LDFLAGS) -o runrc $(CRT0) runrc.o $(LIBS)
