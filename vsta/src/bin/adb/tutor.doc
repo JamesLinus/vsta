@@ -1,0 +1,49 @@
+A quick tutorial for adb
+
+adb appears to date back to V6 UNIX, perhaps even earlier.  It is
+a simple, brutal assembly language debugger.  I have cloned it for
+VSTa simply so I could exercise the debugging interfaces of VSTa.
+It is an incomplete clone, but an adb user should be able to run
+it through its paces without too much trouble.
+
+For the rest of you, here are the available commands:
+
+[<addr>], [<count>] / [<fmt>]
+[<addr>], [<count>] ? [<fmt>]		(white space is ignored)
+	- Examine memory.  '/' looks at actual process core; '?' looks
+	  at the a.out file.
+
+<fmt> is:
+	x, X	- Dump hex, 16-bit or 32-bit respectively
+	d, D	- Dump decimal
+	o, O	- Dump octal
+	s	- Dump strings
+	S	- Dump strings with escaping of control chars
+	i	- Disassemble i386 instructions
+
+<addr> and <count> are remembered.  If you don't specify them, you
+will get the old value.  Actually, if you specify just <addr>,
+<count> resets to 1.  If you enter a blank line, the previous command
+is executed again.  After display, <addr> advances to the next location
+not seen.  Thus, "main?i" followed by return, return, return... will
+disassemble consecutive locations.
+
+$r		- Display registers
+$b		- List breakpoints
+$c		- Show C stack backtrace
+<addr>:b	- Set breakpoint at address
+<addr>:d	- Delete breakpoint at address
+:c		- Continue execution
+:r [<args>]	- Start new process from a.out, break before running
+		  (this is not compatible with the real adb)
+$q		- Exit
+
+adb's command line arguments are also not compatible with the true
+one.  They are:
+
+adb <a.out> [<pid>]
+
+adb will start, reading symbols from <a.out>.  If specified, it will
+attach to an existing process <pid>.  Otherwise, you can use :r to
+start the a.out, and debug this process.
+
