@@ -14,10 +14,14 @@ typedef struct {
 	ulong eip, edi, esi, ebp, esp, ebx, edx, ecx, eax;
 } jmp_buf[1];
 
+#ifndef KERNEL
+
 /*
  * Routines for using this context
  */
 extern int setjmp(jmp_buf);
 extern void longjmp(jmp_buf, int);
+
+#endif
 
 #endif /* _MACHSETJMP_H */
