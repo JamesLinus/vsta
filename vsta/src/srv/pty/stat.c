@@ -105,19 +105,21 @@ pty_stat(struct msg *m, struct file *f)
 		len = 0;
 		owner = pty->p_owner;
 	}
-	sprintf(buf, "size=%d\ntype=%s\nowner=%d\ninode=%lu\n",
-		len, pty ? "c" : "d", owner, (ulong)pty);
+	sprintf(buf, "size=%d\nowner=%d\ninode=%lu\n",
+		len, owner, (ulong)pty);
 	if (pty) {
 		char buf2[128];
 
 		strcat(buf, perm_print(&pty->p_prot));
-		sprintf(buf2, "inbuf=%u\noutbuf=%u\nrows=%u\ncols=%u\n",
+		sprintf(buf2, "inbuf=%u\noutbuf=%u\nrows=%u\ncols=%u\n"
+				"type=%c\n",
 			pty->p_ioqw.ioq_nbuf,
 			pty->p_ioqr.ioq_nbuf,
-			pty->p_rows, pty->p_cols);
+			pty->p_rows, pty->p_cols,
+			(f->f_master ? 'b' : 'c'));
 		strcat(buf, buf2);
 	} else {
-		sprintf(buf + strlen(buf), "perm=1\nacc=%d/%d\n",
+		sprintf(buf + strlen(buf), "perm=1\nacc=%d/%d\ntype=d\n",
 			ACC_READ | ACC_WRITE, ACC_CHMOD);
 	}
 	m->m_buf = buf;
