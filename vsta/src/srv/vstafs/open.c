@@ -1056,7 +1056,7 @@ vfs_remove(struct msg *m, struct file *f)
 	struct fs_dirent *de;
 	char *nm, *err;
 	ulong rev;
-	daddr_t da, *revp;
+	daddr_t da, cur_da, *revp;
 
 	/*
 	 * Initialize the pointers which flag various active
@@ -1139,8 +1139,9 @@ vfs_remove(struct msg *m, struct file *f)
 		/*
 		 * Access file under this name, prepare for next
 		 */
+		cur_da = da;
 		lock_buf(brevp);
-		o = get_node(da);
+		o = get_node(cur_da);
 		fs = getfs(o, &b);
 		da = fs->fs_prev;
 		unlock_buf(brevp);
@@ -1177,7 +1178,7 @@ vfs_remove(struct msg *m, struct file *f)
 			 * with the server, use a child thread to do
 			 * the dirty work.
 			 */
-			(void)tfork(do_unhash, da);
+			(void)tfork(do_unhash, cur_da);
 
 			/*
 			 * Release our ref and tell the requestor he
