@@ -32,28 +32,6 @@ extern struct session *consess;
 #define	MAXCMD	1024
 
 /*
- * Our private hack mutex package
- */
-void
-init_lock(lock_t *p)
-{
-	*p = 0;
-}
-void
-p_lock(volatile lock_t *p)
-{
-	while (*p) {
-		__msleep(20);
-	}
-	*p = 1;
-}
-void
-v_lock(lock_t *p)
-{
-	*p = 0;
-}
-
-/*
  * Tabulation of daemons running
  */
 #define MAXDAEMON (8)

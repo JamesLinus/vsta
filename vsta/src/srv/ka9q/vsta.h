@@ -5,14 +5,7 @@
  *	VSTa-specific definitions
  */
 #include <sys/types.h>
-
-/*
- * Our private hack mutex package
- */
-typedef unsigned char lock_t;
-
-extern void init_lock(lock_t *), p_lock(volatile lock_t *),
-	v_lock(lock_t *);
+#include <lock.h>
 
 /*
  * Shared data
