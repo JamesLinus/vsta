@@ -16,7 +16,7 @@ dos: $(OBJS)
 clean:
 	rm -f *.o
 
-clobber:
+clobber: clean
 	rm -f dos
 
 install: all
