@@ -30,6 +30,7 @@
 #define S_DBG_ENTER 23
 #define S_EXEC 24
 #define S_WAITS 25
-#define S_HIGH S_WAITS
+#define S_PERM_CTL 26
+#define S_HIGH S_PERM_CTL
 
 #endif /* _SYSCALL_H */
