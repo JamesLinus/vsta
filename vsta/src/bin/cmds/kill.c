@@ -9,7 +9,7 @@ main(int argc, char **argv)
 		if (argv[x][0] == '-') {
 			event = argv[x]+1;
 		} else {
-			pid = atoi(argv[1]);
+			pid = atoi(argv[x]);
 			notify(pid, 0, event);
 		}
 	}
