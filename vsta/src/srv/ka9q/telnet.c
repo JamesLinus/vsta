@@ -634,9 +634,7 @@ int16 cnt;
 /* State change upcall routine */
 /*ARGSUSED*/
 void
-t_state(tcb,old,new)
-register struct tcb *tcb;
-char old,new;
+t_state(struct tcb *tcb, char old, char new)
 {
 	struct telnet *tn;
 	char notify = 0;
@@ -663,7 +661,7 @@ char old,new;
 		close_tcp(tcb);
 		break;
 	case CLOSED:	/* court adjourned */
-		if(notify){
+		if (notify) {
 			printf("%s (%s",tcpstates[new],reasons[tcb->reason]);
 			if(tcb->reason == NETWORK){
 				switch(tcb->type){
@@ -699,27 +697,31 @@ char old,new;
 free_telnet(tn)
 struct telnet *tn;
 {
-	if(tn->session != NULLSESSION)
+	if (tn->session != NULLSESSION) {
 		freesession(tn->session);
+	}
 
-/*
- * must do close_remote_tty before telserv_close, so we get tty modes
- * back before we tell the remote program to exit
- */
-	if(tn->inbuf)
-	  close_remote_tty(tn->inbuf);
+	/*
+	 * must do close_remote_tty before telserv_close, so we get tty modes
+	 * back before we tell the remote program to exit
+	 */
+	if (tn->inbuf) {
+		close_remote_tty(tn->inbuf);
+	}
 
 #ifdef XXX
-	if(tn->client)
-	  telserv_close(tn);
+	if (tn->client) {
+		telserv_close(tn);
+	}
 #endif
 
-	if(tn->outbuf != (struct mbuf *)&std_tnbuf)
-	  tnfree(tn->outbuf);
+	if (tn->outbuf != (struct mbuf *)&std_tnbuf) {
+		tnfree(tn->outbuf);
+	}
 
-	if(tn != NULLTN)
+	if (tn != NULLTN) {
 		free((char *)tn);
-
+	}
 }
 
 /* The guts of the actual Telnet protocol: negotiating options */
