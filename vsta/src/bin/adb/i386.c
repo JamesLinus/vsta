@@ -3,10 +3,13 @@
  *	Routines which know all the gore of the i386
  */
 #include <sys/types.h>
+#include <sys/param.h>
 #include <mach/machreg.h>
+#include <std.h>
 
 extern char *nameval(ulong);
 extern void getregs(struct trapframe *);
+extern ulong readloc(ulong, int);
 
 /*
  * flagnames()
@@ -59,4 +62,90 @@ show_here(void)
 	getregs(&t);
 	printf("%s:\t", nameval(t.eip));
 	(void)db_disasm(t.eip, 0);
+}
+
+/*
+ * trace()
+ *	Show backtrace of stack calls
+ */
+void
+backtrace(void)
+{
+	ulong x, eip, ebp;
+	struct trapframe t;
+	struct stkframe {
+		uint s_ebp;
+		uint s_eip;
+	} s;
+
+	/*
+	 * Get initial registers
+	 */
+	getregs(&t);
+	eip = t.eip;
+	ebp = t.ebp;
+
+ 	/*
+ 	 * Loop, reading pairs of frame pointers and return addresses
+ 	 */
+#define INSTACK(v) ((v > 0x7F000000) && (v <= 0x7FFFFFF8))
+	while (INSTACK(ebp)) {
+		uint narg, x;
+		char *p, *loc;
+
+ 		/*
+ 		 * Read next stack frame, output called procedure name
+ 		 */
+		s.s_ebp = readloc(ebp, sizeof(ulong));
+		s.s_eip = readloc(ebp+4, sizeof(ulong));
+ 		loc = nameval(eip);
+ 		if (p = strchr(loc, '+')) {
+ 			*p = '\0';
+		}
+ 		printf("%s(", loc);
+
+ 		/*
+ 		 * Calculate number of arguments, default to 4.  We
+ 		 * figure it out by looking at the stack cleanup at
+ 		 * the return address.  If GNU C has optimized this
+ 		 * out (for instance, bunched several cleanups together),
+ 		 * we're out of luck.
+ 		 */
+		if ((s.s_eip < NBPG) || (s.s_eip > 0x40000000)) {
+			x = 0;
+		} else {
+			x = readloc(s.s_eip, sizeof(ulong));
+		}
+ 		if ((x & 0xFF) == 0x59) {
+ 			narg = 1;
+		} else if ((x & 0xFFFF) == 0xC483) {
+			narg = ((x >> 18) & 0xF);
+		} else {
+			narg = 4;
+		}
+
+ 		/*
+ 		 * Print arguments
+ 		 */
+ 		for (x = 0; x < narg; ++x) {
+			uint idx;
+			ulong val;
+
+			idx = (x+2)*sizeof(ulong);
+			if (INSTACK(ebp+idx)) {
+				val = readloc(ebp + idx, sizeof(ulong));
+			} else {
+				val = 0;
+			}
+ 			printf("%s0x%x", x ? ", " : "", val);
+		}
+
+		/*
+		 * Print where called from.  We just assume that there's
+		 * a 5-byte long call.  Wrong for function pointers.
+		 */
+		printf(") called from %s\n", nameval(s.s_eip-5));
+ 		ebp = s.s_ebp;
+ 		eip = s.s_eip;
+ 	}
 }

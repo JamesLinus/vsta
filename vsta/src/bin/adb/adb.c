@@ -77,7 +77,7 @@ readloc(ulong addr, int size)
 static void
 dollar_cmds(char *p)
 {
-	extern void dump_regs(void);
+	extern void dump_regs(void), backtrace(void);
 
 	switch (*p) {
 	case 'q':		/* Quit */
@@ -87,6 +87,10 @@ dollar_cmds(char *p)
 		break;
 	case 'b':		/* List breakpoints */
 		dump_breakpoints();
+		break;
+	case 'c':		/* Show C stack backtrace */
+		read_from = &coremap;
+		backtrace();
 		break;
 	default:
 		printf("Unknown command: $%s\n", p);
