@@ -101,6 +101,7 @@ struct directory {
 #define DA_VOLUME 0x08		/* Volume label */
 #define DA_DIR 0x10		/* Subdirectory */
 #define DA_ARCHIVE 0x20		/* Needs archiving */
+#define DA_VFAT (0x0f)		/* Illegal combe == vFAT */
 
 /*
  * Format of sector 0 in filesystem
@@ -129,7 +130,7 @@ struct boot {
 /*
  * Parameters for block cache
  */
-#define NCACHE (80)
+#define NCACHE (320)
 extern uint clsize;
 #define CLSIZE (bootb.clsize)
 #define BLOCKSIZE (clsize)
