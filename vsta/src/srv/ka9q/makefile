@@ -2,7 +2,7 @@
 #	Makefile for KA9Q TCP/IP package for Berkeley UNIX
 #
 CC=gcc
-CFLAGS = -DUNIX -DBSD -DSLOWCHECK -DMSPTICK=20
+CFLAGS=-DUNIX -DBSD -DSLOWCHECK -DMSPTICK=20
 LIBS =
 
 SRCS =	main.c arp.c arpcmd.c arpdump.c ax25.c ax25cmd.c \
@@ -17,7 +17,7 @@ SRCS =	main.c arp.c arpcmd.c arpdump.c ax25.c ax25cmd.c \
 	tcpin.c tcpout.c tcpsubr.c tcptimer.c tcpuser.c telnet.c \
 	timer.c tnserv.c trace.c ttydriv.c udp.c udpcmd.c \
 	udpdump.c version.c wildmat.c vsta.c vsta_io.c geneth.c enet.c \
-	enetdump.c
+	enetdump.c vsta_srv.c
 
 OBJS =	main.o arp.o arpcmd.o arpdump.o ax25.o ax25cmd.o \
 	ax25dump.o ax25subr.o ax25user.o ax_mbx.o cmdparse.o \
@@ -31,7 +31,7 @@ OBJS =	main.o arp.o arpcmd.o arpdump.o ax25.o ax25cmd.o \
 	tcpin.o tcpout.o tcpsubr.o tcptimer.o tcpuser.o telnet.o \
 	timer.o tnserv.o trace.o ttydriv.o udp.o udpcmd.o \
 	udpdump.o version.o wildmat.o vsta.o vsta_io.o geneth.o enet.o \
-	enetdump.o
+	enetdump.o vsta_srv.o
 
 net:	$(OBJS)
 	$(CC) $(CFLAGS) -o net $(OBJS) $(LIBS)
