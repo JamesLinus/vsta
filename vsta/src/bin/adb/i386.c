@@ -83,7 +83,7 @@ backtrace(void)
  	/*
  	 * Loop, reading pairs of frame pointers and return addresses
  	 */
-#define INSTACK(v) ((v > 0x00400000) && (v <= 0x7FFFFFF8))
+#define INSTACK(v) (v <= 0x7FFFFFF8)
 	while (INSTACK(ebp)) {
 		uint narg, x;
 		char *p, *loc;
@@ -110,7 +110,7 @@ backtrace(void)
  		 * out (for instance, bunched several cleanups together),
  		 * we're out of luck.
  		 */
-		if ((s.s_eip < NBPG) || (s.s_eip > 0x40000000)) {
+		if ((s.s_eip < NBPG) || (s.s_eip > 0x7FFFFFFF)) {
 			x = 0;
 		} else {
 			x = readloc(s.s_eip, sizeof(ulong));
