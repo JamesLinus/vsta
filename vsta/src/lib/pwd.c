@@ -159,7 +159,7 @@ struct hasharg {
  *	Check for match on name, end foreach when find it
  */
 static
-namecheck(struct passwd *pw, struct hasharg *ha)
+namecheck(uid_t uid, struct passwd *pw, struct hasharg *ha)
 {
 	if (!strcmp(pw->pw_name, ha->name)) {
 		ha->passwd = pw;
@@ -177,6 +177,12 @@ getpwnam(char *name)
 {
 	struct hasharg ha;
 
+	/*
+	 * Fill hash table once only
+	 */
+	if (uidhash == 0) {
+		fill_hash();
+	}
 	ha.passwd = 0;
 	ha.name = name;
 	hash_foreach(uidhash, namecheck, &ha);
