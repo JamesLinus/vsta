@@ -1490,7 +1490,7 @@ show_port(long port, struct tcp_port *t, int arg)
 			continue;
 		}
 		tcb = c->t_tcb;
-		printf(" %2d rem: %s:%d #rd: %d #wrt: %d\n",
+		printf(" %2d rem: %s:%d #rd: %d #wrt: %d #rdq: %d\n",
 			x,
 			tcb ? 
 				inet_ntoa(tcb->conn.remote.address)
@@ -1499,7 +1499,8 @@ show_port(long port, struct tcp_port *t, int arg)
 				tcb->conn.remote.port
 			    :	0,
 			listlen(&c->t_readers),
-			listlen(&c->t_writers));
+			listlen(&c->t_writers),
+			len_mbuf(c->t_readq));
 	}
 	return(0);
 }
