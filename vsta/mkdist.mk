@@ -14,7 +14,7 @@ LIB=lib/bison.hairy lib/bison.simple lib/crt0.o lib/crt0srv.o \
 	lib/ld.a lib/ld.shl lib/libc.a lib/libc.shl lib/libc_s.a \
 	lib/libcurses.a lib/libdpart.a lib/libg.a lib/libgcc.a \
 	lib/libm.a lib/libregex.a lib/libsrv.a lib/libtermcap.a \
-	lib/libusr.a lib/termcap
+	lib/libusr.a lib/termcap lib/units.lib
 
 BIN=$(LAW) bin boot doc etc grub include $(LIB)
 
@@ -43,6 +43,9 @@ TXT=src/bin/ports/less src/bin/ports/grep src/bin/ports/rh \
 	src/bin/ports/find src/bin/ports/patch \
 	src/bin/ports/ctags src/bin/ports/rcs5.11 \
 	src/bin/ports/m4
+
+# Text formatting utilities
+ROFF=src/bin/roff src/bin/ports/nroff lib/troff
 
 # Shells
 SH=src/bin/ports/ash src/bin/testsh src/bin/ports/rc
@@ -83,12 +86,18 @@ DIFF=src/bin/ports/diffutl
 # Graphics
 GRAPHICS=src/bin/ports/svgalib src/bin/ports/jpeg6b lib/libjpeg.a
 
+# Simulators
+SIM=src/bin/ports/sim_2.3d
+
+# Miscellaneous
+MISC=src/bin/ports/units
+
 # Sample accounts
 ACCOUNT=root guest
 
 # Default: make a distribution
 dist: bindist srcdist make txt sh ed fun bc gzip sc small gcc \
-	mgrdist lang net python diff account graphics
+	mgrdist lang net python diff account graphics sim misc
 
 bindist:
 	tar -cvf - $(BIN) | gzip -9 > $(DEST)/vsta.tz
@@ -146,3 +155,9 @@ account:
 
 graphics:
 	tar -cvf - $(GRAPHICS) | gzip -9 > $(DEST)/graphics.tz
+
+sim:
+	tar -cvf - $(SIM) | gzip -9 > $(DEST)/sim.tz
+
+misc:
+	tar -cvf - $(MISC) | gzip -9 > $(DEST)/misc.tz
