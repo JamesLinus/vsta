@@ -13,7 +13,7 @@
 #include "../mach/mutex.h"
 #include "../mach/vminline.h"
 
-extern char *heapstart, *heap;
+extern char *heap;
 extern int bootpgs;
 
 /*
@@ -122,6 +122,7 @@ init_page(void)
 {
 	int x;
 	struct core *c;
+	extern char _start[];
 
 	ASSERT_DEBUG(heap != 0, "page_init: heap unavailable");
 
@@ -138,14 +139,13 @@ init_page(void)
 
 	/*
 	 * Fill low range with C_SYS for our kernel text/data/bss
-	 * and heap.  This assumes the kernel is relocated around 0.
-	 * Initial tasks lie between end and heapstart.
+	 * and heap; initial tasks lie between end and heapstart.
 	 * Note that we're marking our boot tasks' pages C_SYS;
 	 * this will keep them out of the free pool, and we'll
 	 * update their state when we create the task data
 	 * structures.
 	 */
-	for (x = 0; x < btorp(heap); ++x) {
+	for (x = btop(vtop(_start)); x < btorp(vtop(heap)); ++x) {
 		core[x].c_flags = C_SYS;
 	}
 
