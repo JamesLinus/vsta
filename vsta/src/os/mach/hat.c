@@ -171,42 +171,6 @@ hat_addtrans(struct pview *pv, void *va, uint pfn, int prot)
 }
 
 /*
- * hat_vtop()
- *	Given virtual address and address space, return physical address
- *
- * Returns 0 if a translation does not exist
- */
-void *
-hat_vtop(struct vas *vas, void *va)
-{
-	pte_t *root, *pt;
-
-	/*
-	 * Virtual address is in upper two gigs
-	 */
-	va = (void *)((ulong)va | 0x80000000);
-
-	/*
-	 * Walk root to second level.  Return 0 if invalid
-	 * at either level.
-	 */
-	root = (vas->v_hat.h_vcr3)+L1IDX(va);
-	if (!(*root & PT_V)) {
-		return(0);
-	}
-	pt = ptov(*root & PT_PFN);
-	pt += L2IDX(va);
-	if (!(*pt & PT_V)) {
-		return(0);
-	}
-
-	/*
-	 * Extract phyical address in place, add in offset in page
-	 */
-	return (void *)((*pt & PT_PFN) | ((ulong)va & ~PT_PFN));
-}
-
-/*
  * hat_deletetrans()
  *	Delete a translation
  *
