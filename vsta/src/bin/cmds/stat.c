@@ -27,7 +27,7 @@ static void
 usage(char *util_name)
 {
 	fprintf(stderr,
-	  "Usage: %s [-r] [-s] [-v] [-w] [-p] <path_name> <fields_names...>\n",
+	  "Usage: %s [-rsvwyS] <path_name> <fields_names...>\n",
 	  util_name);
 	exit(1);
 }
@@ -43,6 +43,10 @@ open_port(char *name, int mode)
 
 	if (!strcmp(name, "-")) {
 		fd = (mode & O_RDONLY) ? 0 : 1;
+	} else if (name[0] == '^') {
+		fd = atoi(name+1);
+	} else if (name[0] == '&') {
+		fd = __fd_alloc(atoi(name+1));
 	} else {
 		fd = open(name, O_CHMOD | (symlinks ? O_SYM : 0));
 	}
