@@ -270,9 +270,9 @@ step(int over)
 	close(tempstdout);
 	dup2(oldstdout, 1);
 	close(oldstdout);
-	breakpoint((void *)nextpc, 1);
+	set_breakpoint((void *)nextpc);
 	run();
-	breakpoint((void *)nextpc, 0);
+	clear_breakpoint((void *)nextpc);
 }
 
 /*
@@ -300,11 +300,11 @@ getregs(struct trapframe *tf)
 }
 
 /*
- * breakpoint()
- *	Set and clear breakpoints
+ * set_breakpoint()
+ *	Set a new breakpoint
  */
 void
-breakpoint(void *addr, int set)
+set_breakpoint(void *addr)
 {
 	uint x;
 	ulong args[2];
@@ -312,15 +312,11 @@ breakpoint(void *addr, int set)
 	/*
 	 * Check count and addr
 	 */
-	if (set && (nbpoint >= MAX_BPOINT)) {
+	if (nbpoint >= MAX_BPOINT) {
 		printf("No more breakpoints possible\n");
 		return;
 	}
-	if (!set && !nbpoint) {
-		printf("No breakpoints set\n");
-		return;
-	}
-	if (set && !addr) {
+	if (!addr) {
 		printf("Invalid breakpoint address\n");
 		return;
 	}
@@ -329,9 +325,55 @@ breakpoint(void *addr, int set)
 	 * Find slot for operation
 	 */
 	for (x = 0; x < MAX_BPOINT; ++x) {
-		if (set && !bpoints[x])
+		if (!bpoints[x])
 			break;
-		if (!set && (bpoints[x] == addr)) {
+	}
+
+	/*
+	 * Update breakpoint table
+	 */
+	if (x >= MAX_BPOINT) {
+		printf("Oops, breakpoint table out of synch\n");
+		return;
+	}
+	nbpoint += 1;
+	bpoints[x] = addr;
+
+	/*
+	 * Tell our humble slave
+	 */
+	args[1] = (ulong)addr;
+	args[0] = 1;
+	if (sendhim(PD_BREAK, args) < 0) {
+		bpoints[x] = 0;
+		nbpoint -= 1;
+		printf("Breakpoint operation failed\n");
+	}
+}
+
+/*
+ * clear_breakpoint()
+ *	Clear a breakpoint
+ */
+void
+clear_breakpoint(void *addr)
+{
+	uint x;
+	ulong args[2];
+
+	/*
+	 * Check count and addr
+	 */
+	if (!nbpoint) {
+		printf("No breakpoints set\n");
+		return;
+	}
+
+	/*
+	 * Find slot for operation
+	 */
+	for (x = 0; x < MAX_BPOINT; ++x) {
+		if (bpoints[x] == addr) {
 			/*
 			 * May as well clear it now
 			 */
@@ -344,30 +386,34 @@ breakpoint(void *addr, int set)
 	/*
 	 * Complain on bogosity
 	 */
-	if (!set && (x >= MAX_BPOINT)) {
+	if (x >= MAX_BPOINT) {
 		printf("No breakpoint at 0x%x\n", (ulong)addr);
 		return;
-	}
-	if (set) {
-		if (x >= MAX_BPOINT) {
-			printf("Oops, breakpoint table out of synch\n");
-			return;
-		}
-		nbpoint += 1;
-		bpoints[x] = addr;
 	}
 
 	/*
 	 * Tell our humble slave
 	 */
 	args[1] = (ulong)addr;
-	args[0] = set;
+	args[0] = 0;
 	if (sendhim(PD_BREAK, args) < 0) {
-		if (set) {
-			bpoints[x] = 0;
-			nbpoint -= 1;
-		}
 		printf("Breakpoint operation failed\n");
+	}
+}
+
+/*
+ * clear_breakpoints()
+ *	Clear all current breakpoints
+ */
+void
+clear_breakpoints(void)
+{
+	uint x;
+
+	for (x = 0; x < MAX_BPOINT; ++x) {
+		if (!bpoints[x])
+			continue;
+		clear_breakpoint(bpoints[x]);
 	}
 }
 
@@ -383,11 +429,10 @@ dump_breakpoints(void)
 	printf("Current breakpoints:\n");
 	for (x = 0; x < MAX_BPOINT; ++x) {
 		if (bpoints[x]) {
-			printf(" 0x%x", bpoints[x]);
+			printf(" %s (0x%x)\n",
+				nameval((ulong)bpoints[x]),
+				bpoints[x]);
 		}
-	}
-	if (nbpoint) {
-		printf("\n");
 	}
 }
 

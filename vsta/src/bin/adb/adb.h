@@ -18,7 +18,9 @@
  * Routines
  */
 extern char *getnum(char *, uint *);
-extern void breakpoints(void *, int),
+extern void set_breakpoint(void *),
+	clear_breakpoint(void *),
+	clear_breakpoints(void),
 	dump_breakpoints(void),
 	dump_syms(void);
 extern ulong readloc(ulong, int);
@@ -31,8 +33,7 @@ extern void show_here(void);
 extern void backtrace(void);
 extern ulong read_procmem(ulong, int);
 extern void run(void), step(int);
-extern void breakpoint(void *, int), dump_breakpoints(void),
-	wait_exec(void);
+extern void wait_exec(void);
 extern void rdsym(char *);
 extern char *nameval(ulong);
 extern ulong symval(char *);

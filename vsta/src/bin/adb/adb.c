@@ -332,6 +332,7 @@ colon_cmds(char *p)
 	case 's':
 	case 'b':
 	case 'd':
+	case 'D':
 		if (!corepid) {
 			printf("No process\n");
 			return;
@@ -349,10 +350,13 @@ colon_cmds(char *p)
 		step(1);
 		break;
 	case 'b':
-		breakpoint((void *)addr, 1);
+		set_breakpoint((void *)addr);
 		break;
 	case 'd':
-		breakpoint((void *)addr, 0);
+		clear_breakpoint((void *)addr);
+		break;
+	case 'D':
+		clear_breakpoints();
 		break;
 	case 'r':
 		if (corepid) {

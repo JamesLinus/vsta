@@ -36,6 +36,7 @@ $s <a.out>	- Load symbols from <a.out>; "$s /vsta/lib/libc.shl"
 $S		- Show symbol table
 <addr>:b	- Set breakpoint at address
 <addr>:d	- Delete breakpoint at address
+:D		- Delete all breakpoints
 :c		- Continue execution
 :r [<args>]	- Start new process from a.out, break before running
 		  (this is not compatible with the real adb)
