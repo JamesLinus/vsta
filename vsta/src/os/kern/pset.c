@@ -187,6 +187,20 @@ iodone_unlock(struct qio *q)
 }
 
 /*
+ * iodone_free()
+ *	Free page, then release slot lock
+ */
+void
+iodone_free(struct qio *q)
+{
+	struct perpage *pp = q->q_pp;
+
+	pp->pp_flags &= ~(PP_R | PP_M | PP_V);
+	free_page(pp->pp_pfn);
+	unlock_slot(q->q_pset, pp);
+}
+
+/*
  * alloc_pset()
  *	Common code for allocation of all types of psets
  *
