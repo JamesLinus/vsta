@@ -70,7 +70,7 @@ load_groups(struct uinfo *u)
 		/*
 		 * While there are more fields, add them to the user
 		 */
-		while (p && *p) {
+		while (p) {
 			char *q;
 
 			/*
