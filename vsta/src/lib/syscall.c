@@ -130,3 +130,11 @@ getppid(void)
 {
 	return(_getid(2));
 }
+void *
+mmap(void *vaddr, ulong len, int prot, int flags, int fd, ulong offset)
+{
+	extern void *_mmap();
+
+	return(_mmap(vaddr, len, prot, flags,
+		fd ? __fd_port(fd) : 0, offset));
+}
