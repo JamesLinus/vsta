@@ -289,46 +289,29 @@ init_tty(void)
 
 main(int argc, char **argv)
 {
-	extern port_t path_open(char *, int);
-
 	/*
-	 * Optionally let them specify device(s)
+	 * Optionally let them specify device.  We access the
+	 * device read/write, and attach it in this mode to
+	 * stdin/stdout/stderr.  This lets scripts have an
+	 * interactive FD no matter how I/O is redirected.
 	 */
 	if (argc > 1) {
-		char *in, *out;
+		int x;
 		port_t p;
+		extern port_t path_open(char *, int);
 
 		/*
-		 * 1st arg is in/out, or in if there's a second
+		 * Access named server, get R/W access.
 		 */
-		in = argv[1];
-		if (argc > 2) {
-			out = argv[2];
-		} else {
-			out = in;
+		for (x = 0; x <= 2; ++x) {
+			close(x);
+			p = path_open(argv[1], ACC_READ | ACC_WRITE);
+			if (p < 0) {
+				perror(argv[1]);
+				exit(1);
+			}
+			__fd_alloc(p);
 		}
-
-		/*
-		 * Access named server, then open as input
-		 */
-		close(0);
-		p = path_open(in, ACC_READ);
-		if (p < 0) { perror(in); exit(1); }
-		__fd_alloc(p);
-		
-		/*
-		 * Open stdout
-		 */
-		close(1);
-		p = path_open(out, ACC_WRITE);
-		if (p < 0) { perror(out); exit(1); }
-		__fd_alloc(p);
-
-		/*
-		 * And stderr--all set to go now
-		 */
-		close(2);
-		dup(1);
 	}
 
 	srandom(time((long *)0));
