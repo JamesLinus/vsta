@@ -1,6 +1,6 @@
 /*
  * io.s
- *	Routines for accessing i386 I/O ports
+ *	Routines for handling i386 I/O operations
  */
 
 /*
@@ -26,7 +26,7 @@ _outportb:
 	ret
 /*
  * inportw()
- *	Get a word from an I/O port
+ *	Get 16 bits from an I/O port
  */
 	.globl	_inportw
 _inportw:
@@ -37,13 +37,35 @@ _inportw:
 
 /*
  * outportw()
- *	Write a word to an I/O port
+ *	Write 16 bits to an I/O port
  */
 	.globl	_outportw
 _outportw:
 	movl	4(%esp),%edx
 	movl	8(%esp),%eax
 	outw	%ax,%dx
+	ret
+
+/*
+ * inportl()
+ *	Get a 32 bits from an I/O port
+ */
+	.globl	_inportl
+_inportl:
+	movl	4(%esp),%edx
+	xorl	%eax,%eax
+	inl	%dx,%eax
+	ret
+
+/*
+ * outportl()
+ *	Write 32 bits to an I/O port
+ */
+	.globl	_outportl
+_outportl:
+	movl	4(%esp),%edx
+	movl	8(%esp),%eax
+	outw	%eax,%dx
 	ret
 
 /*
