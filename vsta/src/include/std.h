@@ -27,9 +27,11 @@ extern int execl(const char *, const char *, ...),
 	execlp(const char *, const char *, ...),
 	execvp(const char *, char * const *);
 extern char *getenv(const char *);
-extern int setenv(const char *, const char *);
-extern pid_t getpid(void), gettid(void), getppid(void);
+extern int setenv(const char *, const char *),
+	putenv(const char *);
+extern pid_t getpid(void), gettid(void), getppid(void), getpgrp(void);
 extern int atoi(const char *);
+extern double atof(const char *);
 extern long atol(const char *);
 extern void perror(const char *);
 extern uint sleep(uint);
@@ -55,5 +57,15 @@ extern void exit(int), _exit(int);
  */
 #define EXIT_SUCCESS (0)
 #define EXIT_FAILURE (1)
+
+/*
+ * Trap access to the environment from lame programs which think
+ * it has to be a static situation.  We have to hope that they
+ * include std.h/stdlib.h, because there's no formal indication
+ * of how environ[] is defined.  This violates the name space
+ * pollution rules, but we're stuck.
+ */
+extern const char **__get_environ(void);
+#define environ (__get_environ())
 
 #endif /* _STD_H */
