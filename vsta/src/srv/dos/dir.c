@@ -814,13 +814,14 @@ tree_contains(struct node *tree, struct node *n)
 	/*
 	 * Walk the tree upwards
 	 */
-	do {
+	while (n != tree) {
 		/*
-		 * Look up next node upwards
+		 * Look up next node upwards.  Done when get same value
+		 * (loop at root) or NULL (shouldn't happen?)
 		 */
 		nprev = n;
 		n = dir_look(nprev, "..");
-		if (n == 0) {
+		if ((n == 0) || (n == nprev)) {
 			return(0);
 		}
 
@@ -831,13 +832,12 @@ tree_contains(struct node *tree, struct node *n)
 		if (n == tree) {
 			return(1);
 		}
-	} while (n != nprev);
+	}
 
 	/*
-	 * When we reach the root of the filesystem, we know we
-	 * aren't contained within the node
+	 * If we find the node on the way up, this is a no-no
 	 */
-	return(0);
+	return(1);
 }
 
 /*
