@@ -89,6 +89,17 @@ free_page(uint pfn)
 	struct core *c;
 
 	c = core+pfn;
+	ASSERT_DEBUG((c >= core) && (c < coreNCORE),
+		"free_page: bad page");
+#ifdef DEBUG
+	/* XXX only works for uniprocessor without preemption */
+	{ struct core *c2;
+	  for (c2 = freelist; c2; c2 = c2->c_free) {
+	    ASSERT(c2 != c, "free_page: already free");
+	  }
+	}
+#endif
+	ASSERT_DEBUG(!(c->c_flags & C_BAD), "free_page: C_BAD");
 	p_lock(&mem_lock, SPL0);
 	c->c_free = freelist;
 	freelist = c;
@@ -161,8 +172,9 @@ init_page(void)
 	 */
 	freemem = 0;
 	for (c = core; c < coreNCORE; ++c) {
-		if (c->c_flags & (C_SYS|C_BAD))
+		if (c->c_flags & (C_SYS|C_BAD)) {
 			continue;
+		}
 		c->c_free = freelist;
 		freelist = c;
 		freemem += 1;
