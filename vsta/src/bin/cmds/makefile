@@ -7,9 +7,13 @@ LIBS= -lc
 .c.o:
 	$(CC) $(CFLAGS) -c $*.c
 
-PROGS=test args cat id ls swapd rm cp sleep mkdir pwd kill mv stat dumpsect
+PROGS=test args cat id ls swapd rm cp sleep mkdir pwd kill mv stat \
+	dumpsect man
 
 all: $(PROGS)
+
+man: man.o
+	$(LD) $(LDFLAGS) -o man ../../libc/crt0.o man.o -lc
 
 stat: stat.o
 	$(LD) $(LDFLAGS) -o stat ../../libc/crt0.o stat.o -lc
