@@ -157,3 +157,6 @@ Definitely a problem with free_proc() letting go of the root of our
 	and proceed at our leisure.
 	Definitely steal that initial root page table--it should be
 	nearly right already.
+
+X vm_fault.c's description of fault handling is out of date.
+X	Done.
