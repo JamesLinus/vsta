@@ -118,6 +118,11 @@ noparent_exitgrp(struct exitgrp *e)
 		FREE(es, MT_EXITST);
 		es = esn;
 	}
+
+	/*
+	 * Drop the parental reference
+	 */
+	deref_exitgrp(e);
 }
 
 /*
