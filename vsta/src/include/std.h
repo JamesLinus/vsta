@@ -15,7 +15,7 @@
 extern void *malloc(unsigned int), *realloc(void *, unsigned int);
 extern void *calloc(unsigned int, unsigned int);
 extern void free(void *);
-extern char *strerror(void);
+extern char *strerror(...);
 extern int fork(void), tfork(voidfun);
 extern long __cwd_size(void);
 extern void __cwd_save(char *);
@@ -31,5 +31,12 @@ extern int atoi(const char *);
 extern void perror(const char *);
 extern uint sleep(uint);
 extern int chdir(const char *);
+
+/*
+ * getopt() package
+ */
+extern char *optarg;
+extern int optind, opterr;
+extern int getopt(int, char **, char *);
 
 #endif /* _STD_H */
