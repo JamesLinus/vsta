@@ -7,7 +7,10 @@ This driver has also been verified with one and two disk IDE systems
 experience.)  The disk geometry can be obtained via (1) the controller's
 "read parameter" command, (2) the NVRAM/BIOS stored disk parameters,
 or (3) by hand-entering the disk parameters.  Detailed instructions
-below.
+are in the boot.lst file, discussed below.
+
+	Mike Larson has written a SCSI disk driver for the Adaptec
+1542[bc] interface.  IDE and SCSI appear to co-exist without problems.
 
 	The console driver supports both MGA and CGA text screen
 locations.  It is not currently auto-detect.  The keyboard driver
@@ -17,12 +20,17 @@ don't know if it works.  My system has 4M of RAM, and that seems to be
 plenty.  Systems with up to 16 Meg have been booted.  There is code for
 > 16 M, but it has not been tested and is certainly not complete.
 
-	You will need the DJ Delorie GNU C compiler port.  The system
-will compile and run with any version from 1.39 up--both GCC 1.X and
-2.X based.  Nothing gets broken by the optimizer (that we've found!)
-You can use your favorite "make"--we demand very little of it.  There
-is a copy of "pdmake" sitting on our FTP server where you got these
-files from.  It's ~28K, and does a fine job.
+	Unlike past releases, you do not need the DJ Delorie GNU C
+compiler port for DOS.  If you *do* use it, make sure you get an older
+version which generates a.out format.  Later versions use COFF, which
+is incompatible.
+
+	The binaries distributed with VSTa include a port of the GNU
+C compiler.  Self-hosted VSTa compiles are the method of choice.  But
+since you now get precompiled versions of all the servers, commands,
+and libraries you can skip self-hosted compiles if you just want to play
+with the running system.  Or you can choose just to recompile interesting
+parts.
 
 	If you want to recompile the boot loader in boot/, you will
 need a DOS C compiler.  It uses large model, but doesn't do much of
@@ -31,12 +39,41 @@ provided with it.  The program doesn't do much that needs changing,
 so you should consider just using my .exe.  But the source is there,
 if you want to change something.
 
-1. Source organization
+1. Loading the VSTa files onto your disk.
 
-	All files are stored under RCS.  The RCS storage resides
-inside the RCS/ subdir in each source directory.
+	Make the directory /vsta under DOS.  This should be the first
+DOS partition on whatever disk you happen to be using.  If you don't
+have the DOS versions of gzip or tar, you can probably find them
+in the same place you found vsta.tz and vsta_bin.tz.
 
-	The source tree is organized along the lines of:
+	mkdir \vsta
+	cd \vsta
+	(Copy the vsta_bin.tz here)
+	gzip -dv vsta_bin.tz
+	tar -xvf vsta_bin.t
+	del vsta_bin.t
+	(Copy vsta.tz here now)
+	gzip -dv vsta.tz
+	tar -xvf vsta.t
+	del vsta.t
+
+	You now have all the binaries and source for VSTa.
+
+	Passwords are in /vsta/etc/passwd, and are in the clear.  Feel
+free to edit this file using a DOS editor; VSTa tries to accomodate both
+DOS \r\n and UNIX \n conventions for line-oriented data.  The format
+is described in lib/passwd.c.  The group you belong to in the passwd
+file causes you to get more abilities; see /vsta/etc/group.  Finally,
+numeric format IDs are mapped to symbolic courtesy of /vsta/etc/ids.  You
+can see how in libc/ids.c.
+
+2. VSTa directory organization
+
+	All source files are stored under RCS.  The RCS storage resides
+inside the RCS/ subdir in each source directory.  The binary directories,
+of course, are not kept under RCS.
+
+	The VSTa tree is organized under /vsta as:
 
 	os/		Kernel source
 	os/make		Where objects are compiled into
@@ -44,72 +81,46 @@ inside the RCS/ subdir in each source directory.
 	os/mach		i386 C, as well as assembly
 	srv/		All portable servers (filesystems, etc.)
 	srv/mach	i386/ISA servers (disk, keyboard, etc.)
-	libc/		The C library
-	lib/		Utility libraries
+	bin.src/	Command source
+	libc/		Library source
 	bin/		Commands
+	lib/		Libraries
+	etc/		System-oriented text files
 	doc/		Documentation, such as it is
-
-2. Building the kernel
-
-	Go into the lib subdir.  Do a "make".
-	Go into the ../os/make subdir.  Do a "make clean".  If this fails
-because there's no makefile, don't worry.
-	Build config: "gcc -o config config.c"
-	Run the kernel config program:  "go32 config".  Now you should
-have a makefile.
-	Run the make: "make"
-	Now you have a kernel.
-
-3. Building the world
-
-	Go to the root, and invoke the "mkclean" batch file.
-
-	Now invoke the "mkall" batch file.  It will move around through
-the source and build things in the right order.  GNU C is in its own
-archive; send me a note if you want to build it and have problems.
-
-	NOTE: some binaries (emacs, rc, gcc & friends) are in their
-own distribution tar file.  They may not even be present in your source
-tree.
-
-4. Putting a boot filesystem in place
-
-	Initial binaries are in the root directory in root.t, which
-is a tar file.  You need to extract this in the root dir of your first
-ST-506 DOS partition.  Sorry about using the bin/ dir, but VSTa
-executables don't have an extension so it shouldn't interfere even if
-you already have DOS executables there.
-
-	Passwords are in /etc/passwd, and are in the clear.  Feel free
-to edit this file using a DOS editor; VSTa tries to accomodate both
-DOS \r\n and UNIX \n conventions for line-oriented data.  The format
-is described in lib/passwd.c.  The group you belong to in the passwd
-file causes you to get more abilities; see /etc/group.  Finally,
-numeric format IDs are mapped to symbolic courtesy of /etc/ids.  You
-can see how in lib/ids.c.
+	doc/man		Some initial man pages, in roff format
 
 3. Booting the kernel
 
-	Move to the "boot" subdir.
+	cd to the "/vsta/boot" subdir.
 
 	Edit the file "boot.lst".  Each boot driver has a line here,
 and the comments before each line should tell you how to fiddle
 the line to reflect your hardware.  Currently, you need to edit
 console driver to tell it whether you're CGA or MGA, and you need
 to edit the line for the wd disk driver to tell it how to get
-the parameters for your disk(s).
+the parameters for your disk(s).  Or comment out the wd driver and
+uncomment the SCSI driver "cam" instead.  Or use both.
 
-	Invoke the batch file "go".
+	Invoke the batch file "go.bat".
 
-	This will load the kernel in ..\os\make, and also load the
-boot servers listed in boot.lst.  All the servers should have been
-built by the "mkall", so there should be no problems.
+	This will load the kernel and boot servers from the boot
+directory, as listed in your boot.lst.  The /vsta/boot directory
+has pre-built versions of all servers.  For future reference,
+the "make install" target in teach server makefile will copy it
+over to /vsta/boot.
 
 4. Kernel debugger
 
 	You have two options for kernel debugging.  As shipped,
 the on-screen kernel debugger is selected.  If you want to have
 the kernel debugger talk out the serial port, see os/mach/dbg*.c.
+You will also have to change the compilation options if you're using
+a display card at the MGA text address.
+
+	You will enter the debugger if VSTa crashes.  You can also
+type ^Z (control-Z) and you'll drop into it.  A "q" will continue.
+Since the console driver handles this, it'll try to restore your screen
+after you come back from the debugger.
 
 	Use the "pr" command to see the proc table, the "bt" command
 to see a stack backtrace of the current process.  "dv" will dump virtual
@@ -128,7 +139,49 @@ trapframe (from the last trip through trap()), or "tf <addr>" will
 assume there's a trap frame at the given address, and dump it out
 instead.
 
-5. More?
+5. Multi-screens
+
+	By default two logins are launched for two virtual screens.
+Use ALT-F1 and ALT-F2 to switch between the screens.  See the file
+/vsta/etc/inittab to launch more screens.  The first screen (ALT-F1)
+also receives syslog output.
+
+6. Building the system
+
+	Boot VSTa
+	cd /vsta
+	mkall
+	(watch the blinkin lights)
+	(if all looks great:)
+	mkall install
+
+	You can also cd to some particular server or command source
+directory and "make" or "make install" just that piece.
+
+	NOTE: some binaries (emacs, rc, gcc & friends) are in their
+own distribution tar file.  They may not even be present in your source
+tree.
+
+7. Documentation
+
+	Regrettably, not much.  Use the "man" command to access the
+initial man pages.  Hopefully more will show up, but at least the
+messaging primitives are now documented.  You can list the available
+man entries with "man 2 msg", and see msg_receive() documentation
+with "man msg_receive" (or "man 2 msg_receive").
+
+	The /vsta/doc/man directory will show you which man pages exist.
+There are also some files in /vsta/doc (like this one), but nothing
+earth shaking.  The C is pretty thoroughly commented, which'll help
+programmers.  I'm not sure VSTa's ready for non-programmers, but you're
+welcome to give it a try.
+
+8. More?
 
 	No doubt, but I can't think of what might help the most.
-Stay in touch!
+Stay in touch!  The best way to do that is to join the VSTa E-mail
+list.  Send to vsta-request@cisco.com.
+
+					Regards,
+					Andy Valencia
+					vandys@cisco.com
