@@ -7,6 +7,7 @@
 /* Current thread executing */
 	.globl	_cpu
 #define CURTHREAD (_cpu+PC_THREAD)
+#define SYNC	inb $0x84,%al
 
 	.data
 	.globl	_free_pfn,_size_ext,_size_base,_boot_pfn
@@ -168,8 +169,10 @@ _get_cr2:
 	movl	%cr2,%eax
 	ret
 _set_cr3:
+	SYNC
 	movl	4(%esp),%eax
 	movl	%eax,%cr3
+	SYNC
 	movl	%cr3,%eax
 	ret
 
@@ -204,12 +207,11 @@ _ltr:	ltr	4(%esp)
  */
 	.globl	_flush_tlb
 _flush_tlb:
+	SYNC
 	movl	%cr3,%eax
-	nop
 	movl	%eax,%cr3
-	jmp	1f
-1:	nop
-	ret
+	SYNC
+1:	ret
 
 /*
  * setjmp()
@@ -263,6 +265,7 @@ _longjmp:
 _inportb:
 	movl	4(%esp),%edx
 	xorl	%eax,%eax
+	SYNC ; SYNC
 	inb	%dx,%al
 	ret
 
@@ -273,8 +276,10 @@ _inportb:
 	.globl	_outportb
 _outportb:
 	movl	4(%esp),%edx
+	SYNC ; SYNC
 	movl	8(%esp),%eax
 	outb	%al,%dx
+	SYNC ; SYNC
 	ret
 
 /*
@@ -297,7 +302,7 @@ _outportb:
 	pushl	%esi  ; \
   \
 	/* Flag probe */  ; \
-	movl	$CURTHREAD,%edi  ; \
+	movl	$(CURTHREAD),%edi  ; \
 	movl	$_cpfail,T_PROBE(%edi)
 
 /*
@@ -320,7 +325,7 @@ _outportb:
  */
 #define CP_POSTLOG \
 	/* Clear probe */ ; \
-	movl	$CURTHREAD,%edi ; \
+	movl	$(CURTHREAD),%edi ; \
 	xorl	%eax,%eax ; \
 	movl	%eax,T_PROBE(%edi) ; \
   \
@@ -434,8 +439,8 @@ _idle_stack:
  */
 #define PUSH_SEGS pushw %ds ; pushw %es
 #define POP_SEGS popw %es ; popw %ds
-#define SET_KSEGS movw $GDT_KDATA,%ax ; movw %ax,%ds ; movw %ax,%es
-#define SET_USEGS movw $GDT_UDATA,%ax ; movw %ax,%ds ; movw %ax,%es
+#define SET_KSEGS movw $(GDT_KDATA),%ax ; movw %ax,%ds ; movw %ax,%es
+#define SET_USEGS movw $(GDT_UDATA),%ax ; movw %ax,%ds ; movw %ax,%es
 
 /*
  * trap_common()
@@ -507,9 +512,9 @@ intr_common:
  * those which don't--we push a dummy 0.
  */
 #define IDT(n, t) 	.globl _##n ; _##n: \
-	pushl $0 ; pushl $t ; jmp trap_common
+	pushl $0 ; pushl $(t) ; jmp trap_common
 #define IDTERR(n, t) 	.globl _##n ; _##n: \
-	pushl $t ; jmp trap_common
+	pushl $(t) ; jmp trap_common
 
 /*
  * The vectors we handle
@@ -550,7 +555,7 @@ _stray_ign:
  * a "struct intframe" in machreg.h.
  */
 #define INTVEC(n)	.globl	_xint##n ; _xint##n: \
-	pushl	$0; pushl	$n ; jmp intr_common
+	pushl	$(0); pushl	$(n) ; jmp intr_common
 
 	.align	4
 INTVEC(32)
