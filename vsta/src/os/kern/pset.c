@@ -410,13 +410,18 @@ dup_slots(struct pset *ops, struct pset *ps)
 {
 	uint x;
 	struct perpage *pp, *pp2;
+	int locked = 0;
 
-	p_lock(&ops->p_lock, SPL0);
 	for (x = 0; x < ps->p_len; ++x) {
+		if (!locked) {
+			p_lock(&ops->p_lock, SPL0);
+			locked = 1;
+		}
 		pp = find_pp(ops, x);
 		pp2 = find_pp(ps, x);
 		if (pp->pp_flags & (PP_V|PP_SWAPPED)) {
 			lock_slot(ops, pp);
+			locked = 0;
 			/*
 			 * The state can have changed as we may
 			 * have slept on the slot lock.  But
@@ -427,6 +432,13 @@ dup_slots(struct pset *ops, struct pset *ps)
 			copy_page(x, pp, pp2, ps);
 			unlock_slot(ops, pp);
 		}
+	}
+
+	/*
+	 * Drop any trailing lock
+	 */
+	if (locked) {
+		v_lock(&ops->p_lock, SPL0);
 	}
 }
 
