@@ -609,6 +609,8 @@ msg_receive(port_t arg_port, struct msg *arg_msg)
 	} else if (sm->m_op == M_DISCONNECT) {
 		ASSERT_DEBUG(pr->p_state == PS_CLOSING,
 			"msg_receive: DISC but not CLOSING");
+		ASSERT_DEBUG(pr->p_port == port,
+			"msg_receive: DISC pr mismatch");
 		deref_port(port, pr);
 		v_lock(&port->p_lock, SPL0); holding_port = 0;
 		del_client(pr);
