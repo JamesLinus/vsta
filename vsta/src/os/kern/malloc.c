@@ -239,6 +239,23 @@ free(void *mem)
 	b = &buckets[page->p_bucket];
 	p_lock(&b->b_lock, SPL0);
 
+#ifdef DEBUG
+	/*
+	 * Slow, but can catch truly horrible bugs.  See if
+	 * this memory is being freed when already free.
+	 */
+	{
+		struct freehead *fstart;
+
+		fstart = &b->b_mem;
+		f = b->b_mem.f_forw;
+		do {
+			ASSERT(f != mem, "free: already on list");
+			f = f->f_forw;
+		} while (f != fstart);
+	}
+#endif
+
 	/*
 	 * Free chunk to bucket
 	 */
