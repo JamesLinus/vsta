@@ -371,10 +371,19 @@ wd_start(void)
 	uint cyl, sect, trk, lsect;
 	struct wdparms *w = &disks[cur_unit].d_parm;
 
-#ifdef DEBUG
-	ASSERT((inportb(wd_baseio + WD_STATUS) & WDS_BUSY) == 0,
-		"wd_start: busy");
-#endif
+	/*
+	 * For laptops with power management, our inportb() here can
+	 * cause the disk to wake up; the controller can then flag
+	 * a busy disk until the spinup is complete.  Give it 5 seconds.
+	 */
+	cyl = 0;
+	while (inportb(wd_baseio + WD_STATUS) & WDS_BUSY) {
+		if (++cyl > 50) {
+			ASSERT(0, "wd_start: busy");
+		}
+		__msleep(100);
+	}
+
 	/*
 	 * Given disk geometry, calculate parameters for next I/O
 	 */
