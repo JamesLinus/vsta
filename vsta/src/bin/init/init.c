@@ -167,105 +167,6 @@ read_inittab(void)
 }
 
 /*
- * mount_fs()
- *	Read initial mount from fstab, put in our mount table
- */
-static void
-mount_fs(void)
-{
-	FILE *fp;
-	char *r, buf[80], *point, *path;
-	port_t p;
-	port_name pn;
-	int nmount = 0;
-
-	if ((fp = fopen(FSTAB, "r")) == NULL) {
-		return;
-	}
-	while (fgets(buf, sizeof(buf)-1, fp)) {
-		/*
-		 * Get null-terminated string
-		 */
-		buf[strlen(buf)-1] = '\0';
-		if ((buf[0] == '\0') || (buf[0] == '#')) {
-			continue;
-		}
-
-		/*
-		 * Break into two parts
-		 */
-		point = strchr(buf, ' ');
-		if (point == NULL) {
-			continue;
-		}
-		++point;
-
-		/*
-		 * See if we want to walk down into the port
-		 * before mounting.
-		 */
-		path = strchr(buf, ':');
-		if (path) {
-			*path++ = '\0';
-		}
-
-		/*
-		 * Look up via namer
-		 */
-		pn = namer_find(buf);
-		if (pn < 0) {
-			printf("init: can't find: %s\n", buf);
-			continue;
-		}
-		p = msg_connect(pn, ACC_READ);
-		if (p < 0) {
-			printf("init: can't connect to: %s\n", buf);
-		}
-
-		/*
-		 * If there's a path within, walk it now
-		 */
-		if (path) {
-			struct msg m;
-			char *q;
-
-			do {
-				q = strchr(path, '/');
-				if (q) {
-					*q++ = '\0';
-				}
-				m.m_op = FS_OPEN;
-				m.m_nseg = 1;
-				m.m_buf = path;
-				m.m_buflen = strlen(path)+1;
-				m.m_arg = ACC_READ;
-				m.m_arg1 = 0;
-				if (msg_send(p, &m) < 0) {
-					printf("Bad path under %s: %s\n",
-						buf, path);
-					msg_disconnect(p);
-					continue;
-				}
-				path = q;
-			} while (path);
-		}
-
-		/*
-		 * Mount port in its place
-		 */
-		mountport(point, p);
-		if (nmount++ == 0) {
-			printf("Mounting:");
-		}
-		printf(" %s", point); fflush(stdout);
-	}
-	fclose(fp);
-	if (nmount > 0) {
-		printf("\n");
-	}
-}
-
-/*
  * launch()
  *	Fire up an entry
  */
@@ -382,7 +283,7 @@ main(void)
 	port_name pn;
 
 	/*
-	 * A moment (1.5 sec) to let servers establish their ports
+	 * A moment (2.5 sec) to let servers establish their ports
 	 */
 	__msleep(2500);
 
@@ -394,22 +295,6 @@ main(void)
 	p = msg_connect(PORT_CONS, ACC_WRITE);
 	(void)__fd_alloc(p);
 	(void)__fd_alloc(p);
-
-	/*
-	 * Mount /namer, /time and /env in their accustomed places
-	 */
-	p = msg_connect(PORT_NAMER, ACC_READ);
-	if (p >= 0) {
-		mountport("/namer", p);
-	}
-	p = msg_connect(PORT_ENV, ACC_READ);
-	if (p >= 0) {
-		mountport("/env", p);
-	}
-	p = msg_connect(PORT_TIMER, ACC_READ);
-	if (p >= 0) {
-		mountport("/time", p);
-	}
 
 	/*
 	 * Root filesystem
@@ -425,16 +310,6 @@ main(void)
 		exit(1);
 	}
 	mountport("/vsta", p);
-
-	/*
-	 * Initialize environment
-	 */
-	setenv_init("");
-
-	/*
-	 * Mount others
-	 */
-	mount_fs();
 
 	/*
 	 * Read in inittab
