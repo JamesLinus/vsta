@@ -37,17 +37,6 @@ mmap(void *addr, ulong len, int prot, int flags,
 	 */
 	if (flags & MAP_ANON) {
 		/*
-		 * We don't allow you to choose (yet).  When we do, it'll
-		 * probably require an enhancement to attach_zfod_vaddr(),
-		 * as we need to atmoically check and add the new view at
-		 * the given vaddr.
-		 */
-		if (addr) {
-			err(EINVAL);
-			return(0);
-		}
-
-		/*
 		 * Keep it simple, eh?  Read-only ZFOD???
 		 */
 		if ((flags & (MAP_FILE|MAP_FIXED|MAP_PHYS)) ||
@@ -79,6 +68,7 @@ mmap(void *addr, ulong len, int prot, int flags,
 		/*
 		 * Try to attach
 		 */
+		pv->p_vaddr = addr;
 		vaddr = attach_pview(vas, pv);
 		if (vaddr == 0) {
 			free_pview(pv);
