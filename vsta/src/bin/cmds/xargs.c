@@ -7,7 +7,7 @@
 
 #define MAXARGS (512)
 
-static char *args[MAXARGS];
+static char *args[MAXARGS+1];
 
 int
 main(int argc, char **argv)
