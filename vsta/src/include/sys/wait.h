@@ -3,6 +3,11 @@
 /*
  * wait.h
  *	Process exit coordination
+ *
+ * Although there are bits for being stopped, VSTa does not currently
+ * have job control.  They are used to interact compatibly with debuggers
+ * like gdb which expect the ptrace() relationship to use wait()
+ * events to synchronize.
  */
 #include <sys/types.h>
 #include <sys/param.h>
@@ -22,6 +27,7 @@ struct exitst {
  * Encoded bits in e_code word
  */
 #define _W_EV (0x10000)		/* Process died on event */
+#define _W_STOP (0x20000)	/* Process suspended (not used) */
 
 /*
  * System call function protoype
@@ -73,10 +79,11 @@ extern pid_t wait(int *),
  */
 #define WIFSIGNALED(x) ((x) & _W_EV)	/* Killed by event */
 #define WTERMSIG(x) (((x) >> 8) & 0xFF)	/* Signal # */
-#define WIFEXITED(x) (!WIFSIGNALED(x))	/* Called exit() */
+#define WIFSTOPPED(x) ((x) & _W_STOP)	/* Stopped (not used) */
+#define WSTOPSIG(x) (((x) >> 8) & 0xFF)	/*  Signal for stop (not used) */
+#define WIFEXITED(x) (!WIFSIGNALED(x) && !WIFSTOPPED(x))
+					/* Called exit() */
 #define WEXITSTATUS(x) ((x) & 0xFF)	/* Value passed to exit() */
-#define WIFSTOPPED(x) (0)		/* No job control */
-#define WSTOPSIG(x) (0)
 
 #endif /* KERNEL */
 
