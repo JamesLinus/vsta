@@ -58,6 +58,21 @@ swab(void *ptr, uint cnt)
 }
 
 /*
+ * load_sect()
+ *	Load a sector down to the controller during an FS_WRITE
+ */
+static void
+load_sect(void)
+{
+	repoutsw(WD_PORT+WD_DATA, cur_vaddr,
+		SECSZ/sizeof(ushort));
+	cur_vaddr += SECSZ;
+	cur_sec += 1;
+	cur_secs -= 1;
+	cur_xfer -= 1;
+}
+
+/*
  * wd_init()
  *	Initialize our disk controller
  *
@@ -176,8 +191,6 @@ wd_start(void)
 #ifdef DEBUG
 	ASSERT((inportb(WD_PORT+WD_STATUS) & WDS_BUSY) == 0,
 		"wd_start: busy");
-	/* XXX for now, would be a pain to fix */
-	ASSERT(cur_op == FS_READ, "wd_start: writing");
 #endif
 	/*
 	 * Given disk geometry, calculate parameters for next I/O
@@ -208,6 +221,16 @@ wd_start(void)
 		WDSDH_EXT|WDSDH_512 | trk | (cur_unit << 4));
 	outportb(WD_PORT+WD_CMD,
 		(cur_op == FS_READ) ? WDC_READ : WDC_WRITE);
+
+	/*
+	 * Feed data immediately for write
+	 */
+	if (cur_op == FS_WRITE) {
+		while ((inportb(WD_PORT+WD_STATUS) & WDS_DRQ) == 0) {
+			;
+		}
+		load_sect();
+	}
 }
 
 /*
@@ -270,12 +293,7 @@ wd_isr(void)
 		 * data is written.
 		 */
 		if (stat & WDS_DRQ) {
-			repoutsw(WD_PORT+WD_DATA, cur_vaddr,
-				SECSZ/sizeof(ushort));
-			cur_vaddr += SECSZ;
-			cur_sec += 1;
-			cur_secs -= 1;
-			cur_xfer -= 1;
+			load_sect();
 		} else {
 			done = 1;
 		}
