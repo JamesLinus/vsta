@@ -468,6 +468,19 @@ sequence(int x, int y, char c)
 		break;
 
 	case 'K':		/* Clear to end of line */
+		/*
+		 * If we're beyond end of line, advance to next line if
+		 * there *is* one.  This lets the clearing apply to
+		 * the new line, which we're actually kinda sorta on.
+		 */
+		if (s->s_onlast && (cur < (physbottom-CELLSZ))) {
+			cur += CELLSZ;
+			s->s_onlast = 0;
+		}
+
+		/*
+		 * Write blanks from cursor position to end of line
+		 */
 		y = cur-top;
 		y = LINESZ - (y % LINESZ);
 		p = cur+y;
