@@ -72,6 +72,11 @@ extern int time_set(struct time *arg_time);
 extern int ptrace(pid_t pid, port_name name);
 extern int notify_handler(voidfun);
 
+#ifndef KERNEL
+extern int notify(pid_t, pid_t, char *);
+extern int strerror(char *);
+#endif
+
 /*
  * Not really a syscall, but intimate enough to be lumped in here
  */
