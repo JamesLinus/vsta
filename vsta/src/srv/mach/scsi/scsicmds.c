@@ -35,6 +35,90 @@ char	unsigned *cam_status, *scsi_status;
 }
 
 /*
+ * cam_reqsns()
+ *	Send a REQUEST SENSE CCB to the input device.
+ */
+long	cam_reqsns(devid, reqsns_data, cam_status, scsi_status)
+CAM_DEV	devid;
+struct	scsi_reqsns_data *reqsns_data;
+char	unsigned *cam_status, *scsi_status;
+{
+	CCB	*ccb;
+	long	status = CAM_SUCCESS;
+
+	if((ccb = xpt_ccb_alloc()) == NULL)
+		status = CAM_ENOMEM;
+	else {
+		cam_fmt_reqsns_ccb(devid, reqsns_data, ccb);
+		if((status = xpt_action(ccb)) == CAM_SUCCESS) {
+			cam_ccb_wait(ccb);
+			*cam_status = ccb->header.cam_status;
+			*scsi_status = ccb->scsiio.scsi_status;
+		}
+		xpt_ccb_free(ccb);
+	}
+
+	return(status);
+}
+
+/*
+ * cam_mode_select
+ *	Send a MODE SELECT command to the input device.
+ */
+long	cam_mode_select(devid, pf, sp, prmlst_len, selbuf,
+	                cam_status, scsi_status)
+CAM_DEV	devid;
+int	pf, sp, prmlst_len;
+char	unsigned *selbuf, *cam_status, *scsi_status;
+{
+	CCB	*ccb;
+	long	status = CAM_SUCCESS;
+
+	if((ccb = xpt_ccb_alloc()) == NULL)
+		status = CAM_ENOMEM;
+	else {
+		cam_fmt_mode_select_ccb(devid, pf, sp, prmlst_len, selbuf, ccb);
+		if((status = xpt_action(ccb)) == CAM_SUCCESS) {
+			cam_ccb_wait(ccb);
+			*cam_status = ccb->header.cam_status;
+			*scsi_status = ccb->scsiio.scsi_status;
+		}
+		xpt_ccb_free(ccb);
+	}
+
+	return(status);
+}
+
+/*
+ * cam_mode_sense
+ *	Send a MODE SENSE command to the input device.
+ */
+long	cam_mode_sense(devid, dbd, pc, pg_code, alloc_len,
+	               snsbuf, cam_status, scsi_status)
+CAM_DEV	devid;
+int	dbd, pc, pg_code, alloc_len;
+char	unsigned *snsbuf, *cam_status, *scsi_status;
+{
+	CCB	*ccb;
+	long	status = CAM_SUCCESS;
+
+	if((ccb = xpt_ccb_alloc()) == NULL)
+		status = CAM_ENOMEM;
+	else {
+		cam_fmt_mode_sense_ccb(devid, dbd, pc, pg_code, alloc_len,
+		                       snsbuf, ccb);
+		if((status = xpt_action(ccb)) == CAM_SUCCESS) {
+			cam_ccb_wait(ccb);
+			*cam_status = ccb->header.cam_status;
+			*scsi_status = ccb->scsiio.scsi_status;
+		}
+		xpt_ccb_free(ccb);
+	}
+
+	return(status);
+}
+
+/*
  * cam_read_capacity()
  *	Send a READ CAPACITY command to the input device.
  */
@@ -142,7 +226,7 @@ char	unsigned *cam_status, *scsi_status;
 
 /*
  * cam_wfm()
- *	Send a Write Filemark command to the input device.
+ *	Send a Write Filemark command to the input tape device.
  */
 long	cam_wfm(devid, nfm, cam_status, scsi_status)
 CAM_DEV	devid;
@@ -168,6 +252,41 @@ char	unsigned *cam_status, *scsi_status;
 }
 
 /*
+ * cam_space()
+ *	Send a Space command to the input tape device.
+ */
+long	cam_space(devid, code, count, cam_status, scsi_status, snsdata)
+CAM_DEV	devid;
+int	code;
+long	count;
+char	unsigned *cam_status, *scsi_status;
+struct	scsi_reqsns_data *snsdata;
+{
+	CCB	*ccb;
+	long	status = CAM_SUCCESS;
+
+	if((ccb = xpt_ccb_alloc()) == NULL)
+		status = CAM_ENOMEM;
+	else {
+		cam_fmt_space_ccb(devid, code, count, ccb);
+		if(snsdata == NULL)
+			ccb->header.cam_flags |= CAM_DIS_AUTOSENSE;
+		if((status = xpt_action(ccb)) == CAM_SUCCESS) {
+			cam_ccb_wait(ccb);
+			*cam_status = ccb->header.cam_status;
+			*scsi_status = ccb->scsiio.scsi_status;
+		}
+		if((snsdata != NULL) &&
+		   (ccb->scsiio.scsi_status == SCSI_CHECK_COND) &&
+		   (ccb->header.cam_status & CAM_AUTOSNS_VALID))
+			*snsdata = ccb->scsiio.snsdata;
+		xpt_ccb_free(ccb);
+	}
+
+	return(status);
+}
+
+/*
  * cam_cntuio()
  *	Start the next transfer for a large request.
  */
@@ -176,9 +295,11 @@ register CCB *ccb;
 {
 	struct	cam_sg_elem *sg_list;
 	union	cam_pdevice *pdev;
-	long	count, blklen;
+	struct	cam_request *request;
+	long	lbaddr, nblocks, count, blklen;
 	uint32	xfer_len;
 	uint16	next;
+	char	scsi_opcode;
 /*
  * Multiple transfers are only for direct read and write operations.
  */
@@ -192,16 +313,14 @@ register CCB *ccb;
 		return(CAM_ENXIO);
 	}
 /*
+ * Get a pointer to the original request.
  * Get the peripheral device pointer and the block size.
  */
+	if((request = (struct cam_request *)ccb->scsiio.reqmap) == NULL)
+		return(CAM_ENXIO);
+
 	if((pdev = (union cam_pdevice *)ccb->scsiio.pdrv_ptr) != NULL) {
-		switch(pdev->header.class) {
-		case CAMPC_DISK:
-			blklen = pdev->disk.blklen;
-			break;
-		default:
-			blklen = pdev->generic.blklen;
-		}
+		blklen = pdev->header.blklen;
 	} else {
 		blklen = CAM_BLKSIZ;
 	}
@@ -209,8 +328,8 @@ register CCB *ccb;
  * Update counters.
  */
 	count = ccb->scsiio.xfer_len - ccb->scsiio.resid;
-	ccb->scsiio.bresid -= count;
-	ccb->scsiio.bcount += count;
+	request->bresid -= count;
+	ccb->scsiio.sg_resid -= count;
 	ccb->scsiio.lbaddr += (count / blklen);
 	if(ccb->header.cam_flags & CAM_SG_VALID)
 		(char *)ccb->scsiio.sg_list->sg_address += count;
@@ -225,40 +344,58 @@ register CCB *ccb;
 /*
  * Still more scatter/gather elements to transfer?
  */
-	    if((ccb->scsiio.bresid == 0) &&
+	    if((ccb->scsiio.sg_resid == 0) &&
 	       (ccb->header.cam_flags & CAM_SG_VALID)) {
 		next = ++(ccb->scsiio.sg_next);
 		if(next < ccb->scsiio.sg_max) {
 			sg_list = ccb->scsiio.sg_list;
 			*sg_list = ccb->scsiio.sg_base[next];
-			ccb->scsiio.bresid = sg_list->sg_length;
+			ccb->scsiio.sg_resid = sg_list->sg_length;
 		}
 	    }
 /*
  * Still more data to transfer for the current buffer?
  */
-	    if(ccb->scsiio.bresid > 0) {
+	    if(ccb->scsiio.sg_resid > 0) {
 /*
  * Start the next I/O in the chain.
  */
-		xfer_len = ccb->scsiio.bresid;
+		xfer_len = ccb->scsiio.sg_resid;
 		if(xfer_len > cam_params.maxio)
 			xfer_len = cam_params.maxio;
 		ccb->scsiio.xfer_len = xfer_len;
 		if(ccb->header.cam_flags & CAM_SG_VALID) {
-#ifdef	__old__
-			(char *)ccb->scsiio.sg_list->sg_address += count;
-#endif
 			ccb->scsiio.sg_list->sg_length = xfer_len;
 		} else {
-#ifdef	__old__
-			(char *)ccb->scsiio.sg_list += count;
-#endif
 			ccb->scsiio.sg_count = xfer_len;
 		}
-		cam_fmt_drw_cdb6(ccb->scsiio.cdb[0], ccb->header.lun,
-		             ccb->scsiio.lbaddr, xfer_len / blklen,
-		             0, (struct scsi_drw_cdb6 *)ccb->scsiio.cdb);
+/*
+ * Build the new SCSI CDB.
+ */
+		lbaddr = ccb->scsiio.lbaddr;
+		nblocks = xfer_len / blklen;
+		scsi_opcode = ccb->scsiio.cdb[0];
+		if((scsi_opcode == SCSI_READ10) ||
+		   (scsi_opcode == SCSI_WRITE10) ||
+		   (lbaddr > SCSI_MAX_CDB6_LBADDR) ||
+		   (nblocks > SCSI_MAX_CDB6_BLOCKS)) {
+
+			if(scsi_opcode == SCSI_READ6)
+				scsi_opcode = SCSI_READ10;
+			else if(scsi_opcode == SCSI_WRITE6)
+				scsi_opcode = SCSI_WRITE10;
+
+			cam_fmt_drw_cdb10(scsi_opcode, ccb->scsiio.cdb,
+			           lbaddr, nblocks, 0,
+			           (struct scsi_drw_cdb10 *)ccb->scsiio.cdb);
+			ccb->scsiio.cdb_len = 10;
+		} else {
+			cam_fmt_drw_cdb6(scsi_opcode, ccb->header.lun,
+			           lbaddr, nblocks, 0,
+			           (struct scsi_drw_cdb6 *)ccb->scsiio.cdb);
+			ccb->scsiio.cdb_len = 6;
+		}
+
 		return(CAM_SUCCESS);
 	    }
 	}
@@ -281,15 +418,15 @@ register CCB *ccb;
  *	neccessary, the request is broken up into several smaller
  *	requests.
  */
-long	cam_start_rwio(request, cam_flags, sg_list, sg_count, pccb)
+long	cam_start_rwio(request, pccb)
 struct	cam_request *request;
-uint32	cam_flags;
-void	*sg_list;
-long	unsigned sg_count;
 CCB	**pccb;
 {
 	register CCB *ccb;
 	union	cam_pdevice *pdev;
+	uint32	cam_flags = request->cam_flags;
+	void	*sg_list = request->sg_list;
+	long	unsigned sg_count = request->sg_count;
 	long	lbaddr, nblocks, blklen, status = CAM_SUCCESS;
 	char	*myname = "cam_start_rwio", scsi_opcode;
 
@@ -311,20 +448,6 @@ CCB	**pccb;
 	else {
 		cam_fmt_ccb_header(XPT_SCSI_IO, request->devid, cam_flags, ccb);
 /*
- * Get the peripheral device pointer and the block size.
- */
-		if((pdev = request->pdev) != NULL) {
-			switch(pdev->header.class) {
-			case CAMPC_DISK:
-				blklen = pdev->disk.blklen;
-				break;
-			default:
-				blklen = pdev->generic.blklen;
-			}
-		} else {
-			blklen = CAM_BLKSIZ;
-		}
-/*
  * Initialize the multiple-transfer-per-request fields.
  */
 		ccb->scsiio.sg_base = sg_list;
@@ -332,15 +455,15 @@ CCB	**pccb;
 			ccb->scsiio.sg_max = sg_count;
 			ccb->scsiio.sg_next = 0;
 			ccb->scsiio.sg_element = ((CAM_SG_ELEM *)sg_list)[0];
-			ccb->scsiio.bresid = ccb->scsiio.sg_element.sg_length;
+			ccb->scsiio.sg_resid = ccb->scsiio.sg_element.sg_length;
 		} else {
-			ccb->scsiio.bresid = sg_count;
+			ccb->scsiio.sg_resid = sg_count;
 			ccb->scsiio.sg_max = ccb->scsiio.sg_next = 0;
 		}
 /*
  * Get the transfer length.
  */
-		ccb->scsiio.xfer_len = ccb->scsiio.bresid;
+		ccb->scsiio.xfer_len = ccb->scsiio.sg_resid;
 		if(ccb->scsiio.xfer_len > cam_params.maxio)
 			ccb->scsiio.xfer_len = cam_params.maxio;
 /*
@@ -356,14 +479,29 @@ CCB	**pccb;
 			ccb->scsiio.sg_count = ccb->scsiio.xfer_len;
 		}
 /*
+ * Get the peripheral device pointer and the block size.
+ */
+		if((pdev = request->pdev) != NULL) {
+			blklen = pdev->header.blklen;
+		} else {
+			blklen = CAM_BLKSIZ;
+		}
+/*
  * Format the CDB and remaining CCB fields.
  */
 		lbaddr = request->offset / blklen;
 		nblocks = ccb->scsiio.xfer_len / blklen;
-		if(pdev->header.type == SCSI_SEQUENTIAL) {
-			cam_fmt_srw_cdb6(scsi_opcode, CAM_LUN(request->devid),
-			              0, 0, ccb->scsiio.xfer_len, 0,
-			              (struct scsi_srw_cdb6 *)ccb->scsiio.cdb);
+		if(pdev->header.class == CAMPC_TAPE) {
+			if(blklen == 0)
+			    cam_fmt_srw_cdb6(scsi_opcode,
+			               CAM_LUN(request->devid),
+			               0, 0, ccb->scsiio.xfer_len, 0,
+			               (struct scsi_srw_cdb6 *)ccb->scsiio.cdb);
+			else
+			    cam_fmt_srw_cdb6(scsi_opcode,
+			               CAM_LUN(request->devid), 0, 1,
+			               ccb->scsiio.xfer_len / blklen, 0,
+			               (struct scsi_srw_cdb6 *)ccb->scsiio.cdb);
 			ccb->scsiio.cdb_len = 6;
 		} else if((pdev->header.type == SCSI_OPTICAL) ||
 		          (lbaddr > SCSI_MAX_CDB6_LBADDR) ||
@@ -387,7 +525,9 @@ CCB	**pccb;
 			ccb->scsiio.completion = request->file->completion;
 		else
 			ccb->scsiio.completion = NULL;
-		ccb->scsiio.bcount = 0;
+#ifdef	__old__
+		request->bcount = 0;
+#endif
 		ccb->scsiio.lbaddr = lbaddr;
 		ccb->scsiio.pdrv_ptr = (void *)pdev;
 /*

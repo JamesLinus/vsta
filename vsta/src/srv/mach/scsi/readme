@@ -13,7 +13,7 @@ VSTa SCSI/CAM driver was written from scratch by Mike Larson
 (larz@world.std.com). The following notice applies to all files
 in this distribution:
 
-    Copyright (C) 1993,1994  Michael A. Larson
+    Copyright (C) 1993-1995  Michael A. Larson
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -32,6 +32,18 @@ in this distribution:
 
 Revision History
 ----------------
+
+VSTa 1.4.1
+
+	Add SCSI tape peripheral driver.
+
+	Add autosense code.
+
+	Some reorginization of the SIM code to allow both driver
+	and per-HBA initialization.
+
+	Bug fixes - fix disk accesses to LBN's > 1024K. Fix
+	"can't allow media removal" on close message.
 
 VSTa 1.3.2
 
@@ -160,6 +172,82 @@ The SCSI/CAM server accepts the following command line options:
 				"0x").
 
 
+Peripheral Tape Interface Notes
+-------------------------------
+
+Access to SCSI tape drives is provided by the VSTa SCSI/CAM driver
+Peripheral Tape driver.  The Peripheral tape driver supports standard
+I/O operations, no rewind tape devices, magnetic tape I/O operations
+(MTIO) commands, fixed and variable length block sizes, and various
+other tape drive characteristics.
+
+Access to tape devices is through the SCSI/CAM "raw" interface.  To use
+this interface, you must first mount the SCSI/CAM server.  For example,
+here's a sample /vsta/etc/fstab entry:
+
+	cam	/dev/cam
+
+Once the SCSI/CAM server is mounted, the various SCSI raw device
+entries can be seen using the "ls" command. In general, SCSI tape
+devices show up as "stN" and "nstN", where 'N' is the device's target
+ID.
+
+Non-read/write operations are performed using the VSTa stat/wstat
+interface. The stat interface returns various tape device parameters.
+The wstat interface accepts the following standard MTIO tape ioctl
+commands.
+
+	COMMAND		DESCRIPTION
+	-------		-----------
+	MTWEOF          write COUNT EOF records
+	MTFSF           forward space COUNT filemarks
+	MTBSF           backward space COUNT filemarks
+	MTFSR           forward space COUNT records
+	MTBSR           backward space COUNT records
+	MTREW           rewind
+	MTOFFL          rewind and put the drive offline (TBD)
+	MTNOP           no operation, sets status only
+	MTSETBSIZ       set (fixed length) block size
+	MTSETDNSTY      set density
+	MTSETDRVBUFFER	set device write buffer flags
+
+
+Included in the VSTa distribution is the "mt" tape control program.
+The VSTa version of "mt" is an "ash" script that wstat's the a tape
+device with the appropriate command and count strings.
+
+Note that VSTa 1.3.2 has only a small number of DMA map entries
+(MAX_WIRED) allocated.  Correspondingly, the SCSI/CAM driver does
+I/O in small increments (maximum I/O size currently = 4K).  For disks
+this not a problem, since large I/O requests can be broken up into
+smaller chunks.  But for tapes, I/O has to be done in a single operation,
+so the tape peripheral driver limits the tape I/O size to CAM's maximum
+I/O size.  What this means for tar is that the block count (1 tar block =
+512 bytes) must be set appropriately.  For example:
+
+	tar tvbf 8 /dev/cam/st4
+
+sets the block size to 4k.
+
+
+Tape I/O Performance
+--------------------
+
+On slower systems (like the one that the SCSI/CAM driver has been
+developed on), its hard to get streaming tape drives to stream.  One
+solution to this problem is to use a program like "dd" to 1) do disk
+and tape I/O concurrently and 2) buffer up blocks before writing them.
+For example:
+
+	tar cvbf 256 - files_to_be_tared | dd of=/dev/cam/st4 ibs=128k obs=4k
+
+and
+
+	dd if=/dev/cam/st4 ibs=4k obs=128k | tar xvbf 256 - files_to_be_untared
+
+given that the tape device is /dev/cam/st4 and the tape block size is 4k.
+
+
 Source File Description
 -----------------------
 
@@ -180,7 +268,8 @@ camvsta.c		- VSTa CAM utilities (allocate memory, enable_io,
 			  enable_isr, page_wire, etc.)
 insque.c		- C library insque/remque
 main.c			- main entry point and some peripheral driver functions
-pdisk.c			- VSTa specific peripheral disk driver code
+pdisk.c			- peripheral disk driver code
+ptape.c			- peripheral tape driver code
 pgen.c			- "generic" peripheral disk driver code
 scsicd.c		- functions for formatting CD-ROM CCB's and CDB's.
 scsicmds.c		- server SCSI command utilities.

@@ -13,11 +13,6 @@
 #include <mach/dpart.h>
 #include "cam.h"
 
-extern	struct hash *cam_filehash;	/* Map session->context structure */
-extern	struct prot cam_prot;		/* top level protection */
-extern	union cam_pdevice *cam_pdevices;/* the peripheral device table */
-extern	union cam_pdevice *cam_last_pdevice;
-
 /*
  * Function prototypes.
  */
@@ -26,15 +21,15 @@ void	pgen_read_capacity(union cam_pdevice *pdev);
 static	void pgen_complete(register CCB *ccb);
 static	long pgen_open(struct cam_file *file, char *name);
 static	long pgen_close(struct cam_file *file);
-static	long pgen_rwio(struct cam_request *request, int cam_flags,
-	               void *sg_list, uint16 sg_count);
+static	long pgen_rwio(struct cam_request *request);
+static	long pgen_ioctl(struct cam_file *file, long cmdval, void *cmdargs);
 #endif
 
 /*
  * Peripheral disk driver operations.
  */
 struct	cam_pdev_ops pgen_ops = {
-	pgen_open, pgen_close, pgen_rwio
+	pgen_open, pgen_close, pgen_rwio, pgen_ioctl
 };
 
 /*
@@ -86,26 +81,25 @@ void	pgen_read_capacity(union cam_pdevice *pdev)
 	                               &cam_status, &scsi_status);
 	if((rtn_status == CAM_SUCCESS) && (cam_status == CAM_REQ_CMP) &&
 	   (scsi_status == SCSI_GOOD)) {
-		cam_sitohi32(rdcap_data.lbaddr, &pdev->generic.nblocks);
-		cam_sitohi32(rdcap_data.blklen, &pdev->generic.blklen);
+		cam_si32tohi32(rdcap_data.lbaddr, &pdev->generic.nblocks);
+		cam_si32tohi32(rdcap_data.blklen, &pdev->header.blklen);
 	} else {
 /*
  * Use default values.
  */
 		pdev->generic.nblocks = 0;
-		pdev->generic.blklen = CAM_BLKSIZ;
+		pdev->header.blklen = CAM_BLKSIZ;
 	}
 }
 
 /*
  * pgen_rwio - read/write common code.
  */
-static	long pgen_rwio(struct cam_request *request, int cam_flags,
-	               void *sg_list, uint16 sg_count)
+static	long pgen_rwio(struct cam_request *request)
 {
 	long	status;
 
-	status = cam_start_rwio(request, cam_flags, sg_list, sg_count, NULL);
+	status = cam_start_rwio(request, NULL);
 	return(status);
 }
 
@@ -117,5 +111,22 @@ static	void pgen_complete(register CCB *ccb)
 {
 	cam_complete(ccb);
 	xpt_ccb_free(ccb);
+}
+
+/*
+ * pgen_ioctl - ioctl processing.
+ */
+static	long pgen_ioctl(struct cam_file *file, long cmdval, void *cmdargs)
+{
+	switch(cmdval) {
+	case CAM_EXEC_IOCCB:
+	 	if(xpt_action((CCB *)cmdargs) != CAM_SUCCESS)
+			return(CAM_EIO);
+		cam_ccb_wait((CCB *)cmdargs);
+		break;
+	default:
+		return(CAM_ENXIO);
+	}
+	return(CAM_SUCCESS);
 }
 

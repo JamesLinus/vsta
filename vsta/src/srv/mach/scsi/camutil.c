@@ -22,10 +22,31 @@ int	sg_count;
 }
 
 /*
- * cam_sitohi32()
+ * cam_si32tohi32()
  *	SCSI CDB integer to host 32-bit integer conversion.
  */
-void	cam_sitohi32(register unsigned char *si, uint32 *hi)
+void	cam_si32tohi32(register unsigned char *si, uint32 *hi)
 {
 	*hi = (si[0] << 24) | (si[1] << 16) | (si[2] << 8) | si[3];
 }
+
+/*
+ * cam_si24tohi32()
+ *	SCSI CDB 3 byte integer to host 32-bit integer conversion.
+ */
+void	cam_si24tohi32(unsigned char *si, uint32 *hi)
+{
+	*hi = (si[0] << 16) | (si[1] << 8) | si[2];
+}
+
+/*
+ * cam_hi32tosi24
+ *	Host 32-bit integer to SCSI CDB 3 byte integer conversion.
+ */
+void	cam_hi32tosi24(uint32 hi, unsigned char *si)
+{
+	si[0] = (hi >> 16) & 0xff;
+	si[1] = (hi >> 8) & 0xff;
+	si[2] = hi & 0xff;
+}
+

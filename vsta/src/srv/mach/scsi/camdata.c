@@ -2,14 +2,27 @@
  * camdata.c - CAM configuration information.
  */
 #include "cam.h"
+#include "sim.h"
 
 uint32	cam_debug_flags = 0;
 
-long	sim154x_init(), sim154x_action();
-CAM_SIM_ENTRY sim154x_entry = { sim154x_init, sim154x_action };
+/*
+ * Static link to SIM HBA drivers.
+ */
+#ifdef	__SIM154X__
+void	sim154x_dvrinit(void);
+#endif
 
-struct	cam_conftbl cam_conftbl[] = {
-	{ &sim154x_entry },
+struct	sim_driver sim_dvrtbl[] = {
+#ifdef	__SIM154X__
+	{ sim154x_dvrinit,	0,	NULL },
+#endif
 };
-long	cam_nconftbl_entries = sizeof(cam_conftbl) / sizeof(cam_conftbl[0]);
+int	sim_ndrivers = sizeof(sim_dvrtbl) / sizeof(sim_dvrtbl[0]);
+
+/*
+ * The per-driver CAM configuration table.
+ */
+CAM_SIM_ENTRY **cam_conftbl = NULL;
+int	cam_nconftbl_entries = 0;
 

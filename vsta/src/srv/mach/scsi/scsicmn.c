@@ -42,6 +42,43 @@ struct	scsi_cdb10 *cdb;
 }
 
 /*
+ * cam_fmt_mode_select_cdb6
+ *	Format a MODE SELECT 6-byte CDB.
+ */
+void	cam_fmt_mode_select_cdb6(lun, pf, sp, prmlst_len, control, cdb)
+long	lun, control;
+int	pf, sp, prmlst_len;
+struct	scsi_mode_select_cdb6 *cdb;
+{
+	bzero((char *)cdb, 6);
+	cdb->opcode = SCSI_MODE_SELECT6;
+	cdb->lun = lun;
+	cdb->pf = pf;
+	cdb->sp = sp;
+	cdb->prmlst_len = prmlst_len;
+	cdb->control = control;
+}
+
+/*
+ * cam_fmt_mode_sense_cdb6
+ *	Format a MODE SENSE 6-byte CDB.
+ */
+void	cam_fmt_mode_sense_cdb6(lun, dbd, pc, pg_code, alloc_len, control, cdb)
+long	lun, control;
+int	dbd, pc, pg_code, alloc_len;
+struct	scsi_mode_sense_cdb6 *cdb;
+{
+	bzero((char *)cdb, 6);
+	cdb->opcode = SCSI_MODE_SENSE6;
+	cdb->lun = lun;
+	cdb->dbd = dbd;
+	cdb->pc = pc;
+	cdb->pg_code = pg_code;
+	cdb->alloc_len = alloc_len;
+	cdb->control = control;
+}
+
+/*
  * cam_fmt_ccb_header()
  *	Format a CAM CCB header.
  */
@@ -116,6 +153,44 @@ CCB	*ccb;
 	ccb->scsiio.resid = sizeof(*inq_data);
 	cam_fmt_cdb6(SCSI_INQUIRY, ccb->header.lun, sizeof(*inq_data), 0,
 	             (struct scsi_cdb6 *)ccb->scsiio.cdb);
+}
+
+/*
+ * cam_fmt_mode_select_ccb
+ *	Format an MODE SELECT CCB.
+ */
+void	cam_fmt_mode_select_ccb(devid, pf, sp, prmlst_len, selbuf, ccb)
+CAM_DEV	devid;
+int	pf, sp, prmlst_len;
+char	unsigned *selbuf;
+CCB	*ccb;
+{
+	cam_init_scsiio_ccb(devid, CAM_DIR_IN, ccb);
+	ccb->scsiio.sg_list = (void *)selbuf;
+	ccb->scsiio.xfer_len = prmlst_len;
+	ccb->scsiio.cdb_len = 6;
+	ccb->scsiio.resid = prmlst_len;
+	cam_fmt_mode_select_cdb6(ccb->header.lun, pf, sp, prmlst_len,
+	             0, (struct scsi_mode_select_cdb6 *)ccb->scsiio.cdb);
+}
+
+/*
+ * cam_fmt_mode_sense_ccb
+ *	Format an MODE SENSE CCB.
+ */
+void	cam_fmt_mode_sense_ccb(devid, dbd, pc, pg_code, alloc_len, snsbuf, ccb)
+CAM_DEV	devid;
+int	dbd, pc, pg_code, alloc_len;
+char	unsigned *snsbuf;
+CCB	*ccb;
+{
+	cam_init_scsiio_ccb(devid, CAM_DIR_IN, ccb);
+	ccb->scsiio.sg_list = (void *)snsbuf;
+	ccb->scsiio.xfer_len = alloc_len;
+	ccb->scsiio.cdb_len = 6;
+	ccb->scsiio.resid = alloc_len;
+	cam_fmt_mode_sense_cdb6(ccb->header.lun, dbd, pc, pg_code, alloc_len,
+	             0, (struct scsi_mode_sense_cdb6 *)ccb->scsiio.cdb);
 }
 
 /*

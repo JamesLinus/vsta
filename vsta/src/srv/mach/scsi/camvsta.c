@@ -11,7 +11,11 @@
 struct	cam_irq_entry cam_irq_table[CAM_NIRQ];
 
 extern	port_t cam_port;		/* Port CAM receives contacts through */
-extern	struct q_header cam_msgq;	/* the CAM message queue */
+
+/*
+ * Queue messages until they can be handled.
+ */
+struct	q_header cam_msgq;
 
 /*
  * Function prototypes.
@@ -139,6 +143,15 @@ long	cam_page_release(int handle)
 }
 
 /*
+ * cam_sleep
+ *	Wait for the specified number of seconds.
+ */
+void	cam_sleep(int seconds)
+{
+	sleep(seconds);
+}
+
+/*
  * cam_msleep
  *	Wait for the specified number of milli-seconds.
  */
@@ -148,34 +161,34 @@ void	cam_msleep(int msecs)
 }
 
 /*
- * cam_complete
- *	I/O completion function.
+ * cam_iodone
+ *	Request completion function.
  */
-void	cam_complete(register CCB *ccb)
+void	cam_iodone(struct cam_request *request)
 {
-	struct	cam_request *request;
-	long	status = CAM_SUCCESS;
+	CAM_SG_ELEM *sg_list;
 	msg_t	msg;
-	static	char *myname = "cam_complete";
+	static	char *myname = "cam_iodone";
 
 	CAM_DEBUG_FCN_ENTRY(myname);
 
-	request = (struct cam_request *)ccb->scsiio.reqmap;
-/*
- * Format the reply.
- */
-	if(ccb->header.cam_status != CAM_REQ_CMP)
-		status = CAM_EIO;
+	sg_list = (CAM_SG_ELEM *)request->sg_list;
 /*
  * Send the reply.
  */
 	msg.m_sender = request->msg.m_sender;
-	if(status == CAM_SUCCESS) {
-		msg.m_arg = ccb->scsiio.bcount;
-
-		if(request->msg.m_nseg == 0) {
+	if(request->status == CAM_SUCCESS) {
+/*
+ * Determine the transfer count.
+ */
+		msg.m_arg = request->bcount - request->bresid;
+/*
+ * If the CAM server allocated the read buffer and if data was transfered,
+ * fill in the read buffer parameters.
+ */
+		if((request->msg.m_nseg == 0) && (msg.m_arg != 0)) {
 			msg.m_nseg = 1;
-			msg.m_buf = (void *)ccb->scsiio.sg_list->sg_address;
+			msg.m_buf = (void *)sg_list->sg_address;
 			msg.m_buflen = msg.m_arg;
 		} else {
 			msg.m_nseg = 0;
@@ -185,22 +198,45 @@ void	cam_complete(register CCB *ccb)
 /*
  * Update the file position.
  */
-		if((ccb->header.fcn_code == XPT_SCSI_IO) &&
-		   (request->file != NULL))
+		if(request->file != NULL)
 			request->file->position += msg.m_arg;
 	} else {
-		cam_msg_reply(&msg, status);
+		cam_msg_reply(&msg, request->status);
 	}
 /*
  * Deallocate resources.
  */
 	if(request->msg.m_nseg == 0)
-		cam_free_mem((void *)ccb->scsiio.sg_list->sg_address, 0);
+		cam_free_mem((void *)sg_list->sg_address, 0);
 
-	if(ccb->header.cam_flags & CAM_SG_VALID)
-		cam_free_mem((void *)ccb->scsiio.sg_list, 0);
+	if(request->cam_flags & CAM_SG_VALID)
+		cam_free_mem((void *)sg_list, 0);
 
 	cam_free_mem(request, 0);
+
+	cam_debug(CAM_DBG_FCN_EXIT, myname, "exitting");
+}
+
+/*
+ * cam_complete
+ *	CCB I/O completion function.
+ */
+void	cam_complete(register CCB *ccb)
+{
+	struct	cam_request *request;
+	static	char *myname = "cam_complete";
+
+	CAM_DEBUG_FCN_ENTRY(myname);
+
+	if(ccb->header.fcn_code != XPT_SCSI_IO)
+		cam_error(0, myname, "!XPT_SCSI_IO");
+
+	request = (struct cam_request *)ccb->scsiio.reqmap;
+	if((CAM_CCB_STATUS(ccb) != CAM_REQ_CMP) ||
+	   (ccb->scsiio.scsi_status != SCSI_GOOD))
+		request->status = CAM_EIO;
+
+	cam_iodone(request);
 
 	cam_debug(CAM_DBG_FCN_EXIT, myname, "exitting");
 }
@@ -249,6 +285,33 @@ long	cam_ccb_wait(CCB *ccb)
 }
 
 /*
+ * cam_get_msg - get the next VSTa message. Look at the message
+ * queue first. If the message queue is empty, read a message
+ * from 'cam_port'.
+ */
+bool	cam_get_msg(struct msg *msg)
+{
+	struct	cam_qmsg *qmsg;
+/*
+ * If the message queue is not empty, get a message from the queue.
+ * Otherwise, receive a message.
+ */
+	qmsg = NULL;
+	if(!CAM_EMPTYQUE(&cam_msgq)) {
+		qmsg = (struct cam_qmsg *)cam_msgq.q_forw;
+		CAM_REMQUE(&qmsg->head);
+		*msg = qmsg->msg;
+		cam_free_mem(qmsg, 0);
+	} else {
+		if(msg_receive(cam_port, msg) < 0) {
+			perror("CAM message receive error");
+			return(FALSE);
+		}
+	}
+	return(TRUE);
+}
+
+/*
  * cam_mk_sg_list()
  *	Build a CAM scatter/gather list.
  *
@@ -278,6 +341,21 @@ long	cam_mk_sg_list(void *proto, int count,
 	}
 
 	return(CAM_SUCCESS);
+}
+
+/*
+ * cam_get_sgbcount - determine the total number of bytes associated
+ * with the input Scatter/Gather list by summing the 'sg_length'
+ * fields of each element.
+ */
+uint32	cam_get_sgbcount(CAM_SG_ELEM *sg_list, uint16 sg_count)
+{
+	uint32	bcount = 0;
+	int	i;
+
+	for(i = 0; i < sg_count; i++)
+		bcount += sg_list[i].sg_length;
+	return(bcount);
 }
 
 /*
@@ -326,9 +404,14 @@ void	cam_timer_thread()
  */
 void	cam_msg_reply(msg_t *msg, long status)
 {
+	int	reply_status;
+
 	switch(status) {
 	case CAM_SUCCESS:
-		msg_reply(msg->m_sender, msg);
+		reply_status = msg_reply(msg->m_sender, msg);
+		if(reply_status != 0)
+			cam_error(0, "cam_msg_reply",  "msg_reply() error %d",
+			          reply_status);
 		break;
 	case CAM_EPERM:
 		msg_err(msg->m_sender, EPERM);
@@ -371,6 +454,9 @@ void	cam_msg_reply(msg_t *msg, long status)
 		break;
 	case CAM_EBALIGN:
 		msg_err(msg->m_sender, EBALIGN);
+		break;
+	case CAM_EROFS:
+		msg_err(msg->m_sender, EROFS);
 		break;
 	case CAM_INTRMED_GOOD:
 		break;

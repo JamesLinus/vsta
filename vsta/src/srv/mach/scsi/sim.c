@@ -53,8 +53,34 @@ struct	sim_bus *bus_info;
 }
 
 /*
+ * sim_autosense()
+ *	Get sense data.
+ */
+void	sim_autosense(ccb)
+CCB	*ccb;
+{
+	char	unsigned cam_status, scsi_status;
+	struct	scsi_reqsns_data snsdata;
+	CAM_DEV	dev;
+	long	status;
+	static	char  *myname = "sim_autosense";
+/*
+ * Format and send a REQUEST SENSE CCB.
+ */
+	dev = CAM_MKDEVID(ccb->header.path_id, ccb->header.target,
+	                  ccb->header.lun, 0);
+	status = cam_reqsns(dev, &snsdata, &cam_status, &scsi_status);
+	if(status == CAM_SUCCESS) {
+		ccb->header.cam_status |= CAM_AUTOSNS_VALID;
+		ccb->scsiio.sense_info = (void *)&ccb->scsiio.snsdata;
+		ccb->scsiio.snsdata = snsdata;
+	} else
+		cam_error(0, myname, "request sense error, rtn = 0x%x", status);
+}
+
+/*
  * sim_complete()
- *	Per-target completion.
+ *	Per-target SCSIIO completion.
  */
 void	sim_complete(bus_info, ccb)
 struct	sim_bus *bus_info;
@@ -71,11 +97,17 @@ CCB	*ccb;
 	CAM_REMQUE(&ccb->scsiio.simq.head);
 	target_info->nactive--;
 /*
+ * Do autosense, if necessary.
+ */
+	if((ccb->scsiio.scsi_status == SCSI_CHECK_COND) &&
+	   !(ccb->header.cam_flags & CAM_DIS_AUTOSENSE))
+		sim_autosense(ccb);
+/*
  * Start the next I/O for the current CCB, if necessary.
  */
 	iodone_flag = TRUE;
 	if((ccb->header.fcn_code == XPT_SCSI_IO) &&
-	   (ccb->header.cam_status == CAM_REQ_CMP))
+	   (CAM_CCB_STATUS(ccb) == CAM_REQ_CMP))
 		if(cam_cntuio(ccb) == CAM_SUCCESS)
 			if(xpt_action(ccb) == CAM_SUCCESS)
 				iodone_flag = FALSE;

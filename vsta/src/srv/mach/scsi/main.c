@@ -6,12 +6,14 @@
 #include <std.h>
 #include <hash.h>
 #include <syslog.h>
+#include <ctype.h>
 #include <sys/msg.h>
 #include <sys/fs.h>
 #include <sys/perm.h>
 #include <mach/dpart.h>
 #include <sys/syscall.h>
 #include "cam.h"
+#include "mtio.h"
 
 struct	hash *cam_filehash;		/* Map session->context structure */
 port_t	cam_port;			/* Port CAM receives contacts through */
@@ -30,17 +32,16 @@ struct	prot cam_prot = {
 /*
  * Options (from the command line), limits, etc.
  */
-struct	cam_params cam_params = { CAM_MAXIO };
+struct	cam_params cam_params = {
+	CAM_MAXIO,			/* max. transfer length per I/O */
+	0,				/* no BUS RESET on boot */
+	60				/* tape rewind max. (seconds) */
+};
 
 /*
  * The peripheral device table.
  */
 union	cam_pdevice *cam_pdevices = NULL, *cam_last_pdevice = NULL;
-
-/*
- * Queue messages until they can be handled.
- */
-struct	q_header cam_msgq;
 
 /*
  * SCSI device type to SCSI device name. Note that since MO disks
@@ -64,7 +65,9 @@ static	int cam_ndev_names = sizeof(cam_dev_names) / sizeof(cam_dev_names[0]);
 /*
  * Peripheral driver jump tables.
  */
-extern	struct cam_pdev_ops pdisk_ops, pgen_ops;
+extern	struct cam_pdev_ops pdisk_ops, ptape_ops, pgen_ops;
+
+extern	struct	q_header cam_msgq;
 
 /*
  * Function prototypes.
@@ -115,12 +118,15 @@ static	long pdev_init()
 				   bus, target, lun, ccb.getdev.dev_type);
 				continue;
 			}
+			inq_data = (struct scsi_inq_data *)
+				                     ccb.getdev.inquiry_data;
 /*
  * Found something, update the peripheral device table.
  */
 			size = sizeof(*pdev) + sizeof(struct prot);
 			if((pdev = cam_alloc_mem(size, NULL, 0)) == NULL)
 				return(CAM_ENOMEM);
+			bzero((void *)pdev, size);
 			pdev->header.type = ccb.getdev.dev_type;
 			pdev->header.devid = CAM_MKDEVID(bus, target, lun, 0);
 			pdev->header.name = cam_dev_names[ccb.getdev.dev_type];
@@ -128,6 +134,18 @@ static	long pdev_init()
 			bcopy((char *)&cam_prot, pdev->header.osd,
 			      sizeof(cam_prot));
 			pdev->header.next = NULL;
+/*
+ * Save the SCSI device information in the peripheral device header.
+ */
+			strncpy(pdev->header.vendor_id,
+			        (char *)inq_data->vendor_id,
+			        sizeof(inq_data->vendor_id));
+			strncpy(pdev->header.prod_id,
+			        (char *)inq_data->prod_id,
+			        sizeof(inq_data->prod_id));
+			strncpy(pdev->header.prod_rev,
+			        (char *)inq_data->prod_rev,
+			        sizeof(inq_data->prod_rev));
 /*
  * Update the peripheral device table.
  */
@@ -154,8 +172,6 @@ static	long pdev_init()
 /*
  * Find out if the disk's media is removable.
  */
-				inq_data = (struct scsi_inq_data *)
-				                     ccb.getdev.inquiry_data;
 				pdev->disk.removable = inq_data->rmb;
 /*
  * Get the logical block size and number of blocks.
@@ -166,6 +182,11 @@ static	long pdev_init()
  */
 				pdisk_read_part_table(pdev);
 				break;
+			case SCSI_SEQUENTIAL:
+				pdev->header.class = CAMPC_TAPE;
+				break;
+			default:
+				pdev->header.class = CAMPC_GEN;
 			}
 		}
 	    }
@@ -181,9 +202,9 @@ static	long pdev_open(msg_t *msg, struct cam_file *file)
 {
 	char	*name = msg->m_buf, *base;
 	union	cam_pdevice *pdev;
-	long	unit;
+	long	unit, index;
 	int	base_sz, type_sz;
-	int	bus, target, lun;
+	int	bus, target, lun, flags = 0;
 	CAM_DEV devid;
 /*
  * Open is normally called after a connect.
@@ -194,7 +215,8 @@ static	long pdev_open(msg_t *msg, struct cam_file *file)
  * Extract the various device name components.
  * Check the first part of the device name.
  */
-	pdev_parse_name(name, &base, &base_sz, &unit, NULL, &type_sz, NULL);
+	index = 0;
+	pdev_parse_name(name, &base, &base_sz, &unit, NULL, &type_sz, &index);
 	if(strlen(name) < 3)
 		return(CAM_ENOENT);
 /*
@@ -215,15 +237,28 @@ static	long pdev_open(msg_t *msg, struct cam_file *file)
 /*
  * Check the device name.
  */
+	if((pdev->header.type == SCSI_SEQUENTIAL) && (*base == 'n')) {
+		flags |= CAM_NOREWIND_FLAG;
+		base++;
+		base_sz--;
+	}
 	if(strncmp(base, pdev->header.name, strlen(pdev->header.name)) != 0)
 		return(CAM_ENOENT);
+/*
+ * Determine the device ID flags.
+ */
+	if(pdev->header.type == SCSI_SEQUENTIAL) {
+		flags |= index;
+	} else
+		flags = CAM_WHOLE_DISK;
 /*
  * Set up the initial file parameters.
  */
 	file->pdev = pdev;
 	file->pdev_ops = NULL;
-	file->devid = CAM_MKDEVID(bus, target, lun, CAM_WHOLE_DISK);
+	file->devid = CAM_MKDEVID(bus, target, lun, flags);
 	file->completion = cam_complete;
+	file->mode = msg->m_arg;
 	return(CAM_SUCCESS);
 }
 
@@ -234,8 +269,9 @@ static	long pdev_open(msg_t *msg, struct cam_file *file)
  */
 static	void pdev_stat(struct msg *msg, struct cam_file *file)
 {
-	struct prot *p;
+	struct	prot *p;
 	struct	part **parts;
+	union	cam_pdevice *pdev = file->pdev;
 	enum	cam_pdrv_classes class;
 	uint	size, node, ptnidx, pextoffs, dev;
 	CAM_DEV	devid;
@@ -243,8 +279,8 @@ static	void pdev_stat(struct msg *msg, struct cam_file *file)
 	static	char *myname = "pdev_stat";
 	extern	int cam_max_path_id;
 
-	if(file->pdev != NULL)
-		class = file->pdev->header.class;
+	if(pdev != NULL)
+		class = pdev->header.class;
 	else
 		class = CAMPC_GEN;
 
@@ -255,45 +291,163 @@ static	void pdev_stat(struct msg *msg, struct cam_file *file)
 		pextoffs = 0;
 		dev = cam_port_name;
 	 	p = &cam_prot;
-	} else if(class == CAMPC_DISK) {
-		dev = devid;
-		node = CAM_BUS(devid) * 1000 + CAM_TARGET(devid) * 100 +
-		       CAM_LUN(devid) * 10 + CAM_PARTITION(devid);
-
-		if((ptnidx = CAM_PARTITION(devid)) == CAM_WHOLE_DISK) {
-			size = file->pdev->disk.nblocks;
-		} else {
-			parts = (struct part **)file->pdev->disk.partitions;
-			if(parts[ptnidx] != NULL) {
-				size = parts[ptnidx]->p_len;
- 				pextoffs = parts[ptnidx]->p_extoffs;
-			} else {
-				size = 0;
- 				pextoffs = 0;
-			}
-		}
-		size *= file->pdev->disk.blklen;
-		type = 's';
-		p = (struct prot *)file->pdev->header.osd;
 	} else {
+/*
+ * Fill in the parameters common to all CAM devices.
+ */
 		dev = devid;
 		node = CAM_BUS(devid) * 1000 + CAM_TARGET(devid) * 100 +
 		       CAM_LUN(devid) * 10 + CAM_PARTITION(devid);
-
-		size = file->pdev->generic.nblocks * file->pdev->generic.blklen;
+		size = 0;
+		pextoffs = 0;
+		p = (struct prot *)pdev->header.osd;
 		type = 's';
-		p = (struct prot *)file->pdev->header.osd;
+/*
+ * Fill in the device specific parameters.
+ */
+		if(class == CAMPC_DISK) {
+
+			if((ptnidx = CAM_PARTITION(devid)) == CAM_WHOLE_DISK) {
+				size = pdev->disk.nblocks;
+			} else {
+				parts = (struct part **)pdev->disk.partitions;
+				if(parts[ptnidx] != NULL) {
+					size = parts[ptnidx]->p_len;
+ 					pextoffs = parts[ptnidx]->p_extoffs;
+				}
+			}
+			size *= pdev->header.blklen;
+		} else if(class != CAMPC_TAPE) {
+			size = pdev->generic.nblocks * pdev->header.blklen;
+		}
 	}
 
 	sprintf(buf, "size=%d\ntype=%c\nowner=1/1\ninode=%d\npextoffs=%d\n"
 	        "dev=%d\n", size, type, node, pextoffs, dev);
 	strcat(buf, perm_print(p));
+	if(pdev != NULL) {
+/*
+ * More device specific stuff.
+ */
+		sprintf(&buf[strlen(buf)], "id=%s %s %s\n",
+		        pdev->header.vendor_id, pdev->header.prod_id,
+		        pdev->header.prod_rev);
+		if(class == CAMPC_TAPE) {
+			sprintf(&buf[strlen(buf)],
+			        "density=%d\nblklen=%d\ndevspc=%d\n",
+			        pdev->tape.modes[CAM_FLAGS(devid)].density,
+			        pdev->tape.modes[CAM_FLAGS(devid)].blklen,
+			        pdev->tape.modes[CAM_FLAGS(devid)].devspc);
+		}
+	}
 	CAM_DEBUG(CAM_DBG_MSG, myname, "stat = \"%s\"", buf);
 	msg->m_buf = buf;
 	msg->m_buflen = strlen(buf);
 	msg->m_nseg = 1;
 	msg->m_arg = msg->m_arg1 = 0;
 	cam_msg_reply(msg, CAM_SUCCESS);
+}
+
+/*
+ * pdev_wstat()
+ *	Write state/control information.
+ */
+static	void pdev_wstat(struct msg *msg, struct cam_file *file)
+{
+	char	*cmd, *params, *end;
+	int	cmdlen;
+	long	status, op, cmdval, prmval;
+	enum	cam_pdrv_classes class;
+	union {
+		struct	mtop mtop;
+	} cmdargs;
+	char	pnm[32];
+
+	status = CAM_SUCCESS;
+/*
+ * Get a pointer to the command string.
+ */
+	cmd = end = msg->m_buf;
+	while(isalpha(*end) || (isdigit(*end) && (end != cmd)) ||
+	      (*end == '_'))
+		end++;
+	if((cmdlen = end - cmd) == 0) {
+		cam_msg_reply(msg, CAM_EINVAL);
+		return;
+	}
+/*
+ * Get a pointer to the first parameter string.
+ * Parse the parameter name and value fields.
+ */
+	*pnm = '\0';
+	prmval = 0;
+	if((params = strchr(end, '=')) != NULL) {
+		do {
+			params++;
+		} while(isspace(*params));
+		if(!isdigit(*params))
+			(void)sscanf(params, "%s", pnm);
+		if(sscanf(&params[strlen(pnm)], "0x%x", &prmval) != 1)
+			(void)sscanf(&params[strlen(pnm)], "%d", &prmval);
+	}
+
+/*
+ * Do device specific conversions.
+ */
+	if(file->pdev != NULL)
+		class = file->pdev->header.class;
+	else
+		class = CAMPC_GEN;
+	switch(class) {
+	case CAMPC_TAPE:
+		if(strncmp(cmd, "MTIOCTOP", cmdlen) == 0) {
+			cmdval = MTIOCTOP;
+			if(strlen(pnm) == 0)
+				status = CAM_EINVAL;
+			else if(strcmp(pnm, "MTWEOF") == 0)
+				op = MTWEOF;
+			else if(strcmp(pnm, "MTFSF") == 0)
+				op = MTFSF;
+			else if(strcmp(pnm, "MTBSF") == 0)
+				op = MTBSF;
+			else if(strcmp(pnm, "MTFSR") == 0)
+				op = MTFSR;
+			else if(strcmp(pnm, "MTBSR") == 0)
+				op = MTBSR;
+			else if(strcmp(pnm, "MTREW") == 0)
+				op = MTREW;
+			else if(strcmp(pnm, "MTOFFL") == 0)
+				op = MTOFFL;
+			else if(strcmp(pnm, "MTNOP") == 0)
+				op  = MTNOP;
+			else if(strcmp(pnm, "MTCACHE") == 0)
+				op = MTCACHE;
+			else if(strcmp(pnm, "MTNOCACHE") == 0)
+				op = MTNOCACHE;
+			else if(strcmp(pnm, "MTSETBSIZ") == 0)
+				op = MTSETBSIZ;
+			else if(strcmp(pnm, "MTSETDNSTY") == 0)
+				op = MTSETDNSTY;
+			else if(strcmp(pnm, "MTSETDRVBUFFER") == 0)
+				op = MTSETDRVBUFFER;
+			else
+				status = CAM_EINVAL;
+
+			cmdargs.mtop.mt_op = op;
+			cmdargs.mtop.mt_count = prmval;
+		} else
+			status = CAM_EINVAL;
+
+		break;
+	default:
+		status = CAM_EINVAL;
+	}
+
+	if(status == CAM_SUCCESS)
+		status = (*file->pdev_ops->ioctl)(file, cmdval,
+		                                  (void *)&cmdargs);
+
+	cam_msg_reply(msg, status);
 }
 
 /*
@@ -306,6 +460,7 @@ static	void pdev_stat(struct msg *msg, struct cam_file *file)
 static	int add_name(char **buf, char *name, uint *len)
 {
 	uint	left, newlen, next;
+	char	*tempbuf;
 
 	next = 0;
 	if(*len > 0)
@@ -315,10 +470,15 @@ static	int add_name(char **buf, char *name, uint *len)
 		if(*len == 0)
 			*buf = NULL;
 		newlen = *len + 128;
-		if((*buf = cam_alloc_mem(newlen, (void *)*buf, 0)) == NULL) 
+		if((tempbuf = cam_alloc_mem(newlen, (void *)*buf, 0)) == NULL) 
 			return(1);
+		*buf = tempbuf;
+/*
+ * If it's a new buffer, it needs to be zereoed out.
+ */
+		(*buf)[*len] = '\0'; 
+
 		*len = newlen;
-		**buf = '\0';
 	}
 	strcat(&(*buf)[next], name);
 	strcat(&(*buf)[next], "\n");
@@ -326,7 +486,7 @@ static	int add_name(char **buf, char *name, uint *len)
 }
 
 /*
- * pdev_unitdir
+ * pdev_read_diskdir
  *	Copy all the device names for the current unit into a buffer.
  *	The buffer is allocated locally and must be freed by the caller.
  *	The length parameter must be initialized to 0 before this function
@@ -335,9 +495,9 @@ static	int add_name(char **buf, char *name, uint *len)
  * Returns CAM_SUCCESS on success and CAM_ENOMEM if the buffer can't be
  * extended.
  */
-static	long pdev_unitdir(char *name, uint unit,
-	                  struct part **parts, uint nparts,
-	                  char **buffer, uint *length, uint *count)
+static	long pdev_read_diskdir(char *name, uint unit,
+	                       struct part **parts, uint nparts,
+	                       char **buffer, uint *length, uint *count)
 {
 	uint	ptidx;
 /*
@@ -351,6 +511,41 @@ static	long pdev_unitdir(char *name, uint unit,
 		if(add_name(buffer, parts[ptidx]->p_name, length))
 			return(CAM_ENOMEM);
 		(*count)++;
+	}
+
+	return(CAM_SUCCESS);
+}
+
+/*
+ * pdev_read_tapedir
+ *	Copy tape device names for the current unit into a buffer.
+ *	The buffer is allocated locally and must be freed by the caller.
+ *	The length parameter must be initialized to 0 before this function
+ *	is called for the first unit.
+ *
+ * Returns CAM_SUCCESS on success and CAM_ENOMEM if the buffer can't be
+ * extended.
+ */
+static	long pdev_read_tapedir(char *name, uint unit, char **buffer,
+	                       uint *length, uint *count)
+{
+	int	i, j;
+	char	tmpbuf[sizeof("nst9999a_XXX0") + 1];
+
+	for(j = 0; j < 2; j++) {
+		sprintf(tmpbuf, "%s%s%d", (j > 0 ? "n" : ""), name, unit);
+		if(add_name(buffer, tmpbuf, length))
+			return(CAM_ENOMEM);
+		(*count)++;
+	}
+	for(i = 0; i < CAM_MAX_TAPE_MODES; i++) {
+		for(j = 0; j < 2; j++) {
+			sprintf(tmpbuf, "%s%s%d_%d", (j > 0 ? "n" : ""), name,
+			        unit, i);
+			if(add_name(buffer, tmpbuf, length))
+				return(CAM_ENOMEM);
+			(*count)++;
+		}
 	}
 
 	return(CAM_SUCCESS);
@@ -385,10 +580,15 @@ static	void pdev_readdir(msg_t *msg, struct cam_file *file)
 		status = CAM_SUCCESS;
 		switch(pdev->header.type) {
 		case SCSI_DIRECT:
+		case SCSI_OPTICAL:
 			parts = (struct part **)pdev->disk.partitions;
-			status = pdev_unitdir(pdev->header.name, unit, parts,
-			                      MAX_PARTS, &buffer,
-			                      &length, &count);
+			status = pdev_read_diskdir(pdev->header.name, unit,
+			                           parts, MAX_PARTS, &buffer,
+			                           &length, &count);
+			break;
+		case SCSI_SEQUENTIAL:
+			status = pdev_read_tapedir(pdev->header.name, unit,
+			                           &buffer, &length, &count);
 			break;
 		default:
 			sprintf(tmp, "%s%d", pdev->header.name, unit);
@@ -417,7 +617,7 @@ static	void pdev_readdir(msg_t *msg, struct cam_file *file)
  * Send the result.
  */
 		msg->m_buf = buffer;
-		msg->m_arg = msg->m_buflen = length;
+		msg->m_arg = msg->m_buflen = strlen(buffer);
 		msg->m_nseg = 1;
 		msg->m_arg1 = 0;
 	}
@@ -476,6 +676,13 @@ void	pdev_rwio(msg_t *msg, struct cam_file *file)
 		return;
 	}
 /*
+ * Set up the CAM flags.
+ * Cam_mk_sg_list() built an array of buffer/length entries, so set the
+ * CAM_SG_VALID flag, then start the I/O.
+ */
+	cam_flags = (msg->m_op == FS_READ ? CAM_DIR_IN : CAM_DIR_OUT);
+	cam_flags |= CAM_SG_VALID;
+/*
  * Allocate a request structure.
  */
 	request = cam_alloc_mem(sizeof(struct cam_request), NULL, 0);
@@ -486,20 +693,20 @@ void	pdev_rwio(msg_t *msg, struct cam_file *file)
 		return;
 	}
 /*
- * Fill in the request structure.
+ * Fill in the request structure and start I/O.
  */
 	request->devid = file->devid;
 	request->file = file;
 	request->pdev = file->pdev;
+	request->status = CAM_SUCCESS;
+	request->cam_flags = cam_flags;
+	request->sg_list = sg_list;
+	request->sg_count = sg_count;
+	request->bcount = cam_get_sgbcount(sg_list, sg_count);
+	request->bresid = request->bcount;
 	request->msg = *msg;
 
-	cam_flags = (msg->m_op == FS_READ ? CAM_DIR_IN : CAM_DIR_OUT);
-/*
- * Cam_mk_sg_list() built an array of buffer/length entries, so set the
- * CAM_SG_VALID flag, then start the I/O.
- */
-	cam_flags |= CAM_SG_VALID;
-	status = (*file->pdev_ops->rdwr)(request, cam_flags, sg_list, sg_count);
+	status = (*file->pdev_ops->rdwr)(request);
 /*
  * Only reply if start I/O failed.
  */
@@ -523,8 +730,7 @@ static	void pdev_passthru(msg_t *msg, struct cam_file *file)
 	CCB	*ccb, *uccb;
 	void	*buffer;
 	long	status = CAM_SUCCESS;
-	int	buflen, wait_flag;
-	static	char *myname = "cam_passthru";
+	int	buflen;
 
 	uccb = (CCB *)msg->m_seg[0].s_buf;
 	if((ccb = xpt_ccb_alloc()) == NULL) {
@@ -551,15 +757,12 @@ static	void pdev_passthru(msg_t *msg, struct cam_file *file)
 		case XPT_GDEV_TYPE:
 			if(buffer == NULL)
 				status = CAM_EINVAL;
-			else {
+			else
 				ccb->getdev.inquiry_data = buffer;
-				wait_flag = FALSE;
-			}
 			break;
 		case XPT_SCSI_IO:
 			ccb->scsiio.sg_list = buffer;
 			ccb->scsiio.xfer_len = buflen;
-			wait_flag = TRUE;
 			break;
 		default:
 			status = CAM_ENOENT;
@@ -568,6 +771,7 @@ static	void pdev_passthru(msg_t *msg, struct cam_file *file)
  * If everything is OK so far, send down the CCB and wait for the operation
  * to complete, if necessary.
  */
+#ifdef	__xxxold__
 		if(status == CAM_SUCCESS) {
 	 		if((status = xpt_action(ccb)) != CAM_SUCCESS) {
  				status = CAM_EIO;
@@ -576,6 +780,21 @@ static	void pdev_passthru(msg_t *msg, struct cam_file *file)
 	 				cam_ccb_wait(ccb);
 			}
  		}
+#else
+		if(status == CAM_SUCCESS) {
+			if(ccb->header.fcn_code != XPT_SCSI_IO)
+	 			status = xpt_action(ccb);
+			else
+{ if((status = xpt_action(ccb)) == CAM_SUCCESS) cam_ccb_wait(ccb); }
+/*
+				status = (*file->pdev_ops->ioctl)(file,
+				                  CAM_EXEC_IOCCB,
+		                                  (void *)ccb);
+ */
+			if(status != CAM_SUCCESS)
+ 				status = CAM_EIO;
+ 		}
+#endif
 /*
  * Post processing.
  */
@@ -593,11 +812,141 @@ static	void pdev_passthru(msg_t *msg, struct cam_file *file)
 /*
  * Free the CCB, if necessary.
  */
-	xpt_ccb_free(ccb);
+	if(ccb != NULL)
+		xpt_ccb_free(ccb);
 /*
  * Send back the message replay.
  */
 	cam_msg_reply(msg, status);
+}
+
+/*
+ * cam_process_msg - process a VSTa message.
+ */
+void	cam_process_msg(struct msg *msg)
+{
+	struct	cam_file *file;
+	void	(*handler)();
+	long	status;
+	int	irq;
+
+	file = hash_lookup(cam_filehash, msg->m_sender);
+	switch(msg->m_op) {
+	case M_CONNECT:
+		if(file != NULL)
+			cam_msg_reply(msg, CAM_EBUSY);
+		else {
+			file = new_client(msg, cam_filehash, &cam_prot);
+/*
+ * Fill in the completion field in case I/O is done on the file handle
+ * before it has been opened.
+ * Default to the generic peripheral driver.
+ */
+			if(file != NULL) {
+				file->completion = cam_complete;
+				file->pdev_ops = &pgen_ops;
+			}
+		}
+		break;
+	case M_DUP:		/* File handle dup during exec() */
+		dup_client(msg, cam_filehash, file);
+		break;
+	case M_ISR:
+		irq = msg->m_arg;
+		if((handler = cam_irq_table[irq].handler) != NULL)
+			(*handler)(irq, 0);
+		break;
+	case CAM_TIMESTAMP:
+		cam_proc_timer();
+		break;
+	case CAM_PASSTHRU:
+		pdev_passthru(msg, file);
+		break;
+	case FS_STAT:
+		pdev_stat(msg, file);
+		break;
+	case FS_WSTAT:		/* Writes stats */
+		pdev_wstat(msg, file);
+		break;
+	case FS_OPEN:
+		if((status = pdev_open(msg, file)) != CAM_SUCCESS) {
+			cam_msg_reply(msg, status);
+			break;
+		}
+/*
+ * Fill in the appropriate jump table.
+ */
+		switch(file->pdev->header.class) {
+		case CAMPC_DISK:
+			file->pdev_ops = &pdisk_ops;
+			break;
+		case CAMPC_TAPE:
+			file->pdev_ops = &ptape_ops;
+			break;
+		case CAMPC_GEN:
+		default:
+			file->pdev_ops = &pgen_ops;
+			break;
+		}
+
+		status = (*file->pdev_ops->open)(file, msg->m_buf);
+		if(status == CAM_SUCCESS) {
+			file->flags |= CAM_OPEN_FILE;
+			msg->m_arg = msg->m_arg1 = msg->m_nseg = 0;
+		}
+		cam_msg_reply(msg, status);
+		break;
+	case FS_ABSREAD:	/* Set position, then read */
+	case FS_ABSWRITE:	/* Set position, then write */
+		if((file == NULL) || (msg->m_arg1 < 0)) {
+			cam_msg_reply(msg, CAM_EINVAL);
+			break;
+		}
+		file->position = msg->m_arg1;
+		msg->m_op = ((msg->m_op == FS_ABSREAD) ?  FS_READ : FS_WRITE);
+
+		/* VVV fall into VVV */
+
+	case FS_WRITE:
+	case FS_READ:
+/*
+ * Filter out READDIR's.
+ */
+		if((msg->m_op == FS_READ) && (file->devid == CAM_ROOTDIR)) {
+			pdev_readdir(msg, file);
+			break;
+		}
+
+		pdev_rwio(msg, file);
+		break;
+
+	case FS_SEEK:
+		if((file == NULL) || (msg->m_arg < 0))
+			status = CAM_EINVAL;
+		else {
+			file->position = msg->m_arg;
+			status = CAM_SUCCESS;
+		}
+		cam_msg_reply(msg, status);
+		break;
+
+	case M_DISCONNECT:	/* Client done */
+		status = CAM_SUCCESS;
+		if((file->pdev_ops != NULL) && (file->flags & CAM_OPEN_FILE)) {
+			status = (*file->pdev_ops->close)(file);
+			file->flags &= ~CAM_OPEN_FILE;
+		}
+		break;
+
+	default:
+		cam_error(0, "main", "unknown operation");
+		cam_msg_reply(msg, CAM_EINVAL);
+	}
+/*
+ * Free file info on disconnect.
+ */
+	if(msg->m_op == M_DISCONNECT)
+		dead_client(msg, cam_filehash, file);
 }
 
 void	main(argc, argv)
@@ -605,14 +954,8 @@ int	argc;
 char	**argv;
 {
 	char	**av;
-	struct	cam_file *file;
-	struct	cam_qmsg *qmsg;
-	void	(*handler)();
-	int	ac, irq, retry;
-	long	status;
+	int	ac, retry;
 	struct	msg msg;
-	static	char *myname = "cam";
-
 /*
  * Initialize syslog.
  */
@@ -625,6 +968,10 @@ char	**argv;
 				(void)sscanf(*av, "%d", &cam_debug_flags);
 		} else if(strcmp(*av, "-nobootbrst") == 0) {
 			cam_params.nobootbrst = TRUE;
+		} else if(strcmp(*av, "-maxio") == 0) {
+			ac++; av++;
+			if(sscanf(*av, "0x%x", &cam_params.maxio) != 1)
+				(void)sscanf(*av, "%d", &cam_params.maxio);
 		} else
 			syslog(LOG_ERR, "parameter %s not recognized", *av);
 	}
@@ -688,137 +1035,8 @@ char	**argv;
  * Message receive loop.
  */
 	for(;;) {
-/*
- * If the message queue is not empty, get a message from the queue.
- * Otherwise, receive a message.
- */
-		qmsg = NULL;
-		if(!CAM_EMPTYQUE(&cam_msgq)) {
-			qmsg = (struct cam_qmsg *)cam_msgq.q_forw;
-			CAM_REMQUE(&qmsg->head);
-			msg = qmsg->msg;
-		} else {
-			if(msg_receive(cam_port, &msg) < 0) {
-				perror("CAM message receive error");
-				continue;
-			}
-		}
-		file = hash_lookup(cam_filehash, msg.m_sender);
-		switch(msg.m_op) {
-		case M_CONNECT:
-			if(file != NULL)
-				cam_msg_reply(&msg, CAM_EBUSY);
-			else {
-				file = new_client(&msg, cam_filehash,
-				                  &cam_prot);
-/*
- * Fill in the completion field in case I/O is done on the file handle
- * before it has been opened.
- */
-				if(file != NULL) {
-					file->completion = cam_complete;
-				}
-			}
-			break;
-		case M_DUP:		/* File handle dup during exec() */
-			dup_client(&msg, cam_filehash, file);
-			break;
-		case M_ISR:
-			irq = msg.m_arg;
-			if((handler = cam_irq_table[irq].handler) != NULL)
-				(*handler)(irq, 0);
-			break;
-		case CAM_TIMESTAMP:
-			cam_proc_timer();
-			break;
-		case CAM_PASSTHRU:
-			pdev_passthru(&msg, file);
-			break;
-		case FS_STAT:
-			pdev_stat(&msg, file);
-			break;
-		case FS_WSTAT:		/* Writes stats */
-			cam_msg_reply(&msg, CAM_EINVAL);
-			break;
-		case FS_OPEN:
-			if((status = pdev_open(&msg, file)) != CAM_SUCCESS) {
-				cam_msg_reply(&msg, status);
-				break;
-			}
-/*
- * Fill in the appropriate jump table.
- */
-			switch(file->pdev->header.class) {
-			case CAMPC_DISK:
-				file->pdev_ops = &pdisk_ops;
-				break;
-			default:
-				file->pdev_ops = &pgen_ops;
-				break;
-			}
-
-			status = (*file->pdev_ops->open)(file, msg.m_buf);
-			if(status == CAM_SUCCESS)
-				msg.m_arg = msg.m_arg1 = 0;
-			cam_msg_reply(&msg, status);
-			break;
-		case FS_ABSREAD:	/* Set position, then read */
-		case FS_ABSWRITE:	/* Set position, then write */
-			if((file == NULL) || (msg.m_arg1 < 0)) {
-				cam_msg_reply(&msg, CAM_EINVAL);
-				break;
-			}
-			file->position = msg.m_arg1;
-			msg.m_op = ((msg.m_op == FS_ABSREAD) ?
-			             FS_READ : FS_WRITE);
-
-			/* VVV fall into VVV */
-
-		case FS_WRITE:
-		case FS_READ:
-/*
- * Filter out READDIR's.
- */
-			if((msg.m_op == FS_READ) &&
-			   (file->devid == CAM_ROOTDIR)) {
-				pdev_readdir(&msg, file);
-				break;
-			}
-
-			pdev_rwio(&msg, file);
-			break;
-
-		case FS_SEEK:
-			if((file == NULL) || (msg.m_arg < 0))
-				status = CAM_EINVAL;
-			else {
-				file->position = msg.m_arg;
-				status = CAM_SUCCESS;
-			}
-			cam_msg_reply(&msg, status);
-			break;
-
-		case M_DISCONNECT:	/* Client done */
-			status = CAM_SUCCESS;
-			if((file->pdev_ops != NULL) &&
-			   !(file->flags & CAM_FILE_COPY))
-				status = (*file->pdev_ops->close)(file);
-			break;
-
-		default:
-			cam_error(0, "main", "unknown operation");
-			cam_msg_reply(&msg, CAM_EINVAL);
-		}
-/*
- * Free file info on disconnect.
- */
-		if(msg.m_op == M_DISCONNECT)
-			dead_client(&msg, cam_filehash, file);
-/*
- * Free the queue'd message, if necessary.
- */
-		if(qmsg != NULL)
-			cam_free_mem(qmsg, 0);
+		cam_get_msg(&msg);
+		cam_process_msg(&msg);
 	}
 
 	exit(0);

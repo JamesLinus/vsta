@@ -20,6 +20,21 @@
 #define	CAM_PASSTHRU		CAM_MSGOP(1)
 
 /*
+ * <sys/ioctl.h> stuff.
+ */
+#if	!defined(_IOW) && !defined(_IOR) && !defined(_IO)
+#define	_IOW(_c, _v, _t)	((sizeof(_t) << 16) | ((_c) << 8) | (_v))
+#define	_IOR(_c, _v, _t)	((sizeof(_t) << 16) | ((_c) << 8) | (_v))
+#define	_IORW(_c, _v, _t)	((sizeof(_t) << 16) | ((_c) << 8) | (_v))
+#define	_IO(_c, _v)		(((_c) << 8) | (_v))
+#endif
+
+/*
+ * CAM ioctl's.
+ */
+#define	CAM_EXEC_IOCCB		_IORW('C', 0, CCB)
+
+/*
  * CAM device number.
  */
 typedef	unsigned long CAM_DEV;
@@ -30,19 +45,23 @@ typedef	unsigned long CAM_DEV;
 #define	CAM_LUN(_id)		(((_id) >> 8) & 7)
 #define	CAM_FLAGS(_id)		((_id) & 0xff)
 #define	CAM_PARTITION(_id)	CAM_FLAGS(_id)
+#define	CAM_TAPE_MODE(_id)	((_id) & 7)
+#define	CAM_NOREWIND(_id)	((_id) & CAM_NOREWIND_FLAG)
 #define	CAM_MKDEVID(_bus, _tar, _lun, _data)				\
 		((((_bus) & 0xff) << 14) | (((_tar) & 7) << 11) |	\
 		 (((_lun) & 7) << 8) | ((_data) & 0xff))
 
 #define	CAM_WHOLE_DISK		WHOLE_DISK
+#define	CAM_NOREWIND_FLAG	0x80
 
 /*
  * Open file state. One instance per connection.
  */
 struct	cam_file {
 	CAM_DEV	devid;			/* CAM device number */
-	uint	flags;			/* User access bits */
+	uint	flags;			/* see below */
 	uint	uperm;			/* permissions */
+	uint	mode;			/* ACC_... (see <sys/fs.h>) */
 	long	unsigned position;	/* file position */
 	void	(*completion)();	/* I/O completion function */
 	union	cam_pdevice *pdev;	/* peripheral device pointer */
@@ -52,7 +71,7 @@ struct	cam_file {
 /*
  * File flags.
  */
-#define	CAM_FILE_COPY		1	/* M_DUP'ed file copy */
+#define	CAM_OPEN_FILE		1	/* FS_OPEN done on file */
 
 /*
  * Queue'd message structure.
@@ -70,6 +89,12 @@ struct	cam_request {
 	struct	cam_file *file;		/* associated file structure */
 	union	cam_pdevice *pdev;	/* peripheral device pointer */
 	CAM_DEV	devid;			/* CAM device number */
+	long	status;			/* operation status */
+	uint32	cam_flags;		/* CAM flags */
+	void	*sg_list;		/* Scatter/Gather list */
+	uint16	sg_count;		/* # S/G elements */
+	uint32	bresid;			/* left over byte count */
+	uint32	bcount;			/* total # bytes transferred */
 	long	unsigned offset;	/* offset from beginning of device */
 	msg_t	msg;			/* request message */
 };
@@ -81,12 +106,13 @@ struct	cam_pdev_ops {
 #ifdef	__STDC__
 	long (*open)(struct cam_file *file, char *name);
 	long (*close)(struct cam_file *file);
-	long (*rdwr)(struct cam_request *request, int cam_flags,
-	             void *sg_list, uint16 sg_count);
+	long (*rdwr)(struct cam_request *request);
+	long (*ioctl)(struct cam_file *file, long cmdval, void *cmdargs);
 #else
 	long	(*open)();
 	long	(*close)();
 	long	(*rdwr)();
+	long	(ioctl)();
 #endif
 };
 
@@ -96,7 +122,10 @@ struct	cam_pdev_ops {
 struct	cam_params {
 	long	maxio;			/* max. transfer length per I/O */
 	int	nobootbrst;		/* no BUS RESET on boot */
+	int	max_tape_ready_time;	/* tape rewind max. (seconds) */
 };
+
+#define	CAM_MAX_TAPE_MODES	4
 
 /*
  * Connected-but-not-opened device ID.
@@ -111,7 +140,7 @@ struct	cam_params {
 /*
  * Static maximum I/O size.
  */
-#define	CAM_MAXIO		4096
+#define	CAM_MAXIO		(1024 * 32)
 
 /*
  * Function return codes.
@@ -133,6 +162,7 @@ enum	cam_rtn_status {
 	CAM_ENOENT,			/* no entry */
 	CAM_EBADF,			/* bad file */
 	CAM_EBALIGN,			/* blk align */
+	CAM_EROFS,			/* read only */
 
 	CAM_INTRMED_GOOD,		/* I/O will be completed later */
 	CAM_NO_REPLY,			/* don't send a reply */

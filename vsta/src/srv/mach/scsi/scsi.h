@@ -42,6 +42,37 @@ struct	scsi_cdb10 {
 };
 
 /*
+ * MODE SELECT 6-byte CDB.
+ */
+struct	scsi_mode_select_cdb6 {
+	uint8	opcode;				/* Operation code */
+	sz_bits	sp		: 1,		/* Save page */
+		reserved1	: 3,
+		pf		: 1,		/* Page format */
+		lun		: 3;		/* Logical Unit Number */
+	uint8	reserved2;
+	uint8	reserved3;
+	uint8	prmlst_len;			/* Parameter list length */
+	uint8	control;
+};
+
+/*
+ * MODE SENSE 6-byte CDB.
+ */
+struct	scsi_mode_sense_cdb6 {
+	uint8	opcode;				/* Operation code */
+	sz_bits	reserved1	: 3,
+		dbd		: 1,		/* Disable block descriptors */
+		reserved2	: 1,
+		lun		: 3;		/* Logical Unit Number */
+	sz_bits	pg_code	: 6,			/* Page code */
+		pc		: 2;		/* Page control */
+	uint8	reserved3;
+	uint8	alloc_len;			/* Allocation length */
+	uint8	control;
+};
+
+/*
  * SCSI_DIRECT 6-byte CDB.
  */
 struct	scsi_drw_cdb6 {
@@ -83,6 +114,30 @@ struct	scsi_wfm_cdb {
 	uint8	length0;
 	uint8	control;
 };
+
+/*
+ * SPACE CDB.
+ */
+struct	scsi_space_cdb {
+	uint8	opcode;				/* Operation code */
+	sz_bits	code		: 3,		/* Space code */
+		reserved	: 2,
+		lun		: 3;		/* Logical Unit Number */
+	uint8	count2;				/* transfer length */
+	uint8	count1;
+	uint8	count0;
+	uint8	control;
+};
+
+/*
+ * Space codes.
+ */
+#define	SCSI_SPC_BLOCKS		0		/* Blocks */
+#define	SCSI_SPC_FILEMARKS	1		/* Filemarks */
+#define	SCSI_SPC_SEQ_FILEMARKS	2		/* Sequential filemarks */
+#define	SCSI_SPC_EOD		3		/* End-of-data */
+#define	SCSI_SPC_SETMARKS	4		/* Setmarks */
+#define	SCSI_SPC_SEQ_SETMARKS	5		/* Sequential setmarks */
 
 /*
  * READ TOC CDB.
@@ -263,7 +318,7 @@ enum	scsi_bus_phases {
 /*
  * Limits.
  */
-#define	SCSI_MAX_CDB6_LBADDR	((long)(1 << 20))
+#define	SCSI_MAX_CDB6_LBADDR	((long)((1 << 20) - 1))
 #define	SCSI_MAX_CDB6_BLOCKS	255
 
 /*
@@ -315,6 +370,136 @@ struct	scsi_reqsns_data {
 	uint8	snsqual;			/* Add. sense code qualifier */
 	uint8	fru_code;			/* Field replaceable unit */
 	uint8	snskey_spc[3];			/* Sense key specific */
+};
+
+/*
+ * MODE SELECT/SENSE 6-byte mode parameter header.
+ */
+struct	scsi_mdparam_hdr6 {
+	uint8	length;				/* Mode data length */
+	uint8	medium_type;			/* Medium type */
+	uint8	device_spec;			/* Device specific parameter */
+	uint8	blkdesc_len;			/* Block descriptor length */
+};
+
+/*
+ * MODE SELECT/SENSE block descriptor.
+ */
+struct	scsi_mdparam_blkdesc {
+	uint8	density;			/* density code */
+	uint8	nblocks[3];			/* number of blocks */
+	uint8	reserved;
+	uint8	blklen[3];			/* block length */
+};
+
+/*
+ * MODE SELECT/SENSE page code.
+ */
+#define	SCSI_VEND_SPEC_PGCODE	0
+#define	SCSI_RDWR_ERECOV_PGCODE	1
+#define	SCSI_CONNECT_PGCODE	2
+#define	SCSI_FORMAT_DEV_PGCODE	3
+#define	SCSI_RIGID_GEOM_PGCODE	4
+#define	SCSI_FLEX_DISK_PGCODE	5
+#define	SCSI_VRFY_ERECOV_PGCODE	7
+#define	SCSI_CACHE_PGCODE	8
+#define	SCSI_PERIPH_DEV_PGCODE	9
+#define	SCSI_CNTL_MODE_PGCODE	0xa
+#define	SCSI_MEDIUM_TYPE_PGCODE	0xb
+#define	SCSI_NOTCH_PART_PGCODE	0xc
+#define	SCSI_ALL_PGS_PGCODE	0x3f
+
+/*
+ * MODE SELECT/SENSE page header.
+ */
+struct	scsi_mdpage_header {
+	uint8	page_code	: 6,		/* page code */
+		reserved1	: 1,
+		ps		: 1;		/* Parameters Savable */
+	uint8	page_length;			/* page length */
+};
+
+/*
+ * MODE SELECT/SENSE cache parameters mode page.
+ */
+struct	scsi_cache_mdpage {
+	struct	scsi_mdpage_header header;
+	uint8	rcd		: 1,		/* Read Cache Disable */
+		mf		: 1,		/* Multiplication Factor */
+		wce		: 1,		/* Write Cache Enable */
+		reserved2	: 5;
+	uint8	wrreten_pri	: 4,		/* write retention priority */
+		rdreten_pri	: 4;		/* read retention priority */
+	uint8	dis_pref_xfer_len[2];		/* disable pre-fetch xfer len */
+	uint8	min_pre_fetch[2];		/* minimum pre-fetch */
+	uint8	max_pre_fetch[2];		/* maximum pre-fetch */
+	uint8	max_ceiling[2];			/* maximum pre-fetch ceiling */
+};
+
+/*
+ * MODE SELECT/SENSE rigid disk drive geometry mode page.
+ */
+struct	scsi_rigid_geom_mdpage {
+	struct	scsi_mdpage_header header;
+	uint8	ncylinders[3];			/* number of cylinders */
+	uint8	nheads;				/* number of heads */
+	uint8	wrprecomp_start[3];		/* write precomp. start */
+	uint8	redwrcur_start[3];		/* reduced wr. current start */
+	uint8	step_rate[2];			/* drive step rate */
+	uint8	landing_zone[3];		/* landing zone cylinder */
+	uint8	rpl		: 1,		/* Rotational Position Lock */
+		reserved1	: 7;
+	uint8	rotational_offset;		/* rotational offset */
+	uint8	reserved2;
+	uint8	rotation_rate[2];		/* medium rotation rate */
+	uint8	reserved3[2];
+};
+
+/*
+ * Union of MODE SELECT/SENSE mode pages.
+ */
+union	scsi_mdpages {
+	struct	scsi_mdpage_header header;
+	struct	scsi_cache_mdpage cache;
+	struct	scsi_rigid_geom_mdpage rigid_geom;
+};
+
+struct	scsi_mdparam_list6 {
+	struct	scsi_mdparam_hdr6 header;
+	struct	scsi_mdparam_blkdesc blkdesc[1];
+};
+
+/*
+ * Macros for navigating MODE SENSE/SELECT pages.
+ */
+#define	SCSI_GET_MDPARAM_BLKDESC6(_p)					\
+		(((struct scsi_mdparam_list6)(_p))->blkdesc)
+#define	SCSI_GET_MDPAGES6(_mdh6)					\
+		((union scsi_mdpages *)((char *)((_mdh6) + 1) +		\
+		                        (_mdh6)->blkdesc_len))
+#define	SCSI_GET_NEXT_MDPAGE(_mdpg)					\
+		((union scsi_mdpages *)((char *)(_mdpg) +		\
+		                    sizeof(struct scsi_mdpage_header) +	\
+		                    (_mdpg)->header.page_length))
+
+/*
+ * Device specific defines.
+ */
+#define	SCSI_TAPE_SPEED(_ds)	((_ds) & 0xf)
+#define	SCSI_TAPE_BUFMODE(_ds)	(((_ds) >> 4) & 7)
+#define	SCSI_TAPE_NOBUF		0		/* not buffered */
+#define	SCSI_TAPE_MULTBUF	1		/* 1 or more buffered blocks */
+#define	SCSI_TAPE_1BUF		2		/* 1 buffered block */
+#define	SCSI_TAPE_WP		0x80		/* tape write protect */
+
+/*
+ * MODE SENSE block descriptor.
+ */
+struct	scsi_blkdesc {
+	uint8	density;			/* Density code */
+	uint8	nblocks[3];			/* Number of blocks */
+	uint8	reserved;
+	uint8	blklen[3];			/* Block length */
 };
 
 /*
