@@ -293,7 +293,14 @@ sec(char *p)
 	} else {
 		extern void dump_s();
 
-		dump_s(buf, (x > 128) ? 128 : x);
+		dump_s(buf, (x > 256) ? 256 : x);
+		x -= 256;
+		if (x > 0) {
+			while (getchar() != '\n') {
+				;
+			}
+			dump_s(buf + 256, (x > 256) ? 256 : x);
+		}
 	}
 	close(fd);
 }
