@@ -19,6 +19,7 @@
 #include <alloc.h>
 
 extern ulong random();
+extern void idle(void);
 
 lock_t runq_lock;		/* Mutex for scheduling */
 struct sched
@@ -105,38 +106,6 @@ preempt(void)
 	ASSERT_DEBUG(pri != 99, "preempt: no cpus");
 	nextcpu = c->pc_next;
 	nudge(c);
-}
-
-/*
- * idle()
- *	Spin waiting for work to appear
- *
- * Since this routine does not lock, its return does not guarantee
- * that work will still be present once runq_lock is taken.
- */
-void
-idle(void)
-{
-	extern void nop();
-
-	for (;;) {
-		/*
-		 * This is just to trick the compiler into believing
-		 * that the fields below can change.  Watch out when
-		 * you get a global optimizer.
-		 */
-		nop();
-
-		/*
-		 * Check each run queue
-		 */
-		if (sched_rt.s_down ||
-				sched_cheated.s_down ||
-				(sched_root.s_nrun > 0) ||
-				sched_bg.s_down) {
-			break;
-		}
-	}
 }
 
 /*
