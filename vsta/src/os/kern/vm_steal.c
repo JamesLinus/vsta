@@ -80,27 +80,41 @@ unvirt(struct perpage *pp)
 	ap = &pp->pp_atl;
 	for (a = *ap; a; a = an) {
 		struct pview *pv;
+		struct vas *vas;
 
 		an = a->a_next;
 		pv = a->a_pview;
-		if (pv->p_vas->v_flags & VF_MEMLOCK) {
+		vas = pv->p_vas;
+
+		/*
+		 * Don't steal locked memory
+		 */
+		if (vas) {
 			/*
 			 * Leave entry be if memory locked
 			 */
-			ap = &a->a_next;
-		} else {
+			if (vas->v_flags & VF_MEMLOCK) {
+				ap = &a->a_next;
+				continue;
+			}
+
 			/*
-			 * Delete translation, free attach list element
+			 * Delete translation, gather latest
+			 * ref/mod state
 			 */
 			hat_deletetrans(pv, (char *)pv->p_vaddr +
 				ptob(a->a_idx), pp->pp_pfn);
 			flags |= hat_getbits(pv,
 				(char *)pv->p_vaddr + ptob(a->a_idx));
-			*ap = an;
-			FREE(a, MT_ATL);
-			ASSERT_DEBUG(pp->pp_refs > 0, "unvirt: underflow");
-			pp->pp_refs -= 1;
 		}
+
+		/*
+		 * Free attach list element, update ref count
+		 */
+		*ap = an;
+		FREE(a, MT_ATL);
+		ASSERT_DEBUG(pp->pp_refs > 0, "unvirt: underflow");
+		pp->pp_refs -= 1;
 	}
 	return(flags);
 }

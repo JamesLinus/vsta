@@ -81,24 +81,32 @@ static int
 fod_fillslot(struct pset *ps, struct perpage *pp, uint idx)
 {
 	uint pg;
+	struct open_port *o = DATA(ps);
 
 	ASSERT_DEBUG(!(pp->pp_flags & (PP_V|PP_BAD)),
 		"fod_fillslot: valid");
 	pg = alloc_page();
 	set_core(pg, ps, idx);
-	if (pageio(pg, DATA(ps)->o_pr, ptob(idx+ps->p_off),
+	if (pageio(pg, o->o_pr, ptob(idx+ps->p_off),
 			NBPG, FS_ABSREAD)) {
 		free_page(pg);
 		return(1);
 	}
 
 	/*
-	 * Fill in the new page's value
+	 * Fill in the new page's value, leave one reference for
+	 * our caller, and another for our cache atl
 	 */
 	pp->pp_flags |= PP_V;
-	pp->pp_refs = 1;
+	pp->pp_refs = 2;
 	pp->pp_flags &= ~(PP_M|PP_R);
 	pp->pp_pfn = pg;
+
+	/*
+	 * Add the cache reference
+	 */
+	add_atl(pp, &o->o_pview, idx);
+
 	return(0);
 }
 
@@ -125,6 +133,7 @@ struct pset *
 alloc_pset_fod(struct portref *pr, uint pages)
 {
 	struct pset *ps;
+	struct pview *pv;
 
 	/*
 	 * Allocate pset, set it for our pset type
@@ -134,6 +143,15 @@ alloc_pset_fod(struct portref *pr, uint pages)
 	ps->p_ops = &psop_fod;
 	ps->p_data = MALLOC(sizeof(struct open_port), MT_OPENPORT);
 	DATA(ps)->o_pr = pr;
+
+	/*
+	 * Set up the cache view
+	 */
+	pv = &DATA(ps)->o_pview;
+	bzero(pv, sizeof(struct pview));
+	pv->p_set = ps;
+	pv->p_len = pages;
+
 	return(ps);
 }
 
