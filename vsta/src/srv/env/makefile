@@ -3,7 +3,7 @@ LD= ld
 INCS= -I../include -I..
 CFLAGS= -DDEBUG $(INCS) -g
 LDFLAGS= -L../libc -L../lib
-OBJS= main.o open.o rw.o stat.o string.o
+OBJS= main.o open.o rw.o stat.o string.o node.o
 LIBS= -lc -lusr
 
 all: env
