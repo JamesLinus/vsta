@@ -5,6 +5,8 @@
 #include <sys/percpu.h>
 #include <sys/thread.h>
 #include <sys/proc.h>
+#include <sys/wait.h>
+#include <sys/fs.h>
 #include <mach/machreg.h>
 #include <mach/trap.h>
 #include <mach/gdt.h>
@@ -12,7 +14,6 @@
 #include <mach/vm.h>
 #include <mach/icu.h>
 #include <mach/isr.h>
-#include <sys/fs.h>
 #include <sys/assert.h>
 
 extern void selfsig();
@@ -501,7 +502,8 @@ sendev(struct thread *t, char *ev)
 			t->t_pid, ev);
 		dbg_enter();
 #endif
-		exit(1);
+		strcpy(p->p_event, ev);
+		exit(_W_EV);
 	}
 
 	/*
