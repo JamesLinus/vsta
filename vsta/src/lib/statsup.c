@@ -1,5 +1,5 @@
 /*
- * stat.c
+ * statsup.c
  *	Common functionality for writing stat fields
  */
 #include <sys/param.h>

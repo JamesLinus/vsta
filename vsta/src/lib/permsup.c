@@ -1,5 +1,5 @@
 /*
- * perm.c
+ * permsup.c
  *	Routines for looking at permission/protection structures
  */
 #include <sys/types.h>
