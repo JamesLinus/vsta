@@ -1,13 +1,14 @@
 OUT=test args cat id ls swapd rm cp sleep mkdir pwd kill mv stat \
 	dumpsect man fstab rmdir touch strings xargs echo du \
 	tput basename uname fmt purge printf ps rcsdo changed \
-	which true false whoami
+	which true false whoami egrep fgrep awk cc [
+
 OBJS= args.o basename.o cat.o changed.o chmod.o cp.o du.o dumpsect.o \
 	echo.o fmt.o fstab.o id.o kill.o ls.o man.o mkdir.o \
 	mv.o printf.o ps.o purge.o pwd.o rcsdo.o rm.o rmdir.o \
 	sleep.o stat.o strings.o swapd.o test.o touch.o tput.o \
 	uname.o wc.o which.o xargs.o dump.o operators.o true.o \
-	false.o whoami.o
+	false.o whoami.o egrep.o fgrep.o awk.o cc.o [.o
 
 include ../../makefile.all
 
@@ -127,6 +128,21 @@ false: false.o
 
 whoami: whoami.o
 	$(LD) $(LDFLAGS) -o whoami $(CRT0) whoami.o -lc
+
+cc: cc.o
+	$(LD) $(LDFLAGS) -o cc $(CRT0) cc.o -lc
+
+egrep: egrep.o
+	$(LD) $(LDFLAGS) -o egrep $(CRT0) egrep.o -lc
+
+fgrep: fgrep.o
+	$(LD) $(LDFLAGS) -o fgrep $(CRT0) fgrep.o -lc
+
+awk: awk.o
+	$(LD) $(LDFLAGS) -o awk $(CRT0) awk.o -lc
+
+[: [.o
+	$(LD) $(LDFLAGS) -o [ $(CRT0) [.o -lc
 
 install: all
 	strip $(OUT)
