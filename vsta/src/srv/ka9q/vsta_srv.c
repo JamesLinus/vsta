@@ -1280,7 +1280,6 @@ do_proxy(struct msg *mp, struct client *cl)
 	struct msg m;
 	uint x, wait_reply;
 
-	printf("proxy for 0x%x\n", mp->m_sender);
 	/*
 	 * If a previous transaction is still pending, defer processing
 	 */
@@ -1587,6 +1586,7 @@ send_proxy_data(struct tcp_conn *c, struct client *cl)
 	len = mp->m_arg;
 	if (len > MAXIO) {
 		ll_delete(cl->c_entry); cl->c_entry = 0;
+		cl->c_msg_bytes = 0;
 		msg_err(mp->m_sender, E2BIG);
 		if (mp->m_buf) {
 			free(mp->m_buf);
@@ -1616,12 +1616,16 @@ send_proxy_data(struct tcp_conn *c, struct client *cl)
 	}
 
 	/*
+	 * Reset for next time around
+	 */
+	cl->c_msg_bytes = cl->c_body_bytes = 0;
+
+	/*
 	 * FS_ERR; turn into a msg_err() back to the user
 	 */
 	if (mp->m_op == FS_ERR) {
 		msg_err(mp->m_sender, mp->m_buf);
 	} else {
-		printf("proxy reply to 0x%x\n", mp->m_sender);
 		if (msg_reply(mp->m_sender, mp) < 0) {
 			perror("msg_reply");
 		}

@@ -178,6 +178,7 @@ rxmsg(void)
 				free(pushback);
 				pushback = 0;
 			} else {
+				printf("resid of %d bytes\n", pushlen);
 				bufp = pushback;
 				x = pushlen;
 				pushlen = 0;
@@ -200,6 +201,12 @@ rxmsg(void)
 				goto out;
 			}
 			bufp = clbuf;
+			{ uint y;
+			printf("Got %d bytes:", x);
+			for (y = 0; y < x; ++y) printf(" %02x",
+				bufp[y] & 0xFF);
+			printf("\n");
+			}
 		}
 
 		/*
@@ -381,7 +388,7 @@ serve_slave(struct client *cl)
 		cm = cl->c_next;
 		cl->c_next = cm->c_next;
 		v_lock(&cl->c_lock);
-		mp = &cl->c_msg;
+		mp = &cm->c_msg;
 
 		/*
 		 * Client out on the remote side interrupted an
