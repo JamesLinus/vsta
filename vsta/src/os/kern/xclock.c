@@ -39,6 +39,9 @@ static struct eventq		/* List of sleepers pending */
 	*eventq = 0;
 static lock_t time_lock;	/* Mutex on eventq */
 
+extern uint pageout_secs;	/* Interval to call pageout */
+static uint pageout_wait;	/* Secs since last call */
+
 /*
  * alarm_wakeup()
  *	Wake up all those whose time interval has passed
@@ -117,6 +120,7 @@ hardclock(uint x)
 	 */
 	c->pc_time[0] += 1;
 	while (c->pc_time[0] >= HZ) {
+		pageout_wait += 1;
 		c->pc_time[1] += 1;
 		c->pc_time[0] -= HZ;
 	}
@@ -148,6 +152,18 @@ hardclock(uint x)
 	if (eventq) {
 		CVT_TIME(c->pc_time, &tm);
 		alarm_wakeup(&tm);
+	}
+
+	/*
+	 * If pageout configured, invoke him periodically
+	 */
+	if (pageout_secs > 0) {
+		if (pageout_wait >= pageout_secs) {
+			extern void kick_pageout();
+
+			pageout_wait = 0;
+			kick_pageout();
+		}
 	}
 
 	/*
