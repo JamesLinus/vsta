@@ -117,7 +117,11 @@ wd_init(void)
 		if (wd_readp(x) < 0) {
 			configed[x] = 0;
 		} else {
-			printf("wd%d: %d sectors\n", x, parm[x].w_size);
+			uint s = parm[x].w_size * SECSZ;
+			const uint m = 1024*1024;
+
+			printf("wd%d: %d.%dM\n", x,
+				s / m, (s % m) / (m/10));
 			configed[x] = 1;
 			if (!found_first) {
 				found_first = 1;
