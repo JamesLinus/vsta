@@ -341,30 +341,35 @@ newsession()
 freesession(s)
 struct session *s;
 {
-	if(s == NULLSESSION)
+	if (s == NULLSESSION) {
 		return;
-	if(s->record != NULLFILE){
+	}
+	if (s->record != NULLFILE) {
 		fclose(s->record);
 		s->record = NULLFILE;
 	}
-	if(s->rfile != NULLCHAR){
+	if (s->rfile != NULLCHAR) {
 		free(s->rfile);
 		s->rfile = NULLCHAR;
 	}
-	if(s->upload != NULLFILE){
+	if (s->upload != NULLFILE) {
 		fclose(s->upload);
 		s->upload = NULLFILE;
 	}
-	if(s->ufile != NULLCHAR){
+	if (s->ufile != NULLCHAR) {
 		free(s->ufile);
 		s->ufile = NULLCHAR;
 	}
-	if(s->name != NULLCHAR){
+	if (s->name != NULLCHAR) {
 		free(s->name);
 		s->name = NULLCHAR;
 	}
 	s->type = FREE;
+	if (s == consess) {
+		consess = NULLSESSION;
+	}
 }
+
 /* Control session recording */
 dorecord(argc,argv)
 int argc;
