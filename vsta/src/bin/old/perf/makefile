@@ -1,8 +1,8 @@
 CC= gcc
 LD= ld
-CFLAGS= -O -I../../include -I../..
-LDFLAGS= -L../../libc
-LIBS= -lc
+CFLAGS= -O -I../../../include
+LDFLAGS= -L../../lib
+LIBS= -lc_s
 
 .c.o:
 	$(CC) $(CFLAGS) -c $*.c
@@ -10,7 +10,7 @@ LIBS= -lc
 all: perf1
 
 perf1: perf1.o
-	$(LD) $(LDFLAGS) -o perf1 ../../libc/crt0.o perf1.o -lc
+	$(LD) $(LDFLAGS) -o perf1 ../../lib/crt0.o perf1.o $(LIBS)
 
 clean:
 	rm -f *.o

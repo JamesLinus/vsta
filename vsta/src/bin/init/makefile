@@ -1,10 +1,10 @@
 CC= gcc
 LD= ld
-CFLAGS= -O -I../../include
-LDFLAGS= -L../../libc
+CFLAGS= -O -I../../../include
+LDFLAGS= -L../../lib
 LIBS= -lc_s
 OBJS= init.o
-CRT0= ../../libc/crt0srv.o
+CRT0= ../../lib/crt0srv.o
 
 .c.o:
 	$(CC) $(CFLAGS) -c $*.c
@@ -22,4 +22,4 @@ clobber: clean
 
 install: all
 	strip init
-	cp init ../../boot
+	cp init ../../../boot

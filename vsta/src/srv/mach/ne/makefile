@@ -1,8 +1,8 @@
 CC=gcc
 LD=ld
-INCS=-I../../../include
+INCS=-I../../../../include
 CFLAGS=-Wall -DDEBUG $(INCS) -O
-LDFLAGS=-L../../../libc
+LDFLAGS=-L../../../lib
 OBJS=main.o ne.o rw.o dir.o stat.o netlib.o
 LIBS=-lusr -lc
 
@@ -12,7 +12,7 @@ all: ne
 	$(CC) $(CFLAGS) -c $*.c
 
 ne: $(OBJS)
-	$(LD) $(LDFLAGS) -o ne ../../../libc/crt0.o $(OBJS) $(LIBS)
+	$(LD) $(LDFLAGS) -o ne ../../../lib/crt0.o $(OBJS) $(LIBS)
 
 clean:
 	rm -f *.o
@@ -22,4 +22,4 @@ clobber: clean
 
 install: ne
 	strip ne
-	cp ne ../../../boot/ne
+	cp ne ../../../../boot/ne

@@ -1,9 +1,9 @@
 CC	= gcc
 LD	= ld
-INCS	= -I../../include
-CFLAGS	= -DDEBUG $(INCS) -Wall -g
-LDFLAGS	= -L../../libc
-CRT0	= ../../libc/crt0.o
+INCS	= -I../../../include
+CFLAGS	= -DDEBUG $(INCS) -Wall
+LDFLAGS	= -L../../lib
+CRT0	= ../../lib/crt0.o
 OBJS	= main.o block.o filectrl.o open.o rw.o stat.o
 LIBS	= -lusr -lc
 
@@ -23,4 +23,4 @@ clobber: clean
 
 install: all
 	strip bfs
-	cp bfs ../../boot
+	cp bfs ../../../boot

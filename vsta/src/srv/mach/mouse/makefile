@@ -1,11 +1,11 @@
 CC        = gcc
 LD        = ld
-INCLUDES  = -I../../../include
+INCLUDES  = -I../../../../include
 CFLAGS    = -DDEBUG $(INCLUDES) -O
 
-LDFLAGS   = -L../../../libc
+LDFLAGS   = -L../../../lib
 LIBS      = -lpio -lusr -lc
-CRT0	  = ../../../libc/crt0.o
+CRT0	  = ../../../lib/crt0.o
 
 OBJS      = main.o ibmrs232.o nec_bus.o ms_bus.o logi_bus.o ps2aux.o \
 	mouse.o stat.o
@@ -30,4 +30,4 @@ clobber: clean
 
 install: all
 	strip mouse
-	cp mouse ../../../boot
+	cp mouse ../../../../boot

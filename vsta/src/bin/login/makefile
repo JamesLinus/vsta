@@ -1,10 +1,10 @@
 CC= gcc
 LD= ld
-CFLAGS= -O -I../../include -I../..
-LDFLAGS= -L../../libc
+CFLAGS= -O -I../../../include
+LDFLAGS= -L../../lib
 LIBS= -lusr -lc
 OBJS= login.o
-CRT0=../../libc/crt0.o
+CRT0=../../lib/crt0.o
 
 all: login runrc
 
@@ -25,4 +25,4 @@ clobber: clean
 
 install: all
 	strip login runrc
-	cp login runrc ../../bin
+	cp login runrc ../../../bin

@@ -1,12 +1,12 @@
 CC	= gcc
 LD	= ld
-INCS	= -I../../../include
+INCS	= -I../../../../include
 CFLAGS	= -DDEBUG -Wall $(INCS) -O
-LDFLAGS	= -L../../../libc
+LDFLAGS	= -L../../../lib
 OBJS	= main.o rw.o stat.o
 TOBJS	= libjoystick.o jstest.o
 LIBS	= -lusr -lpio -lc
-CRT0	= ../../../libc/crt0.o
+CRT0	= ../../../lib/crt0.o
 
 .c.o:
 	$(CC) $(CFLAGS) -c $*.c
@@ -28,4 +28,4 @@ clobber: clean
 
 install: all
 	strip joystick
-	cp joystick ../../../boot
+	cp joystick ../../../../boot

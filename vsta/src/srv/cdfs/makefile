@@ -10,10 +10,10 @@ CFILES = main.c cdfsdir.c cdfsmount.c cdfsopen.c cdfsread.c \
 OFILES = main.o cdfsdir.o cdfsmount.o cdfsopen.o cdfsread.o \
          cdfsrrip.o cdfstime.o cdfserror.o cdfsio.o block.o
 
-INCS = -I../../include
+INCS = -I../../../include
 CFLAGS = -DDEBUG -D__VSTA__ $(INCS) -O -Wall
-LDFLAGS = -L../../libc
-CRT0=../../libc/crt0.o
+LDFLAGS = -L../../lib
+CRT0=../../lib/crt0.o
 
 .c.o:
 		$(CC) $(CFLAGS) -c $*.c
@@ -29,16 +29,7 @@ clobber:	clean
 
 install:	cdfs
 		strip cdfs
-		cp cdfs ../../boot
+		cp cdfs ../../../boot
 
 cdfs.tar:
 		tar cvf cdfs.tar makefile README *.h *.c
-
-main.o:		main.c cdfs.h
-cdfsdir.o:	cdfsdir.c cdfs.h
-cdfsmount.o:	cdfsmount.c cdfs.h
-cdfsopen.o:	cdfsopen.c cdfs.h
-cdfsread.o:	cdfsread.c cdfs.h
-cdfstime.o:	cdfstime.c cdfs.h
-cdfsio.o:	cdfsio.c cdfs.h
-block.o:	block.c

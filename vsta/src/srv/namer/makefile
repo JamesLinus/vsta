@@ -1,8 +1,8 @@
 CC= gcc
 LD= ld
-INCS= -I../../include
+INCS= -I../../../include
 CFLAGS= -DDEBUG $(INCS) -O
-LDFLAGS= -L../../libc
+LDFLAGS= -L../../lib
 OBJS= main.o open.o rw.o stat.o
 LIBS= -lusr -lc_s
 
@@ -11,7 +11,7 @@ all: namer
 	$(CC) $(CFLAGS) -c $*.c
 
 namer: $(OBJS)
-	$(LD) $(LDFLAGS) -o namer ../../libc/crt0srv.o $(OBJS) $(LIBS)
+	$(LD) $(LDFLAGS) -o namer ../../lib/crt0srv.o $(OBJS) $(LIBS)
 
 clean:
 	rm -f *.o
@@ -21,4 +21,4 @@ clobber: clean
 
 install: all
 	strip namer
-	cp namer ../../boot
+	cp namer ../../../boot

@@ -2,7 +2,7 @@ CC=gcc
 AS=as
 LD=ld
 CPP= cpp
-INCS= -I../include
+INCS= -I../../include
 CFLAGS= $(INCS) -O -DDEBUG
 CRT=start.o startsrv.o
 OBJS= syscalls.o syscall.o \
@@ -143,5 +143,5 @@ clobber: clean
 	rm -f mklibs *.a *.shl
 
 install: all mklibs
-	cp $(LIBS) crt0.o crt0srv.o ../lib
-	cp $(SHLIBS) ../lib
+	cp $(LIBS) crt0.o crt0srv.o ../../lib
+	cp $(SHLIBS) ../../lib

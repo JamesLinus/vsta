@@ -5,8 +5,8 @@
  */
 #ifdef KDB
 #include <stdio.h>
-#include "../../include/mach/aout.h"
-#include "../../include/mach/nlist.h"
+#include "../../../include/mach/aout.h"
+#include "../../../include/mach/nlist.h"
 #include "../dbg/dbg.h"
 
 extern void *malloc();

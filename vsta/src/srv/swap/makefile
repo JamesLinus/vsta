@@ -1,15 +1,15 @@
 CC= gcc
 LD= ld
-INCS= -I../../include
+INCS= -I../../../include
 CFLAGS= -DDEBUG $(INCS)
 OBJS= main.o rw.o swap.o stat.o
-LIBS= -L../../libc -lusr -lc_s
+LIBS= -L../../lib -lusr -lc_s
 
 .c.o:
 	$(CC) $(CFLAGS) -c $*.c
 
 swap: $(OBJS)
-	$(LD) -o swap ../../libc/crt0srv.o $(OBJS) $(LIBS)
+	$(LD) -o swap ../../lib/crt0srv.o $(OBJS) $(LIBS)
 
 clean:
 	rm -f *.o
@@ -19,4 +19,4 @@ clobber: clean
 
 install: swap
 	strip swap
-	cp swap ../../boot
+	cp swap ../../../boot

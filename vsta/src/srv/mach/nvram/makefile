@@ -1,13 +1,12 @@
 CC	= gcc
 LD	= ld
 RM	= rm -f
-INCS	= -I../../../include
+INCS	= -I../../../../include
 CFLAGS	= -Wall $(INCS)
-LDFLAGS	= -L../../../libc
+LDFLAGS	= -L../../../lib
 OBJS	= main.o rw.o dir.o stat.o
-CLIB	= ../../../libc/libc.a
 LIBS	= -lusr -lc
-CRT0	= ../../../libc/crt0.o
+CRT0	= ../../../lib/crt0.o
 
 .c.o:
 	$(CC) $(CFLAGS) -c $*.c
@@ -25,4 +24,4 @@ clobber: clean
 
 install: nvram
 	strip nvram
-	cp nvram ../../../boot
+	cp nvram ../../../../boot

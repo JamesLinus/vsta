@@ -1,8 +1,8 @@
 CC= gcc
 LD= ld
-INCS= -I../../include -I../..
+INCS= -I../../../include
 CFLAGS= -DDEBUG $(INCS) -O
-LDFLAGS= -L../../libc
+LDFLAGS= -L../../lib
 OBJS= main.o open.o rw.o stat.o
 LIBS= -lusr -lc
 
@@ -11,7 +11,7 @@ all: pipe
 	$(CC) $(CFLAGS) -c $*.c
 
 pipe: $(OBJS)
-	$(LD) $(LDFLAGS) -o pipe ../../libc/crt0.o $(OBJS) $(LIBS)
+	$(LD) $(LDFLAGS) -o pipe ../../lib/crt0.o $(OBJS) $(LIBS)
 
 clean:
 	rm -f *.o
@@ -21,4 +21,4 @@ clobber: clean
 
 install: all
 	strip pipe
-	cp pipe ../../boot
+	cp pipe ../../../boot

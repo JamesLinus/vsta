@@ -1,8 +1,8 @@
 CC= gcc
 LD= ld
-INCS= -I../../include
-CFLAGS= -DDEBUG $(INCS) -g
-LDFLAGS= -L../../libc
+INCS= -I../../../include
+CFLAGS= -DDEBUG $(INCS)
+LDFLAGS= -L../../lib
 OBJS= main.o open.o rw.o stat.o string.o node.o
 LIBS= -lusr -lc
 
@@ -11,7 +11,7 @@ all: env
 	$(CC) $(CFLAGS) -c $*.c
 
 env: $(OBJS)
-	$(LD) $(LDFLAGS) -o env ../../libc/crt0.o $(OBJS) $(LIBS)
+	$(LD) $(LDFLAGS) -o env ../../lib/crt0.o $(OBJS) $(LIBS)
 
 clean:
 	rm -f *.o
@@ -21,4 +21,4 @@ clobber: clean
 
 install: all
 	strip env
-	cp env ../../boot
+	cp env ../../../boot

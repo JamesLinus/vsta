@@ -1,9 +1,9 @@
 CC=gcc
 LD=ld
-CFLAGS=-I../../include -O
+CFLAGS=-I../../../include -O
 OBJS=adb.o disasm.o expr.o lex.o sym.o map.o proc.o i386.o
-LIBS=-L../../libc -lc
-CRT0=../../libc/crt0.o
+LIBS=-L../../lib -lc
+CRT0=../../lib/crt0.o
 
 .c.o:
 	$(CC) $(CFLAGS) -c $*.c
@@ -19,4 +19,4 @@ clobber: clean
 
 install:
 	strip adb
-	cp adb ../../bin
+	cp adb ../../../bin

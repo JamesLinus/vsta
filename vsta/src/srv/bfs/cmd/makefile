@@ -1,9 +1,9 @@
 CC	= gcc
 LD	= ld
-INCS	= -I../../../include
-CFLAGS	= $(INCS) -g -Wall
-LDFLAGS	= -L../../../libc
-CRT0	= ../../../libc/crt0.o
+INCS	= -I../../../../include
+CFLAGS	= $(INCS) -Wall
+LDFLAGS	= -L../../../lib
+CRT0	= ../../../lib/crt0.o
 OBJS	= mkbfs.o
 LIBS	= -lc
 
@@ -21,4 +21,4 @@ clobber: clean
 
 install: mkbfs
 	strip mkbfs
-	cp mkbfs ../../../bin/mkfs_bfs
+	cp mkbfs ../../../../bin/mkfs_bfs

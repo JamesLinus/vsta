@@ -1,11 +1,11 @@
 CC= gcc
 LD= ld
-INCS= -I../../../include
+INCS= -I../../../../include
 CFLAGS= -DDEBUG $(INCS) -O
-LDFLAGS= -L../../../libc
+LDFLAGS= -L../../../lib
 OBJS= fifo.o main.o rw.o isr.o stat.o control.o
 LIBS= -lusr -lc
-CRT0= ../../../libc/crt0.o
+CRT0= ../../../lib/crt0.o
 
 .c.o:
 	$(CC) $(CFLAGS) -c $*.c
@@ -21,4 +21,4 @@ clobber: clean
 
 install: rs232
 	strip rs232
-	cp rs232 ../../../boot
+	cp rs232 ../../../../boot

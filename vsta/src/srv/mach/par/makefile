@@ -1,12 +1,13 @@
 CC=gcc
 LD=ld
-LIBS=-L../../../libc
-CFLAGS=-O -I../../../include
+INCS=-I../../../../include
+LIBS=-L../../../lib
+CFLAGS=-O
 OBJS=main.o par_port.o rw.o stat.o
-CRT0=../../../libc/crt0.o
+CRT0=../../../lib/crt0.o
 
 .c.o:
-	$(CC) $(CFLAGS) -c $*.c
+	$(CC) $(INCS) $(CFLAGS) -c $*.c
 
 all: par
 
@@ -24,4 +25,4 @@ clobber: clean
 
 install: all
 	strip par
-	cp par ../../../boot
+	cp par ../../../../boot

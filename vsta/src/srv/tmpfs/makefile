@@ -1,8 +1,8 @@
 CC= gcc
 LD= ld
-INCS= -I../../include
+INCS= -I../../../include
 CFLAGS= -DDEBUG $(INCS) -O
-LDFLAGS= -L../../libc
+LDFLAGS= -L../../lib
 OBJS= main.o open.o rw.o stat.o
 LIBS= -lusr -lc
 
@@ -11,7 +11,7 @@ all: tmpfs
 	$(CC) $(CFLAGS) -c $*.c
 
 tmpfs: $(OBJS)
-	$(LD) $(LDFLAGS) -o tmpfs ../../libc/crt0.o $(OBJS) $(LIBS)
+	$(LD) $(LDFLAGS) -o tmpfs ../../lib/crt0.o $(OBJS) $(LIBS)
 
 clean:
 	rm -f *.o
@@ -21,4 +21,4 @@ clobber: clean
 
 install: all
 	strip tmpfs
-	cp tmpfs ../../boot
+	cp tmpfs ../../../boot

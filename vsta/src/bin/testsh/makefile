@@ -1,14 +1,14 @@
 CC= gcc
 LD= ld
-INCS=-nostdinc -I../../include
+INCS=-nostdinc -I../../../include
 # Add -DSTAND for a more standalone-oriented flavor of shell
 CFLAGS= -DSTAND -O $(INCS)
 # CFLAGS= -O $(INCS)
-LDFLAGS= -L../../libc
+LDFLAGS= -L../../lib
 LIBS= -lc_s
 # LIBS= -lc
-CRT0=../../libc/crt0srv.o
-# CRT0=../../libc/crt0.o
+CRT0=../../lib/crt0srv.o
+# CRT0=../../lib/crt0.o
 OBJS= testsh.o dump.o run.o
 
 .c.o:
@@ -25,7 +25,7 @@ clean:
 clobber: clean
 	rm -f testsh
 
-# Copy to ../../bin if not STAND, but we don't seem to use that much
+# Copy to ../../../bin if not STAND, but we don't seem to use that much
 install: all
 	strip testsh
-	cp testsh ../../boot
+	cp testsh ../../../boot

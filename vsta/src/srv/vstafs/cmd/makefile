@@ -1,9 +1,9 @@
 CC=gcc
 LD=ld
-INCS=-I../../../include
+INCS=-I../../../../include
 CFLAGS=$(INCS) -g
-LIBS=-L../../../libc -lusr -lc
-CRT0=../../../libc/crt0.o
+LIBS=-L../../../lib -lusr -lc
+CRT0=../../../lib/crt0.o
 
 .c.o:
 	$(CC) $(CFLAGS) -c $*.c
@@ -28,6 +28,6 @@ clobber: clean
 
 install: all
 	strip $(PROGS)
-	cp mkfs ../../../bin/mkfs_vfs
-	cp fsdb ../../../bin/fsdb_vfs
-	cp fsck ../../../bin/fsck_vfs
+	cp mkfs ../../../../bin/mkfs_vfs
+	cp fsdb ../../../../bin/fsdb_vfs
+	cp fsck ../../../../bin/fsck_vfs

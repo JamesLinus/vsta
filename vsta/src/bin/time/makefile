@@ -1,8 +1,8 @@
 CC=gcc
-CFLAGS=-I../../include -I../.. -g
+CFLAGS=-I../../../include
 LD=ld
-CRT0=../../libc/crt0.o
-LIB=-L../../libc -lc
+CRT0=../../lib/crt0.o
+LIB=-L../../lib -lc
 
 PROGS=setime date
 all: $(PROGS)
@@ -24,4 +24,4 @@ clobber: clean
 
 install: all
 	strip $(PROGS)
-	cp $(PROGS) ../../bin
+	cp $(PROGS) ../../../bin

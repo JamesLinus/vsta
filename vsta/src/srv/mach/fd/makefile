@@ -1,8 +1,8 @@
 CC= gcc
 LD= ld
-INCS= -I../../../include
+INCS= -I../../../../include
 CFLAGS= -DDEBUG $(INCS) -O
-LDFLAGS= -L../../../libc
+LDFLAGS= -L../../../lib
 OBJS= main.o rw.o stat.o dir.o
 LIBS= -lusr -lc
 
@@ -11,7 +11,7 @@ all: fd
 	$(CC) $(CFLAGS) -c $*.c
 
 fd: $(OBJS)
-	$(LD) $(LDFLAGS) -o fd ../../../libc/crt0.o $(OBJS) $(LIBS)
+	$(LD) $(LDFLAGS) -o fd ../../../lib/crt0.o $(OBJS) $(LIBS)
 
 clean:
 	rm -f *.o
@@ -21,4 +21,4 @@ clobber: clean
 
 install: all
 	strip fd
-	cp fd ../../../boot
+	cp fd ../../../../boot

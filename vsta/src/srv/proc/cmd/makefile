@@ -1,10 +1,10 @@
 CC=gcc
 LD=ld
-INCS=-I../../../include
+INCS=-I../../../../include
 CFLAGS=-DDEBUG $(INCS) -Wall -O
-LDFLAGS=-L../../../libc
+LDFLAGS=-L../../../lib
 LIBS=-lusr -lc
-CRT0=../../../libc/crt0.o
+CRT0=../../../lib/crt0.o
 
 all: kill ps
 
@@ -20,10 +20,8 @@ ps: ps.o $(UTIL)
 	$(LD) $(LDFLAGS) -o ps $(CRT0) ps.o $(UTIL) $(LIBS)
 
 install: all
-	strip kill
-	cp kill /vsta/bin
-	strip ps
-	cp ps /vsta/bin
+	strip ps kill
+	cp ps kill ../../../../bin
 
 clean:
 	rm -f *.o
