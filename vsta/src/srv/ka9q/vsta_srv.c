@@ -39,6 +39,7 @@
 #include <hash.h>
 #include <llist.h>
 #include <std.h>
+#include <alloc.h>
 #include "global.h"
 #include "mbuf.h"
 #include "netuser.h"
@@ -75,16 +76,15 @@ static struct prot port_priv = {
  */
 struct tcp_conn {
 	struct tcb *t_tcb;	/* KA9Q's TCB struct */
-	struct tcp_port		/* Back-pointer to tcp_port */
+	struct tcp_port		/* Back-pointer to our tcp_port */
 		*t_port;
-	uint t_conn;		/*  ...and index in tcp_port */
+	uint t_conn;		/*  ...and index in tcp_port's t_conns[] */
 	struct llist		/* Reader/writer queues */
 		t_readers,
 		t_writers;
 	struct socket		/* Foreign TCP socket */
 		t_fsock;
 	struct mbuf *t_readq;	/* Queue of mbufs of data to be consumed */
-	uint t_mode;		/* Current connect mode of port */
 };
 
 /*
@@ -99,7 +99,7 @@ struct tcp_port {
 	struct tcp_conn
 		**t_conns;	/* Connected remote clients */
 	uint t_maxconn;		/* # of slots in t_conns */
-	struct llist t_any;	/* Reader for "any" connection */
+	struct llist t_any;	/* Readers for "any" connection */
 };
 
 /*
@@ -146,6 +146,34 @@ msg_to_mbuf(struct msg *m)
 		append(&mb, mtmp);
 	}
 	return(mb);
+}
+
+/*
+ * mbuf_to_msg()
+ *	Convert mbufs into a VSTa message
+ */
+static uint
+mbuf_to_msg(struct mbuf *mb, struct msg *m, uint size)
+{
+	uint count, nseg, step, mb_pullup;
+
+	count = nseg = mb_pullup = 0;
+	while (size && mb && (nseg < MSGSEGS)) {
+		m->m_seg[nseg].s_buf = mb->data;
+		if (mb->size > size) {
+			mb_pullup = step = size;
+		} else {
+			step = mb->size;
+		}
+		m->m_seg[nseg].s_buflen = step;
+		size -= step;
+		count += step;
+		nseg += 1;
+		mb = mb->next;
+	}
+	m->m_arg = count;
+	m->m_nseg = nseg;
+	return(mb_pullup);
 }
 
 /*
@@ -263,18 +291,35 @@ deref_tcp(struct tcp_port *t)
 		for (x = 0; x < t->t_maxconn; ++x) {
 			struct tcp_conn *c;
 
+			/*
+			 * Continue if this slot isn't in use now
+			 */
 			c = t->t_conns[x];
-			if (c) {
-				ASSERT_DEBUG(LL_EMPTY(&c->t_readers),
-					"deref_tcp: readers");
-				ASSERT_DEBUG(LL_EMPTY(&c->t_writers),
-					"deref_tcp: writers");
-				if (c->t_tcb) {
-					del_tcp(c->t_tcb); c->t_tcb = 0;
-					nport -= 1;
-				}
-				free(c); t->t_conns[x] = 0;
+			if (c == 0) {
+				continue;
 			}
+
+			/*
+			 * Sanity
+			 */
+			ASSERT_DEBUG(LL_EMPTY(&c->t_readers),
+				"deref_tcp: readers");
+			ASSERT_DEBUG(LL_EMPTY(&c->t_writers),
+				"deref_tcp: writers");
+
+			/*
+			 * Clear TCB; note that we aren't being nice
+			 * any more, it's simply deleted.
+			 */
+			if (c->t_tcb) {
+				del_tcp(c->t_tcb); c->t_tcb = 0;
+				nport -= 1;
+			}
+
+			/*
+			 * Free up connection state
+			 */
+			free(c); t->t_conns[x] = 0;
 		}
 
 		/*
@@ -594,7 +639,7 @@ inetfs_state(struct tcb *tcb, char old, char new)
 			c2 = create_conn(c->t_port);
 			c2->t_tcb = tcb;
 			c2->t_conn = c->t_conn;
-			tcb->user = c;
+			tcb->user = c2;
 		} else {
 			cleario(&c->t_writers, 0);
 		}
@@ -653,8 +698,9 @@ inetfs_conn(struct msg *m, struct client *cl, char *val)
 	 */
 	if (!strcmp(val, "disconnect")) {
 		if (c->t_tcb) {
-			close_tcp(c->t_tcb); c->t_tcb = 0;
-			tcb->user = 0;
+			close_tcp(c->t_tcb);
+			c->t_tcb->user = 0;
+			c->t_tcb = 0;
 		}
 		(void)msg_reply(m->m_sender, m);
 		return;
@@ -705,7 +751,6 @@ inetfs_conn(struct msg *m, struct client *cl, char *val)
 		uncreate_conn(t, c);
 		return;
 	}
-	c->t_mode = mode;
 
 	/*
 	 * Queue as a "writer" for kicking off the connection
@@ -1186,15 +1231,12 @@ send_data(struct tcp_conn *c, struct llist *q)
 {
 	struct msg *m;
 	struct client *cl;
-	uint mb_pullup = 0;
+	uint nseg, mb_pullup = 0;
 
 	/*
 	 * While there's data and readers, move data
 	 */
 	while (c->t_readq && !LL_EMPTY(q)) {
-		uint nseg, count, req;
-		struct mbuf *mb;
-
 		/*
 		 * Dequeue next request
 		 */
@@ -1202,36 +1244,16 @@ send_data(struct tcp_conn *c, struct llist *q)
 		ll_delete(cl->c_entry); cl->c_entry = 0;
 
 		/*
-		 * Fill up scatter/gather until it's maxed or
-		 * until we've satisfied the client read.
+		 * Convert mbuf(s) into a reply VSTa message
 		 */
 		m = &cl->c_msg;
-		nseg = 0;
-		count = 0;
-		req = m->m_arg;
-		mb = c->t_readq;
-		while (req && mb && (nseg < MSGSEGS)) {
-			uint step;
-
-			m->m_seg[nseg].s_buf = mb->data;
-			if (mb->size > req) {
-				mb_pullup = step = req;
-			} else {
-				step = mb->size;
-			}
-			m->m_seg[nseg].s_buflen = step;
-			req -= step;
-			count += step;
-			nseg += 1;
-			mb = mb->next;
-		}
+		mb_pullup = mbuf_to_msg(c->t_readq, m, m->m_arg);
+		nseg = m->m_nseg;
 
 		/*
 		 * Send back to requestor
 		 */
-		m->m_arg = count;
 		m->m_arg1 = c->t_conn;
-		m->m_nseg = nseg;
 		msg_reply(m->m_sender, m);
 
 		/*
