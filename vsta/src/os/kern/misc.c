@@ -454,3 +454,39 @@ void
 __main(void)
 {
 }
+
+/*
+ * mutex_thread()
+ *	Do thread-to-thread mutex operation
+ */
+int
+mutex_thread(pid_t tid)
+{
+	struct proc *p;
+	struct thread *t;
+
+	/*
+	 * tid == 0, wait on our own mutex
+	 */
+	if (tid == 0) {
+		if (p_sema(&curthread->t_mutex, PRICATCH)) {
+			return(err(EINTR));
+		}
+		return(0);
+	}
+
+	/*
+	 * Else find a given tid under our process, and
+	 * V him
+	 */
+	p = curthread->t_proc;
+	p_sema(&p->p_sema, PRIHI);
+	for (t = p->p_threads; t; t = t->t_next) {
+		if (t->t_pid == tid) {
+			v_sema(&t->t_mutex);
+			break;
+		}
+	}
+	v_sema(&p->p_sema);
+	return(t ? 0 : err(ESRCH));
+}

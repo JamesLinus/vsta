@@ -138,6 +138,8 @@ bootproc(struct boot_task *b)
 	t->t_runq = sched_thread(p->p_runq, t);
 	t->t_proc = p;
 	t->t_state = TS_SLEEP;	/* -> RUN in setrun() */
+	init_sema(&t->t_mutex);
+	set_sema(&t->t_mutex, 0);
 
 	/*
 	 * The vas for the proc
@@ -341,6 +343,8 @@ fork_thread(voidfun f, ulong arg)
 	t->t_state = TS_SLEEP;
 	t->t_fpu = 0;
 	t->t_oink = 0;
+	init_sema(&t->t_mutex);
+	set_sema(&t->t_mutex, 0);
 
 	/*
 	 * Add new guy to the proc's list
@@ -390,7 +394,6 @@ fork(void)
 	pid_t npid;
 
 	/*
-	 * Check thread limit here
 	 * Allocate new structures
 	 */
 	tnew = MALLOC(sizeof(struct thread), MT_THREAD);
@@ -405,6 +408,8 @@ fork(void)
 	tnew->t_flags = told->t_flags;
 	tnew->t_state = TS_SLEEP;	/* -> RUN in setrun() */
 	tnew->t_ustack = (void *)USTACKADDR;
+	init_sema(&tnew->t_mutex);
+	set_sema(&tnew->t_mutex, 0);
 
 	/*
 	 * Get new PIDs for process and initial thread.  Insert
