@@ -700,6 +700,15 @@ vfs_open(struct msg *m, struct file *f)
 	}
 
 	/*
+	 * Yuck.  If they ask for mode 0, make it mean "read" access.
+	 * Delete me when you can relink all your applications with
+	 * the new termcap.a
+	 */
+	if (m->m_arg == 0) {
+		m->m_arg = ACC_READ;
+	}
+
+	/*
 	 * Look up name, make sure "fs" stays valid
 	 */
 	lock_buf(b);
