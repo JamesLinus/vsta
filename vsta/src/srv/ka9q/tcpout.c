@@ -175,15 +175,17 @@ register struct tcb *tcb;
 		if(ssize != 0){
 			tcb->timer.start = backoff(tcb->backoff) *
 			 (2 * tcb->mdev + tcb->srtt + MSPTICK
-#ifdef SYS5
 /* 
+ * System 5 comment:
  * The main loop has a select with a 100 msec timeout, so we give
  * an extra 100 msec grace before timing out.  The rtt does not
  * include the extra 100 msec, because incoming packets trigger
  * the select.
+ *
+ * VSTa comment:
+ * No select used, but timer wakeup granularity has a similar effect
  */
 						    + 100
-#endif
 							     ) / MSPTICK;
 			start_timer(&tcb->timer);
 
