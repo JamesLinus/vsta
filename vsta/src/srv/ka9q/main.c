@@ -651,8 +651,8 @@ int pk_attach();
 struct cmds attab[] = {
 #ifdef GENERIC_ETH
 	/* generic Ethernet interface */
-	"ether", eth_attach, 3, 
-	"attach ether <label> <mtu>",
+	"ether", eth_attach, 4, 
+	"attach ether <label> <mtu> <dev-path>",
 	"Could not attach generic ethernet",
 #endif
 #ifdef	ASY

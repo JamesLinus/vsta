@@ -310,9 +310,9 @@ eth_attach(int argc, char **argv)
 	if_eth->raw = eth_raw;
 	if_eth->recv = eth_recv;
 	if_eth->stop = eth_stop;
-	ethport = path_open("net/ne:0", ACC_READ | ACC_WRITE);
+	ethport = open(argv[3], O_RDWR);
 	if (ethport < 0) {
-		perror ("net/ne:0");
+		perror (argv[3]);
 		free(if_eth->name);
 		free(if_eth);
 		return(-1);
