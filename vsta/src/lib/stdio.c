@@ -390,28 +390,29 @@ fputc(int c, FILE *fp)
 }
 
 /*
- * fopen()
- *	Open a buffered file
+ * freopen()
+ *	Open a buffered file on given FILE
  */
 FILE *
-fopen(char *name, char *mode)
+freopen(char *name, char *mode, FILE *fp)
 {
 	char *p, c;
 	int m = 0, o = 0, x;
-	FILE *fp;
 
 	/*
-	 * Get a file buffer
+	 * Flush old data, if any
 	 */
-	if ((fp = malloc(sizeof(FILE))) == 0) {
-		return(0);
+	if (fp->f_flags & _F_DIRTY) {
+		fflush(fp);
+	}
+	if (fp->f_buf) {
+		free(fp->f_buf);
 	}
 
 	/*
 	 * Get data buffer
 	 */
 	if ((fp->f_buf = malloc(BUFSIZ)) == 0) {
-		free(fp);
 		return(0);
 	}
 
@@ -437,7 +438,6 @@ fopen(char *name, char *mode)
 			o |= O_WRITE;
 			break;
 		default:
-			free(fp);	/* Or ignore? */
 			return(0);
 		}
 	}
@@ -447,7 +447,6 @@ fopen(char *name, char *mode)
 	 */
 	x = open(name, o);
 	if (x < 0) {
-		free(fp);
 		return(0);
 	}
 	fp->f_fd = x;
@@ -466,6 +465,38 @@ fopen(char *name, char *mode)
 	 */
 	add_list(&allfiles, fp);
 
+	return(fp);
+}
+
+/*
+ * fopen()
+ *	Open buffered file
+ */
+FILE *
+fopen(char *name, char *mode)
+{
+	FILE *fp;
+
+	/*
+	 * Get FILE *
+	 */
+	if ((fp = malloc(sizeof(FILE))) == 0) {
+		return(0);
+	}
+
+	/*
+	 * freopen() looks at these
+	 */
+	fp->f_flags = 0;
+	fp->f_buf = 0;
+
+	/*
+	 * Try to open file on it
+	 */
+	if (freopen(name, mode, fp) == 0) {
+		free(fp);
+		return(0);
+	}
 	return(fp);
 }
 
