@@ -118,7 +118,7 @@ add_views(struct vas *vas, struct portref *pr, struct mapfile *fm)
 			 */
 			(void)add_map(vas, pr,
 				m->m_vaddr, m->m_len, m->m_off,
-				m->m_flags & M_RO);
+				(m->m_flags & M_RO) ? PROT_RO : 0);
 		}
 	}
 }

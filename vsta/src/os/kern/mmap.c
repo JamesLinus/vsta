@@ -141,13 +141,15 @@ mmap(caddr_t addr, ulong len, int prot, int flags,
 		/*
 		 * Try to generate a view.  Return address or error.
 		 */
-		addr = add_map(vas, pr, addr,
+		pv = add_map(vas, pr, addr,
 			btorp(len + (offset - ptob(btop(offset)))),
-			btop(offset), !(prot & PROT_WRITE));
+			btop(offset),
+			((prot & PROT_WRITE) ? 0 : PROT_RO) | PROT_MMAP);
 		v_sema(&pr->p_sema);
-		if (addr) {
-			return(addr);
+		if (pv) {
+			return(pv->p_vaddr);
 		}
+		return(0);
 
 		/* VVV fall down to common error case VVV */
 
@@ -300,33 +302,44 @@ get_map_pset(struct portref *pr)
  * add_map()
  *	Add a mmap view of the given file
  *
- * Returns 0 on failure, attach address on success
+ * Returns 0 on failure, attached pview on success
  */
-void *
+struct pview *
 add_map(struct vas *vas, struct portref *pr, caddr_t vaddr, ulong len,
-		ulong off, int readonly)
+		ulong off, int prot)
 {
 	struct pset *ps;
 	struct pview *pv;
-	int err;
+	int result;
+
+	/*
+	 * See if we're coming down on top of an existing mapping.
+	 * This would be Not Acceptable.
+	 */
+	if (vaddr) {
+		if (overlapping_pview(vas, vaddr, len)) {
+			err(EEXIST);
+			return(0);
+		}
+	}
 
 	/*
 	 * Get underlying pset; might be cached
 	 */
 	ps = get_map_pset(pr);
 	if (ps == 0) {
+		err(EINVAL);
 		return(0);
 	}
 
 	/*
 	 * Create a pview of the given size
 	 */
-	if (readonly) {
+	if (prot & PROT_RO) {
 		/*
 		 * Read-only is a simple view into the pset
 		 */
 		pv = alloc_pview(ps);
-		pv->p_prot = PROT_RO;
 		if (pv->p_len > off) {
 			pv->p_off = off;
 			pv->p_len -= off;
@@ -341,28 +354,30 @@ add_map(struct vas *vas, struct portref *pr, caddr_t vaddr, ulong len,
 		 */
 		ps2 = alloc_pset_cow(ps, off, len);
 		pv = alloc_pview(ps2);
-		pv->p_prot = 0;
 		pv->p_off = 0;
 	}
 	if (len < pv->p_len)
 		pv->p_len = len;
 	pv->p_vaddr = vaddr;
+	pv->p_prot = prot;
 
 	/*
 	 * Try to attach.  Throw away if it's rejected.  Most
 	 * likely this is a bogus filemap, with an address
 	 * which the HAT rejected.
 	 */
-	err = (attach_pview(vas, pv) == 0);
-	if (err) {
+	result = (attach_pview(vas, pv) == 0);
+	if (result) {
 		free_pview(pv);
+		err(EINVAL);
+		pv = 0;
 	}
 
 	/*
 	 * Drop "placeholder" ref to pset (see get_map_pset())
 	 */
 	deref_pset(ps);
-	return(err ? 0 : pv->p_vaddr);
+	return(pv);
 }
 
 /*

@@ -23,6 +23,31 @@
 		(char *)(va)))
 
 /*
+ * overlapping_pview()
+ *	Tell if the given address range overlaps any existing pview
+ */
+int
+overlapping_pview(struct vas *vas, void *arg_vaddr, uint len)
+{
+	struct pview *pv;
+	uchar *vaddr = arg_vaddr, *vaddr2,
+		*end = vaddr + ptob(len), *end2;
+	int result = 0;
+
+	p_lock_void(&vas->v_lock, SPL0);
+	for (pv = vas->v_views; pv; pv = pv->p_next) {
+		vaddr2 = pv->p_vaddr;
+		end2 = vaddr2 + ptob(pv->p_len);
+		if (((vaddr <= vaddr2) && (end > vaddr2)) ||
+				((vaddr < end2) && (end >= end2))) {
+			result = 1;
+			break;
+		}
+	}
+	v_lock(&vas->v_lock, SPL0_SAME);
+	return(result);
+}
+/*
  * find_pview()
  *	Find a page view given a vas and a vaddr
  *
