@@ -285,7 +285,7 @@ verify_root(void)
 		perror("vfs: secbuf");
 		exit(1);
 	}
-	read_sec(ROOT_SEC, secbuf);
+	read_sec(BASE_SEC, secbuf);
 	fsroot = (struct fs *)secbuf;
 	if (fsroot->fs_magic != FS_MAGIC) {
 		printf("Bad magic number on filesystem\n");
