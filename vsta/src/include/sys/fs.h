@@ -5,6 +5,10 @@
  */
 #include <sys/msg.h>
 
+/*
+ * FS operations which should basically be offered by all
+ * servers.
+ */
 #define FS_OPEN 100
 #define FS_READ 101
 #define FS_SEEK 102
@@ -14,11 +18,11 @@
 #define FS_WSTAT 106
 
 /*
- * The following are recommended, but not required.  They are
- * currently only needed to support swap operations.
+ * The following are recommended, but not required
  */
-#define FS_ABSREAD 150
+#define FS_ABSREAD 150		/* Mostly for swap/paging operations */
 #define FS_ABSWRITE 151
+#define FS_FID 152		/* For caching of mapped files */
 
 /*
  * How to ask if an operation is a bulk read/write
