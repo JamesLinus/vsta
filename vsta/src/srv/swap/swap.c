@@ -166,7 +166,7 @@ swap_add(struct msg *m, struct file *f, uint len)
 	 * If there's no size specified, use the whole thing
 	 */
 	if (sa->s_len == 0) {
-		slen = atoi(rstat(p, "size"));
+		slen = btop(atoi(rstat(p, "size")));
 		slen -= sa->s_off;
 	} else {
 		slen = 0;
