@@ -117,7 +117,7 @@ dir_newfile(struct file *f, char *name)
  * do_free()
  *	Given a block, free it
  */
-static
+static int
 do_free(long keydummy, void *block, void *dummy)
 {
 	free(block);

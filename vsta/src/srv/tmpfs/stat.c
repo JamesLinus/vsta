@@ -9,6 +9,8 @@
 #include <sys/perm.h>
 #include <sys/fs.h>
 #include <llist.h>
+#include <string.h>
+#include <stdio.h>
 
 extern char *perm_print();
 

@@ -45,7 +45,7 @@ new_client(struct msg *m)
 {
 	struct file *f;
 	struct perm *perms;
-	int uperms, nperms;
+	int nperms;
 
 	/*
 	 * See if they're OK to access
@@ -161,6 +161,7 @@ tmpfs_main()
 	struct msg msg;
 	int x;
 	struct file *f;
+	extern int valid_fname(char *, int);
 
 loop:
 	/*
@@ -271,6 +272,7 @@ usage(void)
  * A TMPFS instance expects to start with a command line:
  *	$ tmpfs <filesystem name>
  */
+int
 main(int argc, char *argv[])
 {
 	port_name fsname;
@@ -329,4 +331,5 @@ main(int argc, char *argv[])
 	 */
 	syslog(LOG_INFO, "filesystem established");
 	tmpfs_main();
+	return(0);
 }
