@@ -6,8 +6,11 @@
 #include <stdio.h>
 #include <syslog.h>
 #include <llist.h>
+#include <std.h>
 
-extern path_t path_open(char *, int);
+extern port_t path_open(char *, int);
+
+typedef unsigned char lock_t;		/* Our mutex type */
 
 static char *inet = "net/inet";		/* Default port_name for TCP/IP */
 static int ip_port = 23;		/* Default TCP port to listen on */
@@ -33,6 +36,28 @@ struct pendio {
 
 static struct llist readq,	/* Queue of readers awaiting data */
 	dataq;			/*  ...of data awaiting readers */
+
+/*
+ * Our private hack mutex package
+ */
+inline static void
+init_lock(volatile lock_t *p)
+{
+	*p = 0;
+}
+inline static void
+p_lock(volatile lock_t *p)
+{
+	while (*p) {
+		__msleep(20);
+	}
+	*p = 1;
+}
+inline static void
+v_lock(volatile lock_t *p)
+{
+	*p = 0;
+}
 
 /*
  * tn_read()
@@ -75,7 +100,7 @@ tn_read(struct msg *m)
 	 */
 	l = LL_NEXT(&dataq);
 	p = l->l_data;
-	mp = p->p_msg;
+	mp = &p->p_msg;
 
 	/*
 	 * If it appears to be less than or equal to the requested
@@ -195,7 +220,7 @@ queue_data(char *buf, uint cnt)
 	/*
 	 * Queue the rest for future use
 	 */
-	p = malloc(sizeof(struct pendio);
+	p = malloc(sizeof(struct pendio));
 	if (p == 0) {
 		return;
 	}
@@ -210,7 +235,7 @@ queue_data(char *buf, uint cnt)
 		free(p);
 		return;
 	}
-	bcopy(buf, p->p_msg.m_buf);
+	bcopy(buf, p->p_msg.m_buf, cnt);
 	p->p_msg.m_buflen = cnt;
 }
 
@@ -229,18 +254,18 @@ io_server(struct tnserv *tn)
 		x = msg_receive(tn->tn_server, &m);
 		if (x < 0) {
 			notify(0, tn->tn_tcp_tid, "kill");
-			syslog(LOG_ERROR, "IO server: %s", strerror());
+			syslog(LOG_ERR, "IO server: %s", strerror());
 			_exit(1);
 		}
 		switch (m.m_op) {
 
-		case M_READ:
+		case FS_READ:
 			p_lock(&readq_lock);
 			tn_read(&m);
 			v_lock(&readq_lock);
 			break;
 
-		case M_WRITE:
+		case FS_WRITE:
 			msg_send(tn->tn_write, &m);
 			break;
 
@@ -290,6 +315,7 @@ io_server(struct tnserv *tn)
 		default:
 			msg_err(m.m_sender, EINVAL);
 			break;
+		}
 	}
 }
 
@@ -413,7 +439,7 @@ launch_client(port_t tn_read)
 	 * Run a thread to serve the child's port
 	 */
 	tn.tn_tcp_tid = gettid();
-	tn.tn_serv_tid = tfork(io_server, &tn);
+	tn.tn_serv_tid = tfork(io_server, (ulong)&tn);
 	if (tn.tn_serv_tid < 0) {
 		syslog(LOG_WARNING, "Can't fork for IO: %s", strerror());
 		_exit(1);
@@ -433,6 +459,7 @@ static void
 serve(port_t p)
 {
 	struct msg m;
+	int x;
 
 	for (;;) {
 		/*
@@ -465,7 +492,7 @@ serve(port_t p)
 			/*
 			 * Clone off a distinct connection for the client
 			 */
-			run_client(p);
+			launch_client(p);
 		}
 		if (x < 0) {
 			syslog(LOG_WARNING, "Can't tfork: %s", strerror());
@@ -518,14 +545,17 @@ main(int argc, char **argv)
 	}
 
 	/*
-	 * Close all files; this simplifies what gets inherited by
-	 * clients, and we have syslog() to use for complaints from
-	 * now on.
+	 * Set up for syslogging
 	 */
-	for (x = 0; x < getdtablesize(); ++x) {
-		close(x);
-	}
 	(void)openlog("telnetd", LOG_PID, LOG_DAEMON);
 
+	/*
+	 * Initialize lock
+	 */
+	init_lock(&readq_lock);
+
+	/*
+	 * Start serving telnet
+	 */
 	serve(p);
 }
