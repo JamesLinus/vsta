@@ -7,14 +7,23 @@
 #include <sys/pset.h>
 #include <sys/qio.h>
 #include <sys/fs.h>
+#include <sys/port.h>
 #include <sys/assert.h>
 #include <alloc.h>
 #include "pset.h"
 
+/*
+ * Map generic pset data to FOD use
+ */
+#define p_pr p_data
+
+/*
+ * Our pset ops
+ */
 static int fod_fillslot(), fod_writeslot(), fod_init();
-static void fod_free();
+static void fod_dup(), fod_free();
 static struct psetops psop_fod = {fod_fillslot, fod_writeslot, fod_init,
-	fod_free};
+	fod_dup, fod_free};
 
 /*
  * fod_init()
@@ -122,4 +131,18 @@ alloc_pset_fod(struct portref *pr, uint pages)
 	ps->p_ops = &psop_fod;
 	ps->p_pr = pr;
 	return(ps);
+}
+
+/*
+ * fod_dup()
+ *	Duplicate port reference on new pset
+ */
+static void
+fod_dup(struct pset *ops, struct pset *ps)
+{
+	/*
+	 * We are a new reference into the file.  Ask
+	 * the server for duplication.
+	 */
+	ps->p_pr = dup_port(ops->p_pr);
 }

@@ -12,13 +12,21 @@
 #include "../mach/mutex.h"
 #include "pset.h"
 
+/*
+ * Map generic pset data to COW use
+ */
+#define p_cow p_data
+
+/*
+ * Our pset ops
+ */
 extern struct portref *swapdev;
 extern int pset_writeslot();
 
 static int cow_fillslot(), cow_writeslot(), cow_init();
-static void cow_free();
-struct psetops psop_cow = {cow_fillslot, cow_writeslot, cow_init,
-	cow_free};
+static void cow_dup(), cow_free();
+static struct psetops psop_cow = {cow_fillslot, cow_writeslot, cow_init,
+	cow_dup, cow_free};
 
 /*
  * cow_init()
@@ -209,4 +217,65 @@ cow_free(struct pset *ps)
 	 * Remove our reference from him
 	 */
 	deref_pset(ps2);
+}
+
+/*
+ * add_cowset()
+ *	Add a new pset to the list of COW sets under a master
+ */
+static void
+add_cowset(struct pset *pscow, struct pset *ps)
+{
+	/*
+	 * Attach to the underlying pset
+	 */
+	ref_pset(pscow);
+	p_lock_fast(&pscow->p_lock, SPL0);
+	ps->p_cowsets = pscow->p_cowsets;
+	pscow->p_cowsets = ps;
+	ps->p_cow = pscow;
+	v_lock(&pscow->p_lock, SPL0_SAME);
+}
+
+/*
+ * cow_dup()
+ *	Duplicate a COW pset
+ */
+static void
+cow_dup(struct pset *ops, struct pset *ps)
+{
+	/*
+	 * This is a new COW reference into the master pset
+	 */
+	add_cowset(ops->p_cow, ps);
+}
+
+/*
+ * alloc_pset_cow()
+ *	Allocate a COW pset in terms of another
+ */
+struct pset *
+alloc_pset_cow(struct pset *psold, uint off, uint len)
+{
+	struct pset *ps;
+	uint swapblk;
+
+	ASSERT_DEBUG(psold->p_type != PT_COW, "pset_cow: cow of cow");
+
+	/*
+	 * Get swap for our pages.  We get all the room we'll need
+	 * if all pages are written.
+	 */
+	swapblk = alloc_swap(len);
+	if (swapblk == 0) {
+		return(0);
+	}
+	ps = alloc_pset(len);
+	ps->p_off = off;
+	ps->p_swapblk = swapblk;
+	ps->p_type = PT_COW;
+	ps->p_ops = &psop_cow;
+	add_cowset(psold, ps);
+
+	return(ps);
 }

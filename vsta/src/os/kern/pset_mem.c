@@ -9,9 +9,9 @@
 #include "pset.h"
 
 static int mem_fillslot(), mem_writeslot(), mem_init();
-static void mem_free();
+static void mem_dup(), mem_free();
 static struct psetops psop_mem =
-	{mem_fillslot, mem_writeslot, mem_init, mem_free};
+	{mem_fillslot, mem_writeslot, mem_init, mem_dup, mem_free};
 
 /*
  * mem_init()
@@ -71,16 +71,14 @@ physmem_pset(uint pfn, int npfn)
 	 * Initialize the basic fields of the pset
 	 */
 	ps = MALLOC(sizeof(struct pset), MT_PSET);
-	ps->p_perpage = MALLOC(npfn * sizeof(struct perpage), MT_PERPAGE);
+	bzero(ps, sizeof(struct pset));
+	x = npfn * sizeof(struct perpage);
+	ps->p_perpage = MALLOC(x, MT_PERPAGE);
+	bzero(ps->p_perpage, x);
 	ps->p_len = npfn;
-	ps->p_off = 0;
 	ps->p_type = PT_MEM;
-	ps->p_swapblk = 0;
-	ps->p_refs = 0;
-	ps->p_cowsets = 0;
 	ps->p_ops = &psop_mem;
 	init_lock(&ps->p_lock);
-	ps->p_locks = 0;
 	init_sema(&ps->p_lockwait);
 
 	/*
@@ -91,9 +89,25 @@ physmem_pset(uint pfn, int npfn)
 		pp = find_pp(ps, x);
 		pp->pp_pfn = pfn + x;
 		pp->pp_flags = PP_V;
-		pp->pp_refs = 0;
-		pp->pp_lock = 0;
-		pp->pp_atl = 0;
 	}
 	return(ps);
+}
+
+/*
+ * mem_dup()
+ *	Duplicate mem slots by creating a COW view
+ */
+static void
+mem_dup(struct pset *ops, struct pset *ps)
+{
+	extern struct psetops psop_zfod;
+
+	/*
+	 * Map fork() of memory based psets (ala boot processes)
+	 * into a ZFOD pset which happens to be filled.  The mem
+	 * pset doesn't have swap, so we get it from the mem set.
+	 */
+	ps->p_type = PT_ZERO;
+	ps->p_ops = &psop_zfod;
+	ps->p_swapblk = alloc_swap(ps->p_len);
 }

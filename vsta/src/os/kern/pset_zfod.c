@@ -12,9 +12,9 @@ extern struct portref *swapdev;
 extern int pset_writeslot();
 
 static int zfod_fillslot(), zfod_init();
-static void zfod_free();
+static void zfod_dup(), zfod_free();
 struct psetops psop_zfod =
-	{zfod_fillslot, pset_writeslot, zfod_init, zfod_free};
+	{zfod_fillslot, pset_writeslot, zfod_init, zfod_dup, zfod_free};
 
 /*
  * zfod_init()
@@ -111,4 +111,14 @@ alloc_pset_zfod(uint pages)
 	ps->p_swapblk = swapblk;
 
 	return(ps);
+}
+
+/*
+ * zfod_dup()
+ *	Create COW view of ZFOD memory
+ */
+static void
+zfod_dup(struct pset *ops, struct pset *ps)
+{
+	/* Nothing to do; dup_slots() handles it all */
 }

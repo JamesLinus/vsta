@@ -298,24 +298,6 @@ dup_slots(struct pset *ops, struct pset *ps)
 }
 
 /*
- * add_cowset()
- *	Add a new pset to the list of COW sets under a master
- */
-static void
-add_cowset(struct pset *pscow, struct pset *ps)
-{
-	/*
-	 * Attach to the underlying pset
-	 */
-	ref_pset(pscow);
-	p_lock_fast(&pscow->p_lock, SPL0);
-	ps->p_cowsets = pscow->p_cowsets;
-	pscow->p_cowsets = ps;
-	ps->p_cow = pscow;
-	v_lock(&pscow->p_lock, SPL0_SAME);
-}
-
-/*
  * copy_pset()
  *	Copy one pset into another
  *
@@ -329,7 +311,6 @@ struct pset *
 copy_pset(struct pset *ops)
 {
 	struct pset *ps;
-	extern struct psetops psop_zfod;
 
 	/*
 	 * Allocate the new pset, set up its basic fields
@@ -346,31 +327,10 @@ copy_pset(struct pset *ops)
 	init_sema(&ps->p_lockwait);
 	set_sema(&ps->p_lockwait, 0);
 
-	switch (ps->p_type) {
-	case PT_FILE:
-		/*
-		 * We are a new reference into the file.  Ask
-		 * the server for duplication.
-		 */
-		ps->p_pr = dup_port(ops->p_pr);
-		break;
-	case PT_COW:
-		/*
-		 * This is a new COW reference into the master pset
-		 */
-		add_cowset(ops->p_cow, ps);
-		break;
-	case PT_MEM:
-		/*
-		 * Map fork() of memory based psets (ala boot processes)
-		 * into a ZFOD pset which happens to be filled.  The mem
-		 * pset doesn't have swap, so we get it here.
-		 */
-		ps->p_type = PT_ZERO;
-		ps->p_ops = &psop_zfod;
-		ps->p_swapblk = alloc_swap(ps->p_len);
-		break;
-	}
+	/*
+	 * Let pset-specific code fiddle things
+	 */
+	(*(ps->p_ops->psop_dup))(ops, ps);
 
 	/*
 	 * We need our own perpage storage
@@ -390,36 +350,5 @@ copy_pset(struct pset *ops)
 	 * Now duplicate the contents
 	 */
 	dup_slots(ops, ps);
-	return(ps);
-}
-
-/*
- * alloc_pset_cow()
- *	Allocate a COW pset in terms of another
- */
-struct pset *
-alloc_pset_cow(struct pset *psold, uint off, uint len)
-{
-	struct pset *ps;
-	uint swapblk;
-	extern struct psetops psop_cow;
-
-	ASSERT_DEBUG(psold->p_type != PT_COW, "pset_cow: cow of cow");
-
-	/*
-	 * Get swap for our pages.  We get all the room we'll need
-	 * if all pages are written.
-	 */
-	swapblk = alloc_swap(len);
-	if (swapblk == 0) {
-		return(0);
-	}
-	ps = alloc_pset(len);
-	ps->p_off = off;
-	ps->p_swapblk = swapblk;
-	ps->p_type = PT_COW;
-	ps->p_ops = &psop_cow;
-	add_cowset(psold, ps);
-
 	return(ps);
 }
