@@ -396,8 +396,7 @@ create_file(struct file *f, uint type)
 {
 	daddr_t da;
 	struct buf *b;
-	struct fs_file *d;
-	struct prot *p;
+	struct fs_file *d, *dirfs;
 	struct openfile *o;
 
 	/*
@@ -413,6 +412,7 @@ create_file(struct file *f, uint type)
 		return(0);
 	}
 	d = index_buf(b, 0, 1);
+	lock_buf(b);
 
 	/*
 	 * Special handling; dir versus file
@@ -437,14 +437,11 @@ create_file(struct file *f, uint type)
 	time(&d->fs_ctime); d->fs_mtime = d->fs_ctime;
 
 	/*
-	 * Default protection, use 0'th perm
+	 * Default protection, use containing directory's permissions,
+	 * and UID of 0th perm.
 	 */
-	p = &d->fs_prot;
-	bzero(p, sizeof(*p));
-	p->prot_len = PERM_LEN(&f->f_perms[0]);
-	bcopy(f->f_perms[0].perm_id, p->prot_id, PERMLEN);
-	p->prot_bits[p->prot_len-1] =
-		ACC_READ|ACC_WRITE|ACC_CHMOD;
+	dirfs = getfs(f->f_file, NULL);
+	bcopy(&dirfs->fs_prot, &d->fs_prot, sizeof(d->fs_prot));
 	d->fs_owner = f->f_perms[0].perm_uid;
 
 	/*
@@ -459,6 +456,7 @@ create_file(struct file *f, uint type)
 	 * Flush out info to disk, and return openfile
 	 */
 	dirty_buf(b, 0);
+	unlock_buf(b);
 	sync_buf(b);
 	return(o);
 }
@@ -618,6 +616,7 @@ dir_newfile(struct file *f, char *name, int type)
 	 */
 	o = create_file(f, type);
 	if (o == 0) {
+		unlock_buf(b);
 		return(0);
 	}
 
