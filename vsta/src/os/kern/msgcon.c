@@ -612,6 +612,7 @@ msg_disconnect(port_t arg_port)
 msg_err(long arg_tran, char *arg_why, int arg_len)
 {
 	struct portref *pr;
+	struct port *port;
 	struct proc *p = curthread->t_proc;
 	char errmsg[ERRLEN];
 
@@ -649,7 +650,8 @@ msg_err(long arg_tran, char *arg_why, int arg_len)
 	 * If the server port's on its way down, never mind
 	 * this.
 	 */
-	if (!pr->p_port) {
+	port = pr->p_port;
+	if (!port) {
 		v_lock(&pr->p_lock, SPL0);
 		return(err(EIO));
 	}
@@ -672,6 +674,13 @@ msg_err(long arg_tran, char *arg_why, int arg_len)
 		v_sema(&pr->p_iowait);
 		break;
 	case PS_OPENING:
+		/*
+		 * A failed open needs the portref cleared
+		 */
+		(void)p_lock(&port->p_lock, SPL0);
+		deref_port(port, pr);
+		v_lock(&port->p_lock, SPL0);
+
 		/*
 		 * An open failed.  We already deleted him from our
 		 * hash above.  Flag open failure by setting his
