@@ -190,6 +190,11 @@ _load2(port_name rootname, char *p)
 		}
 
 		/*
+		 * Null terminate the string
+		 */
+		*p2 = '\0';
+
+		/*
 		 * Now try and open this created filename
 		 */
 		x = walk(port, p3);
