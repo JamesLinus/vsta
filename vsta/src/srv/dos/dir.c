@@ -8,12 +8,9 @@
 #include <std.h>
 #include <hash.h>
 #include <time.h>
+#include <fcntl.h>
 #include <sys/assert.h>
 #include <syslog.h>
-
-extern struct boot bootb;
-extern int blkdev;
-extern uint dirents;
 
 struct node *rootdir;		/* Root dir always here */
 static uint rootsize;		/* # bytes in root dir data */
@@ -22,6 +19,8 @@ static struct directory		/* Root dir contents */
 	*rootdirents;
 static uint cldirs;		/* # dir entries in a cluster */
 struct hash *dirhash;		/* Maps dirs to nodes */
+static struct hash
+	*rename_pending;	/* Tabulate pending renames */
 
 static void timestamp(struct directory *d);
 
@@ -86,7 +85,7 @@ dir_init(void)
  * map_filename()
  *	Convert between a UNIX-ish filename and its DOS counterpart
  */
-static
+static int
 map_filename(char *file, char *f1, char *f2)
 {
 	char *p, c;
@@ -95,7 +94,7 @@ map_filename(char *file, char *f1, char *f2)
 	p = f1;
 	len = 0;
 	strcpy(f1, "        ");
-	while (c = *file++) {
+	while ((c = *file++)) {
 		c &= 0x7F;
 		if (c == '.') {
 			break;
@@ -108,7 +107,7 @@ map_filename(char *file, char *f1, char *f2)
 	if (c == '.') {		/* Extension found */
 		p = f2;
 		len = 0;
-		while (c = *file++) {
+		while ((c = *file++)) {
 			c &= 0x7F;
 			if (c == '.') {
 				return(1);
@@ -125,7 +124,7 @@ map_filename(char *file, char *f1, char *f2)
  * search_dir()
  *	Search an array of "struct directory"s for a filename
  */
-static
+static int
 search_dir(struct directory *d, uint ndir, char *f1, char *f2)
 {
 	struct directory *dirend;
@@ -157,7 +156,7 @@ search_dir(struct directory *d, uint ndir, char *f1, char *f2)
  *
  * Return the index, or -1 if it can't be found.
  */
-static
+static int
 root_search(char *f1, char *f2, struct directory *dp)
 {
 	int x;
@@ -171,7 +170,7 @@ root_search(char *f1, char *f2, struct directory *dp)
  * dir_search()
  *	Like root_search(), but have to walk extents
  */
-static
+static int
 dir_search(struct node *n, char *f1, char *f2, struct directory *dp)
 {
 	void *handle;
@@ -322,6 +321,7 @@ dir_look(struct node *n, char *file)
  * dir_empty()
  *	Tell if given directory is empty
  */
+int
 dir_empty(struct node *n)
 {
 	struct clust *c;
@@ -576,6 +576,7 @@ dir_newfile(struct file *f, char *file, int isdir)
 		 */
 		return(0);
 	}
+	ochar0 = dir->name[0];	/* In case we have to undo this */
 
 	/*
 	 * Get a DOS version of the name, put in place
@@ -584,7 +585,6 @@ dir_newfile(struct file *f, char *file, int isdir)
 		error = 1;
 		goto out;
 	}
-	ochar0 = dir->name[0];	/* In case we have to undo this */
 	bcopy(f1, dir->name, sizeof(dir->name));
 	bcopy(f2, dir->ext, sizeof(dir->ext));
 	dir->attr = 0;
@@ -612,7 +612,6 @@ dir_newfile(struct file *f, char *file, int isdir)
 
 		/*
 		 * Put "." first, ".." second, and zero out the rest
-		 * XXX time/date stuff
 		 */
 		handle = bget(c->c_clust[0]);
 		d = bdata(handle);
@@ -666,6 +665,7 @@ out:
  * dir_copy()
  *	Get a snapshot of a directory entry
  */
+int
 dir_copy(struct node *n, uint pos, struct directory *dp)
 {
 	struct directory *d;
@@ -800,4 +800,229 @@ root_sync(void)
 		exit(1);
 	}
 	root_dirty = 0;
+}
+
+/*
+ * do_rename()
+ *	Given open directories and filenames, rename an entry
+ *
+ * Returns an error string or 0 for success.
+ */
+static char *
+do_rename(struct file *fsrc, char *src, struct file *fdest, char *dest)
+{
+	struct node *ndsrc, *nddest, *nsrc, *ndest;
+	struct directory *dsrc, *ddest, dtmp;
+	void *handsrc, *handdest;
+	char name[8], ext[3];
+
+	/*
+	 * Get directory nodes, verify that they're directories
+	 */
+	ndsrc = fsrc->f_node;
+	nddest = fdest->f_node;
+	if ((ndsrc->n_type != T_DIR) || (nddest->n_type != T_DIR)) {
+		return(ENOTDIR);
+	}
+
+	/*
+	 * Look up each file within the directories
+	 */
+	nsrc = dir_look(ndsrc, src);
+	if (nsrc == 0) {
+		return(ESRCH);
+	}
+	ndest = dir_look(nddest, dest);
+
+	/*
+	 * If our destination exists, truncate if it's a file, error
+	 * if it's a directory.
+	 */
+	if (ndest) {
+		if (ndest->n_type == T_DIR) {
+			deref_node(ndest);
+			deref_node(nsrc);
+			return(EISDIR);
+		}
+		clust_setlen(ndest->n_clust, 0L);
+	} else {
+		/* 
+		 * Otherwise, create a new entry for the file
+		 */
+		ndest = dir_newfile(fdest, dest,
+			(nsrc->n_type == T_DIR) ? ACC_DIR : 0);
+		if (ndest == 0) {
+			deref_node(nsrc);
+			return(strerror());
+		}
+	}
+
+	/*
+	 * Ok... we have our source and destination.  Swap the
+	 * directory attributes (but not the names).
+	 */
+	dsrc = get_dirent(nsrc->n_dir, nsrc->n_slot, &handsrc);
+	ddest = get_dirent(ndest->n_dir, ndest->n_slot, &handdest);
+	dtmp = *ddest;
+	*ddest = *dsrc;
+	bcopy(dtmp.name, ddest->name, 8);
+	bcopy(dtmp.ext, ddest->ext, 3);
+	bcopy(dsrc->name, name, 8); bcopy(dsrc->ext, ext, 3);
+	*dsrc = dtmp;
+	bcopy(name, dsrc->name, 8); bcopy(ext, dsrc->ext, 3);
+	bdirty(handsrc); bdirty(handdest);
+	bfree(handsrc); bfree(handdest);
+
+	/*
+	 * File nodes are keyed under their parent dir.  Since this
+	 * has changed, move them about.
+	 */
+	if (nsrc->n_type == T_FILE) {
+		/*
+		 * Unhash each node.  Re-hash it under its new parent.
+		 * Node pointers and all are swapped a little later.
+		 */
+		hash_delete(ndsrc->n_files, nsrc->n_slot);
+		hash_delete(nddest->n_files, ndest->n_slot);
+		ASSERT(hash_insert(ndsrc->n_files, nsrc->n_slot, ndest) == 0,
+			"do_rename: hash1 failed");
+		ASSERT(hash_insert(nddest->n_files, ndest->n_slot, nsrc) == 0,
+			"do_rename: hash2 failed");
+	} else {
+		/*
+		 * Dir nodes are hashed under starting sector,
+		 * which should not change.
+		 */
+		/* XXX fixup ".." */
+		ASSERT(0, "do_rename: dir");
+	}
+
+	/*
+	 * Now swap the node information on what directory
+	 * entry it occupies.
+	 */
+	{
+		struct node *ntmp;
+		uint tmp;
+
+		ntmp = nsrc->n_dir;
+		nsrc->n_dir = ndest->n_dir;
+		ndest->n_dir = ntmp;
+		tmp = nsrc->n_slot;
+		nsrc->n_slot = ndest->n_slot;
+		ndest->n_slot = tmp;
+	}
+
+	/*
+	 * Flush dir entries
+	 */
+	sync();
+
+	/*
+	 * Success
+	 */
+	return(0);
+}
+
+/*
+ * dos_rename()
+ *	Rename one dir entry to another
+ *
+ * For move of directory, just protect against cycles and update
+ * the ".." entry in the directory after the move.
+ */
+void
+dos_rename(struct msg *m, struct file *f)
+{
+	struct file *f2;
+	char *errstr;
+
+	/*
+	 * Sanity
+	 */
+	if ((m->m_arg1 == 0) || !valid_fname(m->m_buf, m->m_buflen)) {
+		msg_err(m->m_sender, EINVAL);
+		return;
+	}
+
+	/*
+	 * On first use, create the rename-pending hash
+	 */
+	if (rename_pending == 0) {
+		rename_pending = hash_alloc(16);
+		if (rename_pending == 0) {
+			msg_err(m->m_sender, strerror());
+			return;
+		}
+	}
+
+	/*
+	 * Phase 1--register the source of the rename
+	 */
+	if (m->m_arg == 0) {
+		/*
+		 * Transaction ID collision?
+		 */
+		if (hash_lookup(rename_pending, m->m_arg1)) {
+			msg_err(m->m_sender, EBUSY);
+			return;
+		}
+
+		/*
+		 * Insert in hash
+		 */
+		if (hash_insert(rename_pending, m->m_arg1, f)) {
+			msg_err(m->m_sender, strerror());
+			return;
+		}
+
+		/*
+		 * Flag open file as being involved in this
+		 * pending operation.
+		 */
+		f->f_rename_id = m->m_arg1;
+		f->f_rename_msg = m;
+		return;
+	}
+
+	/*
+	 * Otherwise it's the completion
+	 */
+	f2 = hash_lookup(rename_pending, m->m_arg1);
+	if (f2 == 0) {
+		msg_err(m->m_sender, ESRCH);
+		return;
+	}
+	(void)hash_delete(rename_pending, m->m_arg1);
+
+	/*
+	 * Do our magic
+	 */
+	errstr = do_rename(f2, f2->f_rename_msg->m_buf, f, m->m_buf);
+	if (errstr) {
+		msg_err(m->m_sender, errstr);
+		msg_err(f2->f_rename_msg->m_sender, errstr);
+	} else {
+		m->m_nseg = m->m_arg = m->m_arg1 = 0;
+		msg_reply(m->m_sender, m);
+		msg_reply(f2->f_rename_msg->m_sender, m);
+	}
+
+	/*
+	 * Clear state
+	 */
+	f2->f_rename_id = 0;
+	f2->f_rename_msg = 0;
+}
+
+/*
+ * cancel_rename()
+ *	A client exit()'ed before completing a rename.  Clean up.
+ */
+void
+cancel_rename(struct file *f)
+{
+	(void)hash_delete(rename_pending, f->f_rename_id);
+	f->f_rename_id = 0;
+	f->f_rename_msg = 0;
 }
