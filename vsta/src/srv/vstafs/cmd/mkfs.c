@@ -135,6 +135,7 @@ main(int argc, char **argv)
 				printf("."); fflush(stdout);
 			}
 		}
+		printf("\n");
 	}
 
 	/*
