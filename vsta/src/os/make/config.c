@@ -20,7 +20,7 @@ main()
 	 * Open object list file.  We need this because of DOS'
 	 * completely lame command length limit.
 	 */
-	if ((fpobj = fopen("objs", "w")) == NULL) {
+	if ((fpobj = fopen("objs", "wb")) == NULL) {
 		perror("objs");
 		exit(1);
 	}
@@ -28,7 +28,7 @@ main()
 	/*
 	 * Open output file
 	 */
-	if ((fpmk = fopen("makefile", "w")) == NULL) {
+	if ((fpmk = fopen("makefile", "wb")) == NULL) {
 		perror("makefile");
 		exit(1);
 	}
