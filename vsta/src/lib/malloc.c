@@ -197,7 +197,7 @@ find_chunk(void *mem)
 				break;
 		}
 	}
-	ASSERT(c, "malloc: set_size: no chunk");
+	ASSERT(c, "malloc: find_chunk: no chunk");
 	return(c);
 }
 
@@ -220,6 +220,7 @@ set_size(void *mem, int size)
 	 * Get index for perpage slot.  Set size attribute for each slot.
 	 */
  	idx = btop((char *)mem - (char *)(c->c_vaddr));
+	ASSERT(size < 32768, "set_size: overflow");
 	c->c_perpage[idx] = size;
 }
 
@@ -267,7 +268,7 @@ malloc(unsigned int size)
 
 		pgs = btorp(size);
 		mem = alloc_core(pgs);
-		set_size(mem, ptob(pgs));
+		set_size(mem, pgs + MAX_BUCKET);
 		return(mem);
 	}
 
@@ -423,6 +424,8 @@ realloc(void *mem, uint newsize)
 	oldsize = get_size(mem);
 	if (oldsize <= MAX_BUCKET) {
 		oldsize = (1 << oldsize);
+	} else {
+		oldsize = ptob(oldsize - MAX_BUCKET);
 	}
 
 	/*
@@ -440,6 +443,9 @@ realloc(void *mem, uint newsize)
 	 * free the old block.
 	 */
 	newmem = malloc(newsize);
+	if (newmem == 0) {
+		return(0);
+	}
 	bcopy(mem, newmem, oldsize);
 	free(mem);
 	return(newmem);
