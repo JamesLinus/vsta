@@ -17,7 +17,7 @@
  *	Convert string to double, advance string pointer
  */
 double
-strtod(char *s, char **sret)
+strtod(const char *s, const char **sret)
 {
 	double r;	/* result */
 	int e;		/* exponent */
@@ -109,10 +109,9 @@ strtod(char *s, char **sret)
  *	Like atoi(), but floating point result
  */
 double
-atof(ascii)
-	char *ascii;
+atof(const char *ascii)
 {
-	return(strtod(ascii, (char **)0));
+	return(strtod(ascii, (const char **)0));
 }
 
 /*
