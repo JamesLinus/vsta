@@ -94,11 +94,12 @@ q_sema(struct sema *s, struct thread *t)
 		s->s_sleepq = t;
 		t->t_hd = t->t_tl = t;
 	} else {
-		struct thread *t2 = s->s_sleepq->t_tl;
+		struct thread *t2;
 
-		t->t_hd = t2->t_hd;
-		t->t_tl = t2;
-		t2->t_tl->t_hd = t;
+		t2 = s->s_sleepq;
+		t->t_hd = t2;
+		t->t_tl = t2->t_tl;
+		t->t_tl->t_hd = t;
 		t2->t_tl = t;
 	}
 }
@@ -123,6 +124,9 @@ dq_sema(struct sema *s, struct thread *t)
 			s->s_sleepq = t->t_hd;
 		}
 	}
+#ifdef DEBUG
+	t->t_hd = t->t_tl = 0;
+#endif
 }
 
 /*
@@ -156,6 +160,7 @@ p_sema(sema_t *s, pri_t p)
 	q_sema(s, t);
 	p_lock(&runq_lock, SPLHI);
 	v_lock(&s->s_lock, SPLHI);
+	t->t_state = TS_SLEEP;
 	swtch();
 
 	/*
@@ -213,7 +218,10 @@ v_sema(sema_t *s)
 	spl = p_lock(&s->s_lock, SPLHI);
 	if (s->s_sleepq) {
 		ASSERT_DEBUG(s->s_count < 0, "v_sema: too many sleepers");
-		dq_sema(s, t = s->s_sleepq);
+		t = s->s_sleepq;
+		ASSERT_DEBUG(t->t_wchan == s, "v_sema: mismatch");
+		dq_sema(s, t);
+		t->t_wchan = 0;
 		setrun(t);
 	} else {
 		/* dq_sema() does it otherwise */
@@ -306,6 +314,7 @@ p_sema_v_lock(sema_t *s, pri_t p, lock_t *l)
 	p_lock(&runq_lock, SPLHI);
 	v_lock(&s->s_lock, SPLHI);
 	v_lock(l, SPLHI);
+	t->t_state = TS_SLEEP;
 	swtch();
 
 	/*
