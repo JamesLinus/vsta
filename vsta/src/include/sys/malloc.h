@@ -53,8 +53,9 @@ extern void *_malloc(uint, uint), _free(void *, uint);
 #define MT_L2PT (20)		/*  ...2nd level */
 #define MT_PGRP (21)		/* Process grouping */
 #define MT_ATL (22)		/* Attach lists */
+#define MT_FPU (23)		/* FPU save state */
 
-#define MALLOCTYPES (23)	/* UPDATE when you add values above */
+#define MALLOCTYPES (24)	/* UPDATE when you add values above */
 				/* ALSO check n_allocname[] */
 
 #ifdef MALLOC_INTERNAL

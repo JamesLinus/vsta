@@ -15,6 +15,7 @@
 #include <sys/vm.h>
 #include <mach/kbd.h>
 #include <mach/io.h>
+#include <mach/machreg.h>
 #include <std.h>
 
 #define K (1024)
@@ -78,16 +79,34 @@ init_machdep(void)
 	pte_t *pt;
 	struct aout *a;
 	struct boot_task *b;
-	int x, y, pgs;
+	int have_fpu, x, y, pgs;
+	ulong cr0;
 	extern uint free_pfn, size_base, size_ext, boot_pfn;
-	extern void set_cr3(pte_t *);
+
+	/*
+	 * Probe FPU
+	 */
+	fpu_enable(0);
+	have_fpu = fpu_detected();
+	fpu_disable(0);
 
 	/*
 	 * Initialize our single "per CPU" data structure
 	 */
 	bzero(&cpu, sizeof(cpu));
 	cpu.pc_flags = CPU_UP|CPU_BOOT;
+	if (have_fpu) {
+		cpu.pc_flags |= CPU_FP;
+	}
 	cpu.pc_next = &cpu;
+
+	/*
+	 * Set up CR0.  Clear "task switched", set emulation.
+	 */
+	cr0 = get_cr0();
+	cr0 &= ~(CR0_TS);
+	cr0 |=  (CR0_MP | CR0_NE | CR0_EM);
+	set_cr0(cr0);
 
 	/*
 	 * Set up memory control
@@ -242,7 +261,7 @@ init_machdep(void)
 	/*
 	 * Switch to our own PTEs
 	 */
-	set_cr3(cr3);
+	set_cr3((ulong)cr3);
 
 	/*
 	 * Leave index of next free slot in kernel part of L1PTEs.

@@ -7,6 +7,7 @@
 #include <sys/thread.h>
 #include <sys/wait.h>
 #include <sys/fs.h>
+#include <sys/malloc.h>
 #include <mach/trap.h>
 #include <mach/gdt.h>
 #include <mach/tss.h>
@@ -14,6 +15,7 @@
 #include <mach/icu.h>
 #include <mach/isr.h>
 #include <mach/pit.h>
+#include <mach/io.h>
 #include <sys/assert.h>
 
 extern void selfsig(), check_events(), syscall();
@@ -37,7 +39,7 @@ ulong dbg_fault_addr;
  */
 extern void Tdiv(), Tdebug(), Tnmi(), Tbpt(), Tovfl(), Tbound(),
 	Tinstr(), T387(), Tdfault(), Tinvtss(), Tseg(), Tstack(),
-	Tgenpro(), Tpgflt(), Tnpx(), Tsyscall();
+	Tgenpro(), Tpgflt(), Tnpx(), Tsyscall(), Tcpsover();
 struct trap_tab {
 	int t_num;
 	voidfun t_vec;
@@ -47,7 +49,7 @@ struct trap_tab {
 	{T_INSTR, Tinstr}, {T_387, T387}, {T_DFAULT, Tdfault},
 	{T_INVTSS, Tinvtss}, {T_SEG, Tseg}, {T_STACK, Tstack},
 	{T_GENPRO, Tgenpro}, {T_PGFLT, Tpgflt}, {T_NPX, Tnpx},
-	{T_SYSCALL, Tsyscall},
+	{T_SYSCALL, Tsyscall}, {T_CPSOVER, Tcpsover},
 	{0, 0}
 };
 
@@ -102,7 +104,6 @@ page_fault(struct trapframe *f)
 {
 	ulong l;
 	struct vas *vas;
-	extern ulong get_cr2();
 
 	ASSERT(curthread, "page_fault: no proc");
 
@@ -196,18 +197,40 @@ trap(ulong place_holder)
 	case T_DIV|T_KERNEL:
 		ASSERT(0, "trap: kernel divide error");
 
+	case T_387:
+		if (cpu.pc_flags & CPU_FP) {
+			ASSERT((curthread->t_flags & T_FPU) == 0,
+				"trap: T_387 but 387 enabled");
+			if (curthread->t_fpu == 0) {
+				curthread->t_fpu =
+					MALLOC(sizeof(struct fpu), MT_FPU);
+				fpu_enable((struct fpu *)0);
+			} else {
+				fpu_enable(curthread->t_fpu);
+			}
+			curthread->t_flags |= T_FPU;
+			break;
+		}
+
+		/* VVV Otherwise, fall into VVV */
+
+	case T_NPX:
+		if (curthread->t_flags & T_FPU) {
+			fpu_maskexcep();
+		}
+
+		/* VVV continue falling... VVV */
+
 	case T_DIV:
 	case T_OVFL:
 	case T_BOUND:
-	case T_387:
-	case T_NPX:
 		selfsig(EMATH);
 		break;
 
 #ifdef DEBUG
 	case T_DEBUG|T_KERNEL:
 	case T_BPT|T_KERNEL:
-		printf("Kernel debug trap\n");
+		printf("trap: kernel debug\n");
 		dbg_enter();
 		break;
 #endif
@@ -225,7 +248,7 @@ trap(ulong place_holder)
 
 	case T_387|T_KERNEL:
 	case T_NPX|T_KERNEL:
-		ASSERT(0, "387 used in kernel");
+		ASSERT(0, "trap: FP used in kernel");
 
 	/* case T_DFAULT|T_KERNEL: XXX stack red zones? */
 
@@ -234,6 +257,7 @@ trap(ulong place_holder)
 	case T_SEG:
 	case T_STACK:
 	case T_GENPRO:
+	case T_CPSOVER:
 		selfsig(EFAULT);
 		break;
 

@@ -354,6 +354,7 @@ fork_thread(voidfun f)
 	t->t_runq = sched_thread(p->p_runq, t);
 	t->t_uregs = 0;
 	t->t_state = TS_SLEEP;
+	t->t_fpu = 0;
 
 	/*
 	 * Add new guy to the proc's list
@@ -425,6 +426,7 @@ fork(void)
 	init_sema(&tnew->t_evq); set_sema(&tnew->t_evq, 1);
 	tnew->t_state = TS_SLEEP;	/* -> RUN in setrun() */
 	tnew->t_ustack = (void *)USTACKADDR;
+	tnew->t_fpu = 0;
 
 	/*
 	 * Get new PIDs for process and initial thread.  Insert
@@ -638,6 +640,10 @@ do_exit(int code)
 	 */
 	idle_stack();
 	FREE(curthread->t_kstack, MT_KSTACK);
+	if (curthread->t_fpu) {
+		fpu_disable(0);
+		FREE(curthread->t_fpu, MT_FPU);
+	}
 	FREE(curthread, MT_THREAD);
 	curthread = 0;
 

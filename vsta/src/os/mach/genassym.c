@@ -54,6 +54,8 @@ main(int argc, char **argv)
 	CONST(GDT_UTEXT);
 	CONST(NBPG);
 	CONST(PGSHIFT);
+	CONST(CR0_EM);
+	CONST(CR0_TS);
 
 	/*
 	 * Fields in a jmp_buf
@@ -88,6 +90,7 @@ main(int argc, char **argv)
 	CONST(T_OVFL); CONST(T_BOUND); CONST(T_INSTR); CONST(T_387);
 	CONST(T_DFAULT); CONST(T_INVTSS); CONST(T_SEG); CONST(T_STACK);
 	CONST(T_GENPRO); CONST(T_PGFLT); CONST(T_NPX); CONST(T_SYSCALL);
+	CONST(T_CPSOVER);
 
 	close(outfd);
 	return(0);

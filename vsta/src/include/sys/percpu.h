@@ -22,10 +22,11 @@ struct percpu {
 /*
  * Bits in pc_flags
  */
-#define CPU_UP 1	/* CPU is online and taking work */
-#define CPU_BOOT 2	/* CPU was the boot CPU for the system */
-#define CPU_CLOCK 4	/* CPU is in clock handling code */
-#define CPU_DEBUG 8	/* CPU hardware debugging active */
+#define CPU_UP 0x1	/* CPU is online and taking work */
+#define CPU_BOOT 0x2	/* CPU was the boot CPU for the system */
+#define CPU_CLOCK 0x4	/* CPU is in clock handling code */
+#define CPU_DEBUG 0x8	/* CPU hardware debugging active */
+#define CPU_FP 0x10	/* CPU floating point unit present */
 
 #ifdef KERNEL
 extern struct percpu cpu;		/* Maps to percpu struct on each CPU */

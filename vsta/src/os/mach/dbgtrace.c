@@ -145,6 +145,7 @@ tname(uint t)
 	case T_GENPRO: strcat(buf, "GENPRO"); break;
 	case T_PGFLT: strcat(buf, "PGFLT"); break;
 	case T_NPX: strcat(buf, "NPX"); break;
+	case T_CPSOVER: strcat(buf, "CPSOVER"); break;
 	default:
 		sprintf(buf2, "%d", t);
 		strcat(buf, buf2);

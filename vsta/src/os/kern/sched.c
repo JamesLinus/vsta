@@ -219,6 +219,24 @@ pick_run(struct sched *root)
 }
 
 /*
+ * savestate()
+ *	Dump off our state
+ *
+ * Returns 1 for the resume()'ed thread, 0 for the caller
+ */
+inline static int
+savestate(struct thread *t)
+{
+	extern void fpu_disable();
+
+	if (t->t_flags & T_FPU) {
+		fpu_disable(t->t_fpu);
+		t->t_flags &= ~T_FPU;
+	}
+	return(setjmp(curthread->t_kregs));
+}
+
+/*
  * swtch()
  *	Switch, perhaps to another process
  *
@@ -284,7 +302,7 @@ swtch(void)
 		 * Save our current state
 		 */
 		if (curthread) {
-			if (setjmp(curthread->t_kregs)) {
+			if (savestate(curthread)) {
 				/*
 				 * This is the code path from being
 				 * resume()'ed.
@@ -319,7 +337,7 @@ swtch(void)
 	 * Otherwise push aside current thread and go with new
 	 */
 	if (curthread) {
-		if (setjmp(curthread->t_kregs)) {
+		if (savestate(curthread)) {
 			return;
 		}
 	}

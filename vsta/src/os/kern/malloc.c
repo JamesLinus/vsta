@@ -44,6 +44,7 @@ char *n_allocname[MALLOCTYPES] = {
 	"MT_L2PT",
 	"MT_PGRP",
 	"MT_ATL",
+	"MT_FPU",
 };
 #endif /* DEBUG */
 

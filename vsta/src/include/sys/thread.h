@@ -40,6 +40,7 @@ struct thread {
 	sema_t t_evq;		/* Queue when waiting to send */
 	struct percpu		/* CPU running on for TS_ONPROC */
 		*t_eng;
+	struct fpu *t_fpu;	/* Saved FPU state, if any */
 };
 
 /*
@@ -50,9 +51,10 @@ struct thread {
 /*
  * Bits in t_flags
  */
-#define T_RT (1)		/* Thread is real-time priority */
-#define T_BG (2)		/*  ... background priority */
-#define T_KERN (4)		/* Thread is running in kernel mode */
+#define T_RT (0x1)		/* Thread is real-time priority */
+#define T_BG (0x2)		/*  ... background priority */
+#define T_KERN (0x4)		/* Thread is running in kernel mode */
+#define T_FPU (0x8)		/* Thread has new state in the FPU */
 
 /*
  * Values for t_state

@@ -16,7 +16,7 @@
 #define T_INSTR 6
 #define T_387 7
 #define T_DFAULT 8
-#define T_RESVD0 9
+#define T_CPSOVER 9
 #define T_INVTSS 10
 #define T_SEG 11
 #define T_STACK 12

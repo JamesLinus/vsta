@@ -85,10 +85,10 @@ _ATOMIC_DEC:
 	ret
 
 /*
- * get_cr3()/set_cr3()/get_cr2()
+ * get_cr3()/set_cr3()/get_cr2()/get_cr0()/set_cr0()
  *	Return/set value of root page table register and fault addr
  */
-	.globl	_get_cr3,_set_cr3,_get_cr2
+	.globl	_get_cr3,_set_cr3,_get_cr2,_get_cr0,_set_cr0
 _get_cr3:
 	movl	%cr3,%eax
 	ret
@@ -101,6 +101,14 @@ _set_cr3:
 	movl	%eax,%cr3
 	SYNC
 	movl	%cr3,%eax
+	ret
+_get_cr0:
+	movl	%cr0,%eax
+	ret
+_set_cr0:
+	movl	4(%esp),%eax
+	movl	%eax,%cr0
+	movl	%cr0,%eax
 	ret
 
 /*
@@ -182,6 +190,81 @@ _longjmp:
 	movl	R_ECX(%edi),%ecx
 	movl	R_EAX(%edi),%eax
 	movl	R_EDI(%edi),%edi	/* get edi last */
+	ret
+
+/*
+ * fpu_disable()
+ *	Disable FPU access, save current state if have pointer
+ */
+	.globl	_fpu_disable
+_fpu_disable:
+	movl	4(%esp),%eax
+	orl	%eax,%eax
+	jz	1f
+	fnsave	(%eax)
+1:	movl	%cr0,%eax
+	orl	$CR0_EM,%eax
+	movl	%eax,%cr0
+	ret
+
+/*
+ * fpu_enable()
+ *	Enable FPU access, load current state if have pointer
+ */
+	.globl	_fpu_enable
+_fpu_enable:
+	movl	%cr0,%eax	/* Turn on access */
+	andl	$~(CR0_EM|CR0_TS),%eax
+	movl	%eax,%cr0
+	movl	4(%esp),%eax
+	orl	%eax,%eax
+	jz	_fpu_init	/* No FPU state--init FPU instead */
+	frstor	(%eax)		/* Load old FPU state */
+	ret
+
+/*
+ * fpu_init()
+ *	Clear FPU state to its basic form
+ */
+	.globl	_fpu_init
+_fpu_init:
+	fnclex
+	fninit
+	ret
+
+/*
+ * fpu_detected()
+ *	Tell if an FPU is present on this CPU
+ *
+ * Note, if you have an i287 on your system, you deserve everything
+ * you're about to get.
+ */
+	.globl	_fpu_detected
+_fpu_detected:
+	fninit
+	fstsw	%ax		/* See if an FP operation happens */
+	orb	%al,%al
+	je	1f
+	xorl	%eax,%eax	/* Nope */
+	ret
+1:	xorl	%eax,%eax	/* Yup */
+	incl	%eax
+	ret
+
+/*
+ * fpu_maskexcep()
+ *	Mask out pending exceptions
+ */
+	.globl	_fpu_maskexcep
+_fpu_maskexcep:
+	leal	-4(%esp),%esp		/* Put ctl word on stack */
+	fnstcw	(%esp)
+	fnstsw	%ax			/* Status word -> AX */
+	andw	$0x3f,%ax		/* Clear pending exceps */
+	orw	%ax,(%esp)
+	fnclex
+	fldcw	(%esp)			/* Load new ctl word */
+	leal	4(%esp),%esp		/* Free temp storage */
 	ret
 
 /*
@@ -477,7 +560,8 @@ IDT(Tovfl, T_OVFL)
 IDT(Tbound, T_BOUND)
 IDT(Tinstr, T_INSTR)
 IDT(T387, T_387)
-IDT(Tdfault, T_DFAULT)
+IDTERR(Tdfault, T_DFAULT)
+IDTERR(Tcpsover, T_CPSOVER)
 IDTERR(Tinvtss, T_INVTSS)
 IDTERR(Tseg, T_SEG)
 IDTERR(Tstack, T_STACK)
