@@ -297,9 +297,9 @@ main()
 	/*
 	 * Connect to console display and keyboard
 	 */
-	p = msg_connect(PORT_KBD, ACC_READ);
+	p = path_open("CONS:0", ACC_READ);
 	(void)__fd_alloc(p);
-	p = msg_connect(PORT_CONS, ACC_WRITE);
+	p = path_open("CONS:0", ACC_WRITE);
 	(void)__fd_alloc(p);
 	(void)__fd_alloc(p);
 
