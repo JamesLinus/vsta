@@ -43,6 +43,7 @@ clock.c
 event.c
 mmap.c
 phys.c
+exec.c
 
 dbg:
 dbgmain.c
