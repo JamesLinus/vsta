@@ -82,11 +82,15 @@ extern int printf(const char *, ...),
 /*
  * Miscellany
  */
+#if !defined(TRUE) && !defined(FALSE)
 #define TRUE (1)
 #define FALSE (0)
+#endif
 #define EOF (-1)
+#if !defined(MIN) && !defined(MAX)
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
+#endif
 #define BUFSIZ (4096)
 #ifndef NULL
 #define NULL (0)
