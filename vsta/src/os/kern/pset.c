@@ -214,6 +214,7 @@ clock_slot(struct pset *ps, struct perpage *pp)
 	ps->p_locks += 1;
 	pp->pp_lock |= PP_LOCK;
 	v_lock(&ps->p_lock, SPL0);
+	return(0);
 }
 
 /*
