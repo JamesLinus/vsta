@@ -301,7 +301,7 @@ msg_send(port_t arg_port, struct msg *arg_msg)
 	/*
 	 * Set up our message transfer state
 	 */
-	set_sema(&pr->p_iowait, 0);
+	ASSERT_DEBUG(sema_count(&pr->p_iowait) == 0, "msg_send: p_iowait");
 	pr->p_state = PS_IOWAIT;
 
 	/*
@@ -349,8 +349,11 @@ msg_send(port_t arg_port, struct msg *arg_msg)
 		case PS_IODONE:
 			/*
 			 * We raced with server completion.  The transaction
-			 * is complete, but we still return an error.
+			 * is complete, but we still return an error.  The
+			 * server already V'ed our iowait sema, so clear
+			 * it for next time.
 			 */
+			set_sema(&pr->p_iowait, 0);
 			v_lock(&pr->p_lock, SPL0);
 			break;
 		default:
@@ -418,9 +421,7 @@ out:
 	 * Clean up and return success/failure
 	 */
 	if (holding_pr) {
-		if (blocked_sema(&pr->p_svwait)) {
-			v_sema(&pr->p_svwait);
-		}
+		v_sema(&pr->p_svwait);
 		v_sema(&pr->p_sema);
 	}
 	if (m) {

@@ -188,8 +188,7 @@ init_page(void)
 	 * organize it.
 	 */
 	init_lock(&vmap_lock);
-	init_sema(&vmap_sema);
-	set_sema(&vmap_sema, 0);
+	init_sema(&vmap_sema); set_sema(&vmap_sema, 0);
 
 	/*
 	 * Initialize each of the core_semas to allow one person through

@@ -223,7 +223,7 @@ void *
 _malloc(uint size, uint type)
 {
 	ASSERT(type < MALLOCTYPES, "_malloc: bad type");
-	ATOMIC_INC(&n_alloc[type]);
+	ATOMIC_INCL(&n_alloc[type]);
 	return(malloc(size));
 }
 
@@ -235,7 +235,7 @@ void
 _free(void *ptr, uint type)
 {
 	ASSERT(type < MALLOCTYPES, "_free: bad type");
-	ATOMIC_DEC(&n_alloc[type]);
+	ATOMIC_DECL(&n_alloc[type]);
 	free(ptr);
 	return;
 }

@@ -105,7 +105,7 @@ hardclock(struct trapframe *f)
 	 * now allowed.
 	 */
 	if (c->pc_flags & CPU_CLOCK) {
-		ATOMIC_INC(&c->pc_ticks);
+		ATOMIC_INCL(&c->pc_ticks);
 		return;
 	}
 	c->pc_flags |= CPU_CLOCK;
@@ -245,8 +245,7 @@ time_sleep(struct time *arg_time)
 	ev = MALLOC(sizeof(struct eventq), MT_EVENTQ);
 	ev->e_time = t;
 	ev->e_tid = curthread->t_pid;
-	init_sema(&ev->e_sema);
-	set_sema(&ev->e_sema, 0);
+	init_sema(&ev->e_sema); set_sema(&ev->e_sema, 0);
 	ev->e_onlist = 1;
 
 	/*

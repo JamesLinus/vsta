@@ -50,7 +50,7 @@ kernmsg_send(struct portref *pr, int op, long *args)
 	/*
 	 * Set up our message transfer state
 	 */
-	set_sema(&pr->p_iowait, 0);
+	ASSERT_DEBUG(sema_count(&pr->p_iowait) == 0, "kernmsg_send: p_iowait");
 	pr->p_state = PS_IOWAIT;
 
 	/*

@@ -26,7 +26,7 @@ ulong pid_nextfree = 0L;	/* Next free PID number */
 struct proc *allprocs = 0;	/* List of all procs */
 sema_t pid_sema;		/* Mutex for PID pool and proc lists */
 
-int nthread;			/* # threads currently in existence */
+uint nthread;			/* # threads currently in existence */
 
 struct hash *pid_hash;		/* Mapping PID->proc */
 
@@ -136,7 +136,7 @@ bootproc(struct boot_task *b)
 	t->t_runq = sched_thread(p->p_runq, t);
 	init_sema(&t->t_msgwait);
 	t->t_proc = p;
-	init_sema(&t->t_evq); set_sema(&t->t_evq, 1);
+	init_sema(&t->t_evq);
 	t->t_state = TS_SLEEP;	/* -> RUN in setrun() */
 
 	/*
@@ -349,7 +349,7 @@ fork_thread(voidfun f)
 	init_sema(&t->t_msgwait);
 	t->t_usrcpu = t->t_syscpu = 0L;
 	t->t_evsys[0] = t->t_evproc[0] = '\0';
-	init_sema(&t->t_evq); set_sema(&t->t_evq, 1);
+	init_sema(&t->t_evq);
 	t->t_err[0] = '\0';
 	t->t_runq = sched_thread(p->p_runq, t);
 	t->t_uregs = 0;
@@ -419,7 +419,7 @@ fork(void)
 	tnew->t_kstack = MALLOC(KSTACK_SIZE, MT_KSTACK);
 	tnew->t_flags = told->t_flags;
 	init_sema(&tnew->t_msgwait);
-	init_sema(&tnew->t_evq); set_sema(&tnew->t_evq, 1);
+	init_sema(&tnew->t_evq);
 	tnew->t_state = TS_SLEEP;	/* -> RUN in setrun() */
 	tnew->t_ustack = (void *)USTACKADDR;
 

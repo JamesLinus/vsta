@@ -32,8 +32,7 @@ static lock_t wired_lock;
 void
 init_wire(void)
 {
-	init_sema(&wired_sema);
-	set_sema(&wired_sema, MAX_WIRED);
+	init_sema(&wired_sema); set_sema(&wired_sema, MAX_WIRED);
 	init_lock(&wired_lock);
 }
 

@@ -254,10 +254,8 @@ alloc_portref(void)
 	bzero(pr, sizeof(struct portref));
 	init_sema(&pr->p_sema);
 	init_lock(&pr->p_lock);
-	init_sema(&pr->p_iowait);
-	init_sema(&pr->p_svwait);
-	set_sema(&pr->p_iowait, 0);
-	set_sema(&pr->p_svwait, 0);
+	init_sema(&pr->p_iowait); set_sema(&pr->p_iowait, 0);
+	init_sema(&pr->p_svwait); set_sema(&pr->p_svwait, 0);
 	pr->p_state = PS_OPENING;
 	pr->p_flags = 0;
 	return(pr);
@@ -383,7 +381,7 @@ alloc_open(struct proc *p)
 	}
 	ASSERT(slot < PROCOPENS, "msg_connect: wrong p_nopen");
 	p->p_open[slot] = PORT_RESERVED;
-	ATOMIC_INC(&p->p_nopen);
+	ATOMIC_INCW(&p->p_nopen);
 	v_sema(&p->p_sema);
 	return(slot);
 }
@@ -399,7 +397,7 @@ void
 free_open(struct proc *p, int slot)
 {
 	p->p_open[slot] = 0;
-	ATOMIC_DEC(&p->p_nopen);
+	ATOMIC_DECW(&p->p_nopen);
 }
 
 /*
@@ -476,8 +474,7 @@ alloc_port(void)
 
 	port = MALLOC(sizeof(struct port), MT_PORT);
 	init_lock(&port->p_lock);
-	init_sema(&port->p_wait);
-	set_sema(&port->p_wait, 0);
+	init_sema(&port->p_wait); set_sema(&port->p_wait, 0);
 	init_sema(&port->p_sema);
 	init_sema(&port->p_mapsema);
 	port->p_hd = port->p_tl = 0;

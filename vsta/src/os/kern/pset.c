@@ -290,7 +290,7 @@ pset_writeslot(struct pset *ps, struct perpage *pp, uint idx, voidfun iodone)
 void
 ref_pset(struct pset *ps)
 {
-	ATOMIC_INC(&ps->p_refs);
+	ATOMIC_INCW(&ps->p_refs);
 }
 
 /*
@@ -310,7 +310,7 @@ deref_pset(struct pset *ps)
 	 * Lock the page set, reduce its reference count
 	 */
 	p_lock(&ps->p_lock, SPL0);
-	ATOMIC_DEC(&ps->p_refs);
+	ATOMIC_DECW(&ps->p_refs);
 	refs = ps->p_refs;
 	v_lock(&ps->p_lock, SPL0);
 
