@@ -46,6 +46,7 @@
 #define ACC_CREATE	0x10
 #define ACC_DIR		0x20
 #define ACC_CHMOD	0x40
+#define ACC_APPEND	0x80
 
 /*
  * Standard error strings
