@@ -138,24 +138,27 @@ fchmod(int fd, int mode)
  * access()
  *	Tell if we can access a file
  *
- * Ignores the effective/real dichotomy, since we don't really
- * have it as such.
+ * Since we don't have much clue about the protection hierarchy of
+ * the file, we make the simplifying assumption that if it's writable
+ * to anybody, it's writable to us.  This is not at all correct, but
+ * the alternative is to implement quite a bit of filesystem
+ * protection logic.  This routine used to just open the file for
+ * the requested mode, but for W_OK that would update the mtime
+ * of the file, which is not the correct behavior.
  */
 int
 access(const char *file, int mode)
 {
-	int fd;
+	struct stat sb;
 
+	if (stat(file, &sb) < 0) {
+		return(-1);
+	}
 	if (mode & W_OK) {
-		fd = open(file, O_READ|O_WRITE);
+		return((sb.st_mode & 0222) ? 0 : __seterr(EPERM));
 	} else {
-		fd = open(file, O_READ);
+		return((sb.st_mode & 0444) ? 0 : __seterr(EPERM));
 	}
-	if (fd >= 0) {
-		close(fd);
-		return(0);
-	}
-	return(-1);
 }
 
 /*
