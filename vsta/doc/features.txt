@@ -255,7 +255,7 @@ Have DLL loader ld.shl try the truncated 8.3 filename in addition to
 	the full DLL name.  This helps when the VSTa distribution was
 	loaded via a utility which only supports 8.3 filenames.
 
-1.6.5
+1.6.6
 Added FS_BLK{READ,WRITE} operations to support true sector-oriented
 	I/O.  Offsets and counts are in units of 512-byte sectors, and
 	thus the 4 gigabyte offset limit of byte-oriented I/O is
@@ -309,3 +309,5 @@ Fix DLL loader so short filename conversion always works (missing
 	null termination)
 Fix MGR's startup so it gives a clear message and exits when it can't
 	attach to the mouse.
+
+1.6.7
