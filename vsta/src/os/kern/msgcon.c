@@ -665,7 +665,7 @@ msg_disconnect(port_t arg_port)
  * msg_accept(), but rejected here.
  */
 int
-msg_err(long arg_tran, char *arg_why, int arg_len)
+msg_err(long arg_tran, const char *arg_why, int arg_len)
 {
 	struct portref *pr;
 	struct port *port;
