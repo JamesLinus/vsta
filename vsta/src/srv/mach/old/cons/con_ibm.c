@@ -327,6 +327,10 @@ con_put_char(uchar c)
 	ushort          offset = 0;
 	ushort          code   = (con_current_attr << 8) | c;
 
+	offset = (con_cursor_y * con_max_cols) + con_cursor_x;
+
+	*(con_tvram + offset) = (con_current_attr << 8) | code;
+	con_cursor_x += 1;
 	if (con_cursor_x == con_max_cols) {
 		con_cursor_x = 0;
 		if (con_cursor_y == con_scroll_end - 1) {
@@ -335,10 +339,6 @@ con_put_char(uchar c)
 			con_cursor_y += 1;
 		}
 	}
-	offset = (con_cursor_y * con_max_cols) + con_cursor_x;
-
-	*(con_tvram + offset) = (con_current_attr << 8) | code;
-	con_cursor_x += 1;
 }
 
 /*
