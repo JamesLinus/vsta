@@ -43,15 +43,15 @@ static int fdnext = NFD;
 #define INC(v) {v += 1; if (v <= 0) { v = NFD; }}
 
 /*
- * fd_port()
+ * __port()
  *	Map a file descriptor value into a port
  *
  * We support an arbitrary number of file descriptors.  The first
  * NFD of them live in a simple array.  The rest are looked up
  * through a hash table.
  */
-static struct port *
-fd_port(uint fd)
+struct port *
+__port(int fd)
 {
 	if (fd < NFD) {
 		return(fdmap[fd]);
@@ -73,7 +73,7 @@ __fd_port(int fd)
 {
 	struct port *port;
 
-	if ((port = fd_port(fd)) == 0) {
+	if ((port = __port(fd)) == 0) {
 		return(-1);
 	}
 	return(port->p_port);
@@ -165,18 +165,18 @@ do_seek(struct port *port, long off, int whence)
 /*
  * do_close()
  *	Send a disconnect
- *
- * close() itself does most of the grunt-work; this is a hook for
- * layers which need additional cleanup.
  */
 static
 do_close(struct port *port)
 {
-	return(0);
+	/*
+	 * Disconnect from its server
+	 */
+	return(msg_disconnect(port->p_port));
 }
 
 /*
- * do_open()
+ * __do_open()
  *	Called after a successful FS_OPEN
  *
  * This routine is called after a port and file descriptor have been
@@ -187,7 +187,7 @@ __do_open(struct port *port)
 {
 	port->p_close = do_close;
 	port->p_seek = do_seek;
-	if (__isatty(port->p_port)) {
+	if ((port->p_port != (port_t)-1) && __isatty(port->p_port)) {
 		extern int __tty_read(), __tty_write();
 
 		port->p_read = __tty_read;
@@ -288,7 +288,7 @@ read(int fd, void *buf, uint nbyte)
 {
 	struct port *port;
 
-	if ((port = fd_port(fd)) == 0) {
+	if ((port = __port(fd)) == 0) {
 		return(-1);
 	}
 	return((*(port->p_read))(port, buf, nbyte));
@@ -302,7 +302,7 @@ write(int fd, void *buf, uint nbyte)
 {
 	struct port *port;
 
-	if ((port = fd_port(fd)) == 0) {
+	if ((port = __port(fd)) == 0) {
 		return(-1);
 	}
 	return((*(port->p_write))(port, buf, nbyte));
@@ -316,7 +316,7 @@ lseek(int fd, ulong off, int whence)
 {
 	struct port *port;
 
-	if ((port = fd_port(fd)) == 0) {
+	if ((port = __port(fd)) == 0) {
 		return(-1);
 	}
 	return((*(port->p_seek))(port, off, whence));
@@ -334,7 +334,7 @@ close(int fd)
 	/*
 	 * Look up FD
 	 */
-	if ((port = fd_port(fd)) == 0) {
+	if ((port = __port(fd)) == 0) {
 		return(-1);
 	}
 
@@ -354,11 +354,6 @@ close(int fd)
 	} else {
 		(void)hash_delete(fdhash, (ulong)fd);
 	}
-
-	/*
-	 * Disconnect from its server
-	 */
-	error = msg_disconnect(port->p_port);
 
 	/*
 	 * Let the layer do stuff if it wishes
