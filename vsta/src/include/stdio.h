@@ -33,16 +33,17 @@ typedef struct __file {
 #define _F_UBUF (256)		/* User-provided buffer */
 
 /*
+ * These need to be seen before getc()/putc() are defined
+ */
+extern int fgetc(FILE *), fputc(int, FILE *);
+
+#ifdef __GNUC__
+/*
  * The following in-line functions replace the more classic UNIX
  * approach of gnarly ?: constructs.  I think that inline C in
  * a .h is disgusting, but a step forward from unreadably
  * complex C expressions.
  */
-
-/*
- * These need to be seen before getc()/putc() are defined
- */
-extern int fgetc(FILE *), fputc(int, FILE *);
 
 /*
  * getc()
@@ -79,6 +80,15 @@ putc(char c, FILE *fp)
 	fp->f_flags |= _F_DIRTY;
 	return(0);
 }
+#else
+
+/*
+ * For non-GNU C, just live with the function call overhead for now
+ */
+#define getc(f) fgetc(f)
+#define putc(f) fputc(f)
+
+#endif
 
 /*
  * Smoke and mirrors
