@@ -55,9 +55,11 @@ extern int fclose(FILE *),
 	fwrite(void *buf, int size, int nelem, FILE *f),
 	feof(FILE *), ferror(FILE *),
 	getc(FILE *), putc(int, FILE *),
-	fgetc(FILE *), fputc(int, FILE *);
+	fgetc(FILE *), fputc(int, FILE *),
+	fileno(FILE *);
 extern off_t fseek(FILE *, off_t, int), ftell(FILE *);
 extern char *gets(char *), *fgets(char *, int, FILE *);
+extern void clearerr(FILE *), setbuf(FILE *, char *);
 
 /*
  * Miscellany
@@ -68,5 +70,14 @@ extern char *gets(char *), *fgets(char *, int, FILE *);
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
 #define BUFSIZ (4096)
+#ifndef NULL
+#define NULL (0)
+#endif
+#ifndef MAX
+#define MAX(a, b) (((a) > (b)) ? (a) : (b))
+#endif
+#ifndef MIN
+#define MIN(a, b) (((a) <= (b)) ? (a) : (b))
+#endif
 
 #endif /* _STDIO_H */
