@@ -304,13 +304,13 @@ dequeue(struct mbuf **q)
 
 /* Copy user data into an mbuf */
 struct mbuf *
-qdata(char *data, int1 6cnt)
+qdata(char *data, int16 cnt)
 {
 	struct mbuf *bp;
 
 	if ((bp = alloc_mbuf(cnt)) == NULLBUF)
 		return NULLBUF;
-	memcpy(bp->data,data,(int)cnt);
+	memcpy(bp->data, data, (int)cnt);
 	bp->cnt = cnt;
 	return bp;
 }
