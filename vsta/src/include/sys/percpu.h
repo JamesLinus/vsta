@@ -16,6 +16,7 @@ struct percpu {
 	ulong pc_ticks;			/* Ticks queued for clock */
 	ulong pc_time[2];		/* HZ and seconds counting */
 	int pc_preempt;			/* Flag that preemption needed */
+	ulong pc_nopreempt;		/* > 0, preempt held off */
 };
 
 /*
@@ -32,6 +33,9 @@ extern struct percpu cpu;		/* Maps to percpu struct on each CPU */
 #define do_preempt cpu.pc_preempt
 extern uint ncpu;			/* # CPUs on system */
 extern struct percpu *nextcpu;		/* Rotor for preemption scans */
+
+#define NO_PREEMPT() (cpu.pc_nopreempt += 1)
+#define PREEMPT_OK() (cpu.pc_nopreempt -= 1)
 #endif
 
 #endif /* _PERCPU_H */

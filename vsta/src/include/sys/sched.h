@@ -59,6 +59,7 @@ struct sched {
 extern struct sched *sched_thread(struct sched *, struct thread *),
 	*sched_node(struct sched *);
 extern void setrun( /* struct thread * */ ), swtch(void);
+extern void free_sched_node(struct sched *);
 #endif
 
 #endif /* _SCHED_H */
