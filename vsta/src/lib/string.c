@@ -108,9 +108,10 @@ strncat(char *dest, const char *src, int len)
 		;
 	while (src < lim) {
 		if ((*p++ = *src++) == '\0') {
-			break;
+			return(dest);
 		}
 	}
+	*p++ = '\0';
 	return(dest);
 }
 
