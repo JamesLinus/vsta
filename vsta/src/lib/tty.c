@@ -6,27 +6,23 @@
  * so forth--the user code handles it instead.  These are the default
  * routines, which do most of what you'd expect.  They use a POSIX
  * TTY interface and do editing, modes, and so forth right here.
- *
- * This module assumes there's just a single TTY.  It gets harder
- * to associate state back to various file descriptors.  We could
- * stat the device and hash on device/inode, but that would have to
- * be done per fillbuf, which seems wasteful.  This should suffice
- * for most applications; I'll think of something for the real
- * solution.
+ * Actually, for cooked mode, we call out to the excellent getline()
+ * package, which gives us lots of editing capabilities.
  */
 #include <sys/fs.h>
 #include <termios.h>
 #include <fdl.h>
 #include <std.h>
 #include <stdio.h>
+#include <hash.h>
 #include "getline.h"
 
 #define PROMPT_SIZE (80)	/* Max bytes expected in prompt */
 
 /*
- * Current tty state, initialized for line-by-line
+ * Initial tty state, line-by-line
  */
-static struct termios tty_state = {
+static struct termios default_state = {
 	ISTRIP|ICRNL,		/* c_iflag */
 	OPOST|ONLCR,		/* c_oflag */
 	CS8|CREAD|CLOCAL,	/* c_cflag */
@@ -41,35 +37,79 @@ static struct termios tty_state = {
 /*
  * Where we stash unconsumed TTY data
  */
-typedef struct {
-	uint f_cnt;
-	char *f_pos;
-	uint f_bufsz;
-	char f_buf[BUFSIZ];
-} TTYBUF;
+struct ttybuf {
+	uint f_cnt;			/* Amount of unused data */
+	char *f_pos;			/* Where it lies in f_buf */
+	uint f_refs;			/* # ports using this TTY */
+	port_name f_name;		/* Server's port_name */
+	ulong f_dev;			/* Server's specific device */
+	struct ttybuf *f_next;		/* List of all ttybuf's */
+	struct termios f_termios;	/* TTY state */
+	char f_prompt[PROMPT_SIZE];	/* Record of output to figure prompt */
+	char f_buf[BUFSIZ];		/* Buffer of data */
+};
 
 /*
- * This is global instead of within the TTYBUF, as it needs to
- * be coordinated between stdin and stdout.
+ * List of all termios-type open files
  */
-static char f_prompt[PROMPT_SIZE];
+static struct ttybuf *all;
 
 /*
  * init_port()
- *	Create TTYBUF for per-TTY state
+ *	Create struct ttybuf for per-TTY state
  */
-static
+static int
 init_port(struct port *port)
 {
-	TTYBUF *t;
+	struct ttybuf *t;
+	port_name name;
+	ulong dev;
+	char *p;
 
-	t = port->p_data = malloc(sizeof(TTYBUF));
+	/*
+	 * Get port/device pair to find the appropriate state
+	 */
+	name = msg_portname(port->p_port);
+	p = rstat(port->p_port, "dev");
+	if (p) {
+		dev = atoi(p);
+	} else {
+		dev = 0;
+	}
+
+	/*
+	 * Try and find an existing state; we'll just add another
+	 * reference if we find it.  This could be a hash lookup,
+	 * but typically we won't have more than one distinct
+	 * TTY open anyway.
+	 */
+	for (t = all; t; t = t->f_next) {
+		if ((t->f_name == name) && (t->f_dev == dev)) {
+			t->f_refs += 1;
+			port->p_data = t;
+			return(0);
+		}
+	}
+
+	/*
+	 * Have to allocate a new one
+	 */
+	t = port->p_data = calloc(sizeof(struct ttybuf), 1);
 	if (!t) {
 		return(1);
 	}
-	t->f_cnt = 0;
-	t->f_bufsz = BUFSIZ;
+
+	/*
+	 * Initialize its fields
+	 */
 	t->f_pos = t->f_buf;
+	t->f_refs = 1;
+	t->f_name = name;
+	t->f_dev = dev;
+	bcopy(&default_state, &t->f_termios, sizeof(struct termios));
+	t->f_next = all;
+	all = t;
+
 	return(0);
 }
 
@@ -78,7 +118,7 @@ init_port(struct port *port)
  *	Do input processing when canonical input is set
  */
 static int
-canon(struct termios *t, TTYBUF *fp, struct port *port)
+canon(struct termios *t, struct ttybuf *fp, struct port *port)
 {
 	char *prompt;
 
@@ -87,11 +127,11 @@ canon(struct termios *t, TTYBUF *fp, struct port *port)
 	 * write() to see what would be on the current output
 	 * line.
 	 */
-	prompt = strrchr(f_prompt, '\n');
+	prompt = strrchr(fp->f_prompt, '\n');
 	if (prompt) {
 		prompt += 1;
 	} else {
-		prompt = f_prompt;
+		prompt = fp->f_prompt;
 	}
 
 	/*
@@ -117,7 +157,7 @@ canon(struct termios *t, TTYBUF *fp, struct port *port)
  * pretend to handle all those timing-sensitive modes.
  */
 static int
-non_canon(struct termios *t, TTYBUF *fp, struct port *port)
+non_canon(struct termios *t, struct ttybuf *fp, struct port *port)
 {
 	int x;
 	struct msg m;
@@ -183,15 +223,16 @@ non_canon(struct termios *t, TTYBUF *fp, struct port *port)
  */
 __tty_read(struct port *port, void *buf, uint nbyte)
 {
-	struct termios *t = &tty_state;
-	TTYBUF *fp;
+	struct ttybuf *fp;
+	struct termios *t;
 	int error, cnt;
 
 	/*
-	 * Do one-time setup if needed, get pointer to state info
+	 * Do one-time setup if needed
 	 */
 	SETUP(port);
 	fp = port->p_data;
+	t = &fp->f_termios;
 
 	/*
 	 * Load next buffer if needed
@@ -234,9 +275,15 @@ __tty_read(struct port *port, void *buf, uint nbyte)
  */
 __tty_write(struct port *port, void *buf, uint nbyte)
 {
+	struct ttybuf *fp;
 	struct msg m;
-	TTYBUF *fp;
 	int ret;
+
+	/*
+	 * Get buffering for prompt, get pointer to port state
+	 */
+	SETUP(port);
+	fp = port->p_data;
 
 	/*
 	 * Display string.  Shortcut out if not doing
@@ -249,15 +296,9 @@ __tty_write(struct port *port, void *buf, uint nbyte)
 	m.m_arg1 = 0;
 	port->p_iocount += 1;
 	ret = msg_send(port->p_port, &m);
-	if ((ret < 0) || ((tty_state.c_lflag & ICANON) == 0)) {
+	if ((ret < 0) || ((fp->f_termios.c_lflag & ICANON) == 0)) {
 		return(ret);
 	}
-
-	/*
-	 * Get buffering for prompt, get pointer to port state
-	 */
-	SETUP(port);
-	fp = port->p_data;
 
 	/*
 	 * Keep track of byte displayed to cursor on this line.
@@ -274,8 +315,8 @@ __tty_write(struct port *port, void *buf, uint nbyte)
 		buf = (char *)buf + (nbyte - PROMPT_SIZE);
 		nbyte = PROMPT_SIZE;
 	}
-	bcopy(buf, f_prompt, nbyte);
-	f_prompt[nbyte] = '\0';
+	bcopy(buf, fp->f_prompt, nbyte);
+	fp->f_prompt[nbyte] = '\0';
 
 	return(ret);
 }
@@ -286,7 +327,32 @@ __tty_write(struct port *port, void *buf, uint nbyte)
  */
 __tty_close(struct port *port)
 {
-	free(port->p_data);
+	struct ttybuf *fp = port->p_data;
+
+	/*
+	 * If there *is* a typing buffer...
+	 */
+	if (fp) {
+		/*
+		 * Clean up on last reference
+		 */
+		if (--fp->f_refs == 0) {
+			struct ttybuf *t, **tp;
+
+			/*
+			 * Remove it from the "all" list
+			 */
+			for (t = all, tp = &all; t; t = t->f_next) {
+				if (t == fp) {
+					*tp = t->f_next;
+					break;
+				}
+				tp = &t->f_next;
+			}
+			free(fp);
+		}
+	}
+
 	return(0);
 }
 
@@ -306,36 +372,40 @@ __tty_close(struct port *port)
  */
 tcsetattr(int fd, int flag, struct termios *t)
 {
-	struct port *port;
+	struct port *port = __port(fd);
+	struct ttybuf *fp;
 	char buf[128];
+	struct termios *t2;
 
-	port = __port(fd);
 	if (!port || (port->p_read != __tty_read)) {
 		return(-1);
 	}
-	if (t->c_cc[VINTR] != tty_state.c_cc[VINTR]) {
+	SETUP(port);
+	fp = port->p_data;
+	t2 = &fp->f_termios;
+	if (t->c_cc[VINTR] != t2->c_cc[VINTR]) {
 		sprintf(buf, "intr=%d\n", t->c_cc[VINTR]);
 		(void)wstat(port->p_port, buf);
 	}
-	if (t->c_cc[VQUIT] != tty_state.c_cc[VQUIT]) {
+	if (t->c_cc[VQUIT] != t2->c_cc[VQUIT]) {
 		sprintf(buf, "quit=%d\n", t->c_cc[VQUIT]);
 		(void)wstat(port->p_port, buf);
 	}
-	if ((t->c_lflag & ISIG) != (tty_state.c_lflag & ISIG)) {
+	if ((t->c_lflag & ISIG) != (t2->c_lflag & ISIG)) {
 		sprintf(buf, "isig=%d\n", (t->c_lflag & ISIG) != 0);
 		(void)wstat(port->p_port, buf);
 	}
 	if ((t->c_lflag & (ONLCR | ICANON)) !=
-			(tty_state.c_lflag & (ONLCR | ICANON))) {
+			(t2->c_lflag & (ONLCR | ICANON))) {
 		sprintf(buf, "ocrnl=%d\n",
 			(t->c_lflag & (ONLCR | ICANON)) == (ONLCR | ICANON));
 		(void)wstat(port->p_port, buf);
 	}
-	if (t->c_ospeed != tty_state.c_ospeed) {
+	if (t->c_ospeed != t2->c_ospeed) {
 		sprintf(buf, "baud=%u\n", t->c_ospeed);
 		(void)wstat(port->p_port, buf);
 	}
-	bcopy(t, &tty_state, sizeof(tty_state));
+	bcopy(t, t2, sizeof(struct termios));
 	return(0);
 }
 
@@ -346,12 +416,15 @@ tcsetattr(int fd, int flag, struct termios *t)
 tcgetattr(int fd, struct termios *t)
 {
 	struct port *port;
+	struct ttybuf *fp;
 
 	port = __port(fd);
 	if (!port || (port->p_read != __tty_read)) {
 		return(-1);
 	}
-	*t = tty_state;
+	SETUP(port);
+	fp = port->p_data;
+	bcopy(&fp->f_termios, t, sizeof(struct termios));
 	return(0);
 }
 
