@@ -89,7 +89,6 @@
 #define EILL "ill instr"
 #define EKILL "kill"
 #define EXDEV "cross dev"
-#define EISDIR "is dir"
 #define EBALIGN "blk align"
 #define ESYMLINK "symlink"
 #define ELOOP "symlink loop"
