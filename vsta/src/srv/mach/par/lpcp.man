@@ -1,0 +1,23 @@
+NAME
+	lpcp - copy files to printer
+
+SYNOPSIS
+	lpcp src1 src2 ... dest
+	lpcp +n src dest
+
+DESCRIPTION
+	lpcp copies the specified src files to dest, which is
+	supposed to be a printer. If one copy yields an error,
+	lpcp aborts with a message telling you how many bytes
+	of the current file it successfully wrote. You can then
+	solve the problem with your printer and print the rest
+	of the file, specifying the position were the last attempt
+	aborted.
+
+AUTHOR
+	Robert Mayer (robert@par.univie.ac.at)
+
+BUGS
+	This was just a quick hack, it is not supposed to be a
+	decent printing system. lpcp should handle standard
+	input as well.

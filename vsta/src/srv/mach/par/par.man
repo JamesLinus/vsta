@@ -1,0 +1,47 @@
+NAME
+	par - a polling server for one parallel port
+
+SYNOPSIS
+	par <par0|par1|par2> name
+
+OPTIONS
+	par0
+	par1
+	par2....par0 tells the server to listen on I/O address 0x3BC
+		(this address is used for parallel ports on MDA adapters)
+		par1 is 0x378 (first parallel port)
+		par2 is 0x278 (second parallel port)
+	name....which name to register with name server. Use this
+		name to mount the server.
+
+STAT FIELDS
+	as usual plus:
+	timeout...positive integer, timeout value in seconds. Default
+		is 30 seconds.
+	quiet...string "true" or "false", if set to "true", server
+		will log messages to screen. Default is "true".
+
+DESCRIPTION
+	par is a polling, synchronous server. One instance of par
+	can handle one parallel port. Timeout and messages on/off
+	can be set via stat fields.
+
+	Error handling:
+	If the printer signals Paper empty, Offline or Error, the
+	server immediately logs an error message and keeps on trying
+	for at most timeout seconds. If the error condition is solved
+	before timeout, the server logs an ok message and continues.
+	If one or more of the signals Busy, Paper empty, Offline or
+	Error are present longer than timeout, the server logs a
+	timeout message and aborts the current write operation.
+
+	If an error condition (as described above) exists before a
+	write operation starts, the server returns EIO. If an
+	error condition occurs while a write operation is in progress,
+	the server returns the number of bytes written.
+
+AUTHOR
+	Robert Mayer (robert@par.univie.ac.at)
+
+BUGS
+	Bugs ?! In my program ?!?
