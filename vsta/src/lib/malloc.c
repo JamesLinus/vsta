@@ -444,3 +444,28 @@ realloc(void *mem, uint newsize)
 	free(mem);
 	return(newmem);
 }
+
+/*
+ * calloc()
+ *	Return cleared space
+ */
+void *
+calloc(unsigned int nelem, unsigned int elemsize)
+{
+	void *p;
+	unsigned int total = nelem*elemsize;
+
+	/*
+	 * Get space, bail if can't alloc
+	 */
+	p = malloc(total);
+	if (p == 0) {
+		return(0);
+	}
+
+	/*
+	 * Clear it, return a pointer
+	 */
+	bzero(p, total);
+	return(p);
+}
