@@ -466,16 +466,11 @@ dup_slots(struct pset *ops, struct pset *ps)
 			locked = 0;
 
 			/*
-			 * COW views can be shared
+			 * COW views can be filled from the underlying
+			 * set on demand.
 			 */
-			if ((pp->pp_flags & (PP_V|PP_COW)) ==
+			if ((pp->pp_flags & (PP_V|PP_COW)) !=
 					(PP_V|PP_COW)) {
-				ASSERT_DEBUG(ps->p_type == PT_COW,
-					"dup_slots: !cow");
-				pp2->pp_pfn = pp->pp_pfn;
-				pp2->pp_flags = PP_V|PP_COW;
-				ref_slot(ps->p_cow, pp2, x);
-			} else {
 				/*
 				 * Valid page, need to copy.
 				 *
