@@ -27,6 +27,7 @@ struct pipe {
 	struct llist p_readers,	/* List of read requests pending */
 		p_writers;	/*  ...writers */
 	int p_nwrite;		/* # clients open for writing */
+	int p_nread;		/* # clients open for reading */
 };
 
 /*
@@ -45,5 +46,7 @@ struct file {
 		*f_q;
 	uint f_pos;	/* Only for directory reads */
 };
+
+#define PIPE_CLOSED_FOR_READS -1
 
 #endif /* _PIPE_H */

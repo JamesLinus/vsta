@@ -61,9 +61,14 @@ pipe_stat(struct msg *m, struct file *f)
 		}
 		owner = o->p_owner;
 	}
-	sprintf(buf, "size=%d\ntype=%c\nowner=%d\ninode=%u\n",
-		len, f->f_file ? 'f' : 'd', owner, o);
-	strcat(buf, perm_print(&o->p_prot));
+	sprintf(buf, "size=%d\ntype=%s\nowner=%d\ninode=%u\n",
+		len, o ? "fifo" : "d", owner, o);
+	if (o) {
+		strcat(buf, perm_print(&o->p_prot));
+	} else {
+		sprintf(buf + strlen(buf), "perm=1\nacc=%d/%d\n",
+			ACC_READ | ACC_WRITE, ACC_CHMOD);
+	}
 	m->m_buf = buf;
 	m->m_arg = m->m_buflen = strlen(buf);
 	m->m_nseg = 1;

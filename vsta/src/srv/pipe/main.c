@@ -53,6 +53,7 @@ new_client(struct msg *m)
 	 */
 	f->f_nperm = nperms;
 	bcopy(m->m_buf, &f->f_perms, nperms * sizeof(struct perm));
+	f->f_perm = ACC_READ | ACC_WRITE;
 
 	/*
 	 * Hash under the sender's handle
@@ -109,8 +110,10 @@ dup_client(struct msg *m, struct file *fold)
 		ASSERT_DEBUG(o->p_refs > 0, "dup_client: overflow");
 		if (f->f_perm & ACC_WRITE) {
 			o->p_nwrite += 1;
-			ASSERT_DEBUG(o->p_nwrite > 0,
-				"dup_client: overflow");
+			ASSERT_DEBUG(o->p_nwrite > 0, "dup_client: overflow");
+		} else {
+			o->p_nread += 1;
+			ASSERT_DEBUG(o->p_nread > 0, "dup_client: overflow");
 		}
 	}
 

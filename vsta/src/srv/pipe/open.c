@@ -157,12 +157,21 @@ pipe_open(struct msg *m, struct file *f)
 		 * Move to new node
 		 */
 		f->f_file = o; o->p_refs += 1;
-		ASSERT_DEBUG(o->p_refs > 0, "pipe_open: overflow");
-		f->f_perm = ACC_READ|ACC_WRITE|ACC_CHMOD;
+		ASSERT_DEBUG(o->p_refs > 0, "pipe_open: nwrite overflow");
+		f->f_perm = ACC_READ | ACC_WRITE | ACC_CHMOD;
 		o->p_nwrite += 1;
-		ASSERT_DEBUG(o->p_nwrite > 0, "pipe_open: overflow");
+		ASSERT_DEBUG(o->p_nwrite > 0, "pipe_open: nwrite overflow");
 		m->m_nseg = m->m_arg = m->m_arg1 = 0;
 		msg_reply(m->m_sender, m);
+		return;
+	}
+
+	/*
+	 * Check whether the pipe's really closed and we're simply allowing
+	 * a writer to purge it's buffers
+	 */
+	if (o->p_nread == PIPE_CLOSED_FOR_READS) {
+		msg_err(m->m_sender, EPIPE);
 		return;
 	}
 
@@ -184,6 +193,9 @@ pipe_open(struct msg *m, struct file *f)
 	if (m->m_arg & ACC_WRITE) {
 		o->p_nwrite += 1;
 		ASSERT_DEBUG(o->p_nwrite > 0, "pipe_open: overflow");
+	} else {
+		o->p_nread += 1;
+		ASSERT_DEBUG(o->p_nread > 0, "pipe_open: overflow");
 	}
 	m->m_nseg = m->m_arg = m->m_arg1 = 0;
 	msg_reply(m->m_sender, m);
@@ -217,30 +229,54 @@ pipe_close(struct file *f)
 	}
 
 	/*
-	 * If this is a reader-side, no further action to take
+	 * Are we a reader or writer?
 	 */
 	if ((f->f_perm & ACC_WRITE) == 0) {
-		return;
-	}
+		/*
+		 * We're a reader - if we're the last reader stop all of
+		 * the pending writers
+		 */
+		ASSERT_DEBUG(o->p_nread > 0, "pipe_close: nread underflow");
+		o->p_nread -= 1;
+		if (o->p_nread > 0) {
+			return;
+		}
+		if (o->p_nwrite == 0) {
+			return;
+		}
+		o->p_nread = PIPE_CLOSED_FOR_READS;
+		while (!LL_EMPTY(&o->p_writers)) {
+			struct msg *m;
+			struct file *f2;
 
-	/*
-	 * Close of last writer--bomb all pending readers
-	 */
-	ASSERT_DEBUG(o->p_nwrite > 0, "pipe_close: underflow");
-	o->p_nwrite -= 1;
-	if (o->p_nwrite > 0) {
-		return;
-	}
-	while (!LL_EMPTY(&o->p_readers)) {
-		struct msg *m;
-		struct file *f2;
+			f2 = LL_NEXT(&o->p_writers)->l_data;
+			ASSERT_DEBUG(f2->f_q, "pipe_close: !busy writers");
+			ll_delete(f2->f_q);
+			f2->f_q = 0;
+			m = &f2->f_msg;
+			msg_err(m->m_sender, EPIPE);
+		}
+	} else {
+		/*
+		 * If this is the close of the last writer, bomb
+		 * all of the pending readers
+		 */
+		ASSERT_DEBUG(o->p_nwrite > 0, "pipe_close: nwrite underflow");
+		o->p_nwrite -= 1;
+		if (o->p_nwrite > 0) {
+			return;
+		}
+		while (!LL_EMPTY(&o->p_readers)) {
+			struct msg *m;
+			struct file *f2;
 
-		f2 = LL_NEXT(&o->p_readers)->l_data;
-		ASSERT_DEBUG(f2->f_q, "pipe_close: !busy");
-		ll_delete(f2->f_q);
-		f2->f_q = 0;
-		m = &f2->f_msg;
-		m->m_arg = m->m_arg1 = m->m_nseg = 0;
-		msg_reply(m->m_sender, m);
+			f2 = LL_NEXT(&o->p_readers)->l_data;
+			ASSERT_DEBUG(f2->f_q, "pipe_close: !busy readers");
+			ll_delete(f2->f_q);
+			f2->f_q = 0;
+			m = &f2->f_msg;
+			m->m_arg = m->m_arg1 = m->m_nseg = 0;
+			msg_reply(m->m_sender, m);
+		}
 	}
 }

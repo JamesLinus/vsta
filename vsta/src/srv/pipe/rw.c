@@ -100,6 +100,7 @@ sendseg(long retaddr, struct msg *m, uint nbyte)
 		}
 		m->m_arg += cnt;
 		total += cnt;
+		nbyte -= cnt;
 
 		/*
 		 * Advance reading side
@@ -173,6 +174,15 @@ pipe_write(struct msg *m, struct file *f, uint nbyte)
 	 */
 	if (!o || !(f->f_perm & ACC_WRITE)) {
 		msg_err(m->m_sender, EPERM);
+		return;
+	}
+
+	/*
+	 * Is this a writer that's trying to write to what's now a pipe
+	 * with no listeners (it's broken)?
+	 */
+	if (o->p_nread == PIPE_CLOSED_FOR_READS) {
+		msg_err(m->m_sender, EPIPE);
 		return;
 	}
 
