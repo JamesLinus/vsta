@@ -517,6 +517,8 @@ dump_sysmsg(char *p)
 	printf("op: "); opname(sm->sm_op);
 	printf(" arg 0x%x arg1 0x%x nseg %d\n",
 		sm->sm_arg, sm->sm_arg1, sm->sm_nseg);
+	printf(" sender 0x%x next 0x%x err '%s'\n",
+		sm->sm_sender, sm->sm_next, sm->sm_err);
 	if (sm->sm_nseg) {
 		int x;
 
@@ -526,8 +528,6 @@ dump_sysmsg(char *p)
 		}
 		printf("\n");
 	}
-	printf(" sender 0x%x next 0x%x err '%s'\n",
-		sm->sm_sender, sm->sm_next, sm->sm_err);
 }
 
 /*
