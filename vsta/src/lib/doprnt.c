@@ -126,7 +126,6 @@ __doprnt(char *buf, char *fmt, int *args)
 			while (isdigit(*p))
 				++p;
 			c = *p++;
-			precision = 0;
 		} else {
 			width = 0;
 		}
@@ -147,7 +146,7 @@ __doprnt(char *buf, char *fmt, int *args)
 				c = *p++;
 			}
 		} else {
-			dotf = 0;
+			precision = dotf = 0;
 		}
 
 		/*
