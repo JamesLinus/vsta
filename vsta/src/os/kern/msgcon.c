@@ -545,6 +545,14 @@ shut_server(struct port *port)
 	port->p_flags |= P_CLOSING;
 
 	/*
+	 * Remove the port's name from the system table.  No
+	 * new clients after this.
+	 */
+	p_sema(&name_sema, PRIHI);
+	hash_delete(portnames, port->p_name);
+	v_sema(&name_sema);
+
+	/*
 	 * If we have an ISR tied to this port, disable
 	 * that before the port goes away.
 	 */
@@ -602,14 +610,6 @@ msg_disconnect(port_t arg_port)
 		if (!port) {
 			return(-1);
 		}
-
-		/*
-		 * Remove the port's name from the system table.  No
-		 * new clients after this.
-		 */
-		p_sema(&name_sema, PRIHI);
-		hash_delete(portnames, port->p_name);
-		v_sema(&name_sema);
 
 		/*
 		 * Delete all current clients
