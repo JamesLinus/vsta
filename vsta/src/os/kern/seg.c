@@ -129,8 +129,7 @@ make_seg(struct vas *vas, void *buf, uint buflen)
  *	Attach a segment to a vas
  *
  * Since the *recipient* always copies in, the mapped segment will
- * never be writable.  XXX should make PROT_KERN for msg_receive();
- * the kernel does the copying out.
+ * never be writable.
  */
 attach_seg(struct vas *vas, struct seg *s)
 {

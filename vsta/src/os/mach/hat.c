@@ -167,9 +167,8 @@ hat_addtrans(struct pview *pv, void *va, uint pfn, int prot)
 	 * Get the address
 	 */
 	pt += L2IDX(va);
-	*pt = (pfn << PT_PFNSHIFT) | PT_V |
-		((prot & PROT_RO) ? 0 : PT_W) |
-		((prot & PROT_KERN) ? 0 : PT_U);
+	*pt = (pfn << PT_PFNSHIFT) | PT_V | PT_U |
+		((prot & PROT_RO) ? 0 : PT_W);
 }
 
 /*

@@ -52,7 +52,7 @@ dump_thread2(struct thread *t, int brief)
 		t->t_kregs, t->t_proc, t->t_ustack, t->t_runq,
 		t->t_runticks, t->t_oink);
 	printf("  flags:"); f = t->t_flags;
-	FLAG(T_RT, "RT"); FLAG(T_BG, "BG"); FLAG(T_KERN, "KERN");
+	FLAG(T_RT, "RT"); FLAG(T_BG, "BG");
 	printf("\n  hd %x tl %x next %x\n",
 		t->t_hd, t->t_tl, t->t_next);
 	printf("  probe %x err %s usr/sys %d/%d evq %x eng %x\n",

@@ -54,7 +54,6 @@ struct thread {
  */
 #define T_RT (0x1)		/* Thread is real-time priority */
 #define T_BG (0x2)		/*  ... background priority */
-#define T_KERN (0x4)		/* Thread is running in kernel mode */
 #define T_FPU (0x8)		/* Thread has new state in the FPU */
 
 /*

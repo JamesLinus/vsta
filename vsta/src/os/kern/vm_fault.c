@@ -88,14 +88,6 @@ vas_fault(void *vas, void *vaddr, int write)
 	}
 
 	/*
-	 * User accessing kernel-only view?
-	 */
-	if (!(curthread->t_flags & T_KERN) && (pv->p_prot & PROT_KERN)) {
-		v_lock(&ps->p_lock, SPL0_SAME);
-		return(1);
-	}
-
-	/*
 	 * Transfer from pset lock to page slot lock
 	 */
 	idx = btop(((char *)vaddr - (char *)pv->p_vaddr)) + pv->p_off;
