@@ -1,0 +1,196 @@
+
+		README for VSTa SCSI/CAM
+
+
+Welcome to SCSI/CAM for VSTa.
+
+This file contains a short description of the VSTa CAM environment,
+instructions for configuring the driver, and a list of the source files
+associated with the VSTa SCSI/CAM driver.
+
+Except where noted in the source code and/or in this file, the
+VSTa SCSI/CAM driver was written from scratch by Mike Larson
+(larz@world.std.com). The following notice applies to all files
+in this distribution:
+
+    Copyright (C) 1993,1994  Michael A. Larson
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 1, or (at your option)
+    any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+
+Revision History
+----------------
+
+VSTa 1.3.2
+
+	Add CDROM support.
+
+	Make libcam.a - a library of functions that can be used
+	by user code to format CCB's and CDB's.
+
+	Add pass-thru code. This code allows CCB's and CDB's
+	received from an application to be sent directly to
+	peripheral devices.
+
+	Move VSTa specific code out of peripheral device drivers.
+
+	Some changes to the Adaptec 1542 driver, including the
+	addition of bounce buffers for support of systems with
+	greater than 16MB memory (this code is currently turned
+	off, however), disabling of the extended BIOS (if enabled),
+	support for no-bus-reset-on-boot etc. Note that adaptor
+	autosense has been disabled to support REQUEST SENSE
+	operations from the peripheral drivers.
+
+	Some bug fixes and code clean up.
+
+VSTa 1.3
+
+	Add a generic peripheral driver to give limited support to
+	not-yet-supported devices.
+
+	Move/conditionalize disk specific code.
+
+	Modify the peripheral disk driver to use the new libdpart
+	library. Remove fdisk.c.
+
+	Convert to syslog interface.
+
+VSTa 1.2
+
+	Initial revision of VSTA SCSI/CAM driver.
+
+
+What is CAM?
+------------
+
+From the SCSI FAQ:
+
+	QUESTION: What is CAM?
+	ANSWER From: ctjones@bnr.ca (Clifton Jones)
+	====
+	
+	Common Access Method.
+	
+	It is a proposed ANSI standard to make it easier to program
+	SCSI applications by encapsulating the SCSI functions into a
+	standardized calling convention.
+
+In CAM, the disk and tape drivers are called peripheral drivers (PDRV's
+for short). At the top, PDRV's system level interface similar to that
+of any other device driver in the operating system
+(open/close/read/write/ioctl entry points for *nix, for example).
+PDRV's do their job by sending SCSI commands down to the next CAM
+layer, called the transport (or XPT) layer. The commands are contained
+in a data structure called a CCB (CAM Control Block).
+
+One of the jobs of the XPT layer is to route requests from the PDRV's
+above to one of the SCSI Interface Modules (SIM's) below.  There may be
+more than one SIM per system.
+
+SIM's contain HBA (or dumb SCSI chip, etc.) specific code. The 154x
+code is a SIM module, for example.
+
+
+Quick VSTa SCSI/CAM Description
+-------------------------------
+
+The VSTa SCSI/CAM driver is loosley divided into three parts: code that
+is relatively generic, code that is specific to VSTa, and hardware
+specific code.
+
+The generic code is simply a library of functions which may be called
+by, or which may call functions in the VSTa code. The generic functions
+include open/close/read/write/ioctl PDRV functions, most of the XPT
+layer, and the "top part" the SIM layer (schedule the next request,
+start a request, complete a request).
+
+The VSTa specific code is responsible for sending and receiving
+messages, interfacing with the operating system, dispatching to the
+appropriate CAM code, and various utilities.
+
+The hardware specific code is the "bottom" part of the SIM layer, which
+interfaces to host adaptor hardware. Note that an attempt has been made
+to package the necessary VSTa interfaces in a different module. This
+may ease ports of drivers for host adaptors not currently supported by
+VSTa.
+
+
+Configuring the Driver
+----------------------
+
+The following explains how to get VSTa to "see" a root DOS filesystem
+on a SCSI disk.
+
+	Add or uncomment the following. This must go before the
+	'DOS filesystem' section:
+
+		# Adaptec 1542b/c SCSI disk support
+		cam
+
+	Add or uncomment the following in the 'DOS filesystem' section:
+
+		# If your filesystem is on a SCSI disk, you might use:
+		dos -p cam:sd0_dos0 fs/root
+
+Note that 'sd0_dos0' is disk (target) 0 partition 0.  Substitute the
+appropriate disk and partition numbers for other disk/partition
+combinations.  For example, 'sd0_dos1' is disk 0 partition 1.
+
+The SCSI/CAM server accepts the following command line options:
+
+	-nobootbrst		don't do a SCSI BUS RESET during
+				bootstrap initialization.
+
+	-d N			sets the debug flags (see cam.h).
+				'N' is either a decimal integer or
+				a hexadecimal integer (with a leading
+				"0x").
+
+
+Source File Description
+-----------------------
+
+cam.h			- generic CAM definitions
+camvsta.h		- VSTa CAM definitions (constants, macros, etc.)
+diskpart.h		- disk partition definitions (adapted from
+			  "wd/wd.h")
+insque.h		- C library insque/remque definitions
+scsi.h			- generic SCSI definitions
+scsivsta.h		- VSTa SCSI definitions (some typedef's)
+
+
+camdata.c		- configuration data
+camerror.c		- debug/error logging functions
+camtimer.c		- timer related functions
+camutil.c		- non-server specific CAM utility functions.
+camvsta.c		- VSTa CAM utilities (allocate memory, enable_io,
+			  enable_isr, page_wire, etc.)
+insque.c		- C library insque/remque
+main.c			- main entry point and some peripheral driver functions
+pdisk.c			- VSTa specific peripheral disk driver code
+pgen.c			- "generic" peripheral disk driver code
+scsicd.c		- functions for formatting CD-ROM CCB's and CDB's.
+scsicmds.c		- server SCSI command utilities.
+scsicmn.c		- functions for formatting common CCB's and CDB's
+scsidir.c		- functions for formatting SCSI DIRECT CCB's and CDB's.
+scsiseq.c		- functions for formatting SCSI SEQUENTIAL CCB's and
+			  CDB's.
+sim.c			- generic CAM SIM code
+sim154x.c		- the Adaptec 154x SIM driver
+vstasrv.c		- VSTa server functions
+vstautil.c		- misc. utility functions (parse a device name, etc.)
+xpt.c			- CAM XPT code
+
