@@ -58,6 +58,7 @@ dequeue(struct sched *s)
 		/*
 		 * Only guy in queue--clear parent's down pointer
 		 */
+		ASSERT_DEBUG(up->s_nrun == 1, "dequeue: short list");
 		up->s_down = 0;
 	} else {
 		/*
@@ -243,12 +244,9 @@ swtch(void)
 
 	/*
 	 * Now that we're going to reschedule, clear any pending preempt
-	 * request.  If we're leaving a thread, mark him as asleep.
+	 * request.
 	 */
 	do_preempt = 0;
-	if (curthread) {
-		curthread->t_state = TS_SLEEP;
-	}
 
 	for (;;) {
 		/*
@@ -337,8 +335,9 @@ lsetrun(struct thread *t)
 {
 	struct sched *s = t->t_runq;
 
+	ASSERT_DEBUG(t->t_state == TS_SLEEP, "lsetrun: !sleep");
+	ASSERT_DEBUG(t->t_wchan == 0, "lsetrun: wchan");
 	t->t_state = TS_RUN;
-	t->t_wchan = 0;
 	if (t->t_flags & T_RT) {
 
 		/*
@@ -402,6 +401,7 @@ void
 timeslice(void)
 {
 	p_lock(&runq_lock, SPLHI);
+	curthread->t_state = TS_SLEEP;
 	lsetrun(curthread);
 	swtch();
 }
