@@ -1,11 +1,14 @@
 CC= gcc
-INCS= -I..
+LD= ld
+INCS= -I../include -I..
 CFLAGS= -DDEBUG $(INCS) -g
+LDFLAGS= -L../libc -L../lib
 OBJS= main.o rw.o stat.o dir.o
-LIBS= ../msgfake/libc.a ../lib/libusr.a -lpc
+LIBS= -lc -lusr
 
+all: fd
 .c.o:
 	$(CC) $(CFLAGS) -c $*.c
 
 fd: $(OBJS)
-	$(CC) $(CFLAGS) -o fd $(OBJS) $(LIBS)
+	$(LD) $(LDFLAGS) -o fd ../libc/crt0.o $(OBJS) $(LIBS)
