@@ -8,6 +8,7 @@
 extern pid_t _getid(int);
 
 char __err[ERRLEN];	/* Latest error string */
+uint _errcnt;		/* Bumped on each error (errno.h emulation) */
 
 /*
  * msg_err()
