@@ -3,6 +3,32 @@
 /*
  * mutex.h
  *	Both sleep- and spin-oriented mutual exclusion mechanisms
+ *
+ * VSTa mutual exclusion comes in two basic flavors: spinlocks (lock_t)
+ * and semaphores (sema_t).
+ *
+ * Spinlocks
+ *
+ * When a spinlock is taken interrupts may be
+ * blocked (to protect resources shared between interrupt handlers and
+ * non-interrupt code) or left unblocked (for resources accessed only
+ * from non-interrupt code, but accessible from more than one thread/
+ * CPU at a time).
+ *
+ * Spinlocks may nest, although nesting an SPL0 lock while holding an SPLHI
+ * one will cause a panic.  All locks must be released before the CPU is
+ * relinquished.
+ *
+ * Semaphores
+ *
+ * Semaphores are the only mechanism for sleeping.  When sleeping on
+ * a semaphore, PRIHI will inhibit events from breaking the semaphore,
+ * PRICATCH will allow events which show up as a non-zero completion
+ * of the p_sema operation, and PRILO will cause the system call to return
+ * with EINTR (p_sema never returns, a longjmp happens instead).
+ *
+ * You may transition from a lock to a semaphore using p_sema_v_lock.
+ * There is no way to transition from one semaphore to another atomically.
  */
 #include <sys/types.h>
 
