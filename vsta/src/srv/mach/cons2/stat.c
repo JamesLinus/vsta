@@ -12,7 +12,6 @@
 #include <stdio.h>
 
 extern char *perm_print(struct prot *);
-extern int do_wstat(struct msg *, struct prot *, uint, char **, char **);
 
 /*
  * cons_stat()
