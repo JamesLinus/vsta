@@ -603,6 +603,12 @@ init_trap(void)
 	l.l_len = (sizeof(struct gate) * NIDT)-1;
 	l.l_addr = (ulong)idt;
 	lidt(&l.l_len);
+
+	/*
+	 * Flush our segment registers to point at current GDT
+	 * format.
+	 */
+	refresh_segregs();
 }
 
 /*
