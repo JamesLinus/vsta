@@ -1,36 +1,17 @@
-.ll 74
-.he 'page_release(2)'VSTa Manual'page_release(2)'
-.fo ''%''
-.sp 2
-.bd 1
-NAME
+.TH PAGE_RELEASE 2
+.SH NAME
+page_release \- unlock wired memory
+.SH SYNOPSIS
+.B #include <sys/syscall.h>
 .br
-.ti +6
-page_release - unlock wired memory
-.sp
-.bd 1
-SYNOPSIS
-.br
-.in +6
-.li 3
-#include <sys/syscall.h>
-
-int page_release(uint handle);
-.sp 1
-.in -6
-.bd 1
-DESCRIPTION
-.br
-.in +6
+.B int page_release(uint handle);
+.SH DESCRIPTION
 The
-.ul 1
-page_release()
+.I page_release()
 system call
 unlocks memory previously locked down by
-.ul 1
-page_wire().
+.I page_wire().
 The
-.ul 1
-handle
+.I handle
 is the return value from such a previous call;
 the corresponding page is made available for paging.

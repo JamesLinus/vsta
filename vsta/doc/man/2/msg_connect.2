@@ -1,62 +1,40 @@
-.ll 74
-.he 'msg_connect(2)'VSTa Manual'msg_connect(2)'
-.fo ''%''
-.sp 2
-.bd 1
-NAME
+.TH MSG_CONNECT 2
+.SH NAME
+msg_connect \- connect to server
+.SH SYNOPSIS
+.B #include <sys/msg.h>
 .br
-.ti +6
-msg_connect - connect to server
-.sp
-.bd 1
-SYNOPSIS
-.br
-.in +6
-.li 3
-#include <sys/msg.h>
-
-int msg_connect(port_name pn, int mode);
-.sp 1
-.in -6
-.bd 1
-DESCRIPTION
-.br
-.in +6
+.B int msg_connect(port_name pn, int mode);
+.SH DESCRIPTION
 The
-.ul 1
-msg_connect()
+.I msg_connect()
 system service connects a client to a server.
-.ul 1
-pn
+.I pn
 specifies the server which passed this value
 in its call to
-.ul 1
-msg_port().
-.ul 1
-mode
+.I msg_port().
+.PP
+.I mode
 is passed to the server, and specifies the type
 of access requested.  By convention, these bits
 are defined in
-.bd 1
-<sys/fs.h>
+.B <sys/fs.h>
 and include:
-.sp
-.in +4
-.li 7
-ACC_READ     - Read access
-ACC_WRITE    - Write access
-ACC_EXEC     - Execute
-ACC_CREATE   - Create/truncate
-ACC_DIR      - Access directory
-ACC_CHMOD    - Allow changes of mode and ownership
-.in -4
-.sp
+.RS
+.nf
+.B ACC_READ     - Read access
+.B ACC_WRITE    - Write access
+.B ACC_EXEC     - Execute
+.B ACC_CREATE   - Create/truncate
+.B ACC_DIR      - Access directory
+.B ACC_CHMOD    - Allow changes of mode and ownership
+.fi
+.RE
+.PP
 A connection attempt is synchronous; this call will not return
 until the server has received the call, processed it, and
 responded with either a
-.ul 1
-msg_accept(), msg_err(),
+.I msg_accept(), msg_err(),
 or terminated due to an explicit
-.ul 1
-exit()
+.I exit()
 or an unhandled event.

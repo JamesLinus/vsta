@@ -1,55 +1,30 @@
-.ll 74
-.he 'msg_reply(2)'VSTa Manual'msg_reply(2)'
-.fo ''%''
-.sp 2
-.bd 1
-NAME
+.TH MSG_REPLY 2
+.SH NAME
+msg_reply \- answer a message
+.SH SYNOPSIS
+.B #include <sys/msg.h>
 .br
-.ti +6
-msg_reply - answer a message
-.sp
-.bd 1
-SYNOPSIS
-.br
-.in +6
-.li 3
-#include <sys/msg.h>
-
-int msg_reply(long sender, struct msg *msg);
-.sp 1
-.in -6
-.bd 1
-DESCRIPTION
-.br
-.in +6
-.ul 1
-msg_reply()
+.B int msg_reply(long sender, struct msg *msg);
+.SH DESCRIPTION
+.I msg_reply()
 is used by a server to answer a request made by a
 client using
-.ul 1
-msg_send(),
+.I msg_send(),
 and received in this server via
-.ul 1
-msg_receive().
-.ul 1
-sender
+.I msg_receive().
+.I sender
 should be the value taken from the
-.ul 1
-m_sender
+.I m_sender
 field of the received message.  Like
-.ul 1
-msg_send(),
+.I msg_send(),
 a message with optional segments may be sent back.  Note
 that if the client did not specify
-.bd 1
-M_READ,
+.B M_READ,
 the segments will be verified, but not actually transferred.
-.ul 1
-m_arg
+.I m_arg
 should be the number of bytes in the reply.
-.sp
+.PP
 The client is blocked until this reply is sent.  Thus, servers providing
 access to "slow" I/O (keyboards, RS-232) will often record the
-.ul 1
-m_sender
+.I m_sender
 field, and delay the sending of a reply for extended periods of time.

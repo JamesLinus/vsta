@@ -1,23 +1,11 @@
-.ll 74
-.he 'waits(2)'VSTa Manual'waits(2)'
-.fo ''%''
-.sp 2
-.bd 1
-NAME
-.br
-.ti +6
-waits - retrieve status on exiting processes
-.sp
-.bd 1
-SYNOPSIS
-.br
-.in +6
-.li 3
-#include <sys/wait.h>
-
-int exit(struct exitst *w, int block_ok);
-.sp 1
-.li 8
+.TH WAITS 2
+.SH NAME
+waits \- retrieve status on exiting processes
+.SH SYNOPSIS
+.nf
+.B #include <sys/wait.h>
+.B int exit(struct exitst *w, int block_ok);
+.PP
 struct exitst {
 	pid_t e_pid;		/* PID of exit() */
 	int e_code;		/* Argument to exit() */
@@ -25,27 +13,15 @@ struct exitst {
 	struct exitst *e_next;	/* Next in list */
 	char e_event[ERRLEN];	/* Name of event if killed */
 };
-.sp 1
-.in -6
-.bd 1
-DESCRIPTION
-.br
-.in +6
-.ul 1
-waits()
+.fi
+.SH DESCRIPTION
+.I waits()
 retrieves status on children processes of the current
 process.  Such status is queued during the process of
 a child exiting, and includes information on PID,
 any argument to
-.ul 1
-exit(),
+.I exit(),
 CPU time used, and the name of the event which caused
 process terminating (if any).
-.sp
-.in -6
-.bd 1
-SEE ALSO
-.br
-.in +6
-.ul 1
-exit(2)
+.SH SEE ALSO
+.I exit(2)

@@ -1,52 +1,29 @@
-.ll 74
-.he 'tfork(2)'VSTa Manual'tfork(2)'
-.fo ''%''
-.sp 2
-.bd 1
-NAME
+.TH TFORK 2
+.SH NAME
+tfork \- create new thread under current process
+.SH SYNOPSIS
+.B #include <std.h>
 .br
-.ti +6
-tfork - create new thread under current process
-.sp
-.bd 1
-SYNOPSIS
-.br
-.in +6
-.li 3
-#include <std.h>
-
-pid_t tfork(voidfun startfun, ulong arg);
-.sp 1
-.in -6
-.bd 1
-DESCRIPTION
-.br
-.in +6
-.ul 1
-tfork()
+.B pid_t tfork(voidfun startfun, ulong arg);
+.SH DESCRIPTION
+.I tfork()
 creates a new thread running under the current process.
 A thread, unlike a process, shares the address space, permissions,
 and open files with all other threads of the current process.
-.sp
+.PP
 A thread starts running at the function pointed to by the
-.ul 1
-startfun
+.I startfun
 argument to
-.ul 1
-tfork();
+.I tfork();
 this function is entered with the single argument
-.ul 1
-arg
+.I arg
 available.  This function should not return to its "caller";
-.ul 1
-exit(2)
+.I exit(2)
 should be used when the thread wishes to complete.
-.sp
-.ul 1
-tfork()'s
+.PP
+.I tfork()'s
 return value is the thread
 process ID of the new thread.  Note that a thread process
 ID is local to the PID of the containing process; see
-.ul 1
-notify(2)
+.I notify(2)
 for an example of selecting a thread within a process.

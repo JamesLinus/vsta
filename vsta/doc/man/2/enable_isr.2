@@ -1,54 +1,31 @@
-.ll 74
-.he 'enable_isr(2)'VSTa Manual'enable_isr(2)'
-.fo ''%''
-.sp 2
-.bd 1
-NAME
+.TH ENABLE_ISR 2
+.SH NAME
+enable_isr \- (i386) connect an interrupt vector to a port
+.SH SYNOPSIS
+.B #include <sys/syscall.h>
 .br
-.ti +6
-enable_isr - (i386) connect an interrupt vector to a port
-.sp
-.bd 1
-SYNOPSIS
-.br
-.in +6
-.li 3
-#include <sys/syscall.h>
-
-int enable_isr(port_t port, int irq);
-.sp 1
-.in -6
-.bd 1
-DESCRIPTION
-.br
-.in +6
+.B int enable_isr(port_t port, int irq);
+.SH DESCRIPTION
 The
-.ul 1
-enable_isr()
+.I enable_isr()
 system call connects an interrupt level to the specified
 port.  After this call, the
-.ul 1
-port
+.I port
 is no longer available to the process, although it remains open
 to the corresponding server.  An occurence of an interrupt at
-.ul 1
-irq
+.I irq
 level will send an
-.ul 1
-M_ISR.
+.I M_ISR.
 message to the server.
 If this message is not yet received by the server, the
-.ul 1
-m_arg1
+.I m_arg1
 field will be incremented by one instead.  Thus, at
 most only one
 message for the given
-.ul 1
-irq
+.I irq
 will ever exist.
-.sp
+.PP
 The process must have
-.ul
-sys
+.I sys
 privileges.  Once granted, the IRQ handling remains until
 the server closes the connection.

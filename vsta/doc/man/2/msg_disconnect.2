@@ -1,37 +1,19 @@
-.ll 74
-.he 'msg_disconnect(2)'VSTa Manual'msg_disconnect(2)'
-.fo ''%''
-.sp 2
-.bd 1
-NAME
+.TH MSG_DISCONNECT 2
+.SH NAME
+msg_disconnect \- disconnect a port
+.SH SYNOPSIS
+.B #include <sys/msg.h>
 .br
-.ti +6
-msg_disconnect - disconnect a port
-.sp
-.bd 1
-SYNOPSIS
-.br
-.in +6
-.li 3
-#include <sys/msg.h>
-
-int msg_disconnect(port_t port);
-.sp 1
-.in -6
-.bd 1
-DESCRIPTION
-.br
-.in +6
-.ul 1
-msg_disconnect()
+.B int msg_disconnect(port_t port);
+.SH DESCRIPTION
+.I msg_disconnect()
 causes a port to close.  When applied to a server's port, each client
 will receive an I/O error on their next attempt to use the port.  If the
 client already has an I/O outstanding, it will be completed in error
 immediately.
-.sp
+.PP
 When used by a client, a
-.bd 1
-M_DISCONNECT
+.B M_DISCONNECT
 message is queued to the server.  The server may clean up any
 data structures, but does not need to reply.  The client has already
 been disassociated from the port.

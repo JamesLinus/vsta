@@ -1,44 +1,23 @@
-.ll 74
-.he 'msg_port(2)'VSTa Manual'msg_port(2)'
-.fo ''%''
-.sp 2
-.bd 1
-NAME
+.TH MSG_PORT 2
+.SH NAME
+msg_port \- create a server port
+.SH SYNOPSIS
+.B #include <sys/msg.h>
 .br
-.ti +6
-msg_port - create a server port
-.sp
-.bd 1
-SYNOPSIS
-.br
-.in +6
-.li 3
-#include <sys/msg.h>
-
-int msg_port(port_name pn, port_name *pnp);
-.sp 1
-.in -6
-.bd 1
-DESCRIPTION
-.br
-.in +6
+.B int msg_port(port_name pn, port_name *pnp);
+.SH DESCRIPTION
 The
-.ul 1
-msg_port()
+.I msg_port()
 system service creates a new server port.  The
-.ul 1
-pn
+.I pn
 parameter provides a system-wide name for the port, and
 is passed to
-.ul 1
-msg_connect()
+.I msg_connect()
 in clients wishing to connect to this server port.
 It is an error to use a
-.ul 1
-pn
+.I pn
 value already in use on the system.
 If zero, a value is picked by the kernel.
-.ul 1
-pnp,
+.I pnp,
 if non-NULL, will be assigned the port name assigned
 to the new port.

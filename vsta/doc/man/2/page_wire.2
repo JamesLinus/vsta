@@ -1,47 +1,22 @@
-.ll 74
-.he 'page_wire(2)'VSTa Manual'page_wire(2)'
-.fo ''%''
-.sp 2
-.bd 1
-NAME
+.TH PAGE_WIRE 2
+.SH NAME
+page_wire \- lock down pages to physical memory
+.SH SYNOPSIS
+.B #include <sys/syscall.h>
 .br
-.ti +6
-page_wire - lock down pages to physical memory
-.sp
-.bd 1
-SYNOPSIS
-.br
-.in +6
-.li 3
-#include <sys/syscall.h>
-
-int page_wire(void *vaddr, void **paddr);
-.sp 1
-.in -6
-.bd 1
-DESCRIPTION
-.br
-.in +6
+.B int page_wire(void *vaddr, void **paddr);
+.SH DESCRIPTION
 The
-.ul 1
-page_wire()
+.I page_wire()
 system call
 locks a virtual page's contents down to a physical page,
 whose corresponding physical address is placed in the location
 pointed to by
-.ul 1
-paddr.
-.sp
+.I paddr.
+.PP
 The return value is either -1, indicating failure, or a
-.ul 1
-handle
+.I handle
 used in a later call to
-.ul 1
-page_release().
-.sp
-.in -6
-.bd 1
-NOTES
-.br
-.in +6
+.I page_release().
+.SH NOTES
 This call is generally useful only to DMA-based I/O servers.
