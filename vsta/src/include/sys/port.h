@@ -46,7 +46,8 @@ struct portref {
 	lock_t p_lock;		/* Master mutex */
 	sema_t p_iowait;	/* Where proc sleeps for I/O */
 	sema_t p_svwait;	/*  ...server, while client copies out */
-	int p_state;		/* See below */
+	ushort p_state;		/* See below */
+	ushort p_flags;		/* Flags; see below also */
 	struct sysmsg		/* The message descriptor */
 		*p_msg;
 	struct portref		/* Linked list of refs to a port */
@@ -70,6 +71,11 @@ struct portref {
 #define PS_ABDONE 4	/*  ...received */
 #define PS_OPENING 5	/* M_CONNECT sent */
 #define PS_CLOSING 6	/* M_DISCONNECT sent */
+
+/*
+ * Bits in p_flags
+ */
+#define PF_NODUP (0x1)	/* Don't allow duplicates (dup/fork/etc) */
 
 #ifdef KERNEL
 extern struct portref *dup_port(struct portref *);
