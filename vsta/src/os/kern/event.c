@@ -216,7 +216,6 @@ notify(ulong arg_proc, ulong arg_thread, char *arg_msg, int arg_msglen)
 {
 	char evname[EVLEN];
 
-	printf("Notify\n"); dbg_enter();
 	/*
 	 * Get the string event name
 	 */
