@@ -47,6 +47,8 @@ rs232_write(struct msg *m, struct file *fl)
 		} else {
 			cnt = f->f_tl - f->f_hd;
 		}
+		ASSERT_DEBUG(cnt <= (f->f_size - f->f_cnt),
+			"rs232_write: hd/tl out of sync with f_cnt");
 		if (cnt > resid) {
 			cnt = resid;
 		}
