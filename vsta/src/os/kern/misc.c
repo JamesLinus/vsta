@@ -161,7 +161,10 @@ panic(char *msg, int arg1, ...)
  */
 err(char *msg)
 {
+	extern void mach_flagerr();
+
 	strcpy(curthread->t_err, msg);
+	mach_flagerr(curthread->t_uregs);
 	return(-1);
 }
 
@@ -275,7 +278,7 @@ strerror(char *ustr)
  * perm_ctl()
  *	Set a slot to given permission value, or read slot
  */
-perm_ctl(uint arg_idx, struct perm *arg_perm, struct perm *arg_ret)
+perm_ctl(int arg_idx, struct perm *arg_perm, struct perm *arg_ret)
 {
 	uint x;
 	struct perm perm;
@@ -284,7 +287,7 @@ perm_ctl(uint arg_idx, struct perm *arg_perm, struct perm *arg_ret)
 	/*
 	 * Legal slot?
 	 */
-	if (arg_idx >= PROCPERMS) {
+	if ((arg_idx < 0) || (arg_idx >= PROCPERMS)) {
 		return(err(EINVAL));
 	}
 
