@@ -5,7 +5,7 @@
 #include <sys/param.h>
 #include <bfs/bfs.h>
 
-extern void *bget(), *malloc();
+extern void *bget(), *malloc(), *bdata();
 extern char *strerror();
 
 /*
@@ -40,7 +40,7 @@ do_write(int startblk, int pos, char *buf, int cnt)
 		handle = bget(startblk+blk);
 		if (!handle)
 			return 1;
-		memcpy(bdata(handle)+boff, buf+x, step);
+		memcpy((char *)bdata(handle)+boff, buf+x, step);
 		pos += step;
 		bdirty(handle);
 		bfree(handle);
@@ -270,7 +270,7 @@ bfs_read(struct msg *m, struct file *f)
 			msg_err(m->m_sender, strerror());
 			return;
 		}
-		memcpy(buf+x, bdata(handle)+boff, step);
+		memcpy(buf+x, (char *)bdata(handle)+boff, step);
 		f->f_pos += step;
 		bfree(handle);
 

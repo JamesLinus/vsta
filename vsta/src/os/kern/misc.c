@@ -12,7 +12,7 @@
 #define NUMBUF (16)	/* Buffer size for numbers */
 
 extern void putchar();
-void strcpy();
+char *strcpy(char *, const char *);
 
 /*
  * get_ustr()
@@ -180,18 +180,20 @@ err(char *msg)
  * strcpy()
  *	We don't use the C library, so need to provide our own
  */
-void
-strcpy(char *dest, char *src)
+char *
+strcpy(char *dest, const char *src)
 {
 	while (*dest++ = *src++)
 		;
+	return(0);
 }
 
 /*
  * strlen()
  *	Length of string
  */
-strlen(char *p)
+int
+strlen(const char *p)
 {
 	int x = 0;
 
@@ -244,7 +246,7 @@ issys(void)
  *	The compiler can generate these; we use bcopy()
  */
 void *
-memcpy(void *dest, void *src, uint cnt)
+memcpy(void *dest, const void *src, size_t cnt)
 {
 	bcopy(src, dest, cnt);
 	return(dest);
@@ -257,7 +259,8 @@ memcpy(void *dest, void *src, uint cnt)
  * We don't bother with the distinction of which is "less than"
  * the other.
  */
-strcmp(char *s1, char *s2)
+int
+strcmp(const char *s1, const char *s2)
 {
 	while (*s1++ == *s2) {
 		if (*s2++ == '\0') {
@@ -406,4 +409,13 @@ assfail(char *msg, char *file, uint line)
 	printf("Assertion failed line %d file %s\n",
 		line, file);
 	panic(msg, 0);
+}
+
+/*
+ * __main()
+ *	Satisfies a GCC reference hook for C++ support
+ */
+void
+__main(void)
+{
 }

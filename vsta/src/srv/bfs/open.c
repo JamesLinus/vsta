@@ -12,6 +12,7 @@ extern struct super *sblock;
 extern void *bdata();
 extern struct inode *ifind();
 extern char *strerror();
+extern void blk_trunc(), bsync();
 
 static int nwriters = 0;	/* # writers active */
 
@@ -132,8 +133,6 @@ bfs_open(struct msg *m, struct file *f)
 	 * its storage.
 	 */
 	if (!newfile) {
-		extern void blk_trunc();
-
 		blk_trunc(d);
 		/* Marked bdirty() below */
 	}
@@ -166,8 +165,6 @@ success:
 void
 bfs_close(struct file *f)
 {
-	extern void bsync();
-
 	/*
 	 * A reference to the root dir needs no action
 	 */

@@ -15,7 +15,7 @@ struct exitst {
 	int e_code;		/* Argument to exit() */
 	ulong e_usr, e_sys;	/* CPU time in user and sys */
 	struct exitst *e_next;	/* Next in list */
-	int e_event[ERRLEN];	/* Name of event if killed */
+	char e_event[ERRLEN];	/* Name of event if killed */
 };
 
 /*

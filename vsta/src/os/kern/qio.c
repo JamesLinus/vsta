@@ -20,6 +20,8 @@ static struct qio		/* Elements waiting to be run */
 	*qio_hd, *qio_tl;
 static lock_t qio_lock;		/* Spinlock for run list */
 
+static void free_qio(struct qio *);
+
 /*
  * qio()
  *	Queue an I/O

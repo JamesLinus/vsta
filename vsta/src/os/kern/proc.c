@@ -604,7 +604,10 @@ exit(int code)
 	ATOMIC_DEC(&nthread);
 	p_lock(&runq_lock, SPLHI);
 	ATOMIC_DEC(&cpu.pc_locks);	/* swtch() will handle dispatch */
-	swtch();
+	for (;;) {
+		swtch();
+		ASSERT(0, "exit: swtch returned");
+	}
 }
 
 /*

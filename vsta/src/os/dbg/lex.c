@@ -10,6 +10,8 @@ static char buf[80];
 static int donum();
 extern int yylval;
 
+int isdigit(char), isxdigit(char);
+
 /*
  * Convert hex and decimal strings to integers
  */

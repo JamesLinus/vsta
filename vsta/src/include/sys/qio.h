@@ -26,9 +26,8 @@ struct qio {
 extern void qio(struct qio *);
 
 /*
- * Allocate/free a qio structure
+ * Allocate a qio structure
  */
 extern struct qio *alloc_qio(void);
-extern void free_qio(struct qio *);
 
 #endif /* _QIO_H */

@@ -10,7 +10,7 @@
  *	Copy a string
  */
 char *
-strcpy(char *dest, char *src)
+strcpy(char *dest, const char *src)
 {
 	char *p = dest;
 
@@ -24,7 +24,7 @@ strcpy(char *dest, char *src)
  *	Copy up to a limited length
  */
 char *
-strncpy(char *dest, char *src, int len)
+strncpy(char *dest, const char *src, int len)
 {
 	char *p = dest, *lim;
 
@@ -41,7 +41,7 @@ strncpy(char *dest, char *src, int len)
  * strlen()
  *	Length of string
  */
-strlen(char *p)
+strlen(const char *p)
 {
 	int x = 0;
 
@@ -55,7 +55,7 @@ strlen(char *p)
  *	The compiler can generate these; we use bcopy()
  */
 void *
-memcpy(void *dest, void *src, unsigned int cnt)
+memcpy(void *dest, const void *src, size_t cnt)
 {
 	bcopy(src, dest, cnt);
 	return(dest);
@@ -65,7 +65,7 @@ memcpy(void *dest, void *src, unsigned int cnt)
  * strcmp()
  *	Compare two strings, return their relationship
  */
-strcmp(char *s1, char *s2)
+strcmp(const char *s1, const char *s2)
 {
 	while (*s1++ == *s2) {
 		if (*s2++ == '\0') {
@@ -81,7 +81,7 @@ strcmp(char *s1, char *s2)
  *	Add one string to another
  */
 char *
-strcat(char *dest, char *src)
+strcat(char *dest, const char *src)
 {
 	char *p;
 
@@ -96,7 +96,7 @@ strcat(char *dest, char *src)
  * strncat()
  *	Concatenate, with limit
  */
-char *strncat(char *dest, char *src, int len)
+char *strncat(char *dest, const char *src, int len)
 {
 	char *p, *lim;
 
@@ -116,13 +116,13 @@ char *strncat(char *dest, char *src, int len)
  *	Return pointer to first occurence, or 0
  */
 char *
-strchr(char *p, char c)
+strchr(const char *p, int c)
 {
-	char c2;
+	int c2;
 
 	while (c2 = *p++) {
 		if (c2 == c) {
-			return(p-1);
+			return((char *)(p-1));
 		}
 	}
 	return(0);
@@ -133,13 +133,13 @@ strchr(char *p, char c)
  *	Like strchr(), but search backwards
  */
 char *
-strrchr(char *p, char c)
+strrchr(const char *p, int c)
 {
 	char *q = 0, c2;
 
 	while (c2 = *p++) {
 		if (c == c2) {
-			q = p;
+			q = (char *)p;
 		}
 	}
 	return q ? (q-1) : 0;
@@ -150,12 +150,12 @@ strrchr(char *p, char c)
  *	Alias for strchr/strrchr()
  */
 char *
-index(char *p, char c)
+index(const char *p, int c)
 {
 	return(strchr(p, c));
 }
 char *
-rindex(char *p, char c)
+rindex(const char *p, int c)
 {
 	return(strrchr(p, c));
 }
@@ -165,7 +165,7 @@ rindex(char *p, char c)
  *	Return malloc()'ed copy of string
  */
 char *
-strdup(char *s)
+strdup(const char *s)
 {
 	char *p;
 
@@ -183,7 +183,7 @@ strdup(char *s)
  * strncmp()
  *	Compare up to a limited number of characters
  */
-strncmp(char *s1, char *s2, int nbyte)
+strncmp(const char *s1, const char *s2, int nbyte)
 {
 	while (nbyte && (*s1++ == *s2)) {
 		if (*s2++ == '\0') {
@@ -202,9 +202,9 @@ strncmp(char *s1, char *s2, int nbyte)
  * bcmp()
  *	Compare, binary style
  */
-bcmp(void *s1, void *s2, unsigned int n)
+bcmp(const void *s1, const void *s2, unsigned int n)
 {
-	char *p = s1, *q = s2;
+	const char *p = s1, *q = s2;
 
 	while (n-- > 0) {
 		if (*p++ != *q++) {
@@ -218,7 +218,7 @@ bcmp(void *s1, void *s2, unsigned int n)
  * memcmp()
  *	Yet Another Name, courtesy AT&T
  */
-memcmp(void *s1, void *s2, unsigned int n)
+memcmp(const void *s1, const void *s2, size_t n)
 {
 	return(bcmp(s1, s2, n));
 }

@@ -38,21 +38,23 @@ notify(long pid, long tid, char *event)
  * exit()
  *	Flush I/O buffers, then _exit()
  */
-void
+void volatile
 exit(int val)
 {
-	extern int _exit();
+	extern void volatile _exit(int);
 	extern void __allclose();
 
 	__allclose();
-	_exit(val & 0xFF);
+	for (;;) {
+		_exit(val & 0xFF);
+	}
 }
 
 /*
  * abort()
  *	Croak ourselves
  */
-void
+void volatile
 abort(void)
 {
 	extern int notify();
@@ -61,8 +63,9 @@ abort(void)
 	 * First send a generic event.  Follow with non-blockable death.
 	 */
 	notify(0L, 0L, "abort");
-	notify(0L, 0L, EKILL);
-	/*NOTREACHED*/
+	for (;;) {
+		notify(0L, 0L, EKILL);
+	}
 }
 
 /*
