@@ -15,9 +15,11 @@ static ulong key;
 static void
 reader(int dummy)
 {
-	int fd;
+	int fd, x;
 	struct select_complete sc;
 	char *p;
+	struct msg m;
+	port_t port;
 
 	/*
 	 * Connect to the select server
@@ -27,17 +29,18 @@ reader(int dummy)
 		perror("//fs/select:client");
 		_exit(1);
 	}
+	port = __fd_port(fd);
 
 	/*
 	 * Extract our client ID and key for our server
 	 */
-	p = rstat(__fd_port(fd), "clid");
+	p = rstat(port, "clid");
 	if (p == 0) {
 		perror("rstat: clid");
 		_exit(1);
 	}
 	clid = atoi(p);
-	p = rstat(__fd_port(fd), "key");
+	p = rstat(port, "key");
 	if (p == 0) {
 		perror("rstat: key");
 		_exit(1);
@@ -47,9 +50,19 @@ reader(int dummy)
 	/*
 	 * Receive and display events
 	 */
-	while (read(fd, &sc, sizeof(sc)) == sizeof(sc)) {
-		printf("complete %u mask 0x%x count %lu\n",
-			sc.sc_index, sc.sc_mask, sc.sc_iocount);
+	for (;;) {
+		m.m_op = FS_READ | M_READ;
+		m.m_nseg = 1;
+		m.m_buf = &sc;
+		m.m_arg = m.m_buflen = sizeof(sc);
+		m.m_arg1 = 10*1000;
+		x = msg_send(port, &m);
+		printf("Returned %d\n", x);
+		if (x > 0) {
+			printf(" index %u mask 0x%x count %lu\n",
+				sc.sc_index, sc.sc_mask, sc.sc_iocount);
+		}
+
 		/*
 		 * This lets us "get ahead" of the client
 		 * request, if we want.
