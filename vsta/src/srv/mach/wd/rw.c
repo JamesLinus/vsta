@@ -143,6 +143,7 @@ wd_rw(struct msg *m, struct file *f)
 	 */
 	if ((m->m_arg & (SECSZ-1)) ||
 			(m->m_arg > MAXIO) ||
+			(m->m_arg == 0) ||
 			(f->f_pos & (SECSZ-1))) {
 		msg_err(m->m_sender, EINVAL);
 		return;
