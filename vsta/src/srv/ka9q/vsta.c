@@ -18,12 +18,17 @@
 #include <dirent.h>
 #include <std.h>
 #include <alloc.h>
+#include <fcntl.h>
+#include <syslog.h>
 #include "global.h"
 #include "config.h"
 #include "cmdparse.h"
 #include "iface.h"
 #include "unix.h"
 #include "vsta.h"
+
+extern int detached;
+extern struct session *consess;
 
 #define	MAXCMD	1024
 
@@ -62,7 +67,8 @@ static pid_t curtid;	/* Current thread holding ka9q_lock */
 lock_t ka9q_lock;	/* Mutex among threads */
 static uint nbg;	/* # of background threads from yield() */
 static int
-	time_idx = -1;	/* Timer task thread index in daemons[] */
+	time_idx = -1,	/* Timer task thread index in daemons[] */
+	cons_idx = -1;	/*  ...console watcher */
 
 /*
  * Typeahead for console, a circular list
@@ -79,6 +85,20 @@ extern char *fingerpath;
 #ifdef	XOBBS
 extern char *bbsexe;
 #endif
+
+/*
+ * kick()
+ *	Kick the target out of any sleep they might be in
+ */
+static void
+kick(uint idx)
+{
+	pid_t tid = daemons[idx].d_tid;
+
+	if (gettid() != tid) {
+		(void)notify(0, tid, "recalc");
+	}
+}
 
 /*
  * vsta_daemon()
@@ -359,11 +379,7 @@ timechange(char *event)
 void
 recalc_timers(void)
 {
-	pid_t tid = daemons[time_idx].d_tid;
-
-	if (gettid() != tid) {
-		(void)notify(0, tid, "recalc");
-	}
+	kick(time_idx);
 }
 
 /*
@@ -464,6 +480,15 @@ conswatcher(void)
 	for (;;) {
 		char c;
 
+		/*
+		 * When we detach, this daemon is no longer
+		 * needed, as telnet input traffic can drive
+		 * everything quite nicely
+		 */
+		if (detached) {
+			vsta_daemon_done(cons_idx);
+			_exit(0);
+		}
 		if (read(0, &c, sizeof(c)) == sizeof(c)) {
 			p_lock(&ka9q_lock);
 			if (nkbchar < sizeof(kbchars)) {
@@ -482,6 +507,18 @@ conswatcher(void)
 }
 
 /*
+ * detach_kbio()
+ *	Called when KA9Q detaches from console
+ *
+ * For us, we need to kick conswatcher out of his read.
+ */
+void
+detach_kbio(void)
+{
+	kick(cons_idx);
+}
+
+/*
  * eihalt()
  *	"Enable interrupts and halt"
  *
@@ -493,6 +530,11 @@ conswatcher(void)
 eihalt()
 {
 	/*
+	 * Initialize syslog access
+	 */
+	(void)openlog("net", LOG_PID, LOG_DAEMON);
+
+	/*
 	 * Initialize the mutex
 	 */
 	init_lock(&ka9q_lock);
@@ -501,7 +543,7 @@ eihalt()
 	 * Launch the initial threads.  The original thread dies here.
 	 */
 	time_idx = vsta_daemon(timewatcher);
-	(void)vsta_daemon(conswatcher);
+	cons_idx = vsta_daemon(conswatcher);
 	_exit(0);
 }
 
@@ -511,8 +553,102 @@ eihalt()
  */
 kbread()
 {
-	int c;
+	int fd, x;
+	uchar c;
+	static int setup = 0;
+	char buf[256];
 
+	if (detached) {
+		/*
+		 * No session?
+		 */
+		if (!consess) {
+			/*
+			 * Session closed.  Close stdin/out/err, hold
+			 * their place with /dev/null.
+			 */
+			if (setup) {
+				close(0); close(1); close(2);
+				fd = open("/dev/null", O_RDWR);
+				if (fd >= 0) {
+					dup2(fd, 0);
+					dup2(fd, 1);
+					dup2(fd, 2);
+				}
+				if (fd > 2) {
+					close(fd);
+				}
+				setup = 0;
+			}
+			return(-1);
+		}
+
+		/*
+		 * First-time setup
+		 */
+		if (!setup) {
+			/*
+			 * Use a FIFO memory buffer to capture I/O.
+			 * For typout, it still goes to 1/2, and we
+			 * pull it back out and forward over telnet.
+			 *
+			 * For input, we tell the telnet module to
+			 * start stuff input to 0 (not 1 for display),
+			 * and our kbread() pulls it back out.
+			 */
+			fd = fdmem((void *)0, 4096);
+			if (fd < 0) {
+				return(-1);
+			}
+			if (fd != 0) {
+				dup2(fd, 0);
+				close(fd);
+			}
+			fd = fdmem((void *)0, 4096);
+			if (fd < 0) {
+				return(-1);
+			}
+			dup2(fd, 1);
+			dup2(fd, 2);
+			if (fd > 2) {
+				close(fd);
+			}
+
+			/*
+			 * Have them write to FD 0 for "output".  Output
+			 * from a telnet wants to actually become input
+			 * to the command processor.
+			 */
+			tn_stdout(0);
+
+			setup = 1;
+		}
+
+		/*
+		 * If there's output, forward it to the TCP stream
+		 */
+		while ((x = read(1, buf, sizeof(buf))) > 0) {
+			tn_send_con(buf, x);
+		}
+
+		/*
+		 * If there's input, get the next byte
+		 */
+		x = read(0, &c, sizeof(c));
+
+		/*
+		 * Return the input now
+		 */
+		if (x > 0) {
+			return(c);
+		}
+		return(-1);
+	}
+
+	/*
+	 * Local console handling here.  It was received by the
+	 * conswatcher daemon, and queued to kbchars[].
+	 */
 	if ((nbg > 0) || (nkbchar == 0)) {
 		return(-1);
 	}

@@ -1,3 +1,5 @@
+#ifndef TELNET_H
+#define TELNET_H
 /*
  * telnet.h
  *	Shared definitions for the telnet protocol
@@ -71,7 +73,12 @@ struct telnet {
 	int	client;		/* fd for socket to client */
 	char   *termtype;	/* terminal type for clients */
 };
+
 #define	NULLTN	(struct telnet *)0
+
 extern int refuse_echo;
-struct telnet *open_telnet();
-int send_tel(),tel_input();
+extern struct telnet *open_telnet();
+extern int send_tel(), tel_input();
+extern void tn_stdout(int);
+
+#endif /* TELNET_H */

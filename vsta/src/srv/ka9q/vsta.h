@@ -24,5 +24,6 @@ extern lock_t ka9q_lock;
  */
 extern uint vsta_daemon(voidfun);
 extern void do_mainloop(void), vsta_daemon_done(uint);
+extern void stop_kbio(void);
 
 #endif /* VSTA_H */

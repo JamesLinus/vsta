@@ -128,8 +128,9 @@ struct mbuf *tbi;
 {
   struct tnbuf *tb = (struct tnbuf *)tbi;
 
-  if (tb->termbufp > tb->termbuf)
+  if (tb->termbufp > tb->termbuf) {
     write(tb->fd, tb->termbuf, tb->termbufp - tb->termbuf);
+  }
   tb->termbufp = tb->termbuf;
 }
 
@@ -290,6 +291,15 @@ int16 n;
 		fwrite(buf,1,(int)n,current->record);
 	bp = qdata(buf,n);
 	send_tcp(current->cb.telnet->tcb,bp);
+}
+
+void
+tn_send_con(char *buf, uint n)
+{
+	struct mbuf *bp;
+
+	bp = qdata(buf, n);
+	send_tcp(consess->cb.telnet->tcb, bp);
 }
 
 /* Process typed characters */
@@ -500,6 +510,7 @@ int16 cnt;
 	}
 	/* Hold output if we're not the current session */
 	if(!tn->inbuf &&
+	   (tn != consess->cb.telnet) &&
 	   (mode != CONV_MODE || current == NULLSESSION
 #ifdef	FLOW
 	    || !ttyflow	/* Or if blocked by keyboard input -- hyc */
@@ -940,4 +951,14 @@ int r1,r2;
 	s[2] = r2;
 	bp = qdata(s,(int16)3);
 	send_tcp(tn->tcb,bp);
+}
+
+/*
+ * tn_stdout()
+ *	Set output FD for standard output
+ */
+void
+tn_stdout(int newfd)
+{
+	std_tnbuf.fd = newfd;
 }

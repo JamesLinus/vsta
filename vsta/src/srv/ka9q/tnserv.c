@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <std.h>
+#include <syslog.h>
 #include "global.h"
 #include "config.h"
 #include "mbuf.h"
@@ -50,7 +51,7 @@ struct tcb *tcb;
 char old,new;
 {
 	struct telnet *tn;
-	struct session *s,*newsession();
+	struct session *s;
 	void t_state();
 	char *a;
 
@@ -58,11 +59,14 @@ char old,new;
 	case ESTABLISHED:
 		log(tcb,"open Telnet");
 		/* Allocate a session descriptor */
-		if((s = newsession()) == NULLSESSION){
-			printf("\007Incoming Telnet call from %s refused; too many sessions\r\n",
-			 psocket(&tcb->conn.remote));
+		if (consess ||
+				((s = newsession()) == NULLSESSION)) {
+			printf("\7Incoming Telnet call from %s refused; "
+					"too many sessions\r\n",
+				psocket(&tcb->conn.remote));
 			fflush(stdout);
-			sndmsg(tcb,"Call rejected; too many sessions on remote system\n");
+			sndmsg(tcb,
+			 "Call rejected; too many sessions on remote system\n");
 			close_tcp(tcb);
 			return;
 		}
@@ -88,18 +92,19 @@ char old,new;
 
 		tcb->user = (char *)tn;	/* Upward pointer */
 		tn->tcb = tcb;		/* Downward pointer */
-		printf("\007Incoming Telnet session %lu from %s\r\n",
-		 (long)(s - sessions),psocket(&tcb->conn.remote));
 		fflush(stdout);
 		tcb->s_upcall = t_state;
+		syslog(LOG_INFO, "Remote console: %s", s->name);
+		consess = s;
 		return;
+
 	case CLOSED:
 		/* This will only happen if the connection closed before
 		 * the session was set up, e.g., if we refused it because
 		 * there were too many sessions, or if the server is being
 		 * shut down.
 		 */
-		if(tcb == tnet_tcb)
+		if (tcb == tnet_tcb)
 			tnet_tcb = NULLTCB;
 		del_tcp(tcb);
 		break;
@@ -108,15 +113,16 @@ char old,new;
 /* Shut down Telnet server */
 tn0()
 {
-	if(tnet_tcb != NULLTCB)
+	if (tnet_tcb != NULLTCB)
 		close_tcp(tnet_tcb);
 }
+
 sndmsg(tcb,msg)
 struct tcb *tcb;
 char *msg;
 {
 	struct mbuf *bp;
 
-	bp = qdata(msg,(int16)strlen(msg));
-	send_tcp(tcb,bp);
+	bp = qdata(msg, (int16)strlen(msg));
+	send_tcp(tcb, bp);
 }

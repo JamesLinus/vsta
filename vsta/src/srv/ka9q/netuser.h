@@ -34,6 +34,7 @@ struct connection {
 #define	NULLSOCK	(struct socket *)0
 
 /* TCP port numbers */
+#define	RCONS_PORT	5	/* Remote console */
 #define	ECHO_PORT	7	/* Echo data port */
 #define	DISCARD_PORT	9	/* Discard data port */
 #define	FTPD_PORT	20	/* FTP Data port */

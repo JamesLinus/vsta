@@ -25,8 +25,9 @@
 #include <string.h>
 #endif
 
-struct session *sessions;
-struct session *current;
+struct session *sessions,	/* Array of all sessions */
+	*current,		/* One attached to console */
+	*consess;		/* Session acting *as* console */
 char notval[] = "Not a valid control block\n";
 char badsess[] = "Invalid session\n";
 
@@ -66,9 +67,14 @@ char *argv[];
 	char *tcp_port();
 
 	if(argc > 1){
-		if((current = sessptr(argv[1])) != NULLSESSION) {
-			if (current->type == TELNET)
+		s = sessptr(argv[1]);
+		if (s == consess) {
+			printf("Busy\n");
+		} else if (s != NULLSESSION) {
+			current = s;
+			if (current->type == TELNET) {
 				current->cb.telnet->warned = 0;
+			}
 			go_mode();
 		}
 		return 0;
@@ -319,14 +325,17 @@ char *argv[];
 	}
 	return 0;
 }
+
 struct session *
 newsession()
 {
 	register int i;
 
-	for(i=0;i<nsessions;i++)
-		if(sessions[i].type == FREE)
-			return &sessions[i];
+	for (i = 0; i < nsessions; i++) {
+		if (sessions[i].type == FREE) {
+			return(&sessions[i]);
+		}
+	}
 	return NULLSESSION;
 }
 freesession(s)

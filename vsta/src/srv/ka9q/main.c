@@ -21,6 +21,8 @@
 #define HOSTNAMELEN 64
 unsigned restricted_dev=1000;
 extern char *startup;	/* File to read startup commands from */
+static char *password;	/* Access password when remote */
+int detached = 0;	/* Console relinquished? */
 
 #ifdef	ASY
 #include "asy.h"
@@ -81,7 +83,7 @@ int go(),doax25(),cmdmode(),doconnect(),dotelnet(),doexit(),doclose(),
 	dosmtp(),doudp(),doparam(),doeol(),go_mode(),
 	dodump(),dorecord(),doupload(),dokick(),domode(),doshell(),
 	dodir(),docd(),doatstat(),doping(),doforward(),doremote(),donetrom(),
-	donrstat(), dombox(), mulport();
+	donrstat(), dombox(), mulport(), dopassword(), dodetach();
 
 #ifdef ETHER
 int doetherstat();
@@ -116,6 +118,7 @@ static struct cmds cmds[] = {
 #endif
 	"cd",		docd,		0, NULLCHAR,	NULLCHAR,
 	"close",	doclose,	0, NULLCHAR,	NULLCHAR,
+	"detach",	dodetach,	0, NULLCHAR,	NULLCHAR,
 	"disconnect",	doclose,	0, NULLCHAR,	NULLCHAR,
 	"dir",		dodir,		0, NULLCHAR,	NULLCHAR,
 	"domain",	dodomain,	0, NULLCHAR,	NULLCHAR,
@@ -148,6 +151,7 @@ static struct cmds cmds[] = {
 #endif
 #endif
 	"param",	doparam,	2, "param <interface>", NULLCHAR,
+	"password",	dopassword,	2, "password <secret>", NULLCHAR,
 	"ping",		doping,		0, NULLCHAR,	NULLCHAR,
 	"pwd",		docd,		0, NULLCHAR,	NULLCHAR,
 	"record",	dorecord,	0, NULLCHAR,	NULLCHAR,
@@ -323,7 +327,29 @@ char *argv[];
 {
 	static char inbuf[BUFSIZ];	/* keep it off the stack */
 	FILE *fp;
+	int pid;
 
+	/*
+	 * We run KA9Q as one process down from the invoking parent.
+	 * This allows us to shoot the upper process, providing a
+	 * "detach" function, while allowing the main process to
+	 * continue on unharmed.
+	 */
+	pid = fork();
+	if (pid < 0) {
+		perror("fork");
+		exit(1);
+	}
+	if (pid) {
+		int st;
+
+		(void)wait(&st);
+		_exit(0);
+	}
+
+	/*
+	 * The "true" KA9Q continues on from here
+	 */
 	trfp = stdout;
 	tty_init();
 	fileinit(argv[0]);
@@ -1091,4 +1117,24 @@ char *argv[];
 	bp->cnt = 1;
 	send_udp(&lsock,&fsock,0,0,bp,0,0,0);
 	return 0;
+}
+
+dopassword(int argc, char **argv)
+{
+	password = strdup(argv[1]);
+	if (password == 0) {
+		printf("No memory to set password\n");
+	}
+	return(0);
+}
+
+dodetach()
+{
+	extern void detach_kbio();
+
+	printf("Detaching from console...\n");
+	notify(getppid(), 0, "kill");
+	detach_kbio();
+	close(0); close(1); close(2);
+	detached = 1;
 }

@@ -35,8 +35,7 @@ struct session {
 };
 #define	NULLSESSION	(struct session *)0
 extern unsigned nsessions;
-extern struct session *sessions;
-extern struct session *current;
+extern struct session *sessions, *current, *consess;
 struct session *newsession();
 
 extern int16 lport;
