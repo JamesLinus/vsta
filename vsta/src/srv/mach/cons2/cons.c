@@ -77,6 +77,88 @@ scrollup()
 }
 
 /*
+ * sequence()
+ *	Called when we've decoded args and it's time to act
+ */
+static void
+sequence(int x, int y, char c)
+{
+	switch (c) {
+	case 'J':		/* Clear */
+		cls();
+		return;
+
+	case 'H':		/* Position */
+		cur = top + (x-1)*(COLS*CELLSZ) + (y-1)*CELLSZ;
+		if (cur < top) {
+			cur = top;
+		} else if (cur >= bottom) {
+			cur = lastl;
+		}
+		return;
+
+	default:
+		/* Ignore */
+		return;
+	}
+}
+
+/*
+ * do_multichar()
+ *	Handle further characters in a multi-character sequence
+ */
+static
+do_multichar(int state, char c)
+{
+	static int x, y;
+
+	switch (state) {
+	case 1:		/* Escape has arrived */
+		if (c != '[') {
+			return(0);
+		}
+		return(2);
+
+	case 2:		/* Seen Esc-[ */
+		if (isdigit(c)) {
+			x = c - '0';
+			return(3);
+		}
+		sequence(1, 1, c);
+
+	case 3:		/* Seen Esc-[<digit> */
+		if (isdigit(c)) {
+			x = x*10 + (c - '0');
+			return(3);
+		}
+		if (c == ';') {
+			y = 0;
+			return(4);
+		}
+		sequence(x, 1, c);
+		return(0);
+
+	case 4:		/* Seen Esc-[<digits>; */
+		if (isdigit(c)) {
+			y = y*10 + (c - '0');
+			return(4);
+		}
+
+		/*
+		 * This wraps the sequence
+		 */
+		sequence(x, y, c);
+		return(0);
+	default:
+#ifdef DEBUG
+		abort();
+#else
+		return(0);
+#endif
+	}
+}
+
+/*
  * write_string()
  *	Given a counted string, put the characters onto the screen
  */
@@ -85,9 +167,19 @@ write_string(char *s, int cnt)
 {
 	char c;
 	int x;
+	static int state = 0;
 
 	while (cnt--) {
 		c = (*s++) & 0x7F;
+
+		/*
+		 * If we are inside a multi-character sequence,
+		 * continue
+		 */
+		if (state > 0) {
+			state = do_multichar(state, c);
+			continue;
+		}
 
 		/*
 		 * Printing characters are easy
@@ -135,15 +227,6 @@ write_string(char *s, int cnt)
 		}
 
 		/*
-		 * \f--clear screen, home cursor.
-		 * It ain't ANSI, but it works....
-		 */
-		if (c == '\f') {
-			cls();
-			continue;
-		}
-
-		/*
 		 * \b--back up a space
 		 */
 		if (c == '\b') {
@@ -178,6 +261,14 @@ write_string(char *s, int cnt)
 				scrollup();
 				cur = lastl;
 			}
+			continue;
+		}
+
+		/*
+		 * Escape starts a multi-character sequence
+		 */
+		if (c == '\33') {
+			state = 1;
 			continue;
 		}
 
