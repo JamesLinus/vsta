@@ -4,6 +4,8 @@
  */
 #include <stdio.h>
 
+#define COLS (50)		/* Max # cols used for OBJS list */
+
 extern void *malloc(), *realloc();
 
 char *objs = 0;
@@ -11,7 +13,7 @@ char *objs = 0;
 main()
 {
 	FILE *fp, *fpmk, *fpobj;
-	int c, l;
+	int c, l, col = 0;
 	char buf[128], dir[128];
 
 	/*
@@ -86,9 +88,21 @@ main()
 		/*
 		 * And tack on another object to our list
 		 */
+		col += strlen(buf)+3;
 		if (objs) {
-			objs = realloc(objs, strlen(objs)+strlen(buf)+4);
-			strcat(objs, " ");
+			int len;
+
+			len = strlen(objs)+strlen(buf)+4;
+			if (col > COLS) {
+				len += 3;
+			}
+			objs = realloc(objs, len);
+			if (col > COLS) {
+				strcat(objs, " \\\n\t");
+				col = 8;
+			} else {
+				strcat(objs, " ");
+			}
 		} else {
 			objs = malloc(strlen(buf)+3);
 			objs[0] = '\0';
