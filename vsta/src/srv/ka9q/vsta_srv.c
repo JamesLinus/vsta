@@ -1294,7 +1294,13 @@ do_proxy(struct msg *mp, struct client *cl)
 		dead_client(mp, cl);
 		return;
 	case M_DUP:
+		/*
+		 * We run the usual M_DUP stuff, but need to preserve
+		 * the message so our remote side can see it, too.
+		 */
+		bcopy(mp, &m, sizeof(m));
 		dup_client(mp, cl);
+		bcopy(&m, mp, sizeof(m));
 		cl->c_wait_reply = 0;
 		break;
 	default:
