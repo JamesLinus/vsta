@@ -116,7 +116,12 @@ partial_trunc(struct alloc *a, uint newsize)
 	free_block(a->a_start + newsize, a->a_len - newsize);
 	a->a_len = newsize;
 	topbase = (newsize & ~(EXTSIZ-1));
-	resize_buf(a->a_start + topbase, newsize - topbase, 0);
+	if (newsize > topbase) {
+		/*
+		 * Resize the top buffer unless it's vacuous (zero length)
+		 */
+		resize_buf(a->a_start + topbase, newsize - topbase, 0);
+	}
 }
 
 /*
