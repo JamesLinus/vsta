@@ -141,7 +141,7 @@ try_setarg(ulong base, char *p)
 main(int argc, char **argv)
 {
 	char *bootname;
-	char buf[64];
+	char buf[128];
 	extern int cputype(void);
 
 	if (argc < 2) {
