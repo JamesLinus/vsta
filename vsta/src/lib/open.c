@@ -194,7 +194,6 @@ try_open(port_t newfile, char *file, int mask, int mode)
 			*p++ = '/';	/* Restore path seperator */
 		}
 		if (x < 0) {		/* Return error if any */
-			msg_disconnect(newfile);
 			return(1);
 		}
 
