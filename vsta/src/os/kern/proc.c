@@ -44,7 +44,7 @@ mkview(uint pfn, void *vaddr, uint pages, struct vas *vas)
 	ps = physmem_pset(pfn, pages);
 	pv = malloc(sizeof(struct pview));
 	pv->p_set = ps;
-	ps->p_refs += 1;
+	ref_pset(ps);
 	pv->p_vaddr = vaddr;
 	pv->p_len = pages;
 	pv->p_off = 0;
