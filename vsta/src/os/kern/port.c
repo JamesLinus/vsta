@@ -134,8 +134,6 @@ delete_portref(struct proc *p, port_t port)
 	p_lock(&ptref->p_lock, SPL0);
 	v_sema(&p->p_sema);
 
-	ASSERT_DEBUG(ptref->p_port, "find_portref: null p_port2");
-
 	/*
 	 * Transfer from lock to semaphore.  When we come out of
 	 * this we will be the last thread to ever have access
