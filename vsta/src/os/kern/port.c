@@ -52,7 +52,7 @@ find_portref(struct proc *p, port_t port)
 			!(ptref = p->p_open[port]) ||
 			(ptref == PORT_RESERVED)) {
 		v_sema(&p->p_sema);
-		err(EINVAL);
+		err(EBADF);
 		return(0);
 	}
 
