@@ -54,4 +54,3 @@ _repoutsw:
 	outsw
 	popl	%esi
 	ret
-
