@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#undef TRACE		/* Noisy, but helpful for debugging */
+#define TRACE		/* Noisy, but helpful for debugging */
 
 /*
  * The head of the free list
@@ -168,7 +168,7 @@ alloc_block(uint nblk)
 	daddr_t d = 0;
 
 #ifdef TRACE
-	printf("alloc_block nblk %d", nblk);
+	printf("alloc_block %d blocks", nblk);
 #endif
 	for (fr = freelist; fr; fr = fr->fr_next) {
 		d = alloc_chunk(&fr->fr_free, nblk);
@@ -184,7 +184,7 @@ alloc_block(uint nblk)
 		write_sec(fr->fr_this, &fr->fr_free);
 	}
 #ifdef TRACE
-	printf(" -> %ld\n", d);
+	printf(" -> blk %ld\n", d);
 #endif
 	return(d);
 }
@@ -215,6 +215,20 @@ free_chunk(struct free *f, daddr_t d, uint nblk)
 		}
 		if ((a->a_start + a->a_len) == d) {
 			a->a_len += nblk;
+
+			/*
+			 * If we span the gap between two entries,
+			 * coalesce them here.
+			 */
+			if (++x < f->f_nfree) {
+				a += 1;
+				if (a->a_start == dend) {
+					(a-1)->a_len += a->a_len;
+					f->f_nfree -= 1;
+					bcopy(a+1, a, (f->f_nfree - x) *
+						 sizeof(struct alloc));
+				}
+			}
 			return(0);
 		}
 		if (d < a->a_start) {
@@ -504,7 +518,7 @@ free_block(daddr_t d, uint nblk)
 	struct free *f;
 
 #ifdef TRACE
-	printf("free_block nblk %d blk %ld\n", nblk, d);
+	printf("free_block blk %ld nblk %d\n", d, nblk);
 #endif
 	ASSERT_DEBUG(nblk > 0, "free_block: zero len");
 retry:
@@ -632,7 +646,7 @@ take_block(daddr_t d, ulong nsec)
 	struct freelist *fr;
 
 #ifdef TRACE
-	printf("take_block nblk %ld blk %ld\n", nsec, d);
+	printf("take_block blk %ld nblk %ld\n", d, nsec);
 #endif
 	for (fr = freelist; fr; fr = fr->fr_next) {
 		struct alloc *a;
@@ -652,6 +666,9 @@ take_block(daddr_t d, ulong nsec)
 		 */
 		a = f->f_free;
 		if (d < a->a_start) {
+#ifdef TRACE
+			printf(" -> no blocks\n");
+#endif
 			return(0);
 		}
 
@@ -685,6 +702,8 @@ take_block(daddr_t d, ulong nsec)
 		 */
 		break;
 	}
-	printf(" [failed]\n");
+#ifdef TRACE
+	printf(" -> no blocks\n");
+#endif
 	return(0);
 }
