@@ -504,6 +504,16 @@ IDT(Tnpx, T_NPX)
 IDT(Tsyscall, T_SYSCALL)
 
 /*
+ * stray_ign()
+ *	A fast path for ignoring known stray interrupts
+ *
+ * Currently used for IRQ7, even when lpt1 is masked on the PIC!
+ */
+	.globl	_stray_ign
+_stray_ign:
+	iret
+
+/*
  * INTVEC()
  *	Macro to set up trap frame for hardware interrupt
  *
