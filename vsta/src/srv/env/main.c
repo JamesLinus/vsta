@@ -14,15 +14,12 @@
 #include <sys/ports.h>
 #include <sys/types.h>
 #include <stdio.h>
-
-extern void *malloc(), env_open(), env_read(), env_write(),
-	env_remove(), env_stat(), env_wstat();
-extern char *strerror();
+#include <std.h>
 
 port_t envport;	/* Port we receive contacts through */
 
 static struct hash *filehash;
-static struct node rootnode;
+struct node rootnode;
 
 /*
  * Default protection for system-defined names; anybody can read,
@@ -42,8 +39,6 @@ static struct prot env_prot = {
 static void
 env_seek(struct msg *m, struct file *f)
 {
-	struct node *n = f->f_node;
-
 	if (m->m_arg < 0) {
 		msg_err(m->m_sender, EINVAL);
 		return;
@@ -63,8 +58,9 @@ access(struct file *f, int mode, struct prot *prot)
 
 	uperms = perm_calc(f->f_perms, f->f_nperm, prot);
 	desired = mode & (ACC_WRITE|ACC_READ|ACC_CHMOD);
-	if ((uperms & desired) != desired)
+	if ((uperms & desired) != desired) {
 		return(1);
+	}
 	f->f_mode = uperms;
 	return(0);
 }
@@ -115,10 +111,13 @@ new_client(struct msg *m)
 	}
 
 	/*
-	 * Start out at root node
+	 * Start out at root node.  No home until set.  We are the
+	 * first member of this group.
 	 */
 	f->f_node = &rootnode;
-	rootnode.n_refs += 1;
+	f->f_home = 0;
+	ref_node(&rootnode);
+	f->f_forw = f->f_back = f;
 
 	/*
 	 * Return acceptance
@@ -156,20 +155,27 @@ dup_client(struct msg *m, struct file *fold)
 	 * Bulk copy
 	 */
 	*f = *fold;
+	ref_node(f->f_node);
+	ref_node(f->f_home);
 
 	/*
 	 * Hash under the sender's handle
 	 */
-        if (hash_insert(filehash, m->m_arg, f)) {
+	if (hash_insert(filehash, m->m_arg, f)) {
+		deref_node(f->f_home);
+		deref_node(f->f_node);
 		free(f);
 		msg_err(m->m_sender, ENOMEM);
 		return;
 	}
 
 	/*
-	 * Bump ref now that the has_insert worked
+	 * Join group
 	 */
-	f->f_node->n_refs += 1;
+	f->f_forw = fold;
+	f->f_back = fold->f_back;
+	fold->f_back->f_forw = f;
+	fold->f_back = f;
 
 	/*
 	 * Return acceptance
@@ -185,8 +191,28 @@ dup_client(struct msg *m, struct file *fold)
 static void
 dead_client(struct msg *m, struct file *f)
 {
+	/*
+	 * Remove from client hash, release ref to our
+	 * current node.
+	 */
 	(void)hash_delete(filehash, m->m_sender);
-	f->f_node->n_refs -= 1;
+	deref_node(f->f_node);
+
+	/*
+	 * If we're the last in the group, tear down our
+	 * home node.
+	 */
+	if (f->f_forw == f) {
+		remove_node(f->f_home);
+	} else {
+		/*
+		 * Otherwise leave the group and drop our
+		 * reference.
+		 */
+		f->f_back->f_forw = f->f_forw;
+		f->f_forw->f_back = f->f_back;
+		deref_node(f->f_home);
+	}
 	free(f);
 }
 
@@ -214,7 +240,7 @@ loop:
 	/*
 	 * All requests should fit in one buffer
 	 */
-	if ((msg.m_nseg > 1) && !FS_RW(msg.m_op)) {
+	if (msg.m_nseg > 1) {
 		msg_err(msg.m_sender, EINVAL);
 		goto loop;
 	}
@@ -279,9 +305,6 @@ loop:
 main(int argc, char *argv[])
 {
 	port_t port;
-	port_name blkname;
-	struct msg msg;
-	int chan, fd, x;
 
 	/*
 	 * Allocate data structures we'll need
@@ -298,17 +321,16 @@ main(int argc, char *argv[])
 	rootnode.n_prot = env_prot;
 	rootnode.n_up = 0;
 	strcpy(rootnode.n_name, "/");
-	rootnode.n_internal = 1;
+	rootnode.n_flags = N_INTERNAL;
 	ll_init(&rootnode.n_elems);
 	rootnode.n_refs = 1;	/* Always at least 1 */
 
 	/*
-	 * Block device looks good.  Last check is that we can register
-	 * with the given name.
+	 * Register our well-known address
 	 */
 	envport = msg_port(PORT_ENV, 0);
-	if (x < 0) {
-		fprintf(stderr, "ENV: can't register name\n");
+	if (envport < 0) {
+		fprintf(stderr, "env: can't register name\n");
 		exit(1);
 	}
 
