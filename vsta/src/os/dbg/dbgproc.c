@@ -89,16 +89,25 @@ dump_ids(struct perm *perms)
 	for (x = 0; x < PROCPERMS; ++x, ++perms) {
 		int y;
 
-		if (perms->perm_len > PERMLEN) {
-			continue;
-		}
-		for (y = 0; y < perms->perm_len; ++y) {
-			if (y == 0) {
-				printf(" ");
-			} else {
-				printf(".");
+		if (!PERM_ACTIVE(perms)) {
+			if (!PERM_DISABLED(perms)) {
+				continue;
 			}
-			printf("%d", perms->perm_id[y]);
+		}
+		if (PERM_LEN(perms) == 0) {
+			printf(" <root>");
+		} else {
+			for (y = 0; y < PERM_LEN(perms); ++y) {
+				if (y == 0) {
+					printf(" ");
+				} else {
+					printf(".");
+				}
+				printf("%d", perms->perm_id[y]);
+			}
+		}
+		if (PERM_DISABLED(perms)) {
+			printf("[disabled]");
 		}
 	}
 	printf("\n");
@@ -113,7 +122,7 @@ dump_proc(struct proc *p, int brief)
 {
 	int x;
 
-	printf("%d\n", p->p_pid);
+	printf("%d %s\n", p->p_pid, p->p_cmd);
 	if (brief) {
 		return;
 	}
