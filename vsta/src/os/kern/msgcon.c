@@ -443,9 +443,9 @@ close_client(struct port *port, struct portref *pr)
 	if (blocked_sema(&pr->p_iowait)) {
 		v_sema(&pr->p_iowait);
 	}
+	deref_port(port, pr);
 	v_lock(&port->p_lock, SPL0);
 	v_lock(&pr->p_lock, SPL0);
-	deref_port(port, pr);
 	return(0);
 }
 
