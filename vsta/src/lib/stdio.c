@@ -757,32 +757,6 @@ clearerr(FILE *fp)
 }
 
 /*
- * setbuffer()
- *	Set buffer with given size
- */
-void
-setbuffer(FILE *fp, char *buf, uint size)
-{
-	if (buf == 0) {
-		fp->f_flags |= _F_UNBUF;
-		return;
-	}
-	fp->f_pos = fp->f_buf = (uchar *)buf;
-	fp->f_bufsz = size;
-	fp->f_cnt = 0;
-	fp->f_flags |= _F_UBUF;
-}
-/*
- * setbuf()
- *	Set buffering for file
- */
-void
-setbuf(FILE *fp, char *buf)
-{
-	setbuffer(fp, buf, BUFSIZ);
-}
-
-/*
  * puts()
  *	Put a string, add a newline
  */
@@ -985,4 +959,87 @@ tmpfile(void)
 	}
 	sprintf(buf, "/tmp/tf%d", getpid());
 	return(fopen(buf, "w"));
+}
+
+/*
+ * getw()
+ *	Get an integer (word) from a file
+ */
+int
+getw(FILE *fp)
+{
+	int w;
+
+	if (fread(&w, sizeof(int), 1, fp) == 1) {
+		return(w);
+	}
+
+	return(EOF);
+}
+
+/*
+ * putw()
+ *	Get an integer (word) from a file
+ */
+int
+putw(int w, FILE *fp)
+{
+	return((fwrite(&w, sizeof(int), 1, fp) == 1) ? 0 : EOF);
+}
+
+/*
+ * setvbuf()
+ *	Select a buffering strategy
+ */
+int
+setvbuf(FILE *fp, char *buf, int mode, size_t size)
+{
+	/*
+	 * Always set the buffering method
+	 */
+	fp->f_flags &= ~_F_UNBUF & ~_F_LINE;
+	fp->f_flags |= (mode == _IONBF ? _F_UNBUF : 0)
+			| (mode == _IOLBF ? _F_LINE : 0);
+
+	if (buf == 0) {
+		return;
+	}
+
+	/*
+	 * If there's a buffer specified, set the details
+	 */
+	fp->f_pos = fp->f_buf = buf;
+	fp->f_bufsz = size;
+	fp->f_cnt = 0;
+	fp->f_flags |= _F_UBUF;
+}
+
+/*
+ * setbuffer()
+ *	Set buffer with given size
+ */
+void
+setbuffer(FILE *fp, char *buf, size_t size)
+{
+	setvbuf(fp, buf, buf ? _IOFBF : _IONBF, size);
+}
+
+/*
+ * setbuf()
+ *	Set buffering for file
+ */
+void
+setbuf(FILE *fp, char *buf)
+{
+	setvbuf(fp, buf, buf ? _IOFBF : _IONBF, BUFSIZ);
+}
+
+/*
+ * setlinebuf()
+ *	Set the type of buffering for a file
+ */
+void
+setlinebuf(FILE *fp)
+{
+	setvbuf(fp, (char *)NULL, _IOLBF, 0);
 }
