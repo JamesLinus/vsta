@@ -12,7 +12,7 @@
 #include <mach/setjmp.h>
 #include "../mach/locore.h"
 
-extern char etext[];
+extern char _etext[];
 extern jmp_buf dbg_errjmp;
 extern struct proc *allprocs;
 
@@ -86,7 +86,7 @@ trace(char *args)
  	/*
  	 * Loop, reading pairs of frame pointers and return addresses
  	 */
-#define INSTACK(v) (((char *)v >= etext) && ((ulong)v < 0x40000000))
+#define INSTACK(v) (((char *)v >= _etext) && ((ulong)v < 0x40000000))
 	while (INSTACK(ebp)) {
 		int narg, x;
 		char *p, *loc;
@@ -110,7 +110,7 @@ trace(char *args)
  		 * out (for instance, bunched several cleanups together),
  		 * we're out of luck.
  		 */
-		if ((s->s_eip < NBPG) || (s->s_eip > (ulong)etext)) {
+		if ((s->s_eip < NBPG) || (s->s_eip > (ulong)_etext)) {
 			x = 0;
 		} else {
 			x = *(ulong *)s->s_eip;
