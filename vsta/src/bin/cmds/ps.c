@@ -25,11 +25,11 @@ static char *
 statename(struct pstat *p)
 {
 	if (p->ps_nonproc > 0) {
-		return("RUNNING ");
+		return("ONPROC");
 	} else if (p->ps_nrun > 0) {
-		return("RUNNABLE");
+		return("RUN   ");
 	} else {
-		return("SLEEPING");
+		return("SLP   ");
 	}
 }
 
@@ -40,7 +40,7 @@ statename(struct pstat *p)
 static void
 printps(struct pstat *p)
 {
-	printf("%6d %-8s %s %2d %d/%d\n", p->ps_pid, p->ps_cmd,
+	printf("%6d %-8s %s %7d %d/%d\n", p->ps_pid, p->ps_cmd,
 		statename(p), p->ps_nthread,
 		p->ps_usrcpu, p->ps_syscpu);
 }
@@ -96,6 +96,7 @@ main()
 	/*
 	 * Print them
 	 */
+	printf("PID    CMD      STATE  NTHREAD USR/SYS\n");
 	for (p = phead; p; p = p->pl_next) {
 		printps(&p->pl_pstat);
 	}
