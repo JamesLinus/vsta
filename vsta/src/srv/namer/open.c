@@ -109,15 +109,18 @@ namer_open(struct msg *m, struct file *f)
 	}
 
 	/*
-	 * Fill in its fields.  Default label is the first user
-	 * label, with all the abilities requiring a full match.
+	 * Fill in its fields.  We allow everybody to read by
+	 * default, as they could hunt for the port_name anyway,
+	 * and our real protection against them is when they
+	 * try to connect to the server.
 	 */
 	p = &n->n_prot;
 	bzero(p, sizeof(*p));
 	p->prot_len = PERM_LEN(&f->f_perms[0]);
 	bcopy(f->f_perms[0].perm_id, p->prot_id, PERMLEN);
+	p->prot_default = ACC_READ;
 	p->prot_bits[p->prot_len-1] =
-		ACC_READ|ACC_WRITE|ACC_CHMOD;
+		ACC_WRITE|ACC_CHMOD;
 	n->n_owner = f->f_perms[0].perm_uid;
 	strcpy(n->n_name, m->m_buf);
 	n->n_internal = (m->m_arg & ACC_DIR) ? 1 : 0;
