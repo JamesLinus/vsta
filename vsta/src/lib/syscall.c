@@ -60,3 +60,19 @@ abort(void)
 	notify(0L, 0L, EKILL);
 	/*NOTREACHED*/
 }
+
+/*
+ * strerror()
+ *	Get string error from kernel
+ */
+char *
+strerror(void)
+{
+	static char err[ERRLEN];
+
+	err[0] = '\0';
+	if ((_strerror(err) < 0) || !err[0]) {
+		strcpy(err, "unknown error");
+	}
+	return(err);
+}
