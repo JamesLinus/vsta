@@ -1,11 +1,97 @@
 /*
  * stat.c
  *	Implement stat operations on an open file
+ *
+ * The date/time handling functions are derived from software
+ * distributed in the Mach and BSD 4.4 software releases.  They
+ * were originally written by Bill Jolitz.
  */
 #include <sys/fs.h>
 #include <dos/dos.h>
 #include <std.h>
 #include <sys/param.h>
+
+/*
+ * ytos()
+ *	convert years to seconds (from 1990)
+ */
+static ulong
+ytos(uint y)
+{
+	uint i;
+	ulong ret;
+
+	if (y < 1990) {
+		printf("Warning: year %d is less than 1990!\n", y);
+	}
+	ret = 0;
+	for (i = 1990; i < y; i++) {
+		if (i % 4) {
+			ret += 365*24*60*60;
+		} else {
+			ret += 366*24*60*60;
+		}
+	}
+	return(ret);
+}
+
+/*
+ * mtos()
+ *	convert months to seconds
+ */
+static ulong
+mtos(uint m, int leap)
+{
+	uint i;
+	ulong ret;
+
+	ret = 0;
+	for (i = 1; i < m; i++) {
+		switch(i){
+		case 1: case 3: case 5: case 7: case 8: case 10: case 12:
+			ret += 31*24*60*60; break;
+		case 4: case 6: case 9: case 11:
+			ret += 30*24*60*60; break;
+		case 2:
+			if (leap) ret += 29*24*60*60;
+			else ret += 28*24*60*60;
+		}
+	}
+	return ret;
+}
+
+
+/*
+ * cvt_time()
+ *	Calculate time in seconds given DOS-encoded date/time
+ *
+ * Returns seconds since 1990, or 0L on failure.
+ */
+ulong
+cvt_time(uint date, uint time)
+{
+	ulong sec;
+	uint leap, t, yd;
+	uint sa, s;
+	const uint dayst = 119,		/* Daylight savings, sort of */
+		dayen = 303;
+
+	sec = (date >> 9) + 1980;
+	leap = !(sec % 4); sec = ytos(sec);			/* year */
+	yd = mtos((date >> 5) & 0xF,leap); sec += yd;		/* month */
+	t = ((date & 0x1F)-1) * 24*60*60; sec += t;
+		yd += t;					/* date */
+	sec += (time >> 11) * 60*60;				/* hour */
+	sec += ((time >> 5) & 0x3F) * 60;			/* minutes */
+	sec += ((time & 0x1F) << 1);				/* seconds */
+
+	/* Convert to daylight saving */
+	yd = yd / (24*60*60);
+	if ((yd >= dayst) && ( yd <= dayen)) {
+		sec -= 60*60;
+	}
+	return(sec);
+}
 
 /*
  * inum()
@@ -70,21 +156,25 @@ dos_stat(struct msg *m, struct file *f)
 {
 	char result[MAXSTAT];
 	struct node *n = f->f_node;
+	struct directory d;
 
 	/*
 	 * Directories
 	 */
+	dir_copy(n->n_dir, n->n_slot, &d);
 	if (n->n_type == T_DIR) {
 		sprintf(result,
-		 "perm=1/1\nacc=5/0/2\nsize=%d\ntype=d\nowner=0\ninode=%d\n",
-			isize(n), inum(n));
+ "perm=1/1\nacc=5/0/2\nsize=%d\ntype=d\nowner=0\ninode=%d\nmtime=%ld\n",
+			isize(n), inum(n),
+			cvt_time(d.date, d.time));
 	} else {
 		/*
 		 * Otherwise look up file and get dope
 		 */
 		sprintf(result,
-		 "perm=1/1\nacc=5/0/2\nsize=%d\ntype=f\nowner=0\ninode=%d\n",
-			n->n_len, inum(n));
+ "perm=1/1\nacc=5/0/2\nsize=%d\ntype=f\nowner=0\ninode=%d\nmtime=%ld\n",
+			n->n_len, inum(n),
+			cvt_time(d.date, d.time));
 	}
 	m->m_buf = result;
 	m->m_buflen = strlen(result);
