@@ -313,6 +313,27 @@ tskip(register char *bp)
 }
 
 /*
+ * ttysize()
+ *	Try to get the geometry of the current TTY
+ *
+ * We need to try several FD's, as libtermcap may be running in an environment
+ * where some directions are redirected, but current TTY geometry should still
+ * be honored.
+ */
+static int
+ttysize(int *rowsp, int *colsp)
+{
+	int x;
+
+	for (x = 0; x < 3; ++x) {
+		if (tcgetsize(x, rowsp, colsp) >= 0) {
+			return(1);
+		}
+	}
+	return(0);
+}
+
+/*
  * Return the (numeric) option id.
  * Numeric options look like
  *	li#80
@@ -330,11 +351,11 @@ tgetnum(char *id)
 	char *bp = tbuf;
 
 	if (!strcmp(id, "li")) {
-		if (tcgetsize(0, &rows, &cols) >= 0) {
+		if (ttysize(&rows, &cols) >= 0) {
 			return(rows);
 		}
 	} else if (!strcmp(id, "co")) {
-		if (tcgetsize(0, &rows, &cols) >= 0) {
+		if (ttysize(&rows, &cols) >= 0) {
 			return(cols);
 		}
 	}
