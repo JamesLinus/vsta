@@ -27,6 +27,7 @@ static int fat_dirty;	/* Flag that we need to flush the FAT */
 static uint nclust;	/* Total clusters on disk */
 ulong data0;		/* Byte offset for data block 0 (cluster 2) */
 uint dirents;		/* # directory entries */
+static ulong nxt_clust;	/* Where last cluster search left off */
 
 /*
  * DIRTY()
@@ -122,14 +123,19 @@ fat_init(void)
 	dirents = bootb.dirents0 + (bootb.dirents1 << 8);
 	clsize = bootb.clsize * SECSZ;
 	x = bootb.psect0 + (bootb.psect1 << 8);
-	if (x > 0) {
-		nclust = (x * SECSZ) / clsize;
-	} else {
-		nclust = (bootb.bigsect * SECSZ) / clsize;
-	}
 	data0 = bootb.nrsvsect + (bootb.nfat * bootb.fatlen) +
 		(dirents * sizeof(struct directory))/SECSZ;
 	data0 *= SECSZ;
+
+	/*
+	 * Calculate # clusters for files given total sectors and
+	 * start of data.
+	 */
+	if (x > 0) {
+		nclust = (x * SECSZ) / clsize;
+	} else {
+		nclust = ((bootb.bigsect * SECSZ) - data0) / clsize;
+	}
 
 	/*
 	 * Get map of dirty sectors in FAT
@@ -204,7 +210,7 @@ fat_init(void)
 int
 clust_setlen(struct clust *c, ulong newlen)
 {
-	uint newclust, x, y;
+	uint newclust, clust_cnt, x, y;
 	ushort *ctmp;
 
 	/*
@@ -223,6 +229,7 @@ clust_setlen(struct clust *c, ulong newlen)
 	 * Getting smaller--free stuff at the end
 	 */
 	if (c->c_nclust > newclust) {
+		nxt_clust = newclust;
 		for (x = newclust; x < c->c_nclust; ++x) {
 			y = c->c_clust[x];
 #ifdef DEBUG
@@ -260,26 +267,38 @@ clust_setlen(struct clust *c, ulong newlen)
 		return(1);
 	}
 	c->c_clust = ctmp;
-	y = 0;
+	y = nxt_clust;
+	clust_cnt = 0;
 	for (x = c->c_nclust; x < newclust; ++x) {
 		/*
 		 * Scan for next free cluster
 		 */
-		while ((y < nclust) && fat[y]) {
-			y += 1;
+		while ((clust_cnt++ < nclust) && fat[y]) {
+			if (++y >= nclust) {
+				y = 0;
+			}
 		}
 
 		/*
-		 * If we didn't find one, roll back and fail.
+		 * If we didn't find one, fail
 		 */
-		if (y >= nclust) {
+		if (clust_cnt >= nclust) {
 			return(1);
+		}
+
+		/*
+		 * Tag where last search finished to save time
+		 */
+		nxt_clust = y + 1;
+		if (nxt_clust >= nclust) {
+			nxt_clust = 0;
 		}
 
 		/*
 		 * Sanity
 		 */
-		ASSERT_DEBUG(y >= 2, "clust_setlen: bad FAT");
+		ASSERT_DEBUG((y >= 2) && (y < nclust),
+			"clust_setlen: bad FAT");
 
 		/*
 		 * Otherwise add it to our array.  We will flag it
