@@ -52,7 +52,8 @@ static char _sctab[256] = {
 };
 
 static int
-instr(char *ptr, int type, int len, FILE *fp, int *eofptr)
+instr(char *ptr, int type, int len, FILE *fp, int *eofptr,
+	int *nreadp)
 {
 	int ch;
 	char *optr;
@@ -67,8 +68,11 @@ instr(char *ptr, int type, int len, FILE *fp, int *eofptr)
 	if (type == 's') {
 		ignstp = SPC;
 	}
-	while ((ch = getc(fp)) != EOF && _sctab[ch] & ignstp) {
-		;
+	while ((ch = getc(fp)) != EOF) {
+		*nreadp += 1;
+		if (!(_sctab[ch] & ignstp)) {
+			break;
+		}
 	}
 	ignstp = SPC;
 	if (type=='c')
@@ -82,11 +86,14 @@ instr(char *ptr, int type, int len, FILE *fp, int *eofptr)
 		if (--len <= 0) {
 			break;
 		}
-		ch = getc(fp);
+		if ((ch = getc(fp)) != EOF) {
+			*nreadp += 1;
+		}
 	}
 	if (ch != EOF) {
 		if (len > 0) {
 			ungetc(ch, fp);
+			*nreadp -= 1;
 		}
 		*eofptr = 0;
 	} else {
@@ -102,7 +109,8 @@ instr(char *ptr, int type, int len, FILE *fp, int *eofptr)
 }
 
 static int
-innum(int **ptr, int type, int len, int size, FILE *fp, int *eofptr)
+innum(int **ptr, int type, int len, int size, FILE *fp,
+	int *eofptr, int *nreadp)
 {
 	char *np;
 	char numbuf[64];
@@ -112,7 +120,7 @@ innum(int **ptr, int type, int len, int size, FILE *fp, int *eofptr)
 
 	if (type=='c' || type=='s' || type=='[') {
 		return(instr(ptr ? *(char **)ptr :
-			(char *)NULL, type, len, fp, eofptr));
+			(char *)NULL, type, len, fp, eofptr, nreadp));
 	}
 	lcval = 0;
 	ndigit = 0;
@@ -129,17 +137,26 @@ innum(int **ptr, int type, int len, int size, FILE *fp, int *eofptr)
 	np = numbuf;
 	expseen = 0;
 	negflg = 0;
-	while ((c = getc(fp)) == ' ' || c == '\t' || c == '\n');
+	while ((c = getc(fp)) != EOF) {
+		*nreadp += 1;
+		if ((c != ' ') && (c != '\t') && (c != '\n')) {
+			break;
+		}
+	}
 	if (c=='-') {
 		negflg++;
 		*np++ = c;
-		c = getc(fp);
+		if ((c = getc(fp)) != EOF) {
+			*nreadp += 1;
+		}
 		len--;
 	} else if (c=='+') {
 		len--;
-		c = getc(fp);
+		if ((c = getc(fp)) != EOF) {
+			*nreadp += 1;
+		}
 	}
-	for ( ; --len>=0; *np++ = c, c = getc(fp)) {
+	for ( ; --len>=0; *np++ = c, c = getc(fp), ++*nreadp) {
 		if (isdigit(c)
 		 || base==16 && ('a'<=c && c<='f' || 'A'<=c && c<='F')) {
 			ndigit++;
@@ -173,7 +190,9 @@ innum(int **ptr, int type, int len, int size, FILE *fp, int *eofptr)
 			}
 			expseen++;
 			*np++ = c;
-			c = getc(fp);
+			if ((c = getc(fp)) != EOF) {
+				*nreadp += 1;
+			}
 			if (c!='+'&&c!='-'&&('0'>c||c>'9')) {
 				break;
 			}
@@ -186,6 +205,7 @@ innum(int **ptr, int type, int len, int size, FILE *fp, int *eofptr)
 	}
 	if (c != EOF) {
 		ungetc(c, fp);
+		*nreadp -= 1;
 		*eofptr = 0;
 	} else {
 		*eofptr = 1;
@@ -262,9 +282,7 @@ getccl(unsigned char *s)
 int
 _doscan(FILE *fp, const char *fmt, void *argp2)
 {
-	int ch;
-	int nmatch, len, ch1;
-	int **ptr, fileended, size;
+	int ch, nmatch, len, ch1, **ptr, fileended, size, nread = 0;
 	void **argp = argp2;
 
 	nmatch = 0;
@@ -302,9 +320,18 @@ _doscan(FILE *fp, const char *fmt, void *argp2)
 			ch = tolower(ch);
 			size = LONG;
 		}
-		if (ch == '\0')
+		if (ch == '\0') {
 			return(-1);
-		if (innum(ptr, ch, len, size, fp, &fileended) && ptr) {
+		}
+		if (ch == 'n') {
+			if (ptr) {
+				**ptr = nread;
+				nmatch += 1;
+			}
+			break;
+		}
+		if (innum(ptr, ch, len, size, fp, &fileended, &nread) &&
+				ptr) {
 			nmatch++;
 		}
 		if (fileended) {
@@ -315,15 +342,23 @@ _doscan(FILE *fp, const char *fmt, void *argp2)
 	case ' ':
 	case '\n':
 	case '\t': 
-		while ((ch1 = getc(fp))==' ' || ch1=='\t' || ch1=='\n')
-			;
-		if (ch1 != EOF)
+		while ((ch1 = getc(fp)) != EOF) {
+			nread += 1;
+			if ((ch1 != ' ') && (ch1 != '\t') &&
+					(ch1 != '\n')) {
+				break;
+			}
+		}
+		if (ch1 != EOF) {
 			ungetc(ch1, fp);
+			nread -= 1;
+		}
 		break;
 
 	default: 
 	def:
 		ch1 = getc(fp);
+		nread += 1;
 		if (ch1 != ch) {
 			if (ch1==EOF)
 				return(-1);
