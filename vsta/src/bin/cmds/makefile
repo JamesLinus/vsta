@@ -62,3 +62,4 @@ clean:
 	del sleep
 	del pwd
 	del kill
+	del mv
