@@ -382,18 +382,20 @@ I've been trying to get a handle on a bug which hoses the first text
 	X folded in, resulting in GRUB being told to insert the boot
 	X modules too low in memory (on top of kernel BSS, in fact)
 
-In a release or so, /bin/ovim should go away.
+X In a release or so, /bin/ovim should go away.
+	X Done.
 
 The pipe server should be made to buffer data rather than always
 	lock a writer until there's a reader for his data.  It should
 	still, of course, do a direct writer->reader I/O op for
 	cases where the reader is present at the time of the write.
 
-There's a little tidying to be done with environment variable emulation.
-	The /env server has a "fork" wstat which doesn't appear to be
-	used.  With the change where fork() no longer even necessarily
-	clone()'s open connections, there really needs to be a way for
-	children /env/# entries to not propagate back to parents.  So
-	this seems like a need for wstat("fork") to come back in the
-	start.c code at a minimum, along with an explicit clone() of
-	the /env/ mount point port.
+X There's a little tidying to be done with environment variable emulation.
+X 	The /env server has a "fork" wstat which doesn't appear to be
+X 	used.  With the change where fork() no longer even necessarily
+X 	clone()'s open connections, there really needs to be a way for
+X 	children /env/# entries to not propagate back to parents.  So
+X 	this seems like a need for wstat("fork") to come back in the
+X 	start.c code at a minimum, along with an explicit clone() of
+X 	the /env/ mount point port.
+X	Done.
