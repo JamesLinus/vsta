@@ -11,13 +11,13 @@
  * implementation is based on his pascal code. The algorithm is reasonably
  * fast, and provides a reasonable amount of compression.
  */
-
 #include <stdio.h>
 #include <stdlib.h>
 #ifndef __MSDOS__
 #include <stat.h>
 #endif
-#include <pio.h>
+#include "pio.h"
+#include <fcntl.h>
 
 #ifndef FALSE
 #define FALSE  0

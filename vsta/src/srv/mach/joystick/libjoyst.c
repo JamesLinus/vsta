@@ -12,7 +12,7 @@
  * libmouse.c library for VSTa.
  */
 
-#include <pio.h>
+#include "pio.h"
 #include <stdio.h>
 #include <fcntl.h>
 #include <std.h>

@@ -7,7 +7,7 @@
  *
  * Description: Deals with read/write requests to the joystick device
  */
-#include <pio.h>
+#include "pio.h"
 #include <string.h>
 #include <syslog.h>
 #include <time.h>

@@ -3,9 +3,9 @@ LD	= ld
 INCS	= -I../../../../include
 CFLAGS	= -DDEBUG -Wall $(INCS) -O
 LDFLAGS	= -L../../../lib
-OBJS	= main.o rw.o stat.o
-TOBJS	= libjoystick.o jstest.o
-LIBS	= -lusr -lpio -lc
+OBJS	= main.o rw.o stat.o pio.o
+TOBJS	= libjoystick.o jstest.o pio.o
+LIBS	= -lusr -lc
 CRT0	= ../../../lib/crt0.o
 
 .c.o:
