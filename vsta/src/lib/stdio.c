@@ -607,6 +607,7 @@ fclose(FILE *fp)
  * fflush()
  *	Flush out buffers in FILE
  */
+int
 fflush(FILE *fp)
 {
 	/*
