@@ -218,3 +218,17 @@ DOS file ID is OK for purposes of caching executables, but hoses things
 	in with the directory slot, but this caused the ID to change
 	on a rename.  It was then impossible to unhash a renamed a.out
 	which was kernel cached.
+
+Time to do a new level of path walk optimization.  chdir() should try
+	to hold an open port_t on the cwd, to spare walking the prefix
+	for each new file operation.  This is made tricky by things
+	like chdir'ing to /vsta/foo, and holding "foo" open, but if
+	the fstab has a /vsta/foo/bar mount point, you need to stop
+	using the cached port_t when you walk from foo down into bar.
+	This cwd port_t probably needs to be dropped on an exec().
+
+And for a *really* big change, FS_OPEN2 should be done; it takes the
+	entire path string, and walks it down within the server, rather
+	than feeding path elements one at a time.  Return should
+	indicate success, or how far down before the error occurred (for
+	ESYMLINK, for instance).
