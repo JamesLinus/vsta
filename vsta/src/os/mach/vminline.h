@@ -91,7 +91,7 @@ kern_deletetrans(void *vaddr, uint pfn)
 	pt = L2PTMAP;
 	pt += ((ulong)vaddr >> PT_PFNSHIFT);
 	*pt = 0;
-	flush_tlb();
+	flush_tlb(vaddr);
 }
 
 #endif /* _MACH_VM_H */
