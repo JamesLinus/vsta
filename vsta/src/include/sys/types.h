@@ -5,9 +5,17 @@
  *	Central repository for globally known types
  */
 typedef unsigned int uint;
+typedef unsigned int uint_t;
+typedef unsigned int u_int;
 typedef unsigned short ushort;
+typedef unsigned short ushort_t;
+typedef unsigned short u_short;
 typedef unsigned char uchar;
+typedef unsigned char uchar_t;
+typedef unsigned char u_char;
 typedef unsigned long ulong;
+typedef unsigned long ulong_t;
+typedef unsigned long u_long;
 typedef unsigned long off_t;
 typedef unsigned long size_t;
 struct time {
