@@ -352,9 +352,11 @@ perm_ctl(int arg_idx, struct perm *arg_perm, struct perm *arg_ret)
 		
 		/*
 		 * If we just changed our default ownership make our
-		 * protections match our new self
+		 * protections match our new self.  Skip doing so if
+		 * this is a daemon playing with his root permission.
 		 */
-		if (arg_idx == 0) {
+		if ((arg_idx == 0) && PERM_ACTIVE(&perm) &&
+				(PERM_LEN(&perm) > 0)) {
 			int plen = PERM_LEN(&perm);
 
 			p->p_prot.prot_bits[plen]
