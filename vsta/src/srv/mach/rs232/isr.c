@@ -12,6 +12,7 @@ extern uint iobase;
 extern int txwaiters, rxwaiters;
 extern struct fifo *inbuf, *outbuf;
 extern uchar dtr, dsr, rts, cts, dcd, ri;
+extern uchar onlcr;
 
 volatile uint txbusy;	/* UART sending data right now? */
 ulong overruns;		/* Count of overruns */
@@ -32,8 +33,19 @@ static inline void
 do_tx(void)
 {
 	uint x;
+	char c;
+	static uchar didcr;
 
 	x = txtl;
+	c = txbuf[x];
+	if ((c == '\n') && onlcr) {
+		if (!didcr) {
+			outportb(iobase + DATA, '\r');
+			didcr = 1;
+			return;
+		}
+		didcr = 0;
+	}
 	outportb(iobase + DATA, txbuf[x]);
 	if (++x >= BUFLEN) {
 		x = 0;

@@ -196,6 +196,7 @@ extern int rs232_iduart(int test_uart);
  */
 extern void rs232_stat(struct msg *m, struct file *f);
 extern void rs232_wstat(struct msg *m, struct file *f);
+extern uchar onlcr;
 
 /*
  * Prototypes from main.c

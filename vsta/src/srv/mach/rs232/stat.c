@@ -22,6 +22,7 @@ extern port_name rs232port_name;
 extern char uart_names[][RS232_UARTNAMEMAX];
 
 static char parity_names[5][5] = {"none", "even", "odd", "zero", "one"};
+uchar onlcr = 1;	/* Convert \n to \r\n on output */
 
 /*
  * rs232_stat()
@@ -43,7 +44,7 @@ rs232_stat(struct msg *m, struct file *f)
 		"rxfifothr=%d\ntxfifothr=%d\noverruns=%D\n" \
 		"baud=%d\ndatabits=%d\nstopbits=%s\nparity=%s\n" \
 		"dsr=%d\ndtr=%d\ncts=%d\nrts=%d\ndcd=%d\nri=%d\n" \
-		"inbuf=%d\noutbuf=%d\n",
+		"inbuf=%d\noutbuf=%d\nonlcr=%d\n",
 		accgen, perm_print(&rs232_prot),
 		rs232port_name, uart_names[uart],
 		iobase, irq,
@@ -52,7 +53,7 @@ rs232_stat(struct msg *m, struct file *f)
 		(stopbits == 1 ? "1" : (databits == 5 ? "1.5" : "2")),
 		parity_names[parity],
 		dsr, dtr, cts, rts, dcd, ri,
-		inbuf->f_cnt, outbuf->f_cnt);
+		inbuf->f_cnt, outbuf->f_cnt, onlcr);
 	m->m_buf = buf;
 	m->m_arg = m->m_buflen = strlen(buf);
 	m->m_nseg = 1;
@@ -94,6 +95,11 @@ rs232_wstat(struct msg *m, struct file *f)
 		
 		newdtr = val ? atoi(val) : 1;
 		rs232_setdtr(newdtr);
+	} else if (!strcmp(field, "onlcr")) {
+		/*
+		 * Set new ONLCR; default is on
+		 */
+		onlcr = (val != 0) ? (atoi(val) ? 1 : 0) : 1;
 	} else if (!strcmp(field, "gen")) {
 		/*
 		 * Set access-generation field
