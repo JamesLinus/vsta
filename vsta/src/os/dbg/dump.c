@@ -517,7 +517,7 @@ opname(ulong op)
 	switch (op) {
 #define OP(op) case op: printf(#op); break
 	OP(M_CONNECT); OP(M_DISCONNECT); OP(M_DUP);
-	OP(M_ABORT); OP(M_ISR); OP(M_TIME);
+	OP(M_ABORT); OP(M_ISR);
 	OP(FS_OPEN); OP(FS_READ); OP(FS_SEEK); OP(FS_WRITE);
 	OP(FS_REMOVE); OP(FS_STAT); OP(FS_WSTAT);
 	OP(FS_ABSREAD); OP(FS_ABSWRITE); OP(FS_FID); OP(FS_RENAME);
