@@ -34,10 +34,17 @@
  */
 #include <regexp.h>
 #include <stdio.h>
-#include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
 #include "regmagic.h"
+
+#undef DEBUG	/* DEBUG here isn't the same as libc's DEBUG support */
+
+/*
+ * We use the functional version so we don't have to become mired
+ * in shared data structure issues.
+ */
+extern int isalnum(char);
 
 /*
  * The "internal use only" fields in regexp.h are present to pass info from
