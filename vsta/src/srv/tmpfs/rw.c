@@ -288,7 +288,7 @@ tmpfs_read(struct msg *m, struct file *f)
 		 * Put into next message segment
 		 */
 		m->m_seg[nseg].s_buf = blkp+off;
-		m->m_seg[nseg].s_buflen = BLOCKSIZE-off;
+		m->m_seg[nseg].s_buflen = sz;
 
 		/*
 		 * Advance counter
