@@ -23,8 +23,9 @@ fd_readdir(struct msg *m, struct file *f)
 	 * Count up number of floppy units configured
 	 */
 	for (x = f->f_pos, nfd = 0; x < NFD; ++x) {
-		if (floppies[x].f_state == F_NXIO)
+		if (floppies[x].f_state == F_NXIO) {
 			continue;
+		}
 		++nfd;
 	}
 
@@ -37,8 +38,18 @@ fd_readdir(struct msg *m, struct file *f)
 	/*
 	 * Take smaller of available and fit
 	 */
-	if (nfd > entries)
+	if (nfd > entries) {
 		nfd = entries;
+	}
+
+	/*
+	 * End of file--return 0 count
+	 */
+	if (nfd == 0) {
+		m->m_arg = m->m_arg1 = m->m_nseg = 0;
+		msg_reply(m->m_sender, m);
+		return;
+	}
 
 	/*
 	 * Get a temp buffer to build into
@@ -52,8 +63,9 @@ fd_readdir(struct msg *m, struct file *f)
 	 * Assemble entries
 	 */
 	for (p = buf, x = f->f_pos; (x < NFD) && (nfd > 0); ++x) {
-		if (floppies[x].f_state == F_NXIO)
+		if (floppies[x].f_state == F_NXIO) {
 			continue;
+		}
 		sprintf(p, "fd%d\n", x);
 		p += 4;
 	}
@@ -62,11 +74,12 @@ fd_readdir(struct msg *m, struct file *f)
 	 * Send results
 	 */
 	m->m_buf = buf;
-	m->m_buflen = p-buf;
+	m->m_arg = m->m_buflen = p-buf;
 	m->m_nseg = 1;
-	m->m_arg = m->m_arg1 = 0;
+	m->m_arg1 = 0;
 	msg_reply(m->m_sender, m);
 	free(buf);
+	f->f_pos += nfd;
 }
 
 /*
