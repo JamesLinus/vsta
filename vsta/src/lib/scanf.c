@@ -236,7 +236,7 @@ innum(int **ptr, int type, int len, int size, FILE *fp, int *eofptr)
 		**(int **)ptr = lcval;
 		break;
 
-	case (INT<<3) | LONG:
+	case (INT<<4) | LONG:
 		**(long **)ptr = lcval;
 		break;
 	}
