@@ -41,6 +41,7 @@
 #include <llist.h>
 #include <std.h>
 #include <alloc.h>
+#include <selfs.h>
 #include "global.h"
 #include "mbuf.h"
 #include "netuser.h"
@@ -81,7 +82,8 @@ struct tcp_conn {
 	uint t_conn;		/*  ...and index in tcp_port's t_conns[] */
 	struct llist		/* Reader/writer queues */
 		t_readers,
-		t_writers;
+		t_writers,
+		t_selectors;	/* List of select() clients */
 	struct mbuf *t_readq;	/* Queue of mbufs of data to be consumed */
 };
 
@@ -126,6 +128,10 @@ struct client {
 	uint c_msg_bytes,	/* Assembly of proxy reply message */
 		c_body_bytes,
 		c_wait_reply;	/*  ...wait for reply? */
+	struct selclient
+		c_selfs;	/* State for select() applications */
+	struct llist		/* Our llist entry as a select client */
+		*c_sentry;
 };
 
 /*
@@ -211,15 +217,16 @@ mbuf_to_msg(struct mbuf *mb, struct msg *m, uint size)
  *	Set file position
  */
 static void
-inetfs_seek(struct msg *m, struct client *c)
+inetfs_seek(struct msg *m, struct client *cl)
 {
 	if (m->m_arg < 0) {
 		msg_err(m->m_sender, EINVAL);
 		return;
 	}
-	c->c_pos = m->m_arg;
+	cl->c_pos = m->m_arg;
 	m->m_buflen = m->m_arg = m->m_arg1 = m->m_nseg = 0;
 	msg_reply(m->m_sender, m);
+	cl->c_selfs.sc_iocount += 1;
 }
 
 /*
@@ -245,6 +252,7 @@ new_client(struct msg *m)
 	 * Initialize fields
 	 */
 	bzero(cl, sizeof(struct client));
+	sc_init(&cl->c_selfs);
 
 	/*
 	 * Hash under the sender's handle
@@ -289,7 +297,9 @@ dup_client(struct msg *m, struct client *cold)
 	/*
 	 * Fill in fields
 	 */
-	*c = *cold;
+	bcopy(cold, c, sizeof(struct client));
+	sc_init(&c->c_selfs);
+	c->c_sentry = 0;
 
 	/*
 	 * Hash under the sender's handle
@@ -417,11 +427,14 @@ shut_client(long client, struct client *c, int arg)
  *	Someone has gone away.  Free their info.
  */
 static void
-dead_client(struct msg *m, struct client *c)
+dead_client(struct msg *m, struct client *cl)
 {
-	shut_client(m->m_sender, c, 0);
+	shut_client(m->m_sender, cl, 0);
 	(void)hash_delete(clients, m->m_sender);
-	free(c);
+	if (cl->c_sentry) {
+		ll_delete(cl->c_sentry);
+	}
+	free(cl);
 }
 
 /*
@@ -523,6 +536,7 @@ create_conn(struct tcp_port *t)
 	bzero(c, sizeof(struct tcp_conn));
 	ll_init(&c->t_readers);
 	ll_init(&c->t_writers);
+	ll_init(&c->t_selectors);
 	c->t_port = t;
 	c->t_conn = idx;
 
@@ -899,6 +913,61 @@ inetfs_conn(struct msg *m, struct client *cl, char *val)
 }
 
 /*
+ * check_select()
+ *	See if there are select events to generate for this client
+ */
+static void
+check_select(struct client *cl)
+{
+	struct selclient *scp = &cl->c_selfs;
+	struct tcp_conn *c = get_conn(cl);
+	struct tcb *tcb = c->t_tcb;
+	uint events = 0;
+
+	/*
+	 * Look up TCP connection.  Generate no events if there's not
+	 * a proper TCP connection.
+	 */
+	c = get_conn(cl);
+	if (!c) {
+		return;
+	}
+	tcb = c->t_tcb;
+	if (!tcb) {
+		return;
+	}
+
+	/*
+	 * Check if there's readable content
+	 */
+	if (scp->sc_mask & ACC_READ) {
+		if (tcb->rcvcnt) {
+			events |= ACC_READ;
+		}
+	}
+
+	/*
+	 * Or if there's room to write() more
+	 */
+	if (scp->sc_mask & ACC_WRITE) {
+		if (tcb->sndcnt < tcb->window) {
+			events |= ACC_WRITE;
+		}
+	}
+
+	/*
+	 * TBD: Exceptional == OOB data
+	 */
+
+	/*
+	 * Post events, if any
+	 */
+	if (events) {
+		sc_event(scp, events);
+	}
+}
+
+/*
  * inetfs_wstat()
  *	Handle status setting operations
  */
@@ -907,6 +976,7 @@ inetfs_wstat(struct msg *m, struct client *cl)
 {
 	char *field, *val;
 	struct tcp_port *t = cl->c_port;
+	struct tcp_conn *c = get_conn(cl);
 
 	if (do_wstat(m, &t->t_prot, cl->c_perm, &field, &val) == 0) {
 		return;
@@ -915,7 +985,14 @@ inetfs_wstat(struct msg *m, struct client *cl)
 	case DIR_PORT:
 		ASSERT_DEBUG(t, "inetfs_wstat: PORT null port");
 		if (!val) {
-			/* Cause us to fall into error case */
+			; /* Cause us to fall into error case */
+		} else if (c &&
+				sc_wstat(m, &cl->c_selfs, field, val) == 0) {
+			if (cl->c_selfs.sc_mask) {
+				(void)ll_insert(&c->t_selectors, cl);
+				check_select(cl);
+			}
+			return;
 		} else if (!strcmp(field, "conn")) {
 			inetfs_conn(m, cl, val);
 			return;
@@ -1028,6 +1105,7 @@ inetfs_read(struct msg *m, struct client *cl)
 	 * If he doesn't care, pick current stream based on
 	 * availability
 	 */
+	cl->c_selfs.sc_iocount += 1;
 	if (m->m_arg1) {
 		uint idx = cl->c_pos, found = 0;
 
@@ -1076,6 +1154,7 @@ inetfs_read(struct msg *m, struct client *cl)
 	/*
 	 * Queue as a reader, then see if we can get data yet
 	 */
+	cl->c_selfs.sc_needsel = 0;
 	cl->c_entry = ll_insert(&c->t_readers, cl);
 	if (cl->c_entry == 0) {
 		msg_err(m->m_sender, ENOMEM);
@@ -1161,6 +1240,7 @@ fill_sendq(struct tcp_conn *c)
 			m->m_arg = size;
 			m->m_nseg = m->m_arg1 = 0;
 			msg_reply(m->m_sender, m);
+			cl->c_selfs.sc_needsel = 1;
 		}
 	}
 }
@@ -1188,6 +1268,7 @@ inetfs_write(struct msg *m, struct client *cl)
 	/*
 	 * Cap I/O
 	 */
+	cl->c_selfs.sc_iocount += 1;
 	if (m->m_arg == 0) {
 		m->m_nseg = m->m_arg1 = 0;
 		msg_reply(m->m_sender, m);
@@ -1201,6 +1282,7 @@ inetfs_write(struct msg *m, struct client *cl)
 	/*
 	 * Get a linked list entry, queue us
 	 */
+	cl->c_selfs.sc_needsel = 0;
 	cl->c_entry = ll_insert(&c->t_writers, cl);
 	if (cl->c_entry == 0) {
 		msg_err(m->m_sender, ENOMEM);
@@ -1707,6 +1789,7 @@ send_data(struct tcp_conn *c, struct llist *q)
 		 */
 		m->m_arg1 = c->t_conn;
 		msg_reply(m->m_sender, m);
+		cl->c_selfs.sc_needsel = 1;
 
 		/*
 		 * Clean up consumed data
@@ -1725,6 +1808,22 @@ send_data(struct tcp_conn *c, struct llist *q)
 				c->t_readq = free_mbuf(c->t_readq);
 			}
 		}
+	}
+}
+
+/*
+ * send_select()
+ *	Send select() events for readable data
+ */
+static void
+send_select(struct tcp_conn *c, struct llist *q, uint event)
+{
+	struct llist *l;
+	struct client *cl;
+
+	for (l = LL_NEXT(q); l != q; l = LL_NEXT(l)) {
+		cl = l->l_data;
+		sc_event(&cl->c_selfs, event);
 	}
 }
 
@@ -1766,6 +1865,13 @@ inetfs_rcv(struct tcb *tcb, int16 cnt)
 			send_data(c, &t->t_any);
 		}
 	}
+
+	/*
+	 * Finally, awake anyone select()'ing for data here
+	 */
+	if (!LL_EMPTY(&c->t_selectors)) {
+		send_select(c, &c->t_selectors, ACC_READ);
+	}
 }
 
 /*
@@ -1775,7 +1881,12 @@ inetfs_rcv(struct tcb *tcb, int16 cnt)
 static void
 inetfs_xmt(struct tcb *tcb, int16 count)
 {
-	fill_sendq(tcb->user);
+	struct tcp_conn *c = tcb->user;
+
+	fill_sendq(c);
+	if (!LL_EMPTY(&c->t_selectors) && (tcb->sndcnt < tcb->window)) {
+		send_select(c, &c->t_selectors, ACC_WRITE);
+	}
 }
 
 /*
