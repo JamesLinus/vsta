@@ -129,11 +129,11 @@ do_read(struct port *port, void *buf, uint nbyte)
  * do_seek()
  *	Build a seek message
  */
-static
+static off_t
 do_seek(struct port *port, long off, int whence)
 {
 	struct msg m;
-	ulong l;
+	off_t l;
 	int x;
 	extern char *rstat();
 
@@ -157,10 +157,11 @@ do_seek(struct port *port, long off, int whence)
 	m.m_arg1 = 0;
 	m.m_nseg = 0;
 	x = msg_send(port->p_port, &m);
-	if (x > 0) {
+	if (x >= 0) {
 		port->p_pos = l;
+		return(l);
 	}
-	return(x);
+	return(-1);
 }
 
 /*
@@ -400,7 +401,8 @@ write(int fd, void *buf, uint nbyte)
  * lseek()
  *	Do a lseek() "syscall"
  */
-lseek(int fd, ulong off, int whence)
+off_t
+lseek(int fd, off_t off, int whence)
 {
 	struct port *port;
 
