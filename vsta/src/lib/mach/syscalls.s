@@ -65,4 +65,38 @@ ENTRY(time_set, S_TIME_SET)
 ENTRY(ptrace, S_PTRACE)
 ENTRY(msg_portname, S_MSG_PORTNAME)
 ENTRY(pstat, S_PSTAT)
-ENTRY(notify_handler, S_NOTIFY_HANDLER)
+
+/*
+ * notify_handler()
+ *	Insert a little assembly in front of C event handling
+ *
+ * The kernel calls the named routine with no saved context.  Put
+ * an assembly front-line handler around the C routine, which saves
+ * and restore context.
+ */
+	.data
+c_handler: .space	4
+	.text
+asm_handler:
+	pusha				/* Save state */
+	pushf
+	lea	0x28(%esp),%eax		/* Point to event string */
+	push	%eax			/* Leave as arg to routine */
+	movl	c_handler,%eax
+	call	%eax
+	lea	4(%esp),%esp		/* Drop arg */
+	popf				/* Restore state */
+	popa
+	pop	%esp			/* Skip event string */
+	ret				/* Resume at old IP */
+
+	.globl	_notify_handler
+_notify_handler:
+	movl	4(%esp),%eax		/* Get func pointer */
+	movl	%eax,c_handler		/* Save in private space */
+	movl	$asm_handler,%eax	/* Vector to assembly handler */
+	movl	%eax,4(%esp)
+	movl	$S_NOTIFY_HANDLER,%eax
+	int	$0xFF
+	jc	syserr
+	ret
