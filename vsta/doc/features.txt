@@ -228,3 +228,25 @@ Conversion of man pages to nroff -man format.
 Ported BSD's "units" command.
 vstafs, file/dir creation inherits protection of parent dir.
 less's help ('H' command) fixed.
+
+1.6.5
+Added a little flexibility in use of MAP_FIXED.
+Port of GNU Smalltalk.
+Added realpath(), gettimeofday().
+Added prototype for rename() to <stdio.h>.
+Added rmap_grab() to the <rmap.h> library routines.
+Fixed long-standing edge case bug when resource map is too fragmented.
+Added alias remove() mapping to unlink().
+Added two new partition types to disk partition support.
+Added "xkeys" stat -w message to console server, so you can disable
+	F<n> and arrow key escape sequence generation (if you want).
+	Default is they still generate their escape sequences.
+	(But I hate'em, so my personal config has them shut off!)
+Fix memory leak in selfs server.
+Fix "make distribution" to include new DLL's in distribution.  This
+	manifested itself as any of your -ltermcap type programs dying
+	when you tried to run them.  Sorry!
+Implement inbuf/outbuf counts for console.  fionread() now works there.
+Always let owner (UID) to chown operations on vstafs.  Otherwise you
+	can paint yourself into a corner, where you remove all abilities
+	of all users to touch the file!

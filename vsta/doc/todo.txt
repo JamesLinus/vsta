@@ -318,3 +318,11 @@ There's a long and mostly hidden bug which should be put to rest.  Dave
 	BSS symbols be pulled back into it.  This wastes some memory,
 	but it fixes the problem neatly, and it at worst wastes a
 	single page of memory.
+
+I think b_elem in "struct bucket" is unused.  Remove it.  Are there
+	others?
+
+b_pages counts up the # of pages used for a particular bucket size.
+	We should think about free'ing some pages back to the main
+	free list if that bucket appears to have enough resources
+	anyway.
