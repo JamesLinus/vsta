@@ -5,6 +5,7 @@ CPP=cpp
 INCS=-nostdinc -I../include
 CFLAGS=$(INCS) -O -DDEBUG
 CRT=start.o
+ROOT=/vsta
 target: all
 
 include mach/makefile.inc
@@ -160,5 +161,5 @@ clobber: clean
 	rm -f mklibs mkshlib *.a *.shl
 
 install: all mklibs
-	cp $(LIBS) crt0.o crt0srv.o ../../lib
-	cp $(SHLIBS) ../../lib
+	cp $(LIBS) crt0.o crt0srv.o $(ROOT)/lib
+	cp $(SHLIBS) $(ROOT)/lib
