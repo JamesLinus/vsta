@@ -162,7 +162,7 @@ wd_init(int argc, char **argv)
 			uint s = parm[unit].w_size * SECSZ;
 			const uint m = 1024*1024;
 
-			syslog(LOG_ERR,
+			syslog(LOG_INFO,
 "wd%d: %d.%dM - %d heads, %d cylinders, %d sectors\n",
 	unit, s / m, (s % m) / (m/10),
 	parm[unit].w_tracks, parm[unit].w_cyls, parm[unit].w_secpertrk);
