@@ -2,50 +2,52 @@ This is a quick roadmap of where things are and how to get things done.
 
 0. Requirements
 
-I have a driver for the ST-506 "classic AT" hard disk interface.  This
-driver has also been verified with one and two disk IDE systems
-(although two disk IDE is *begging* for trouble, in most people's
-experience.)  The disk geometry can be obtained via (1) the controller's
-"read parameter" command, (2) the NVRAM/BIOS stored disk parameters, or
-(3) by hand-entering the disk parameters.  Detailed instructions are in
-the boot.lst file, discussed below.
+VSTa has a driver for the ST-506 "classic AT" hard disk interface.
+This driver has also been verified with one and two disk IDE systems.
+The disk geometry can be obtained via (1) the controller's "read
+parameter" command, (2) the NVRAM/BIOS stored disk parameters, or
+(3) by hand-entering the disk parameters.  Detailed instructions
+are in the menu.lst file, discussed below.  The default is "read
+parameter", which works fine in most cases.
 
 Mike Larson has written a SCSI disk driver for the Adaptec 1542[bc]
 interface.  IDE and SCSI appear to co-exist without problems.  Mike also
-has provided support for CDROM filesystems.
+has provided support for CDROM filesystems and SCSI tape.
 
-The console driver supports both MGA and CGA text screen locations.  It
-is not currently auto-detect.  The keyboard driver expects the AT scan
-codes.  The floppy driver supports most common formats, although I've
-only tested 1.2M/5.25" and 1.44M/3.5".  My smallest system has 4M of
-RAM, and that seems to be plenty.  Systems with up to 16 Meg have been
-booted.  There is code for > 16 M, but it is not yet complete.
+VSTa uses a FAT filesystem (FAT-32 is not yet supported, nor are
+compressed drives).  It is expected that you'll already have set
+up such a filesystem, and you'll be expected to load the VSTa files
+onto it using whatever OS got this filesystem set up.  Examples
+below are for a DOS-like environment (DOS native, or very likely
+a DOS window under Windows).
 
-Unlike past releases, you do not need the DJ Delorie GNU C compiler port
-for DOS.  If you *do* use it, make sure you get an older version which
-generates a.out format.  Later versions use COFF or DWARF; both are
-incompatible.  You will have to hassle with command line length
-limitations; building under VSTa is much easier.
+The console driver supports both MGA and CGA text screen locations.
+It is not auto-detect.  The keyboard driver expects the AT scan
+codes.  The floppy driver supports most common formats, although
+I've only tested 1.2M/5.25" and 1.44M/3.5".  My smallest system
+has 8M of RAM, and that seems to be plenty.  Systems with up to 16
+Meg have been booted.  There is code for > 16 M, but it is not yet
+complete, and memory is quietly truncated back to 16 M so this
+configuration will run correctly.  If you use the C compiler, you'll
+need a CPU with a floating point unit.
 
-The binaries distributed with VSTa include a port of the GNU C compiler.
-Self-hosted VSTa compiles are the method of choice.  But since you now
-get precompiled versions of all the servers, commands, and libraries you
-can skip self-hosted compiles if you just want to play with the running
-system.  Or you can choose just to recompile interesting parts.
+The binaries distributed with VSTa include a port of the GNU C
+compiler.  Self-hosted VSTa compiles are the method of choice.
+But since you get precompiled versions of all the servers, commands,
+and libraries you can skip self-hosted compiles if you just want
+to play with the running system.  Or you can choose just to recompile
+interesting parts.
 
-If you want to recompile the boot loader in boot/, you will need a DOS C
-compiler.  It uses large model, but doesn't do much of anything fancy.
-I happen to use Borland C and the turbo assembler provided with it.  The
-program doesn't do much that needs changing, so you should consider just
-using my .exe.  But the source is there, if you want to change
-something.
+Boot loading happens using the Multiboot standard.  The most common
+Multiboot compliant boot loader is GRUB (GRand Unified Bootloader),
+and a copy of GRUB is included in the VSTa binary distribution.
 
 1. Loading the VSTa files onto your disk.
 
-Make the directory /vsta under DOS.  This should be the first DOS
-partition on whatever disk you happen to be using.  If you don't have
-the DOS versions of gzip or tar, you can probably find them in the same
-place you found vsta.tz and vsta_bin.tz.
+Create the directory /vsta on your FAT filesystem.  This should be
+the first partition on whatever disk you happen to be using.  If
+you don't have the DOS versions of gzip or tar, you can find them
+in the same place you found vsta.tz and vsta_bin.tz.
 
 	mkdir \vsta
 	cd \vsta
@@ -54,16 +56,20 @@ place you found vsta.tz and vsta_bin.tz.
 	tar -xvf vsta.t
 	del vsta.t
 
-	You now have all the binaries and source for VSTa.
+	You now have all the binaries and administrative files for VSTa.
+
+	You can iterate on this in the obvious way to load other
+	sets of VSTa distribution files.
 
 Accounts are in /vsta/etc/passwd, with a parallel file /vsta/etc/shadow
-holding the actual passwords, which are in the clear.  Feel free to
-edit these files using a DOS editor; VSTa tries to accomodate both DOS
-\r\n and UNIX \n conventions for line-oriented data.  The format is
-described in lib/passwd.c.  The group you belong to in the passwd file
-causes you to get more abilities; see /vsta/etc/group.  Finally, numeric
-format IDs are mapped to symbolic courtesy of /vsta/etc/ids.  You can
-see how in libc/ids.c.
+holding the actual passwords, which are in the clear.  Feel free
+to edit these files using a DOS editor; VSTa tries to accomodate
+both DOS \r\n and UNIX \n conventions for line-oriented data.  The
+format is described in lib/passwd.c, but should be familiar to
+anyone who's messed with UN*X-like password files.  The group you
+belong to in the passwd file causes you to get more abilities; see
+/vsta/etc/group.  Finally, numeric format IDs are mapped to symbolic
+courtesy of /vsta/etc/ids.  You can see how in src/lib/ids.c.
 
 2. VSTa directory organization
 
@@ -87,44 +93,68 @@ course, are not kept under RCS.
 	src/bin		Command source
 	src/lib		Library source
 
-	If your tree includes the 68030 Amiga port, you will also
-see mach.ami directories.
+If your tree includes the 68030 Amiga port, you will also see mach.ami
+directories.  The mach.r4k subdirectory probably isn't present, but holds
+code for a MIPS R4000 port of VSTa.
 
-3. Booting the kernel
+3. Booting the kernel, the first time
 
-cd to the "/vsta/boot" subdir.
+If you're already using GRUB (or some other comparable Multiboot
+compliant loader), you can skip this.
 
-Edit the file "boot.lst" if your system doesn't match the defaults;
-as shipped, boot.lst expects an IDE system with CGA text.  You may
-need to do "attrib -r boot.lst" Each boot driver has a line here,
-and the comments before each line should tell you how to fiddle
-the line to reflect your hardware.  Currently, you need to edit
-the console driver to tell it whether you're CGA or MGA, and you
-need to edit the line for the wd disk driver to tell it how to get
-the parameters for your disk(s) (although the default really works
-for virtually any IDE disk/controller you're going to find).  Or
-comment out the wd driver and uncomment the SCSI driver "cam"
-instead.  Or use both.
+Create a GRUB boot loader floppy by doing:
 
-Invoke the batch file "go.bat".
+	(Put formatted, empty, floppy in A:)
+	cd \vsta\grub
+	(If you don't have rawrite.exe, get it from the VSTa
+	 distribution site)
+	rawrite stage12 a:
 
-This will load the kernel and boot servers from the boot directory, as
-listed in your boot.lst.  The /vsta/boot directory has pre-built
-versions of all servers.  For future reference, the "make install"
-target in teach server makefile will copy it over to /vsta/boot.
+Reboot your machine with this floppy in drive A (and your BIOS configured
+to attempt booting from floppy), and you should end up at a GRUB interactive
+prompt.  For a default installation, you could now enter:
+
+	root= (hd0,0)
+	kernel= /vsta/boot/vsta
+	module= /vsta/boot/cons
+	module= /vsta/boot/namer
+	module= /vsta/boot/wd d0:readp
+	module= /vsta/boot/dos -p disk/wd:wd0_dos0 fs/root
+	module= /vsta/boot/init
+	boot
+
+You should watch GRUB's messages as you enter these lines; it'll complain
+if things are amiss.  After "boot", you should see VSTa boot up and run
+off of your hard disk.  These commands load the boot modules off the
+first IDE hard drive, from the /vsta/boot directory.  You may need to
+adjust these commands; the file /vsta/boot/menu.lst documents how, under
+the "VSTa boot" section.  Common reasons to need to adjust these strings
+are that your display card uses MGA text mode, that you need to specify
+your IDE parameters manually, or that you're using a SCSI disk.
+
+Assuming you have successfully booted, and you're up for converting
+to GRUB as your boot loader (it supports DOS, Windows, FreeBSD,
+NetBSD, Linux, Hurd, OS/2, and VSTa), you should now refer to the
+full instructions for setting your PC up to use GRUB as your
+bootloader.  This may be found on:
+
+	http://www.uruk.org/~erich/grub
+
+A snapshot of the GRUB distribution is included in /vsta/grub.
 
 4. Kernel debugger
 
 You have two options for kernel debugging.  As shipped, the on-screen
 kernel debugger is selected.  If you want to have the kernel debugger
-talk out the serial port, see os/mach/dbg*.c.  You will also have to
+talk out the serial port, see src/os/mach/dbg*.c.  You will also have to
 change the compilation options if you're using a display card at the MGA
 text address.
 
-You will enter the debugger if VSTa crashes.  You can also type ^Z
-(control-Z) and you'll drop into it.  A "q" will continue.  Since the
-console driver handles this, it'll try to restore your screen after you
-come back from the debugger.
+You will enter the debugger if VSTa crashes, or if a boot server
+task dies.  You can also type ^Z (control-Z) and you'll drop into
+it.  A "q" will continue.  Since the console driver handles this,
+it'll try to restore your screen after you come back from the
+debugger.
 
 Use the "pr" command to see the proc table, the "bt" command to see a
 stack backtrace of the current process.  "dv" will dump virtual
@@ -145,26 +175,28 @@ instead.
 
 5. Multi-screens
 
-By default two logins are launched for two virtual screens.  Use ALT-F1
-and ALT-F2 to switch between the screens.  See the file
-/vsta/etc/inittab to launch more screens.  The first screen (ALT-F1)
-also receives syslog output.
+By default four logins are launched for four virtual screens.  Use
+ALT-F1, ALT-F2, ..., to switch between the screens.  See the
+file /vsta/etc/inittab to launch more or less screens.  The first
+screen (ALT-F1) also receives syslog output.
 
 6. Building the system
 
-	Boot VSTa
+	(Boot VSTa)
 	cd /vsta
-	mkall
+	sh -x mkall
 	(watch the blinkin lights)
 	(if all looks great:)
-	mkall install
+	sh -x mkall install
 
 You can also cd to some particular server or command source directory
-and "make" or "make install" just that piece.
+and "make" or "make install" just that piece.  This is probably the
+best idea, since if something subtle gets hosed you'll have fewer
+changes to undo in order to get a usable system again.
 
 NOTE: some binaries (emacs, rc, gcc & friends) are in their own
-distribution tar file.  They may not even be present in your source
-tree.
+distribution tar file.  They are probably not present in your source
+tree unless you explicitly loaded them.
 
 7. Documentation
 
@@ -187,8 +219,8 @@ being added from release to release.
 
 No doubt, but I can't think of what might help the most.  Stay in touch!
 The best way to do that is to join the VSTa E-mail list.  Send to
-vsta-request@cisco.com.
+vsta-request@zendo.com.
 
 					Regards,
 					Andy Valencia
-					vandys@cisco.com
+					vandys@zendo.com

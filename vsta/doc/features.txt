@@ -119,3 +119,14 @@ Prototype of proxyd for doing proxy VSTa messages over TCP/IP
 A couple really painful MGR bugs fixed; it's now usable
 Taught various commands about window sizing (ls, editors, less, termcap)
 ar won't croak vstafs (edge case, renaming on top of active file)
+
+1.6
+Conversion to gcc 2.x.  Now requires an FPU to use gcc, sorry!
+Port of gdb using a.out stabs.  Symbolic source debugging (both
+	under gdb as well as dynamic attach) works.
+Emulations of environ[], sys_errlist[], and sys_nerr.
+Stubs for setrlimit stuff.
+Proxy functions over KA9Q TCP/IP now working.
+Ports of GNU awk, bison, flex, make, text utils, file utils.
+VSTa is Multiboot compliant; boots from GRUB loader.  Boot from under
+	DOS is no longer used.
