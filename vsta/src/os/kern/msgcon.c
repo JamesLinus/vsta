@@ -616,7 +616,7 @@ msg_disconnect(port_t arg_port)
 		 * Get port, and delete from proc list.  After this we are
 		 * the last server thread to access the port as a server.
 		 */
-		port = delete_port(p, arg_port-PROCOPENS);
+		port = delete_port(p, arg_port);
 		if (!port) {
 			return(-1);
 		}
