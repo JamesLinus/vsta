@@ -9,6 +9,7 @@
 #include <sys/port.h>
 #include <sys/fs.h>
 #include <sys/core.h>
+#include <sys/proc.h>
 
 extern char *strchr();
 extern void *maploc();
@@ -423,15 +424,38 @@ void
 dump_port(char *p)
 {
 	struct port *port;
+	struct proc *proc, *pstart;
+	pid_t pid;
+	uint x;
+	extern struct proc *allprocs;
 
 	if (!p || !p[0] || !(port = (struct port *)get_num(p))) {
 		printf("Bad addr\n");
 		return;
 	}
+
+	/*
+	 * Search for this port in each process
+	 */
+	pid = 0;
+	proc = pstart = allprocs;
+	do {
+		for (x = 0; x < PROCPORTS; ++x) {
+			if (proc->p_ports[x] == port) {
+				pid = proc->p_pid;
+				break;
+			}
+		}
+		proc = proc->p_allnext;
+	} while (!pid && (proc != pstart));
+
+	/*
+	 * Print it
+	 */
 	printf("hd 0x%x tl 0x%x p_sema 0x%x p_wait 0x%x flags 0x%x\n",
 		port->p_hd, port->p_tl, &port->p_sema, &port->p_wait,
 		port->p_flags);
-	printf("refs 0x%x\n", port->p_refs);
+	printf("refs 0x%x pid %d\n", port->p_refs, pid);
 }
 
 /*
