@@ -6,7 +6,7 @@ LDFLAGS=-L../../../lib
 LIBS=-lusr -lc
 CRT0=../../../lib/crt0.o
 
-all: kill ps
+all: kill
 
 .c.o:
 	$(CC) $(CFLAGS) -c $*.c
