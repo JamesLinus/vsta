@@ -134,6 +134,7 @@ tn_read(struct msg *m)
 			++s, ++sp;
 			size -= s->s_buflen;
 		}
+		mp->m_arg -= s->s_buflen;
 	}
 
 	/*
@@ -253,8 +254,8 @@ io_server(struct tnserv *tn)
 	for (;;) {
 		x = msg_receive(tn->tn_server, &m);
 		if (x < 0) {
-			notify(0, tn->tn_tcp_tid, "kill");
 			syslog(LOG_ERR, "IO server: %s", strerror());
+			notify(0, tn->tn_tcp_tid, "kill");
 			_exit(1);
 		}
 		switch (m.m_op) {
@@ -266,7 +267,9 @@ io_server(struct tnserv *tn)
 			break;
 
 		case FS_WRITE:
-			msg_send(tn->tn_write, &m);
+			m.m_arg = msg_send(tn->tn_write, &m);
+			m.m_nseg = m.m_arg1 = 0;
+			msg_reply(m.m_sender, &m);
 			break;
 
 		case M_DUP:
@@ -283,6 +286,8 @@ io_server(struct tnserv *tn)
 		case M_DISCONNECT:
 			nrefs -= 1;
 			if (nrefs < 1) {
+				syslog(LOG_NOTICE,
+					"IO server: all clients done");
 				notify(0, tn->tn_tcp_tid, "kill");
 				_exit(1);
 			}
@@ -307,6 +312,8 @@ io_server(struct tnserv *tn)
 
 		case FS_STAT:
 			sprintf(buf, "type=c\n");
+			m.m_buf = buf;
+			m.m_nseg = 1;
 			m.m_arg = m.m_buflen = strlen(buf);
 			m.m_arg1 = 0;
 			msg_reply(m.m_sender, &m);
@@ -337,7 +344,8 @@ inet_reader(struct tnserv *tn)
 		m.m_op = M_READ | FS_READ;
 		m.m_nseg = 1;
 		m.m_buf = buf;
-		m.m_buflen = sizeof(buf);
+		m.m_arg = m.m_buflen = sizeof(buf);
+		m.m_arg1 = 0;
 		x = msg_send(tn->tn_read, &m);
 		if (x < 0) {
 			syslog(LOG_ERR, "/inet gone: %s", strerror());
@@ -424,7 +432,8 @@ launch_client(port_t tn_read)
 		 * stdin/out
 		 */
 		sprintf(buf, "%d", tn.tn_pn);
-		(void)execl("/vsta/bin/login", "login", buf, (char *)0);
+		(void)execl("/vsta/src/bin/login/login",
+			"login", buf, (char *)0);
 		syslog(LOG_ERR, "Can't login: %s", strerror());
 		_exit(1);
 	}
