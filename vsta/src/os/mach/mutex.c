@@ -157,6 +157,7 @@ p_sema(sema_t *s, pri_t p)
 	 */
 	t = curthread;
 	t->t_wchan = s;
+	t->t_nointr = (p == PRIHI);
 	t->t_intr = 0;	/* XXX this can race with notify */
 	q_sema(s, t);
 	p_lock(&runq_lock, SPLHI);
@@ -168,6 +169,7 @@ p_sema(sema_t *s, pri_t p)
 	 * We're back.  If we have an event pending, give up on the
 	 * semaphore and return the right result.
 	 */
+	t->t_nointr = 0;
 	if (t->t_intr) {
 		ASSERT_DEBUG(t->t_wchan == 0, "p_sema: intr w. wchan");
 		ASSERT_DEBUG(p != PRIHI, "p_sema: intr w. PRIHI");
@@ -314,6 +316,7 @@ p_sema_v_lock(sema_t *s, pri_t p, lock_t *l)
 	t = curthread;
 	t->t_wchan = s;
 	t->t_intr = 0;
+	t->t_nointr = (p == PRIHI);
 	q_sema(s, t);
 	p_lock(&runq_lock, SPLHI);
 	v_lock(&s->s_lock, SPLHI);
@@ -325,6 +328,7 @@ p_sema_v_lock(sema_t *s, pri_t p, lock_t *l)
 	 * We're back.  If we have an event pending, give up on the
 	 * semaphore and return the right result.
 	 */
+	t->t_nointr = 0;
 	if (t->t_intr) {
 		ASSERT_DEBUG(t->t_wchan == 0, "p_sema: intr w. wchan");
 		ASSERT_DEBUG(p != PRIHI, "p_sema: intr w. PRIHI");

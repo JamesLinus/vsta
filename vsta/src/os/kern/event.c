@@ -67,11 +67,13 @@ retry:	p_lock(&runq_lock, SPLHI);
 	 */
 	switch (t->t_state) {
 	case TS_SLEEP:		/* Interrupt sleep */
-		if (cunsleep(t)) {
-			v_lock(&runq_lock, SPL0);
-			goto retry;
+		if (t->t_nointr == 0) {
+			if (cunsleep(t)) {
+				v_lock(&runq_lock, SPL0);
+				goto retry;
+			}
+			lsetrun(t);
 		}
-		lsetrun(t);
 		break;
 
 	case TS_ONPROC:		/* Nudge him */
