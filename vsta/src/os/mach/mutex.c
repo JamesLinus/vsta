@@ -9,8 +9,6 @@
 #include <sys/thread.h>
 #include <sys/percpu.h>
 
-#define LOCK_HELD (0x8000)	/* Private flag p_sema<->cp_sema */
-
 extern lock_t runq_lock;
 
 /*
@@ -141,14 +139,7 @@ p_sema(sema_t *s, pri_t p)
 	/*
 	 * Counts > 0, just decrement the count and go
 	 */
-	if (p & LOCK_HELD) {
-		p &= ~LOCK_HELD;
-	} else {
-		spl_t spl;
-
-		spl = p_lock(&s->s_lock, SPLHI);
-		ASSERT_DEBUG(spl == SPL0, "p_sema: lock held");
-	}
+	(void)p_lock(&s->s_lock, SPLHI);
 	s->s_count -= 1;
 	if (s->s_count >= 0) {
 		v_lock(&s->s_lock, SPL0);
@@ -161,7 +152,7 @@ p_sema(sema_t *s, pri_t p)
 	 */
 	t = curthread;
 	t->t_wchan = s;
-	t->t_intr = 0;
+	t->t_intr = 0;	/* XXX this can race with notify */
 	q_sema(s, t);
 	p_lock(&runq_lock, SPLHI);
 	v_lock(&s->s_lock, SPLHI);
@@ -191,20 +182,22 @@ p_sema(sema_t *s, pri_t p)
  * cp_sema()
  *	Conditional p_sema()
  */
-int
 cp_sema(sema_t *s)
 {
 	spl_t spl;
+	int x;
 
 	ASSERT_DEBUG(s->s_lock.l_lock == 0, "p_sema: deadlock");
 
 	spl = p_lock(&s->s_lock, SPLHI);
-	ASSERT_DEBUG(spl == SPL0, "cp_sema: lock held");
-	if (s->s_count <= 0) {
-		v_lock(&s->s_lock, SPL0);
-		return(-1);
+	if (s->s_count > 0) {
+		s->s_count -= 1;
+		x = 0;
+	} else {
+		x = -1;
 	}
-	return(p_sema(s, PRIHI|LOCK_HELD));
+	v_lock(&s->s_lock, spl);
+	return(x);
 }
 
 /*
