@@ -48,11 +48,11 @@ cons_stat(struct msg *m, struct file *f)
 		struct screen *s = SCREEN(f->f_screen);
 
 		sprintf(buf,
-"size=%d\ntype=c\nowner=0\ninode=%d\nrows=%d\ncols=%d\ngen=%d\n"
-"quit=%d\nintr=%d\npgrp=%lu\nisig=%d\nxkeys=%d\n",
-			s->s_nbuf, f->f_screen, ROWS, COLS, s->s_gen,
+"size=0\ntype=c\nowner=0\ninode=%d\nrows=%d\ncols=%d\ngen=%d\n"
+"quit=%d\nintr=%d\npgrp=%lu\nisig=%d\nxkeys=%d\ninbuf=%d\noutbuf=0\n",
+			f->f_screen, ROWS, COLS, s->s_gen,
 			s->s_quit, s->s_intr, (ulong)(s->s_pgrp),
-			s->s_isig, s->s_xkeys);
+			s->s_isig, s->s_xkeys, s->s_nbuf);
 	}
 	strcat(buf, perm_print(&cons_prot));
 	m->m_buf = buf;
