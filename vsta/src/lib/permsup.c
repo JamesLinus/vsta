@@ -138,11 +138,11 @@ perm_dominates(struct perm *us, struct perm *target)
 	/*
 	 * We're shorter?
 	 */
-	if (us->perm_len <= p.perm_len) {
+	if (PERM_ACTIVE(us) && (us->perm_len <= p.perm_len)) {
 		/*
 		 * Match leading values
 		 */
-		for (x = 0; x < us->perm_len; ++x) {
+		for (x = 0; x < PERM_LEN(us); ++x) {
 			if (us->perm_id[x] != p.perm_id[x]) {
 				break;
 			}
@@ -151,7 +151,7 @@ perm_dominates(struct perm *us, struct perm *target)
 		/*
 		 * Yup, we matched for all our digits
 		 */
-		if (x >= us->perm_len) {
+		if (x >= PERM_LEN(us)) {
 			return(1);
 		}
 	}
