@@ -33,3 +33,14 @@ Flushing as you go is wasteful.  We need a "transaction" data structure
 
 The "transaction" should be tagged under the open file.  This allows
 	fsync() to be turned into a "commit" of the transaction.
+
+A file which has been opened chmod/write will results in a buffer
+	cache flush when it closes.  We should add a flag to indicate
+	whether the file has been modified in some way, so that
+	passive stat's of the file (which may have ACC_CHMOD, but
+	they don't use it) don't churn the buffer cache for no reason.
+
+We should flag DIRTY0 distinct from having the whole buffer dirty.
+	That way, as later extents in the file get populated we only
+	have to go back and update the file header, not the entire
+	extent which holds the file header.
