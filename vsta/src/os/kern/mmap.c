@@ -114,6 +114,7 @@ mmap(caddr_t addr, ulong len, int prot, int flags,
 		ps->p_flags |= PF_SHARED;
 		pv = alloc_pview(ps);
 		pv->p_prot = PROT_MMAP;
+		pv->p_vaddr = (void *)offset;
 		vaddr = attach_pview(vas, pv);
 		if (vaddr == 0) {
 			free_pview(pv);
