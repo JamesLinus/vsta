@@ -278,13 +278,9 @@ msg_send(port_t arg_port, struct msg *arg_msg)
 	 * Now wait for the I/O to finish or be interrupted
 	 */
 	if (p_sema_v_lock(&pr->p_iowait, PRICATCH, &pr->p_lock)) {
-		struct sysmsg sm2;
-
 		/*
 		 * Oops.  Interrupted.  Grapple with the server for
-		 * control of the in-progress message.  Allocate a
-		 * message before we take the lock, in case we need
-		 * it.
+		 * control of the in-progress message.
 		 */
 		p_lock_void(&pr->p_lock, SPL0_SAME);
 
@@ -294,15 +290,69 @@ msg_send(port_t arg_port, struct msg *arg_msg)
 		 */
 		switch (pr->p_state) {
 		case PS_IOWAIT: {
+			struct sysmsg sm2, *s;
+			struct port *port = pr->p_port;
+
+			/*
+			 * If our message has not yet been dequeued,
+			 * pull it out of the queue now.
+			 */
+			p_lock_void(&port->p_lock, SPLHI);
+
+			/*
+			 * Head of queue--take out.  Tail was either
+			 * this message (queue now empty) or is still
+			 * valid.
+			 */
+			s = port->p_hd;
+			if (s == &sm) {
+				port->p_hd = sm.sm_next;
+			} else {
+				/*
+				 * Otherwise hunt it down in the queue and
+				 * remove it.
+				 */
+				while (s) {
+					if (s->sm_next == &sm) {
+						s->sm_next = sm.sm_next;
+						if (port->p_tl == &sm) {
+							port->p_tl = s;
+						}
+						break;
+					}
+					s = s->sm_next;
+				}
+			}
+			v_lock(&port->p_lock, SPL0);
+
+			/*
+			 * We found ourselves in the queue, so no need
+			 * to interact with the server.
+			 */
+			if (s) {
+				/*
+				 * Adjust semaphore count.  We *know*
+				 * it's > 0, since our message was
+				 * in the queue unconsumed.  All I/O
+				 * semaphore access is done holding
+				 * the port lock, so we're OK.
+				 */
+				ASSERT_DEBUG(sema_count(&port->p_wait) > 0,
+					"msg_send: qcnt < 1");
+				adj_sema(&port->p_wait, -1);
+				pr->p_state = PS_IODONE;
+				v_lock(&pr->p_lock, SPL0_SAME);
+				break;
+			}
+
 			/*
 			 * Send an M_ABORT and then wait for completion
 			 * ignoring further interrupts.
 			 */
 			sm2.sm_sender = pr;
 			sm2.sm_op = M_ABORT;
-			sm2.sm_arg = sm2.sm_arg1 = 0;
-			sm2.sm_nseg = 0;
-			queue_msg(pr->p_port, &sm2, SPL0);
+			sm2.sm_nseg = sm2.sm_arg = sm2.sm_arg1 = 0;
+			queue_msg(port, &sm2, SPL0);
 			pr->p_state = PS_ABWAIT;
 			p_sema_v_lock(&pr->p_iowait, PRIHI, &pr->p_lock);
 			ASSERT_DEBUG(pr->p_state == PS_ABDONE,
@@ -491,9 +541,6 @@ msg_receive(port_t arg_port, struct msg *arg_msg)
 	 */
 	sm = port->p_hd;
 	port->p_hd = sm->sm_next;
-	if (port->p_hd == 0) {
-		port->p_tl = 0;
-	}
 
 	/*
 	 * With lock held, at SPLHI, check for M_ISR.  These are
