@@ -46,7 +46,8 @@
 #define S_PSTAT 36
 #define S_NOTIFY_HANDLER 37
 #define S_SCHED_OP 38
-#define S_HIGH S_SCHED_OP
+#define S_SETSID 39
+#define S_HIGH S_SETSID
 
 /*
  * Some syscall prototypes
@@ -74,7 +75,6 @@ extern int notify_handler(voidfun);
 
 #ifndef KERNEL
 extern int notify(pid_t, pid_t, char *);
-extern int strerror(char *);
 #endif
 
 /*
