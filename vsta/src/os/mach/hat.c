@@ -124,7 +124,7 @@ hat_freevas(struct vas *vas)
 	/*
 	 * Free root and map
 	 */
-	free_page(btop(vas->v_hat.h_cr3));
+	free(vas->v_hat.h_vcr3);
 	free(vas->v_hat.h_map);
 }
 
