@@ -442,7 +442,6 @@ fdopen(int fd, const char *mode)
 			m |= /* _F_BINARY */ 0 ;
 			break;
 		case '+':
-			m |= _F_WRITE;
 			m |= _F_WRITE | _F_READ;
 			break;
 		default:
@@ -704,13 +703,11 @@ fgets(char *buf, int len, FILE *fp)
 	int x = 0, c;
 	char *p = buf;
 
-	while ((c = fgetc(fp)) != EOF) {
+	while ((x++ < (len - 1)) && ((c = fgetc(fp)) != EOF)) {
 		if (c == '\r') {
 			continue;
 		}
-		if (x++ < len) {
-			*p++ = c;
-		}
+		*p++ = c;
 		if (c == '\n') {
 			break;
 		}
@@ -957,9 +954,10 @@ fseek(FILE *fp, off_t off, int whence)
 	clearerr(fp);
 
 	/*
-	 * Let lseek() do its work and return result
+	 * Let lseek() do the work - we have slightly different return
+	 * results however
 	 */
-	return(lseek(fp->f_fd, off, whence));
+	return((lseek(fp->f_fd, off, whence) >= 0) ? 0 : -1);
 }
 
 /*
