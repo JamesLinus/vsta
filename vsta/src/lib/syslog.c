@@ -49,7 +49,9 @@ syslog(int level, char *msg, ...)
 	}
 	fd = __fd_alloc(p);
 	sprintf(buf, "syslog: %s: ", levelmsg(level));
-	sprintf(buf, msg, ARG(msg, 1), ARG(msg, 2), ARG(msg, 3));
+	sprintf(buf + strlen(buf), msg,
+		ARG(msg, 1), ARG(msg, 2), ARG(msg, 3),
+		ARG(msg, 4), ARG(msg, 5), ARG(msg, 6));
 	write(fd, buf, strlen(buf));
 	close(fd);
 }
