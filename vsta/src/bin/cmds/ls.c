@@ -169,6 +169,9 @@ fld(char **args, char *field, char *deflt)
 	uint x, len;
 	char *p;
 
+	if (!args) {
+		return(deflt);
+	}
 	len = strlen(field);
 	for (x = 0; (p = args[x]); ++x) {
 		/*
@@ -231,7 +234,7 @@ prprot(char *perm, char *acc)
 	 * Heading, need both fields
 	 */
 	if (!perm || !acc) {
-		printf("not available            ");
+		printf("-----        ???.???     ");
 		return;
 	}
 
@@ -317,47 +320,39 @@ ls_l(struct dirent *de)
 	time_t time;
 	char timestr[32];
 
-	if (aflag == 0 && de->d_name[0] == '.') {
+	/*
+	 * Inhibit display of '.<name>' unless -a (all)
+	 */
+	if ((aflag == 0) && (de->d_name[0] == '.')) {
 		return;
 	}
+
 	/*
 	 * Read in the stat string for the entry
 	 */
+	sv = NULL;
 	fd = open(de->d_name, O_RDONLY);
-	if (fd < 0) {
-		perror(de->d_name);
-		return;
-	}
-	s = rstat(__fd_port(fd), (char *)0);
-	close(fd);
-	if (s == 0) {
-		perror(de->d_name);
-		return;
-	}
-	sv = explode(s);
-	if (sv == 0) {
-		perror(de->d_name);
-		return;
+	if (fd >= 0) {
+		s = rstat(__fd_port(fd), (char *)0);
+		close(fd);
+		if (s) {
+			sv = explode(s);
+		}
 	}
 
 	/*
-	 * Convert UID to a printing string
+	 * Print out various fields
 	 */
 	pwd = getpwuid(atoi(fld(sv, "owner", "0")));
-
-	/*
-	 * Print out various fields, use prprot() for the protection
-	 * labels.
-	 */
 	time = atoi(fld(sv, "mtime", "0"));
 	strftime(timestr, 18, "%b %d %H:%M %Y", gmtime(&time));
-	printf("%s ", fld(sv, "type", "f"));
+	printf("%s ", fld(sv, "type", "-"));
 	prprot(fld(sv, "perm", 0), fld(sv, "acc", 0));
 	printf("%-6s %8d %-17s %s\n",
 		pwd ? (pwd->pw_name) : ("not set"),
 		atoi(fld(sv, "size", "0")),
 		timestr,
-		printname(de->d_name, fld(sv, "acc", 0), fld(sv, "type", "f")));
+		printname(de->d_name, fld(sv, "acc", 0), fld(sv, "type", "-")));
 }
 
 /*
@@ -369,7 +364,7 @@ ls(char *path)
 {
 	DIR *d;
 	struct dirent *de;
-	char **v = 0;
+	char **v = NULL;
 	int nelem;
 	struct stat st;
 	char buf[_NAMLEN];
@@ -394,42 +389,38 @@ ls(char *path)
 			/*
 			 * Read in the stat string for the entry
 			 */
+			sv = NULL;
 			fd = open(path, O_RDONLY);
-			if (fd < 0) {
-				perror(path);
-				return;
-			}
-			s = rstat(__fd_port(fd), (char *)0);
-			close(fd);
-			if (s == 0) {
-				perror(path);
-				return;
-			}
-			sv = explode(s);
-			if (sv == 0) {
-				perror(path);
-				return;
+			if (fd >= 0) {
+				s = rstat(__fd_port(fd), (char *)0);
+				close(fd);
+				if (s) {
+					sv = explode(s);
+				}
 			}
 
-			sprintf(v[0], "%s", printname(path, fld(sv, "acc", 0), fld(sv, "type", "f")));
-			v[1] = 0;
+			sprintf(v[0], "%s",
+				sv ?  printname(path, fld(sv, "acc", 0),
+					fld(sv, "type", "f")) :
+				    path);
+			v[1] = NULL;
 			prcols(v);
 		}
 		return;
-	} else {
-		/*
-		 * Prefix with name of dir if multiples
-		 */
-		if (ndir > 1) {
-			printf("%s:\n", path);
-		}
+	}
+
+	/*
+	 * Prefix with name of dir if multiples
+	 */
+	if (ndir > 1) {
+		printf("%s:\n", path);
 	}
 
 	/*
 	 * Open access to named place
 	 */
 	d = opendir(path);
-	if (d == 0) {
+	if (d == NULL) {
 		perror(path);
 		return;
 	}
@@ -461,21 +452,14 @@ ls(char *path)
 		/*
 		 * Read in the stat string for the entry
 		 */
+		sv = NULL;
 		fd = open(de->d_name, O_RDONLY);
-		if (fd < 0) {
-			perror(de->d_name);
-			continue;
-		}
-		s = rstat(__fd_port(fd), (char *)0);
-		close(fd);
-		if (s == 0) {
-			perror(de->d_name);
-			continue;
-		}
-		sv = explode(s);
-		if (sv == 0) {
-			perror(de->d_name);
-			continue;
+		if (fd >= 0) {
+			s = rstat(__fd_port(fd), (char *)0);
+			close(fd);
+			if (s) {
+				sv = explode(s);
+			}
 		}
 
 		/*
@@ -490,8 +474,9 @@ ls(char *path)
 		}
 
 		sprintf(buf, "%s",
-			printname(de->d_name, fld(sv, "acc", 0),
-				fld(sv, "type", "f")));
+			sv ?  printname(de->d_name, fld(sv, "acc", 0),
+				fld(sv, "type", "f")) :
+			    de->d_name);
 		v[nelem-1] = strdup(buf);
 	}
 	closedir(d);
