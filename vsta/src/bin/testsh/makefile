@@ -1,6 +1,6 @@
 CC= gcc
 LD= ld
-# Add -DSTAND for a more standlone-oriented flavor of shell
+# Add -DSTAND for a more standalone-oriented flavor of shell
 CFLAGS= -DSTAND -O -I../../include -I../..
 LDFLAGS= -L../../libc
 LIBS= -lc
