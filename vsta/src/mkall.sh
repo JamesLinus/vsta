@@ -65,6 +65,9 @@ cd ..
 cd selfs
 make $*
 cd ..
+cd pty
+make $*
+cd ..
 cd mach
 cd cons2
 make $*
