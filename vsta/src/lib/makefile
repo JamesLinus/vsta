@@ -3,7 +3,8 @@ AS= as
 CPP= cpp
 INCS= -I../include
 CFLAGS= $(INCS) -O -DDEBUG
-OBJS= start.o startsrv.o syscalls.o syscall.o \
+CRT=start.o startsrv.o
+OBJS= syscalls.o syscall.o \
 	mem.o misc.o io.o setjmp.o malloc.o \
 	string.o doprnt.o stdio.o printf.o tty.o ctype.o scanf.o seg.o \
 	mount.o open.o stat.o fdl.o hash.o time.o exec.o getopt.o \
@@ -18,9 +19,13 @@ OBJS= start.o startsrv.o syscalls.o syscall.o \
 LIBS=libc.a libusr.a libtermc.a libregex.a libpio.a libdpart.a
 all: $(LIBS) crt0.o crt0srv.o
 
-libc.a: $(OBJS)
+libc.a: $(OBJS) $(CRT)
 	rm -f libc.a
-	ar rsv libc.a $(OBJS)
+	ar rsv libc.a $(OBJS) $(CRT)
+
+libc.sh: $(OBJS)
+	rm -f libc.sh
+	ld -o libc.sh $(OBJS)
 
 # Special version for boot servers
 startsrv.o: start.c
