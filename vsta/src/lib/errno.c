@@ -10,6 +10,17 @@
 #include <errno.h>
 #include <std.h>
 
+/*
+ * sys_errlist[] emulation, filled in on demand
+ */
+static const char **errlist;
+static int nerr;
+
+/*
+ * Our default error value
+ */
+static char errdef[] = "unknown error";
+
 static struct {
 	int errnum;
 	char *errstr;
@@ -90,7 +101,6 @@ map_errstr(char *err)
 char *
 __map_errno(int err)
 {
-	static char errdef[] = "unknown error";
 	int x;
 	char *e;
 
@@ -146,4 +156,73 @@ __ptr_errno(void)
 	_old_errno = _errno = map_errstr(p);
 
 	return(&_errno);
+}
+
+/*
+ * init_errlist()
+ *	Create sys_errlist[] array, and sys_nerr value
+ */
+static void
+init_errlist(void)
+{
+	int x;
+
+	/*
+	 * Get highest errno in array
+	 */
+	for (x = 1; errmap[x].errstr; ++x) {
+		if (errmap[x].errnum > nerr) {
+			nerr = errmap[x].errnum;
+		}
+	}
+
+	/*
+	 * Allocate a sys_errlist[] for this size.  Initialize
+	 * all locations to the default error string.
+	 */
+	errlist = malloc(nerr * sizeof(char *));
+	for (x = 0; x < nerr; ++x) {
+		errlist[x] = errdef;
+	}
+
+	/*
+	 * For each known errno mapping, point at the appropriate
+	 * string value.
+	 */
+	for (x = 1; errmap[x].errstr; ++x) {
+		errlist[errmap[x].errnum] = errmap[x].errstr;
+	}
+}
+
+/*
+ * __get_errlist()
+ *	Return pointer to sys_errlist[]
+ *
+ * Most applications won't use this; we create this array on first
+ * reference.
+ */
+const char **
+__get_errlist(void)
+{
+
+	/*
+	 * If we've built it, return the pointer
+	 */
+	if (!errlist) {
+		init_errlist();
+	}
+	return(errlist);
+}
+
+/*
+ * __get_nerr()
+ *	Return highest index in sys_errlist[]
+ */
+int
+__get_nerr(void)
+{
+	if (!errlist) {
+		init_errlist();
+	}
+	return(nerr);
 }
