@@ -41,7 +41,8 @@ TXT=src/bin/ports/less src/bin/ports/grep src/bin/ports/rh \
 	src/bin/ports/sed src/bin/ports/tar src/bin/ports/awk \
 	src/bin/ports/fileutl src/bin/ports/textutil \
 	src/bin/ports/find src/bin/ports/patch \
-	src/bin/ports/ctags src/bin/ports/rcs5.11
+	src/bin/ports/ctags src/bin/ports/rcs5.11 \
+	src/bin/ports/m4
 
 # Shells
 SH=src/bin/ports/ash src/bin/testsh src/bin/ports/rc
