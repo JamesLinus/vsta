@@ -259,11 +259,10 @@ check_fsalloc(char *name, struct fs_file *fs)
 	for (x = 0; x < fs->fs_nblk; ++x) {
 		struct alloc *a;
 
-		a = &fs->fs_blks[x];
-
 		/*
 		 * Run tally of length based on blocks
 		 */
+		a = &fs->fs_blks[x];
 		blklen += a->a_len;
 
 		/*
@@ -544,6 +543,25 @@ printf("Dir entry for %s at block %ld mismatches alloc information\n",
 	return(check_fsdir(sec, name));
 }
 
+/*
+ * check_lostblocks()
+ *	Tabulate lost blocks
+ */
+static void
+check_lostblocks(void)
+{
+	ulong x, lost = 0;
+
+	for (x = FREE_SEC+1; x <= max_blk; ++x) {
+		if (!getbit(freemap, x, 1)) {
+			lost += 1;
+		}
+	}
+	if (lost > 0) {
+		printf(" %ld blocks lost\n", lost);
+	}
+}
+
 main(int argc, char **argv)
 {
 	if (argc != 2) {
@@ -557,4 +575,5 @@ main(int argc, char **argv)
 	check_root();
 	check_freelist();
 	check_tree(ROOT_SEC, "/");
+	check_lostblocks();
 }
