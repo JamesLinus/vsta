@@ -64,6 +64,7 @@ static size_t 	(*gl_strlen)() = (size_t(*)())strlen;
 
 static void     gl_addchar();		/* install specified char */
 static void     gl_del();		/* del, either left (-1) or cur (0) */
+static void     gl_del_word();		/* delete previous word */
 static void     gl_error();		/* write error msg and die */
 static void     gl_fixup();		/* fixup state variables and screen */
 static int      gl_getc();		/* read one char from terminal */
@@ -294,6 +295,8 @@ char *prompt;
 		break;
               case '\025': gl_kill(0);				/* ^U */
 		break;
+              case '\027': gl_del_word();			/* ^W */
+		break;
 	      case '\031': gl_yank();				/* ^Y */
 		break;
 	      case '\033':				/* ansi arrow keys */
@@ -474,6 +477,36 @@ int loc;
 	gl_putc('\007');
 }
 
+static int
+back_word_pos(pos)
+    int pos;
+{
+    if (pos > 0)
+	pos--;
+    while (isspace(gl_buf[pos]) && pos > 0)
+	pos--;
+    while (!isspace(gl_buf[pos]) && pos > 0) 
+	pos--;
+    if (pos < gl_cnt && isspace(gl_buf[pos]))   /* move onto word */
+	pos++;
+    return(pos);
+}
+
+static void
+gl_del_word()
+{
+    int pos = gl_pos;
+
+    if (pos == 0) {
+	gl_putc('\7');
+    } else {
+	pos = back_word_pos(pos);
+	bcopy(&gl_buf[gl_pos], &gl_buf[pos], (gl_cnt - gl_pos) + 1);
+	gl_fixup(gl_prompt, pos, pos);
+    }
+}
+
+
 static void
 gl_kill(pos)
 int pos;
@@ -500,14 +533,7 @@ int direction;
 	while (isspace(gl_buf[pos]) && pos < gl_cnt)
 	    pos++;
     } else {				/* backword */
-	if (pos > 0)
-	    pos--;
-	while (isspace(gl_buf[pos]) && pos > 0)
-	    pos--;
-        while (!isspace(gl_buf[pos]) && pos > 0) 
-	    pos--;
-	if (pos < gl_cnt && isspace(gl_buf[pos]))   /* move onto word */
-	    pos++;
+	pos = back_word_pos(pos);
     }
     gl_fixup(gl_prompt, -1, pos);
 }
