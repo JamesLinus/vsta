@@ -97,8 +97,10 @@ get_str(char *buf, int buflen, int echo)
 				int y;
 
 				x -= 1;
-				for (y = 0; y < nstar[x]; ++y) {
+				y = (echo ? 1 : nstar[x]);
+				while (y > 0) {
 					write(1, "\b \b", 3);
+					y -= 1;
 				}
 			}
 			continue;
