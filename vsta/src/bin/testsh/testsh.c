@@ -12,7 +12,7 @@
 #include <ctype.h>
 
 extern char *__cwd;	/* Current working dir */
-static void cd(), md(), quit(), ls(), pwd(), mount(), build();
+static void cd(), md(), quit(), ls(), pwd(), mount(), cat();
 
 /*
  * Table of commands
@@ -21,9 +21,9 @@ struct {
 	char *c_name;	/* Name of command */
 	voidfun c_fn;	/* Function to process the command */
 } cmdtab[] = {
+	"cat", cat,
 	"cd", cd,
 	"chdir", cd,
-	"build", build,
 	"exit", quit,
 	"ls", ls,
 	"md", md,
@@ -54,37 +54,49 @@ md(char *p)
 }
 
 /*
- * build()
- *	Create a namer node
+ * cat()
+ *	File I/O
  */
 static void
-build(char *p)
+cat(char *p)
 {
 	char *name, *val;
-	int fd, x;
+	int fd, x, output = 0;
+	char buf[128];
 
 	if (!p || !p[0]) {
-		printf("Usage: build <name> <val>\n");
+		printf("Usage: cat [>] <name>\n");
+		return;
+	}
+	if (*p == '>') {
+		output = 1;
+		++p;
+		while (isspace(*p)) {
+			++p;
+		}
+	}
+	if (!p[0]) {
+		printf("Missing filename\n");
 		return;
 	}
 	name = p;
-	p = strchr(p, ' ');
-	if (!p) {
-		printf("Missing value\n");
-		return;
-	}
-	*p++ = '\0';
-	val = p;
-	while (isspace(*val)) {
-		++val;
-	}
-	fd = open(name, O_WRITE|O_CREAT, 0);
+	fd = open(name, output ? (O_WRITE|O_CREAT) : O_READ, 0);
 	if (fd < 0) {
 		perror(name);
 		return;
 	}
-	x = write(fd, val, strlen(val));
-	printf("Write of '%s' gives %d\n", val, x);
+	if (output) {
+		while ((x = read(0, buf, sizeof(buf))) > 0) {
+			if (buf[0] == '\n') {
+				break;
+			}
+			write(fd, buf, x);
+		}
+	} else {
+		while ((x = read(fd, buf, sizeof(buf))) > 0) {
+			write(1, buf, x);
+		}
+	}
 	close(fd);
 }
 
