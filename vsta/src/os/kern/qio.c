@@ -94,7 +94,7 @@ qio_msg_send(struct qio *q)
 	}
 
 	/*
-	 * We only support raw/DMA devices for swap, and rea-only
+	 * We only support raw/DMA devices for swap, and read-only
 	 * for mapped files.
 	 */
 	ASSERT(sm.sm_nseg == 0, "qio_msg_send: got back seg");
