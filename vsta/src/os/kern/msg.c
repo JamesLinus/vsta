@@ -326,6 +326,7 @@ msg_send(port_t arg_port, struct msg *arg_msg)
 			sm2->m_sender = pr;
 			sm2->m_op = M_ABORT;
 			sm2->m_arg = sm2->m_arg1 = 0;
+			sm2->m_nseg = 0;
 			queue_msg(pr->p_port, sm2);
 			pr->p_state = PS_ABWAIT;
 			p_sema_v_lock(&pr->p_iowait, PRIHI, &pr->p_lock);
