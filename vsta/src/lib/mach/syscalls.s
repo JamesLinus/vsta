@@ -18,6 +18,11 @@
 	.globl	__errno
 	.globl	__old_errno
 	.globl	__err_sync
+
+	.bss
+__faultframe:
+	.space	4
+
 	.text
 	.align	4
 
@@ -177,6 +182,7 @@ c_handler: .space	4
 asm_handler:
 	pusha				/* Save state */
 	pushf
+	movl	%esp,__faultframe	/* Mark frame for debugging ease */
 	lea	0x24(%esp),%eax		/* Point to event string */
 	push	%eax			/* Leave as arg to routine */
 	movl	c_handler,%eax
