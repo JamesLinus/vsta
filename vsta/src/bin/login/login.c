@@ -2,6 +2,7 @@
  * login.c
  *	A login program without an attitude
  */
+#include <sys/fs.h>
 #include <sys/perm.h>
 #include <stdio.h>
 #include <termios.h>
@@ -265,8 +266,53 @@ init_tty(void)
 	tcsetattr(1, TCSANOW, &t);
 }
 
-main()
+main(int argc, char **argv)
 {
+	/*
+	 * Optionally let them specify device(s)
+	 */
+	if (argc > 1) {
+		char *in, *out;
+		port_name pn;
+		port_t p;
+
+		/*
+		 * 1st arg is in/out, or in if there's a second
+		 */
+		in = argv[1];
+		if (argc > 2) {
+			out = argv[2];
+		} else {
+			out = in;
+		}
+
+		/*
+		 * Access named server, then open as input
+		 */
+		pn = namer_find(in);
+		if (pn < 0) { perror(in); exit(1); }
+		p = msg_connect(pn, ACC_READ);
+		if (p < 0) { perror(in); exit(1); }
+		close(0);
+		__fd_alloc(p);
+		
+		/*
+		 * Open stdout
+		 */
+		pn = namer_find(out);
+		if (pn < 0) { perror(out); exit(1); }
+		p = msg_connect(pn, ACC_WRITE);
+		if (p < 0) { perror(out); exit(1); }
+		close(1);
+		__fd_alloc(p);
+
+		/*
+		 * And stderr--all set to go now
+		 */
+		close(2);
+		dup(1);
+	}
+
 	srandom(time((long *)0));
 	cat(BANNER);
 	init_tty();
