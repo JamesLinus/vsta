@@ -12,6 +12,7 @@
 #include <llist.h>
 #include <stdio.h>
 #include <std.h>
+#include <syslog.h>
 #include "ne.h"
 
 extern char *valid_fname(char *, int);
@@ -229,6 +230,7 @@ static void
 usage(void)
 {
 	printf("Usage is: ne <I/O base>,<IRQ> [<I/O base>,<IRQ>] ...\n");
+	syslog(LOG_ERR, "bad command line arguments");
 	exit(1);
 }
 
@@ -269,6 +271,11 @@ main(int argc, char *argv[])
 	}
 
 	/*
+	 * Syslog
+	 */
+	openlog("ne", LOG_PID, LOG_DAEMON);
+
+	/*
 	 * Allocate handle->file hash table.  8 is just a guess
 	 * as to what we'll have to handle.
 	 */
@@ -286,7 +293,7 @@ main(int argc, char *argv[])
 		if (ap->a_base == 0)
 			continue;
 
-		printf("NE2000 %d: base=0x%x, IRQ=%d: ",
+		syslog(LOG_INFO, "NE2000 %d: base=0x%x, IRQ=%d: ",
 			unit, ap->a_base, ap->a_irq);
 		units += 1;
 
@@ -318,7 +325,7 @@ main(int argc, char *argv[])
 		/*
 		 * Dump MAC address
 		 */
-		printf("%02x.%02x.%02x.%02x.%02x.%02x\n",
+		syslog(LOG_INFO, " MAC addr: %02x.%02x.%02x.%02x.%02x.%02x\n",
 			ap->a_addr[0], ap->a_addr[1],
 			ap->a_addr[2], ap->a_addr[3],
 			ap->a_addr[4], ap->a_addr[5]);
@@ -328,7 +335,7 @@ main(int argc, char *argv[])
 	 * If no units found, bail
 	 */
 	if (units == 0) {
-		printf("No NE units found, exiting.\n");
+		syslog(LOG_ERR, "No NE units found, exiting.\n");
 		exit(1);
 	}
 
@@ -343,7 +350,7 @@ main(int argc, char *argv[])
 	 * Register as NE2000 Ethernet controller
 	 */
 	if (namer_register("net/ne", nename) < 0) {
-		fprintf(stderr, "NE: can't register name\n");
+		syslog(LOG_ERR, "NE: can't register name\n");
 		exit(1);
 	}
 
