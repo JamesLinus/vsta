@@ -1,0 +1,60 @@
+.ll 74
+.he 'clone(2)'VSTa Manual'clone(2)'
+.fo ''%''
+.sp 2
+.bd 1
+NAME
+.br
+.ti +6
+clone - create new distinct client connection copied from old
+.sp
+.bd 1
+SYNOPSIS
+.br
+.in +6
+.li 3
+#include <sys/syscall.h>
+
+int clone(port_t port);
+.sp 1
+.in -6
+.bd 1
+DESCRIPTION
+.br
+.in +6
+.ul 1
+clone()
+creates a new connection to the server currently serving
+.ul 1
+port.
+After a successful
+.ul 1
+clone,
+the client will have a new connection, whose initial
+file position, access rights, etcetera, reflect those of
+the original
+.ul 1
+port.
+However, future changes to position and such will be unique
+to each
+.ul 1
+port_t,
+as no connection exists after the completion of the
+.ul 1
+clone.
+.sp
+.in -6
+.bd 1
+NOTES
+.br
+.in +6
+The
+.ul 1
+clone()
+system call resembles much more the POSIX treatment
+of file descriptors in a
+.ul 1
+fork()
+than the semantics of a POSIX
+.ul 1
+dup().
