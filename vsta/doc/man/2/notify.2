@@ -1,0 +1,59 @@
+.ll 74
+.he 'notify(2)'VSTa Manual'notify(2)'
+.fo ''%''
+.sp 2
+.bd 1
+NAME
+.br
+.ti +6
+notify - send VSTa event string to a target process or thread
+.sp
+.bd 1
+SYNOPSIS
+.br
+.in +6
+.li 3
+#include <sys/syscall.h>
+#include <sys/param.h>
+
+int notify(pid_t pid, pid_t thread, char *err);
+.sp 1
+.in -6
+.bd 1
+DESCRIPTION
+.br
+.in +6
+.ul 1
+notify()
+delivers a VSTa event to the indicated target.  If
+.ul 1
+pid
+is 0, the current process is affected.  If
+.ul 1
+thread
+is 0, all threads in the target process are affected.
+Finally, if
+.ul 1
+thread
+is -1, all processes associated with the given
+process group are affected.
+.sp
+The string specified, which can be up to EVLEN characters
+in length, is sent to each target.  If the process has
+an event handler, it will be invoked; see
+.ul 1
+notify_handler().
+Otherwise, the target will terminate.  The unique string "kill"
+can not be caught; it always causes termination.
+.sp
+.in -6
+.bd 1
+NOTES
+.br
+.in +6
+The
+.ul 1
+notify()
+system call wrapper actually counts up the length of
+the event string, and passes this count in to the actual
+kernel interface.
