@@ -377,7 +377,7 @@ init_proc(void)
 	int x;
 
 	init_sema(&pid_sema);
-	pid_hash = hash_alloc(32);
+	pid_hash = hash_alloc(NPROC/2);
 	for (b = boot_tasks, x = 0; x < nboot_task; ++b, ++x) {
 		bootproc(b);
 	}
