@@ -349,7 +349,9 @@ set_core(uint pfn, struct pset *ps, uint idx)
 	struct core *c;
 
 	ASSERT_DEBUG((pfn > 0) && (pfn < bootpgs), "set_core: bad index");
+	lock_page(pfn);
 	c = &core[pfn];
 	c->c_pset = ps;
 	c->c_psidx = idx;
+	unlock_page(pfn);
 }
