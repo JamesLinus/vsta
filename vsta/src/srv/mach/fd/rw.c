@@ -693,7 +693,7 @@ unit_iodone(int old, int new)
 	} else {
 		m.m_nseg = 0;
 	}
-	m.m_arg = f->f_count;
+	m.m_arg = f->f_off;
 	m.m_arg1 = 0;
 	msg_reply(f->f_sender, &m);
 
