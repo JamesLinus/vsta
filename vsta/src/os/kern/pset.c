@@ -298,8 +298,8 @@ dup_slots(struct pset *ops, struct pset *ps, uint low, uint cnt)
 				 * both cases.
 				 */
 				copy_page(x, pp, pp2, ops, ps);
-				unlock_slot(ops, pp);
 			}
+			unlock_slot(ops, pp);
 		}
 	}
 
