@@ -28,11 +28,11 @@ static void
 note_write(struct msg *m, struct file *f, uint len)
 {
 	char *event;
-	
+
 	event = malloc(len + 1);
 	seg_copyin(m->m_seg, m->m_nseg, event, len);
 	event[len] = '\0';
-	
+
 	emulate_client_perms(f);
 	notify(f->f_pid, 0, event);
 	release_client_perms(f);
@@ -76,7 +76,7 @@ static void
 notepg_write(struct msg *m, struct file *f, uint len)
 {
 	char *event;
-	
+
 	/*
 	 * Assemble event to send
 	 */
@@ -147,6 +147,25 @@ statename(struct pstat_proc *p)
 }
 
 /*
+ * set_active()
+ *	Set /proc's permissions to this user
+ */
+static int
+set_active(struct msg *m, struct file *f)
+{
+	if (f->f_active == 0) {
+		if (proc_pstat(f) == 0) {
+			f->f_active = 1;
+		} else {
+			f->f_active = 0;
+			msg_err(m->m_sender, strerror());
+			return(1);
+		}
+	}
+	return(0);
+}
+
+/*
  * status_read()
  */
 static void
@@ -157,19 +176,15 @@ status_read(struct msg *m, struct file *f, uint len)
 	int x, cnt;
 
 	/*
+	 * Switch to this process
+	 */
+	if (set_active(m, f))
+		return;
+
+	/*
 	 * Generate our "contents"
 	 */
-	buf = &buffer[0];
-	if (f->f_active == 0) {
-		if (proc_pstat(f) == 0) {
-			f->f_active = 1;
-		} else {
-			f->f_active = 0;
-			msg_err(m->m_sender, strerror());
-			return;
-		}
-	}
-
+	buf = buffer;
 	sprintf(buf, "%-6d %-8s %-6s %7d %5d/%-5d ", f->f_pid,
 		f->f_proc.psp_cmd, statename(&f->f_proc),
 		f->f_proc.psp_nthread, f->f_proc.psp_usrcpu,
@@ -183,7 +198,7 @@ status_read(struct msg *m, struct file *f, uint len)
 	}
 	strcat(buf, "\n");
 	buf += f->f_pos;
-	
+
 	/*
 	 * Calculate # bytes to get
 	 */
@@ -192,7 +207,7 @@ status_read(struct msg *m, struct file *f, uint len)
 		cnt = strlen(buf);
 		f->f_active = 0;
 	}
-	
+
 	/*
 	 * EOF?
 	 */
@@ -257,6 +272,7 @@ proc_open(struct msg *m, struct file *f)
 		f->f_ops = &status_ops;
 	} else {
 		msg_err(m->m_sender, ESRCH);
+		return;
 	}
 	f->f_pos = 0;
 	m->m_buflen = m->m_nseg = m->m_arg = m->m_arg1 = 0;
@@ -273,7 +289,7 @@ proc_read(struct msg *m, struct file *f, uint len)
 	char buffer[80];
 	char *buf;
 	int x, cnt;
-	
+
 	/*
 	 * Generate our "contents"
 	 */
@@ -281,7 +297,7 @@ proc_read(struct msg *m, struct file *f, uint len)
 	buf = &buffer[0];
 	sprintf(buf, "ctl\nnote\nnotepg\nstatus\n");
 	buf += f->f_pos;
-	
+
 	/*
 	 * Calculate # bytes to get
 	 */
@@ -289,7 +305,7 @@ proc_read(struct msg *m, struct file *f, uint len)
 	if (cnt > strlen(buf)) {
 		cnt = strlen(buf);
 	}
-	
+
 	/*
 	 * EOF?
 	 */
@@ -319,9 +335,27 @@ proc_stat(struct msg *m, struct file *f)
 {
 	char buf[MAXSTAT];
 
+	/*
+	 * Switch to this process
+	 */
+	if (set_active(m, f)) {
+		return;
+	}
+
+	/*
+	 * Build status
+	 */
 	sprintf(buf, "nsize=4\ntype=d\nowner=0\ninode=%ld\n", f->f_pid);
 	strcat(buf, perm_print(&f->f_prot));
+	sprintf(buf+strlen(buf),
+		"cmd=%s\nstate=%s\nnthread=%d\nusrcpu=%d\nsyscpu=%d\n",
+		f->f_proc.psp_cmd, statename(&f->f_proc),
+		f->f_proc.psp_nthread, f->f_proc.psp_usrcpu,
+		f->f_proc.psp_syscpu);
 
+	/*
+	 * Send it back
+	 */
 	m->m_buf = buf;
 	m->m_arg = m->m_buflen = strlen(buf);
 	m->m_nseg = 1;
@@ -366,7 +400,7 @@ kernel_read(struct msg *m, struct file *f, uint len)
 	}
 	strcat(buf, "\n");
 	buf += f->f_pos;
-	
+
 	/*
 	 * Calculate # bytes to get
 	 */
@@ -375,7 +409,7 @@ kernel_read(struct msg *m, struct file *f, uint len)
 		cnt = strlen(buf);
 		f->f_active = 0;
 	}
-	
+
 	/*
 	 * EOF?
 	 */
