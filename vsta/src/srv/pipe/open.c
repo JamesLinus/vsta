@@ -72,7 +72,6 @@ dir_newfile(struct file *f, char *name)
 	bzero(o, sizeof(struct pipe));
 	ll_init(&o->p_readers);
 	ll_init(&o->p_writers);
-	o->p_nwrite = 1;
 
 	/*
 	 * Insert in dir chain
@@ -159,7 +158,10 @@ pipe_open(struct msg *m, struct file *f)
 		 * Move to new node
 		 */
 		f->f_file = o; o->p_refs += 1;
+		ASSERT_DEBUG(o->p_refs > 0, "pipe_open: overflow");
 		f->f_perm = ACC_READ|ACC_WRITE|ACC_CHMOD;
+		o->p_nwrite += 1;
+		ASSERT_DEBUG(o->p_nwrite > 0, "pipe_open: overflow");
 		m->m_nseg = m->m_arg = m->m_arg1 = 0;
 		msg_reply(m->m_sender, m);
 		return;
@@ -178,7 +180,12 @@ pipe_open(struct msg *m, struct file *f)
 	 * Move to this file
 	 */
 	f->f_file = o; o->p_refs += 1;
+	ASSERT_DEBUG(o->p_refs > 0, "pipe_open: overflow");
 	f->f_perm = m->m_arg | (x & ACC_CHMOD);
+	if (m->m_arg & ACC_WRITE) {
+		o->p_nwrite += 1;
+		ASSERT_DEBUG(o->p_nwrite > 0, "pipe_open: overflow");
+	}
 	m->m_nseg = m->m_arg = m->m_arg1 = 0;
 	msg_reply(m->m_sender, m);
 }
@@ -203,6 +210,7 @@ pipe_close(struct file *f)
 	/*
 	 * Free a ref.  No more clients--free node.
 	 */
+	ASSERT_DEBUG(o->p_refs > 0, "pipe_close: underflow");
 	o->p_refs -= 1;
 	if (o->p_refs == 0) {
 		freeup(o);
@@ -210,8 +218,16 @@ pipe_close(struct file *f)
 	}
 
 	/*
+	 * If this is a reader-side, no further action to take
+	 */
+	if ((f->f_perm & ACC_WRITE) == 0) {
+		return;
+	}
+
+	/*
 	 * Close of last writer--bomb all pending readers
 	 */
+	ASSERT_DEBUG(o->p_nwrite > 0, "pipe_close: underflow");
 	o->p_nwrite -= 1;
 	if (o->p_nwrite > 0) {
 		return;
