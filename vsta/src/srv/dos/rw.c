@@ -15,15 +15,16 @@
  * Returns 0 on success, 1 on error.
  */
 static
-do_write(struct clust *c, int pos, char *buf, int cnt)
+do_write(struct clust *c, uint pos, char *buf, uint cnt)
 {
-	int x, step, blk, boff;
+	uint bufoff, step, blk, boff;
 	void *handle;
 
 	/*
 	 * Loop across each block, putting our data into place
 	 */
-	for (x = 0; x < cnt; ) {
+	bufoff = 0;
+	while (cnt > 0) {
 		/*
 		 * Calculate how much to take out of current block
 		 */
@@ -39,17 +40,22 @@ do_write(struct clust *c, int pos, char *buf, int cnt)
 		blk = pos / BLOCKSIZE;
 		handle = bget(c->c_clust[blk]);
 		if (!handle) {
-			return 1;
+			return(1);
 		}
-		memcpy((char *)bdata(handle)+boff, buf+x, step);
-		pos += step;
+
+		/*
+		 * Copy data, mark buffer dirty, free it
+		 */
+		memcpy((char *)bdata(handle)+boff, buf+bufoff, step);
 		bdirty(handle);
 		bfree(handle);
 
 		/*
-		 * Advance to next chunk
+		 * Advance counters
 		 */
-		x += step;
+		pos += step;
+		bufoff += step;
+		cnt -= step;
 	}
 	return(0);
 }
