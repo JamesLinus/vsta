@@ -61,6 +61,7 @@
 #define EILL "ill instr"
 #define EKILL "kill"
 #define EBADF "bad file"
+#define EAGAIN "again"
 
 /*
  * A stat of an entry returns a set of strings with newlines
