@@ -89,24 +89,22 @@ leap(int year)
 }
 
 /*
- * ctime()
- *	Give printed string version of time
- *
- * Always in GMT.  Get a clue, it's all one big world.
+ * gmtime()
+ *	Convert time to Greenwich
  */
-char *
-ctime(long *lp)
+struct tm *
+gmtime(time_t *lp)
 {
-	int day, month, year, dow, hr, min, sec;
-	long l = *lp, len;
-	static char timebuf[32];
+	static struct tm tm;
+	time_t l = *lp;
+	ulong len;
 
 	/*
 	 * Take off years until we reach the desired one
 	 */
-	year = 1990;
+	tm.tm_year = 1990;
 	for (;;) {
-		if (leap(year)) {
+		if (leap(tm.tm_year)) {
 			len = 366 * DAYSECS;
 		} else {
 			len = 365 * DAYSECS;
@@ -115,39 +113,44 @@ ctime(long *lp)
 			break;
 		}
 		l -= len;
-		year += 1;
+		tm.tm_year += 1;
 	}
+
+	/*
+	 * Absolute count of days into year
+	 */
+	tm.tm_yday = l/DAYSECS;
 
 	/*
 	 * Take off months until we reach the desired month
 	 */
-	if (leap(year)) {
+	if (leap(tm.tm_year)) {
 		month_len[1] = 29;	/* Feb. on leap year */
 	}
-	month = 0;
+	tm.tm_mon = 0;
 	for (;;) {
-		len = month_len[month] * DAYSECS;
+		len = month_len[tm.tm_mon] * DAYSECS;
 		if (l < len) {
 			break;
 		}
 		l -= len;
-		month += 1;
+		tm.tm_mon += 1;
 	}
 
 	/*
 	 * Figure the day
 	 */
-	day = l/DAYSECS;
+	tm.tm_mday = l/DAYSECS;
 	l = l % DAYSECS;
 
 	/*
 	 * Hour/minute/second
 	 */
-	hr = l / HRSECS;
+	tm.tm_hour = l / HRSECS;
 	l = l % HRSECS;
-	min = l / 60;
+	tm.tm_min = l / 60;
 	l = l % 60;
-	sec = l;
+	tm.tm_sec = l;
 
 	/*
 	 * Day of week is easier, at least until we get leap weeks
@@ -156,15 +159,61 @@ ctime(long *lp)
 	 *
 	 * 1990 started on a monday.
 	 */
-	dow = *lp / DAYSECS;
-	dow += 1;
-	dow %= 7;
+	tm.tm_wday = *lp / DAYSECS;
+	tm.tm_wday += 1;
+	tm.tm_wday %= 7;
+
+	/*
+	 * Fluff
+	 */
+	tm.tm_isdst = 0;
+	tm.tm_gmtoff = 0;
+	tm.tm_zone = "GMT";
+
+	/*
+	 * Convert values to their defined basis
+	 */
+	tm.tm_mday += 1;
+	tm.tm_year -= 1900;
+
+	return(&tm);
+}
+
+/*
+ * localtime()
+ *	Just gmtime
+ *
+ * Yes, always in GMT.  Get a clue, it's all one big world.
+ */
+struct tm *
+localtime(time_t *lp)
+{
+	return(gmtime(lp));
+}
+
+/*
+ * ctime()
+ *	Give printed string version of time
+ */
+char *
+ctime(time_t *lp)
+{
+	register struct tm *tm;
+	static char timebuf[32];
+
+	/*
+	 * Get basic time information
+	 */
+	tm = localtime(lp);
 
 	/*
 	 * Print it all into a buffer
 	 */
-	sprintf(timebuf, "%s %s %d, %d  %02d:%02d:%02d\n",
-		days[dow], months[month], day+1, year,
-		hr, min, sec);
+	sprintf(timebuf, "%s %s %d, %d  %02d:%02d:%02d %s\n",
+		days[tm->tm_wday], months[tm->tm_mon],
+		tm->tm_mday, 1900 + tm->tm_year,
+		tm->tm_hour, tm->tm_min, tm->tm_sec,
+		tm->tm_zone);
 	return(timebuf);
 }
+
