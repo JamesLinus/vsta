@@ -217,6 +217,22 @@ bget(int blkno)
 }
 
 /*
+ * bget_empty()
+ *	Like bget(), but don't fill block contents if it's new
+ */
+void *
+bget_empty(int blkno)
+{
+	struct block *b;
+
+	b = bfind(blkno);
+	if (!b) {
+		b = bnew(blkno);
+	}
+	return(b);
+}
+
+/*
  * bdata()
  *	Convert opaque pointer into corresponding data
  */

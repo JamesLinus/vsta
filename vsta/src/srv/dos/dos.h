@@ -165,6 +165,7 @@ extern uint get_clust0(struct clust *);
  */
 extern void *bget(int), *bdata(void *), bdirty(void *);
 extern void binit(void), bsync(void), bfree(void *);
+extern void *bget_empty(int);
 
 /*
  * Other routines

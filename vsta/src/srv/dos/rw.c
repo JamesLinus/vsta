@@ -38,7 +38,11 @@ do_write(struct clust *c, uint pos, char *buf, uint cnt)
 		 * Map current block
 		 */
 		blk = pos / BLOCKSIZE;
-		handle = bget(c->c_clust[blk]);
+		if ((boff == 0) && (step == BLOCKSIZE)) {
+			handle = bget_empty(c->c_clust[blk]);
+		} else {
+			handle = bget(c->c_clust[blk]);
+		}
 		if (!handle) {
 			return(1);
 		}
