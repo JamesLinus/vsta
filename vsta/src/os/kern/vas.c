@@ -9,6 +9,7 @@
 #include <sys/vm.h>
 #include <sys/core.h>
 #include <sys/assert.h>
+#include <sys/hat.h>
 #include <lib/alloc.h>
 
 /*
@@ -101,16 +102,16 @@ detach_pview(struct vas *vas, void *vaddr)
 		 */
 		lock_slot(ps, pp);
 		if (delete_atl(pfn, pv, x)) {
-			char *vaddr;
+			char *va;
 
 			/*
 			 * Valid in our view; delete HAT translation.  Record
 			 * ref/mod bits for final time.
 			 */
-			vaddr = pv->p_vaddr;
-			vaddr += ptob(x);
-			hat_deletetrans(pv, vaddr, pfn);
-			pp->pp_flags |= hat_getbits(pv, vaddr);
+			va = pv->p_vaddr;
+			va += ptob(x);
+			hat_deletetrans(pv, va, pfn);
+			pp->pp_flags |= hat_getbits(pv, va);
 
 			/*
 			 * Release our reference to the slot
@@ -126,9 +127,15 @@ detach_pview(struct vas *vas, void *vaddr)
 	}
 
 	/*
-	 * Remove our reference to the page set itself
+	 * Release lock on pset
 	 */
 	v_lock(&ps->p_lock, SPL0);
+
+	/*
+	 * Let hat hear about detach
+	 */
+	hat_detach(pv);
+
 	return(pv);
 }
 
@@ -227,6 +234,7 @@ fork_vas(struct thread *t, struct vas *ovas)
 	 */
 	vas = malloc(sizeof(struct vas));
 	vas->v_views = 0;
+	vas->v_flags = 0;
 	init_lock(&vas->v_lock);
 	hat_initvas(vas);
 
@@ -268,8 +276,6 @@ fork_vas(struct thread *t, struct vas *ovas)
 		 * duplicate the pview, since it might go away once we
 		 * release the vas lock.
 		 */
-		printf("Dup pview 0x%x vaddr 0x%x\n", closest,
-			closest->p_vaddr);
 		ps = closest->p_set;
 		pv2 = *closest;
 		vaddr = pv2.p_vaddr;
