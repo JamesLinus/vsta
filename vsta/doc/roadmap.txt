@@ -56,8 +56,9 @@ place you found vsta.tz and vsta_bin.tz.
 
 	You now have all the binaries and source for VSTa.
 
-Passwords are in /vsta/etc/passwd, and are in the clear.  Feel free to
-edit this file using a DOS editor; VSTa tries to accomodate both DOS
+Accounts are in /vsta/etc/passwd, with a parallel file /vsta/etc/shadow
+holding the actual passwords, which are in the clear.  Feel free to
+edit these files using a DOS editor; VSTa tries to accomodate both DOS
 \r\n and UNIX \n conventions for line-oriented data.  The format is
 described in lib/passwd.c.  The group you belong to in the passwd file
 causes you to get more abilities; see /vsta/etc/group.  Finally, numeric
@@ -93,12 +94,16 @@ see mach.ami directories.
 
 cd to the "/vsta/boot" subdir.
 
-Edit the file "boot.lst".  Each boot driver has a line here, and the
-comments before each line should tell you how to fiddle the line to
-reflect your hardware.  Currently, you need to edit console driver to
-tell it whether you're CGA or MGA, and you need to edit the line for the
-wd disk driver to tell it how to get the parameters for your disk(s).
-Or comment out the wd driver and uncomment the SCSI driver "cam"
+Edit the file "boot.lst" if your system doesn't match the defaults;
+as shipped, boot.lst expects an IDE system with CGA text.  You may
+need to do "attrib -r boot.lst" Each boot driver has a line here,
+and the comments before each line should tell you how to fiddle
+the line to reflect your hardware.  Currently, you need to edit
+the console driver to tell it whether you're CGA or MGA, and you
+need to edit the line for the wd disk driver to tell it how to get
+the parameters for your disk(s) (although the default really works
+for virtually any IDE disk/controller you're going to find).  Or
+comment out the wd driver and uncomment the SCSI driver "cam"
 instead.  Or use both.
 
 Invoke the batch file "go.bat".
