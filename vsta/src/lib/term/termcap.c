@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  */
 #ifndef PATH_DEF
-#define PATH_DEF "/lib/termcap"
+#define PATH_DEF "/vsta/lib/termcap"
 #endif
 
 #define	BUFSIZ		1024
@@ -85,6 +85,9 @@ tgetent(bp, name)
 	 */
 	if (termcap == 0) {
 		termcap = getenv("TERMCAP");
+		if (termcap == 0) {
+			termcap = PATH_DEF;
+		}
 		termpath = getenv("TERMPATH");
 		home = getenv("HOME");
 	}
