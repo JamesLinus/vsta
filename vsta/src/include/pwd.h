@@ -6,12 +6,11 @@
  *
  * This represents a subset of what VSTa puts in the passwd file
  */
-#include <grp.h>	/* for gid_t */
+#include <sys/types.h>
 
 /*
  * Types
  */
-typedef unsigned long uid_t;
 struct passwd {
 	char *pw_name;		/* Name of account */
 	uid_t pw_uid;		/* UID */
