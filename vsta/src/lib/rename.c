@@ -138,7 +138,7 @@ rename(char *src, char *dest)
 	 */
 	if (srcname != destname) {
 		err = -1;
-		__err(EXDEV);
+		__seterr(EXDEV);
 		goto out;
 	}
 
