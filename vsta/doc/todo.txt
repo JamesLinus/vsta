@@ -273,3 +273,22 @@ wd disk driver seems to mis-handle large I/O's.  This is masked
 
 Need to add LBA support to wd; this is a fairly standard mechanism
 	which is really quite nice.
+
+I have a partially completed port of mgr-0.69.  We should eventually
+	finish the port and upgrade VSTa's mgr to be current with
+	everybody else's.
+
+It's basically impossible to have more shared libraries, because almost
+	any additional shared library will depend on the libc one.  This
+	isn't too hard to fix; mmap() needs to be able to understand that
+	when you try to mmap a file at a given position, and that same
+	file is already mapped there, that it should just return success.
+	Then subsequent shared libraries can just be linked against the
+	stubs of earlier ones.  This means a shared library needs to
+	declare which other libraries it needs, but I think that's OK.
+
+The base shared library mechanism isn't flexible enough to handle an
+	open ended collection of potential shared libraries.  We should
+	use the current mechanism for a "core" set, and then support
+	PIC style shared libraries for an arbitrary number of additional
+	ones.
