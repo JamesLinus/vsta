@@ -381,3 +381,9 @@ _usleep
 _setreuid
 _nice
 _fionread
+_err
+_errc
+_errx
+_warn
+_warnc
+_warnx

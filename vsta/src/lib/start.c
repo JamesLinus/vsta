@@ -17,6 +17,11 @@ const unsigned char *__ctab;
 FILE *__iob;
 
 /*
+ * Record this for the edification of err() and friends
+ */
+const char *_progname;
+
+/*
  * __start()
  *	Do some massaging of arguments during C startup
  */
@@ -44,7 +49,8 @@ __start
 		if (__bootargc) {
 			*argcp = __bootargc;
 			*argvp = &__bootargv;
-			set_cmd(__bootargv);
+			_progname = __bootargv;
+			set_cmd(_progname);
 			return;
 		}
 #endif
@@ -90,10 +96,11 @@ noargs:
 	 * Set command
 	 */
 	if (p = strrchr(argv[0], '/')) {
-		(void)set_cmd(p+1);
+		_progname = p+1;
 	} else {
-		(void)set_cmd(argv[0]);
+		_progname = argv[0];
 	}
+	(void)set_cmd(_progname);
 
 	/*
 	 * Restore our fdl state
