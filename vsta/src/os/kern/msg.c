@@ -259,6 +259,22 @@ msg_send(port_t arg_port, struct msg *arg_msg)
 		error = err(EFAULT);
 		goto out;
 	}
+
+	/*
+	 * Protect our reserved messages types.  M_TIME is a special
+	 * case because I used to think I'd generate these from the
+	 * kernel, but currently I do it through a user-space thread.
+	 * I could renumber it out of the reserved range--TBD.
+	 *
+	 * We mask the low bits to avoid being confused by the
+	 * M_READ bit in the higher bits.
+	 */
+	if ((m->m_op & 0xFFF) < M_RESVD) {
+		if ((m->m_op & 0xFFF) != M_TIME) {
+			free(m);
+			return(err(EINVAL));
+		}
+	}
 #ifdef MSGTRACE
 	printf("msg_send port 0x%x op 0x%x segs %d\n",
 		arg_port, m->m_op, m->m_nseg);
