@@ -544,6 +544,7 @@ do_exit(int code)
 {
 	struct thread *t = curthread, *t2, **tp;
 	struct proc *p = t->t_proc;
+	struct sched *prunq = p->p_runq;
 	int last;
 
 	/*
@@ -603,10 +604,23 @@ do_exit(int code)
 	}
 
 	/*
+	 * Don't let our CPU be taken away while we try to clean up
+	 */
+	NO_PREEMPT();
+
+	/*
+	 * Clear out thread's t_runq, and proc's if this is the
+	 * last thread.
+	 */
+	free_sched_node(t->t_runq);
+	if (last) {
+		free_sched_node(prunq);
+	}
+
+	/*
 	 * Free kernel stack once we've switched to our idle stack.
 	 * Can't use local variables after this!
 	 */
-	ATOMIC_INC(&cpu.pc_locks);	/* To avoid preemption */
 	idle_stack();
 	FREE(curthread->t_kstack, MT_KSTACK);
 	FREE(curthread, MT_THREAD);
@@ -617,7 +631,7 @@ do_exit(int code)
 	 */
 	ATOMIC_DEC(&nthread);
 	p_lock(&runq_lock, SPLHI);
-	ATOMIC_DEC(&cpu.pc_locks);	/* swtch() will handle dispatch */
+	PREEMPT_OK();	/* Can't preempt now with runq_lock held */
 	for (;;) {
 		swtch();
 		ASSERT(0, "do_exit: swtch returned");

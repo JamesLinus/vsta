@@ -67,7 +67,8 @@ check_preempt(void)
 	 * If no preemption needed, holding locks, or not running
 	 * with a process, don't preempt.
 	 */
-	if (!do_preempt || !curthread || (cpu.pc_locks > 0)) {
+	if (!do_preempt || !curthread || (cpu.pc_locks > 0)
+			|| (cpu.pc_nopreempt > 0)) {
 		return;
 	}
 

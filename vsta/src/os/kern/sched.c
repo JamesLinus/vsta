@@ -245,6 +245,7 @@ swtch(void)
 	 * Now that we're going to reschedule, clear any pending preempt
 	 * request.
 	 */
+	ASSERT_DEBUG(cpu.pc_nopreempt == 0, "swtch: slept in no preempt");
 	do_preempt = 0;
 
 	for (;;) {
@@ -514,4 +515,34 @@ sched_node(struct sched *parent)
 	parent->s_refs += 1;
 	v_lock(&runq_lock, SPL0);
 	return(s);
+}
+
+/*
+ * free_sched_node()
+ *	Free scheduling node, updating parent if needed
+ */
+void
+free_sched_node(struct sched *s)
+{
+	(void)p_lock(&runq_lock, SPLHI);
+
+	/*
+	 * De-ref parent
+	 */
+	s->s_up->s_refs -= 1;
+
+	/*
+	 * If not a leaf, this node is linked under the parent.  Remove
+	 * it.
+	 */
+	if (s->s_leaf == 0) {
+		dequeue(s->s_up, s);
+	}
+
+	v_lock(&runq_lock, SPL0);
+
+	/*
+	 * Free the node
+	 */
+	FREE(s, MT_SCHED);
 }
