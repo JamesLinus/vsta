@@ -30,8 +30,11 @@ man: man.o
 stat: stat.o
 	$(LD) $(LDFLAGS) -o stat ../../libc/crt0.o stat.o -lc
 
-dumpsect: dumpsect.o
-	$(LD) $(LDFLAGS) -o dumpsect ../../libc/crt0.o dumpsect.o -lc
+dump.o: ../testsh/dump.c
+	$(CC) $(CFLAGS) -c ../testsh/dump.c
+
+dumpsect: dumpsect.o dump.o
+	$(LD) $(LDFLAGS) -o dumpsect ../../libc/crt0.o dumpsect.o dump.o -lc
 
 mv: mv.o
 	$(LD) $(LDFLAGS) -o mv ../../libc/crt0.o mv.o -lc
