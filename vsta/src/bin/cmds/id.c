@@ -51,9 +51,13 @@ main()
 				printf(".");
 			}
 			printf("%d", perm.perm_id[y]);
-			if (perm.perm_uid) {
-				printf("(%d)", perm.perm_uid);
-			}
+		}
+
+		/*
+		 * Print UID tag if present
+		 */
+		if (perm.perm_uid) {
+			printf("(%d)", perm.perm_uid);
 		}
 
 		/*
