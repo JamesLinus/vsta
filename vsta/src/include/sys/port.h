@@ -47,6 +47,7 @@ struct portref {
 	uchar p_state,		/* State & flags; see below */
 		p_flags,
 		p_dummy1;
+	ulong p_refs;		/* # references */
 	sema_t p_iowait;	/* Where proc sleeps for I/O */
 	sema_t p_svwait;	/*  ...server, while client copies out */
 	struct sysmsg		/* The message descriptor */
