@@ -306,7 +306,7 @@ _outportb:
 	pushl	%esi  ; \
   \
 	/* Flag probe */  ; \
-	movl	$(CURTHREAD),%edi  ; \
+	movl	CURTHREAD,%edi  ; \
 	movl	$_cpfail,T_PROBE(%edi)
 
 /*
@@ -329,7 +329,7 @@ _outportb:
  */
 #define CP_POSTLOG \
 	/* Clear probe */ ; \
-	movl	$(CURTHREAD),%edi ; \
+	movl	CURTHREAD,%edi ; \
 	xorl	%eax,%eax ; \
 	movl	%eax,T_PROBE(%edi) ; \
   \
