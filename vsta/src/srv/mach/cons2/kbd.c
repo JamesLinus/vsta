@@ -5,24 +5,11 @@
  * Well, actually just reads, since it's a keyboard.  But r.c looked
  * a little strange.
  */
-#include <sys/msg.h>
+#include "cons.h"
 #include <llist.h>
 #include <mach/kbd.h>
 #include <sys/assert.h>
 #include <sys/seg.h>
-
-/*
- * A circular buffer for keystrokes
- */
-static char key_buf[KEYBD_MAXBUF];
-static uint key_hd = 0,
-	key_tl = 0;
-uint key_nbuf = 0;
-
-/*
- * Our queue for I/O's pending
- */
-static struct llist read_q;
 
 /*
  * kbd_read()
@@ -35,10 +22,12 @@ static struct llist read_q;
 void
 kbd_read(struct msg *m, struct file *f)
 {
+	struct screen *s = &screens[f->f_screen];
+
 	/*
 	 * Handle easiest first--non-blocking read, no data
 	 */
-	if ((m->m_arg == 0) && (key_nbuf == 0)) {
+	if ((m->m_arg == 0) && (s->s_nbuf == 0)) {
 		m->m_buflen = m->m_nseg = m->m_arg = m->m_arg1 = 0;
 		msg_reply(m->m_sender, m);
 		return;
@@ -48,27 +37,27 @@ kbd_read(struct msg *m, struct file *f)
 	 * Next easiest: non-blocking read, give'em what we have
 	 */
 	if (m->m_arg == 0) {
-		m->m_buf = &key_buf[key_tl];
+		m->m_buf = &s->s_buf[s->s_tl];
 
 		/*
 		 * If all the data's in a row, send with just the
 		 * buffer.
 		 */
-		if (key_hd > key_tl) {
-			m->m_arg = m->m_buflen = key_hd-key_tl;
+		if (s->s_hd > s->s_tl) {
+			m->m_arg = m->m_buflen = s->s_hd - s->s_tl;
 			m->m_nseg = 1;
 		} else {
 			/*
 			 * If not, send the second extent using
 			 * a segment.
 			 */
-			m->m_buflen = KEYBD_MAXBUF-key_tl;
+			m->m_buflen = KEYBD_MAXBUF - s->s_tl;
 			m->m_nseg = 2;
-			m->m_seg[1] = seg_create(key_buf, key_hd);
-			m->m_arg = m->m_buflen + key_hd;
+			m->m_seg[1] = seg_create(s->s_buf, s->s_hd);
+			m->m_arg = m->m_buflen + s->s_hd;
 		}
-		key_tl = key_hd;
-		key_nbuf = 0;
+		s->s_tl = s->s_hd;
+		s->s_nbuf = 0;
 		m->m_arg1 = 0;
 		msg_reply(m->m_sender, m);
 		return;
@@ -77,16 +66,16 @@ kbd_read(struct msg *m, struct file *f)
 	/*
 	 * If we have data, give them up to what they want
 	 */
-	if (key_nbuf > 0) {
+	if (s->s_nbuf > 0) {
 		/*
 		 * See how much we can get in one run
 		 */
 		m->m_nseg = 1;
-		m->m_buf = &key_buf[key_tl];
-		if (key_hd > key_tl) {
-			m->m_buflen = key_hd-key_tl;
+		m->m_buf = &s->s_buf[s->s_tl];
+		if (s->s_hd > s->s_tl) {
+			m->m_buflen = s->s_hd - s->s_tl;
 		} else {
-			m->m_buflen = KEYBD_MAXBUF-key_tl;
+			m->m_buflen = KEYBD_MAXBUF - s->s_tl;
 		}
 
 		/*
@@ -99,10 +88,10 @@ kbd_read(struct msg *m, struct file *f)
 		/*
 		 * Update tail pointer
 		 */
-		key_nbuf -= m->m_buflen;
-		key_tl += m->m_buflen;
-		if (key_tl >= KEYBD_MAXBUF) {
-			key_tl -= KEYBD_MAXBUF;
+		s->s_nbuf -= m->m_buflen;
+		s->s_tl += m->m_buflen;
+		if (s->s_tl >= KEYBD_MAXBUF) {
+			s->s_tl -= KEYBD_MAXBUF;
 		}
 
 		/*
@@ -118,19 +107,9 @@ kbd_read(struct msg *m, struct file *f)
 	 * Last but not least, queue the I/O until we can complete
 	 * it.
 	 */
-	f->f_count = m->m_arg;
+	f->f_readcnt = m->m_arg;
 	f->f_sender = m->m_sender;
 	ll_insert(&read_q, f);
-}
-
-/*
- * kbd_init()
- *	Set up our read queue structure once
- */
-void
-kbd_init()
-{
-	ll_init(&read_q);
 }
 
 /*
@@ -156,7 +135,7 @@ abort_read(struct file *f)
  *	Get a new character to enqueue
  */
 void
-kbd_enqueue(uint c)
+kbd_enqueue(struct screen *s, uint c)
 {
 	char buf[4];
 	struct msg m;
@@ -168,7 +147,7 @@ kbd_enqueue(uint c)
 	 */
 	l = read_q.l_forw;
 	if (l != &read_q) {
-		ASSERT_DEBUG(key_nbuf == 0, "kbd: waiters with data");
+		ASSERT_DEBUG(s->s_nbuf == 0, "kbd: waiters with data");
 
 		/*
 		 * Extract the waiter from the list
@@ -189,7 +168,7 @@ kbd_enqueue(uint c)
 		/*
 		 * Clear pending transaction
 		 */
-		f->f_count = 0;
+		f->f_readcnt = 0;
 #ifdef DEBUG
 		f->f_sender = 0;
 #endif
@@ -199,17 +178,17 @@ kbd_enqueue(uint c)
 	/*
 	 * If there's too much queued data, ignore
 	 */
-	if (key_nbuf >= KEYBD_MAXBUF) {
+	if (s->s_nbuf >= KEYBD_MAXBUF) {
 		return;
 	}
 
 	/*
 	 * Add it to the queue
 	 */
-	key_buf[key_hd] = c;
-	key_hd += 1;
-	key_nbuf += 1;
-	if (key_hd >= KEYBD_MAXBUF) {
-		key_hd = 0;
+	s->s_buf[s->s_hd] = c;
+	s->s_hd += 1;
+	s->s_nbuf += 1;
+	if (s->s_hd >= KEYBD_MAXBUF) {
+		s->s_hd = 0;
 	}
 }
