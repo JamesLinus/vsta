@@ -25,8 +25,8 @@ extern void setrun();
 extern struct sched sched_root;
 extern lock_t runq_lock;
 
-ulong npid_free = (ulong)-1;	/* # PIDs free in pool */
-ulong pid_nextfree = 0L;	/* Next free PID number */
+ulong npid_free = ((~0)-1);	/* # PIDs free in pool */
+ulong pid_nextfree = 1L;	/* Next free PID number */
 struct proc *allprocs = 0;	/* List of all procs */
 sema_t pid_sema;		/* Mutex for PID pool and proc lists */
 
