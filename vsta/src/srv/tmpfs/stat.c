@@ -56,7 +56,12 @@ tmpfs_stat(struct msg *m, struct file *f)
 	}
 	sprintf(buf, "size=%d\ntype=%c\nowner=%d\ninode=%u\n",
 		len, f->f_file ? 'f' : 'd', owner, o);
-	strcat(buf, perm_print(&o->o_prot));
+	if (o) {
+		strcat(buf, perm_print(&o->o_prot));
+	} else {
+		sprintf(buf+strlen(buf), "perm=1\nacc=%d/%d\n",
+			ACC_READ | ACC_WRITE, ACC_CHMOD);
+	}
 	m->m_buf = buf;
 	m->m_arg = m->m_buflen = strlen(buf);
 	m->m_nseg = 1;
