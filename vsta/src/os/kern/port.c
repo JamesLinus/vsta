@@ -305,7 +305,7 @@ dup_port(struct portref *opr)
  *	For each open portref, M_DUP it into the new structure
  */
 void
-fork_ports(struct portref **old, struct portref **new, uint nport)
+fork_ports(sema_t *s, struct portref **old, struct portref **new, uint nport)
 {
 	int x;
 	struct portref *pr;
@@ -316,7 +316,9 @@ fork_ports(struct portref **old, struct portref **new, uint nport)
 			continue;
 		}
 		p_sema(&pr->p_sema, PRIHI);
+		v_sema(s);
 		new[x] = dup_port(pr);
+		p_sema(s, PRIHI);
 		v_sema(&pr->p_sema);
 	}
 }

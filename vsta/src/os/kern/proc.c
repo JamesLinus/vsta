@@ -20,6 +20,7 @@
 extern void setrun(), dup_stack();
 extern struct sched sched_root;
 extern lock_t runq_lock;
+extern uint num_run;
 
 ulong npid_free = (ulong)-1;	/* # PIDs free in pool */
 ulong pid_nextfree = 0L;	/* Next free PID number */
@@ -437,7 +438,6 @@ fork(void)
 	tnew->t_pid = allocpid();
 	v_sema(&pid_sema);
 
-
 	/*
 	 * Get new proc, copy over fields as appropriate
 	 */
@@ -450,8 +450,7 @@ fork(void)
 	pnew->p_vas = fork_vas(tnew, pold->p_vas);
 	pnew->p_runq = sched_node(pold->p_runq->s_up);
 	tnew->t_runq = sched_thread(pnew->p_runq, tnew);
-	bzero(&pnew->p_ports, sizeof(pnew->p_ports));
-	fork_ports(pold->p_open, pnew->p_open, PROCOPENS);
+	fork_ports(&pold->p_sema, pold->p_open, pnew->p_open, PROCOPENS);
 	pnew->p_nopen = pold->p_nopen;
 	pnew->p_handler = pold->p_handler;
 	pnew->p_pgrp = pold->p_pgrp; join_pgrp(pold->p_pgrp, npid);
@@ -482,9 +481,7 @@ fork(void)
 	/*
 	 * Leave him runnable
 	 */
-	p_lock(&runq_lock, SPLHI);
-	lsetrun(tnew);
-	v_lock(&runq_lock, SPL0);
+	setrun(tnew);
 	return(npid);
 }
 
@@ -500,14 +497,6 @@ free_proc(struct proc *p)
 	 */
 	close_ports(p->p_ports, PROCPORTS);
 	close_portrefs(p->p_open, PROCOPENS);
-
-	/*
-	 * Clean our our vas
-	 */
-	if (p->p_vas->v_flags & VF_DMA) {
-		pages_release(p);
-	}
-	free_vas(p->p_vas);
 
 	/*
 	 * Delete us from the "allproc" list
@@ -530,6 +519,14 @@ free_proc(struct proc *p)
 	 * Depart process group
 	 */
 	leave_pgrp(p->p_pgrp, p->p_pid);
+
+	/*
+	 * Clean our our vas
+	 */
+	if (p->p_vas->v_flags & VF_DMA) {
+		pages_release(p);
+	}
+	free_vas(p->p_vas);
 
 	/*
 	 * Release proc storage
@@ -590,6 +587,11 @@ do_exit(int code)
 	while (blocked_sema(&t->t_evq)) {
 		v_sema(&t->t_evq);
 	}
+
+	/*
+	 * One less runable thread
+	 */
+	ATOMIC_DEC(&num_run);
 
 	/*
 	 * Tear down the thread's user stack if not last.  If it's
