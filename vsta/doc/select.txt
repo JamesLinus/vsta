@@ -83,8 +83,6 @@ sc_needsel
 Another flag is needed to tell if a particular client needs further
 sc_event notifications.  It's cleared when a client receives an
 sc_event notification, and re-set when the client is subsequently seen
-posting an I/O for the data.  Note that this assumes the client will
-always do I/O on each file descriptor which select()'ed true... which
-seems to match current practice.  If this doesn't work out, extra
-complexity will be needed to match up select event masks with particular
-iocount generations of access.
+posting an I/O for the data.  The library correctly handles situations
+like posting multiple select()'s for an event before doing an I/O to
+act on the indicated data.
