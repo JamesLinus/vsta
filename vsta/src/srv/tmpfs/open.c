@@ -226,6 +226,24 @@ tmpfs_open(struct msg *m, struct file *f)
 }
 
 /*
+ * nuke()
+ *	Free space under file, remove its dir entry
+ */
+static void
+nuke(struct openfile *o)
+{
+	/*
+	 * Zap the blocks
+	 */
+	blk_trunc(o);
+
+	/*
+	 * Free the node memory
+	 */
+	freeup(o);
+}
+
+/*
  * tmpfs_close()
  *	Do closing actions on a file
  */
@@ -236,6 +254,9 @@ tmpfs_close(struct file *f)
 
 	if (o = f->f_file) {
 		o->o_refs -= 1;
+		if (o->o_deleted && (o->o_refs == 0)) {
+			nuke(o);
+		}
 	}
 }
 
@@ -276,22 +297,14 @@ tmpfs_remove(struct msg *m, struct file *f)
 	}
 
 	/*
-	 * Can't be any other users
+	 * If there are still users, mark it to disappear on final
+	 * close.
 	 */
 	if (o->o_refs > 0) {
-		msg_err(m->m_sender, EBUSY);
-		return;
+		o->o_deleted = 1;
+	} else {
+		nuke(o);
 	}
-
-	/*
-	 * Zap the blocks
-	 */
-	blk_trunc(o);
-
-	/*
-	 * Free the node memory
-	 */
-	freeup(o);
 
 	/*
 	 * Return success

@@ -29,6 +29,7 @@ struct openfile {
 	struct prot o_prot;	/* Protection of file */
 	uint o_refs;		/* # references */
 	uint o_owner;		/* Owner UID */
+	int o_deleted;		/* Auto-delete on last close */
 };
 
 /*
