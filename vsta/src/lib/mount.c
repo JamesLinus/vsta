@@ -13,16 +13,15 @@ int __nmnttab = 0;
  * mountport()
  *	Like mount(), but mount on given port
  */
-mountport(char *point, port_t fd)
+mountport(char *point, port_t port)
 {
-	int mntidx, x;
+	int x;
 	struct mnttab *mt;
 	struct mntent *me;
 
 	/*
 	 * Scan mount table for this point
 	 */
-	mntidx = -1;
 	for (x = 0; x < __nmnttab; ++x) {
 		int y;
 
@@ -37,14 +36,6 @@ mountport(char *point, port_t fd)
 		if (!y) {
 			break;
 		}
-
-		/*
-		 * Otherwise record where we would need to insert
-		 * this entry.
-		 */
-		if ((y < 0) && (mntidx == -1)) {
-			mntidx = y;
-		}
 	}
 
 	/*
@@ -52,10 +43,9 @@ mountport(char *point, port_t fd)
 	 */
 	me = malloc(sizeof(struct mntent));
 	if (!me) {
-		close(fd);
 		return(-1);
 	}
-	me->m_fd = fd;
+	me->m_port = port;
 
 	/*
 	 * If needed, insert new mnttab slot
@@ -67,39 +57,41 @@ mountport(char *point, port_t fd)
 		mt = realloc(__mnttab, (__nmnttab+1)*sizeof(struct mnttab));
 		if (!mt) {
 			free(me);
-			close(fd);
 			return(-1);
 		}
 		__mnttab = mt;
 
 		/*
-		 * Open slot at required index if needed.  Leave "mt"
-		 * pointing at it.
+		 * Add new mount slot to end of table
 		 */
-		if (mntidx != -1) {
-			mt = __mnttab+mntidx;
-			bcopy(mt, mt+1,
-				(__nmnttab-mntidx)*sizeof(struct mnttab));
-		} else {
-			mt = __mnttab+__nmnttab;
-		}
+		mt += __nmnttab;
 		__nmnttab += 1;
 
 		/*
 		 * Fill in slot with name
 		 */
 		mt->m_name = strdup(point);
+		if (mt->m_name == 0) {
+			/*
+			 * What a really great time to run out of memory.
+			 * Leave the mount table at its new size; malloc
+			 * can handle this next time around.
+			 */
+			__nmnttab -= 1;
+			free(me);
+			return(-1);
+		}
 		mt->m_len = strlen(mt->m_name);
 		mt->m_entries = 0;
 	}
 
 	/*
-	 * Our entry to the slot
+	 * Add our entry to the slot
 	 */
 	me->m_next = mt->m_entries;
 	mt->m_entries = me;
 
-	return(fd);
+	return(0);
 }
 
 /*
@@ -120,7 +112,11 @@ mount(char *point, char *what)
 	/*
 	 * Let mountport do the rest
 	 */
-	return(mountport(point, __fd_port(fd)));
+	if (mountport(point, __fd_port(fd)) < 0) {
+		close(fd);
+		return(-1);
+	}
+	return(fd);
 }
 
 /*
@@ -131,11 +127,12 @@ mount(char *point, char *what)
  * only the mount with the given port (fd) will be removed.  XXX we
  * need to hunt down the FDL entry as well.
  */
-umount(char *point, port_t fd)
+umount(char *point, int fd)
 {
 	int x;
 	struct mnttab *mt;
 	struct mntent *me, *men;
+	port_t port;
 
 	/*
 	 * Scan mount table for this string
@@ -160,12 +157,13 @@ umount(char *point, port_t fd)
 	if (fd >= 0) {
 		struct mntent **mp;
 
+		port = __fd_port(fd);
 		mp = &mt->m_entries;
 		for (me = mt->m_entries; me; me = me->m_next) {
 			/*
 			 * When spotted, patch out of list.
 			 */
-			if (me->m_fd == fd) {
+			if (me->m_port == port) {
 				*mp = me->m_next;
 				free(me);
 
@@ -186,7 +184,7 @@ umount(char *point, port_t fd)
 	 */
 	for (me = mt->m_entries; me; me = men) {
 		men = me->m_next;
-		msg_disconnect(me->m_fd);
+		msg_disconnect(me->m_port);
 		free(me);
 	}
 	free(mt->m_name);

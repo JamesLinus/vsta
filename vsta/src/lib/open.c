@@ -316,7 +316,7 @@ open(char *file, int mode, ...)
 	 * Try each mntent under the chosen mnttab slot
 	 */
 	for (me = match->m_entries; me; me = me->m_next) {
-		newfile = clone(me->m_fd);
+		newfile = clone(me->m_port);
 		if (try_open(newfile, p, mask, mode) == 0) {
 			x = __fd_alloc(newfile);
 			if (x < 0) {
