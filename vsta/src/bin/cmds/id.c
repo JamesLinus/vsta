@@ -44,13 +44,17 @@ main()
 		printed++;
 
 		/*
-		 * Print digits
+		 * Print digits or <root>
 		 */
-		for (y = 0; y < PERM_LEN(&perm); ++y) {
-			if (y > 0) {
-				printf(".");
+		if (PERM_LEN(&perm) == 0) {
+			printf("<root>");
+		} else {
+			for (y = 0; y < PERM_LEN(&perm); ++y) {
+				if (y > 0) {
+					printf(".");
+				}
+				printf("%d", perm.perm_id[y]);
 			}
-			printf("%d", perm.perm_id[y]);
 		}
 
 		/*
