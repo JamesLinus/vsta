@@ -45,27 +45,44 @@ deref_node(struct node *n)
 	}
 
 	/*
-	 * Flush out dirty blocks on each last close
+	 * If he's already deleted, much of this should be skipped
 	 */
-	if (n->n_flags & N_DIRTY) {
-		dir_setlen(n);
+	c = n->n_clust;
+	if (!(n->n_flags & N_DEL)) {
+		/*
+		 * Flush out dirty blocks on each last close
+		 */
+		if (n->n_flags & N_DIRTY) {
+			dir_setlen(n);
+			sync();
+		}
+
+		/*
+		 * If file, remove ref from dir we're within
+		 */
+		if (n->n_type == T_FILE) {
+			hash_delete(n->n_dir->n_files, n->n_slot);
+		} else {
+			extern struct hash *dirhash;
+
+			ASSERT_DEBUG(n->n_type == T_DIR,
+				"deref_node: bad type");
+			ASSERT(c->c_nclust > 0, "deref_node: short dir");
+			hash_delete(dirhash, c->c_clust[0]);
+		}
+	} else {
+		ASSERT_DEBUG(c->c_nclust == 0, "node_deref: del w. clusters");
+
+		/*
+		 * At least the containing directory will be dirty
+		 */
 		sync();
 	}
 
 	/*
-	 * If file, remove ref from dir we're within
+	 * Release reference to containing node
 	 */
-	c = n->n_clust;
-	if (n->n_type == T_FILE) {
-		hash_delete(n->n_dir->n_files, n->n_slot);
-		deref_node(n->n_dir);
-	} else {
-		extern struct hash *dirhash;
-
-		ASSERT_DEBUG(n->n_type == T_DIR, "deref_node: bad type");
-		ASSERT(c->c_nclust > 0, "deref_node: short dir");
-		hash_delete(dirhash, c->c_clust[0]);
-	}
+	deref_node(n->n_dir);
 
 	/*
 	 * Free FAT cache
