@@ -5,31 +5,39 @@
 #ifndef _SELECT_H
 #define _SELECT_H
 #include <sys/types.h>
+#include <sys/param.h>
 #include <time.h>
 
 /*
  * By default, size of a file descriptor set.  May be overriden.
- * Must be a power of two.
+ * Must be a power of two, and a multiple of FDBITS.
  */
 #ifndef FD_SETSIZE
 #define FD_SETSIZE (64)
 #endif
 
-typedef struct {uint _fds[FD_SETSIZE / sizeof(uint)]; } fd_set;
+/*
+ * Bits per slot (uint) in an fd_set
+ */
+#define FDBITS (sizeof(uint) * NBBY)
+
+typedef struct {
+	uint _fds[FD_SETSIZE / FDBITS];
+} fd_set;
 
 extern int select(uint, fd_set *, fd_set *, fd_set *, struct timeval *);
 
 #define FD_ISSET(idx, p) \
-	((p)->_fds[(idx) / sizeof(uint)] & \
-		(1 << ((idx) & (sizeof(uint) - 1))))
+	((p)->_fds[(idx) / FDBITS] & \
+		(1 << ((idx) & (FDBITS - 1))))
 
 #define FD_SET(idx, p) \
-	((p)->_fds[(idx) / sizeof(uint)] |= \
-		(1 << ((idx) & (sizeof(uint) - 1))))
+	((p)->_fds[(idx) / FDBITS] |= \
+		(1 << ((idx) & (FDBITS - 1))))
 
 #define FD_CLR(idx, p) \
-	((p)->_fds[(idx) / sizeof(uint)] &= \
-		~(1 << ((idx) & (sizeof(uint) - 1))))
+	((p)->_fds[(idx) / FDBITS] &= \
+		~(1 << ((idx) & (FDBITS - 1))))
 
 #define FD_ZERO(p) bzero((p), sizeof(fd_set))
 
