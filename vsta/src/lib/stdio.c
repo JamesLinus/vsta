@@ -542,6 +542,10 @@ freopen(const char *name, const char *mode, FILE *fp)
 			m |= /* _F_BINARY */ 0 ;
 			o |= O_BINARY;
 			break;
+		case 'a':
+			m |= _F_WRITE;
+			o |= O_APPEND|O_WRITE;
+			break;
 		case '+':
 			m |= (_F_WRITE | _F_READ);
 			o |= (O_WRITE | O_READ);
@@ -554,9 +558,18 @@ freopen(const char *name, const char *mode, FILE *fp)
 	/*
 	 * Open file
 	 */
-	x = open(name, o);
+	x = open(name, o, 0600);
 	if (x < 0) {
-		return(0);
+		/*
+		 * If attempting open for append, and the entry doesn't
+		 * exist, switch to regular file creation.
+		 */
+		if ((o & O_APPEND|O_WRITE) == (O_APPEND|O_WRITE)) {
+			x = open(name, O_WRITE | O_CREAT, 0600);
+		}
+		if (x < 0) {
+			return(0);
+		}
 	}
 	fp->f_fd = x;
 
