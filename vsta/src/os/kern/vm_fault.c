@@ -115,7 +115,7 @@ vas_fault(void *vas, void *vaddr, int write)
 	 */
 	if (!(pp->pp_flags & PP_V)) {
 		wasvalid = 0;
-		if ((*(ps->p_ops->psop_fillslot))(ps, pp, idx) < 0) {
+		if ((*(ps->p_ops->psop_fillslot))(ps, pp, idx)) {
 			error = 1;
 			goto out;
 		}
