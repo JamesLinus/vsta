@@ -24,6 +24,11 @@ struct tm {
 	char	*tm_zone;	/* timezone abbreviation */
 };
 
+struct timeval {
+	time_t	tv_sec;		/* Seconds and uSeconds */
+	time_t	tv_usec;
+};
+
 /*
  * Some prototypes
  */
