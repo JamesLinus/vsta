@@ -80,7 +80,7 @@ _header:
 	 */
 	pushfl
 	popl	%eax
-	andl	$~(F_DF|F_IOPL|F_NT|F_RF|F_VM),%eax
+	andl	$~(F_DF|F_NT|F_RF),%eax
 	pushl	%eax
 	popfl
 
