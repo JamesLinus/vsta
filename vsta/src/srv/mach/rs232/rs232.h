@@ -202,5 +202,6 @@ extern uchar onlcr;
  * Prototypes from main.c
  */
 extern port_name rs232port_name;
+extern int kdb;
 
 #endif /* _RS232_H */

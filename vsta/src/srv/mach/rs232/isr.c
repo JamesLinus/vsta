@@ -180,8 +180,8 @@ rs232_isr(void)
 		case IIR_RXTOUT:	/* Receiver ready */
 		case IIR_RXRDY:
 			c = inportb(iobase + DATA);
-#if defined(DEBUG) && defined(KDB)
-			if (c == '\32') {
+#if defined(KDB)
+			if (kdb && (c == '\32')) {
 				extern void dbg_enter(void);
 
 				dbg_enter();

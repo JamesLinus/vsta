@@ -34,6 +34,7 @@ uchar cts;			/* Status of CTS control line */
 uchar rts;			/* Status of RTS control line */
 uchar dcd;			/* Status of DCD (RLSD) control line */
 uchar ri;			/* Status of RI control line */
+int kdb;			/* ^Z enters kernel debugger? */
 
 /*
  * Protection for port; starts out with access for all.  sys can
@@ -279,13 +280,15 @@ loop:
 static void
 usage(void)
 {
-	fprintf(stderr, "Usage is: rs232 <com[1-4] | userdef> " \
+	fprintf(stderr, "Usage is: rs232 <com[1-4] | userdef> [-k] "
 		"[opts=args] ...\n\n");
-	fprintf(stderr, "          options: baseio=<I/O-base-address>\n" \
-			"                   irq=<IRQ-number>\n" \
-			"                   namer=<namer-entry>\n" \
-			"                   uart=<uart-type>\n" \
-			"                   nouarttest\n\n");
+	fprintf(stderr, "options: baseio=<I/O-base-address>\n"
+			"	irq=<IRQ-number>\n"
+			"	namer=<namer-entry>\n"
+			"	uart=<uart-type>\n"
+			"	nouarttest\n"
+			"	-k (^Z enters kernel debugger)\n"
+			);
 	exit(1);
 }
 
@@ -331,70 +334,89 @@ parse_options(int argc, char **argv)
 	/*
 	 * Start processing the option parameters
 	 */
-	i = 2;
-	while (i < argc) {
-		if (!strchr(argv[i], '=')) {
+	for (i = 2; i < argc; ++i) {
+		char *p;
+
+		p = argv[i];
+
+		/*
+		 * Command line switches
+		 */
+		if (p[0] == '-') {
+			switch (p[1]) {
+			case 'k':
+				kdb = 1;
+				break;
+			default:
+				usage();
+			}
+			continue;
+		}
+
+		/*
+		 * Otherwise <var>=<value> constructs
+		 */
+		if (!strchr(p, '=')) {
 			/*
 			 * Compatibility: arg can be portname
 			 */
-			strcpy(rs232_name, argv[i]);
-		} else if (!strncmp(argv[i], "irq=", 4)) {
+			strcpy(rs232_name, p);
+		} else if (!strncmp(p, "irq=", 4)) {
 			/*
 			 * Select a new IRQ line
 			 */
-			irq = (int)strtol(&argv[i][4], &check, 0);
-			if (check == &argv[i][4] || *check != '\0') {
+			irq = (int)strtol(&p[4], &check, 0);
+			if (check == &p[4] || *check != '\0') {
 				fprintf(stderr, "rs232: invalid IRQ setting " \
-					"'%s' - aborting\n", argv[i]);
+					"'%s' - aborting\n", p);
 				exit(1);
 			}
-		} else if (!strncmp(argv[i], "baseio=", 7)) {
+		} else if (!strncmp(p, "baseio=", 7)) {
 			/*
 			 * Select a new base I/O port address
 			 */
-			iobase = (int)strtol(&argv[i][7], &check, 0);
-			if (check == &argv[i][7] || *check != '\0') {
+			iobase = (int)strtol(&p[7], &check, 0);
+			if (check == &p[7] || *check != '\0') {
 				fprintf(stderr, "rs232: invalid I/O address " \
-					"'%s' - aborting\n", argv[i]);
+					"'%s' - aborting\n", p);
 				exit(1);
 			}
-		} else if (!strncmp(argv[i], "namer=", 6)) {
+		} else if (!strncmp(p, "namer=", 6)) {
 			/*
 			 * Select a new namer entry
 			 */
-			if ((strlen(&argv[i][6]) == 0)
-			    || (strlen(&argv[i][6]) >= NAMESZ)) {
+			if ((strlen(&p[6]) == 0)
+			    || (strlen(&p[6]) >= NAMESZ)) {
 				fprintf(stderr, "rs232: invalid name '%s' " \
-					"- aborting\n", &argv[i][6]);
+					"- aborting\n", &p[6]);
 				exit(1);
 			}
-			strcpy(rs232_name, &argv[i][6]);
-		} else if (!strncmp(argv[i], "notest=", 7)) {
+			strcpy(rs232_name, &p[6]);
+		} else if (!strncmp(p, "notest=", 7)) {
 			/*
 			 * Don't attempt to test the UART
 			 */
 			test_uart = 0;
-		} else if (!strncmp(argv[i], "uart=", 5)) {
+		} else if (!strncmp(p, "uart=", 5)) {
 			/*
 			 * Force the uart type
 			 */
 			for(uart = 0; uart_names[uart][0]; uart++) {
-				if (!strcmp(&argv[i][5], uart_names[uart])) {
+				if (!strcmp(&p[5], uart_names[uart])) {
 					break;
 				}
 			}
 			if (!uart_names[uart][0]) {
 				fprintf(stderr, "rs232: invalid UART type " \
-					"'%s' - aborting\n", argv[i]);
+					"'%s' - aborting\n", p);
 				exit(1);
 			}
  		} else {
  			fprintf(stderr,
  				"rs232: unknown option '%s' - aborting\n",
- 				argv[i]);
+ 				p);
  			exit(1);
 		}
-		i++;
 	}
 
 	/*
