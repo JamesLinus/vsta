@@ -65,7 +65,7 @@ _inportl:
 _outportl:
 	movl	4(%esp),%edx
 	movl	8(%esp),%eax
-	outw	%eax,%dx
+	outl	%eax,%dx
 	ret
 
 /*
