@@ -121,6 +121,7 @@ bnew(int blkno)
 		ll_delete(b->b_hash);
 		b->b_hash = ll_insert(&hash[blkno & HASHMASK], b);
 		b->b_refs = 1;
+		b->b_blkno = blkno;
 		return(b);
 	}
 
