@@ -55,6 +55,7 @@ update_select(struct pty *pty)
 	/*
 	 * Now slave events
 	 */
+	event = 0;
 	if (pty->p_ioqw.ioq_flags & IOQ_READABLE) {
 		event |= ACC_READ;
 		pty->p_ioqw.ioq_flags &= ~IOQ_READABLE;
