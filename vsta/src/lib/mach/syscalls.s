@@ -70,6 +70,7 @@ ENTRY(time_set, S_TIME_SET)
 ENTRY(ptrace, S_PTRACE)
 ENTRY(msg_portname, S_MSG_PORTNAME)
 ENTRY(pstat, S_PSTAT)
+ENTRY(sched_op, S_SCHED_OP)
 
 /*
  * notify_handler()
