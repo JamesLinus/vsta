@@ -24,6 +24,7 @@ struct percpu {
 #define CPU_UP 1	/* CPU is online and taking work */
 #define CPU_BOOT 2	/* CPU was the boot CPU for the system */
 #define CPU_CLOCK 4	/* CPU is in clock handling code */
+#define CPU_DEBUG 8	/* CPU hardware debugging active */
 
 #ifdef KERNEL
 extern struct percpu cpu;		/* Maps to percpu struct on each CPU */
