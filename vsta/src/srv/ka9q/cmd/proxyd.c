@@ -148,9 +148,9 @@ rxmsg(void)
 {
 	struct msg *mp;
 	struct cmsg *cm;
-	int x;
-	uint msgleft, bodyleft;
-	char *bufp, *clmsgp, *body = 0, *bodyp;
+	int x = 0;
+	uint msgleft, bodyleft = 0;
+	char *bufp = 0, *clmsgp, *body = 0, *bodyp = 0;
 	char clbuf[1024];
 	static char *pushback;
 	static int pushlen;
@@ -426,7 +426,7 @@ serve_slave(struct client *cl)
 		if (mp->m_op & M_READ) {
 			if (size > MAXMSG) {
 				__seterr(E2BIG);
-				send_err(cl->c_sender);
+				send_err(mp->m_sender);
 			}
 			rxbuf = malloc(size);
 			mp->m_buf = rxbuf;
@@ -440,7 +440,7 @@ serve_slave(struct client *cl)
 		cl->c_sender = cl->c_msg.m_sender;
 		x = msg_send(cl->c_local, mp);
 		if (x < 0) {
-			send_err(cl->c_sender);
+			send_err(mp->m_sender);
 		} else {
 			/*
 			 * Success.  Tell him the result size in m_arg
@@ -460,8 +460,8 @@ serve_slave(struct client *cl)
 			m.m_arg1 = 0;
 			if (rxbuf && x) {
 				m.m_op = FS_WRITE;
-				m.m_seg[1].s_buf = rxbuf;
-				m.m_seg[1].s_buflen = x;
+				mp->m_buf = m.m_seg[1].s_buf = rxbuf;
+				mp->m_buflen = m.m_seg[1].s_buflen = x;
 				m.m_arg += x;
 				m.m_nseg = 2;
 			} else {
@@ -579,8 +579,13 @@ serve_clients(void)
 		 */
 		cm = rxmsg();
 		if (!cm) {
+			/*
+			 * If our socket breaks, it generally
+			 * means our remote client disappeared.
+			 * We're done.
+			 */
 			cleanup();
-			exit(1);
+			notify(0, 0, "kill");
 		}
 		mp = &cm->c_msg;
 
@@ -736,7 +741,7 @@ serve(port_t p)
 		x = wstat(p, "conn=server\n");
 		if (x < 0) {
 			syslog(LOG_ERR, "Can't listen: %s", strerror());
-			exit(1);
+			notify(0, 0, "kill");
 		}
 
 		/*
