@@ -224,11 +224,11 @@ loop:
 		break;
 	case FS_ABSREAD:	/* Set position, then read */
 	case FS_ABSWRITE:	/* Set position, then write */
-		if (!f || (msg.m_arg < 0)) {
+		if (!f || (msg.m_arg1 < 0)) {
 			msg_err(msg.m_sender, EINVAL);
 			break;
 		}
-		f->f_pos = msg.m_arg;
+		f->f_pos = msg.m_arg1;
 		msg.m_op = (msg.m_op == FS_ABSREAD) ? FS_READ : FS_WRITE;
 
 		/* VVV fall into VVV */
