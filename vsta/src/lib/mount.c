@@ -450,5 +450,47 @@ mount_port(char *point)
 			return(mt->m_entries->m_port);
 		}
 	}
-	return(-1);
+	return(__seterr(ESRCH));
+}
+
+/*
+ * clone_mount()
+ *	Find the first mntent, and replace its port with a clone
+ *
+ * Returns the new port, or -1 if the operation failed.
+ */
+port_t
+clone_mount(char *point)
+{
+	int x;
+	struct mnttab *mt;
+	struct mntent *me;
+	port_t old, new;
+
+	/*
+	 * Scan mount table
+	 */
+	for (x = 0; x < __nmnttab; ++x) {
+		/*
+		 * When we find the match...
+		 */
+		mt = &__mnttab[x];
+		if (!strcmp(point, mt->m_name)) {
+			/*
+			 * Get the old port, clone it, and replace
+			 * the mount entry's port (closing the old
+			 * one).
+			 */
+			me = mt->m_entries;
+			old = me->m_port;
+			new = clone(old);
+			if (new < 0) {
+				return(-1);
+			}
+			(void)msg_disconnect(old);
+			me->m_port = new;
+			return(new);
+		}
+	}
+	return(__seterr(ESRCH));
 }

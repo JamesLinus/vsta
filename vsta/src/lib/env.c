@@ -13,7 +13,7 @@
 #include <sys/fs.h>
 #include <sys/ports.h>
 
-extern char *rstat();
+extern port_t clone_mount(char *);
 
 /*
  * getenv()
@@ -384,4 +384,19 @@ __get_environ(void)
 		}
 	}
 	return((const char **)my_env);
+}
+
+/*
+ * fork_env()
+ *	Cause the right things to happen after a fork()
+ */
+void
+fork_env(void)
+{
+	port_t p;
+
+	p = clone_mount("/env");
+	if (p >= 0) {
+		(void)wstat(p, "fork\n");
+	}
 }

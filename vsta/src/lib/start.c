@@ -10,6 +10,8 @@
 #include <stdio.h>
 #include <signal.h>
 
+extern void fork_env(void);
+
 /*
  * We initialize these here and offer them to C library users
  */
@@ -135,4 +137,12 @@ noargs:
 	 */
 	__ctab = __get_ctab();
 	__iob  = __get_iob();
+
+	/*
+	 * Break our association with existing process-private
+	 * environment variables; we will see the current ones
+	 * as copy-on-write, and will generate our own private
+	 * space from here (as is appropriate for a new process).
+	 */
+	fork_env();
 }

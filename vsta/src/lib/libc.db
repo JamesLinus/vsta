@@ -392,3 +392,5 @@ _gettimeofday
 _gl_set_tab_hook
 _gethostname
 ___fd_clone hidden
+_fork_env hidden
+_clone_mount hidden
