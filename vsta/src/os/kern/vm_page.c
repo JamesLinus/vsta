@@ -43,6 +43,57 @@ static sema_t vmap_sema;	/* How to sleep on it when need more */
 static sema_t core_semas[NC_SEMA];
 
 /*
+ * alloc_page_fn()
+ *	Pick some particular page from the freelist
+ *
+ * Returns 0 on success, and *pfnp is filled in.  Otherwise non-zero.
+ * "fn" is called on each possible page, and the scan stops when this
+ * function returns non-zero.
+ */
+int
+alloc_page_fn(intfun fn, uint *pfnp)
+{
+	struct core *c, **cp;
+	uint pfn;
+
+	/*
+	 * Walk the list, checking each entry
+	 */
+	p_lock_void(&mem_lock, SPL0_SAME);
+	cp = &freelist;
+	c = *cp;
+	while (c) {
+		/*
+		 * If it's OK, pull it from the freelist
+		 */
+		pfn = c - core;
+		if (fn(pfn)) {
+			/*
+			 * And give it to them
+			 */
+			*cp = c->c_free;
+			c->c_flags = C_ALLOC;
+			c->c_free = 0;
+			freemem -= 1;
+			*pfnp = pfn;
+			break;
+		}
+
+		/*
+		 * Advance to next
+		 */
+		cp = &c->c_free;
+		c = *cp;
+	}
+
+	/*
+	 * Release memory lock, and return result
+	 */
+	v_lock(&mem_lock, SPL0_SAME);
+	return(c == 0);
+}
+
+/*
  * alloc_page()
  *	Allocate a single page, return its pfn
  */

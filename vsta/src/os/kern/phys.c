@@ -12,6 +12,7 @@
 #include <sys/core.h>
 #include <sys/fs.h>
 #include <sys/assert.h>
+#include <sys/mman.h>
 #include "../mach/mutex.h"
 #include "pset.h"
 
@@ -73,7 +74,7 @@ wire_page(uint pfn)
  * page_wire()
  *	Wire down a page for a user process
  */
-page_wire(void *arg_va, void **arg_pa)
+page_wire(void *arg_va, void **arg_pa, uint flags)
 {
 	struct pview *pv;
 	struct proc *p = curthread->t_proc;
@@ -109,7 +110,7 @@ page_wire(void *arg_va, void **arg_pa)
 	 */
 	pv = find_pview(&p->p_vas, arg_va);
 	if (!pv) {
-		error = err(EINVAL);
+		error = err(EFAULT);
 		goto out;
 	}
 
@@ -118,6 +119,10 @@ page_wire(void *arg_va, void **arg_pa)
 	 * not valid yet.
 	 */
 	ps = pv->p_set;
+	if (ps->p_type == PT_MEM) {
+		error = err(EINVAL);
+		goto out;
+	}
 	idx = btop((char *)arg_va - (char *)pv->p_vaddr) + pv->p_off;
 	pp = find_pp(ps, idx);
 	lock_slot(ps, pp);
@@ -135,6 +140,21 @@ page_wire(void *arg_va, void **arg_pa)
 		 * has generated.
 		 */
 		pp->pp_refs -= 1;
+	}
+
+	/*
+	 * If special handling is requested, let machine specific level
+	 * have a shot.
+	 */
+	if (flags & WIRE_MACH) {
+		char *p;
+
+		p = mach_page_wire(flags, pv, pp, arg_va);
+		if (p) {
+			unlock_slot(ps, pp);
+			error = err(p);
+			goto out;
+		}
 	}
 
 	/*
