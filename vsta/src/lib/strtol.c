@@ -49,6 +49,7 @@
  *
  * Function author: Andy Wilson, 2-Oct-89.
  */
+#include <sys/syscall.h>
 #include <stdio.h>
 #include <errno.h>
 #include <limits.h>
@@ -76,7 +77,7 @@ strtoul(const char *s, char **ptr, int base)
 	ulong maxdiv, maxrem;
 
 	if (s == NULL) {
-		__seterr(ERANGE);
+		__seterr(__map_errno(ERANGE));
 		if (!ptr) {
 			*ptr = (char *) start;
 		}
@@ -143,7 +144,7 @@ strtoul(const char *s, char **ptr, int base)
 		s++;
 	}
 	if (overflow) {
-		__seterr(ERANGE);
+		__seterr(__map_errno(ERANGE));
 		if (ptr != NULL) {
 			*ptr = (char *) s;
 		}
@@ -168,7 +169,7 @@ strtol(const char *s, char **ptr, int base)
 	char *eptr;
 
 	if (s == NULL) {
-		__seterr(ERANGE);
+		__seterr(__map_errno(ERANGE));
 		if (!ptr) {
 			*ptr = (char *) start;
 		}
@@ -193,7 +194,7 @@ strtol(const char *s, char **ptr, int base)
 		*ptr = (char *)((eptr == s) ? start : eptr);
 	}
 	if (tmp > (minus ? - (ulong) LONG_MIN : (ulong) LONG_MAX)) {
-		__seterr(ERANGE);
+		__seterr(__map_errno(ERANGE));
 		return(minus ? LONG_MIN : LONG_MAX);
 	}
 	return(minus ? (long) -tmp : (long) tmp);
