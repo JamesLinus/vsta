@@ -59,6 +59,7 @@ struct proc {
 	struct exitgrp		/* Exit groups */
 		*p_children,	/*  ...the one our children use */
 		*p_parent;	/*  ...the one we're a child of */
+	char p_cmd[8];		/* Command name (untrusted) */
 };
 
 #ifdef KERNEL
