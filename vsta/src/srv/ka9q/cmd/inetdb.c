@@ -28,6 +28,7 @@ static struct {
 } cmdtab[] = {
 	".", my_dot,
 	"exit", my_exit,
+	"quit", my_exit,
 	"read", my_read,
 	"sleep", my_sleep,
 	"stat", my_stat,
