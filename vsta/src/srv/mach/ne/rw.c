@@ -20,6 +20,7 @@ int tx_busy[NNE];		/* Tx Busy for each unit */
 struct llist writers[NNE];	/* Who's waiting on each unit */
 struct llist readers;		/* Who's waiting */
 struct llist files;
+ulong dropped;			/* # packets without reader */
 
 /*
  * run_queue()
@@ -171,9 +172,7 @@ ne_send_up(char *buf, int len)
 	struct llist *l, *ln;
 	struct ether_header *eh;
 	ushort etype;
-#ifdef DEBUG
 	int sent;
-#endif
 
 	if ((len == 0) || (LL_EMPTY(&readers))) {
 		return;
@@ -199,9 +198,7 @@ ne_send_up(char *buf, int len)
 		 * open.
 		 */
 		f = l->l_data;
-		if (f->f_file == 0) {
-			continue;
-		}
+		ASSERT_DEBUG(f->f_file, "ne_send_up: dir");
 
 		/*
 		 * Give him the packet if he wants all (type 0) or
@@ -238,9 +235,11 @@ ne_send_up(char *buf, int len)
 			sent += 1;
 		}
 	}
-#ifdef DEBUG
+
+	/*
+	 * Tally drops
+	 */
 	if (sent == 0) {
-		printf("No consumer for paktype 0x%x\n", etype);
+		dropped += 1;
 	}
-#endif
 }
