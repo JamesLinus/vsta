@@ -1,18 +1,27 @@
 /*
- * block.c
- *	Routines for caching blocks out of our filesystem
+ * Filename:	block.c
+ * Developed:	Dave Hudson <dave@humbug.demon.co.uk>
+ * Originated:	Andy Valencia
+ * Last Update: 13th February 1994
+ * Implemented:	GNU GCC version 2.5.7
+ *
+ * Description:	Routines for caching blocks out of our filesystem
  */
-#include "bfs.h"
-#include <llist.h>
-#include <sys/assert.h>
 
-extern void *malloc();
-extern char *strerror();
+
+#include <fcntl.h>
+#include <llist.h>
+#include <std.h>
+#include <stdio.h>
+#include <sys/assert.h>
+#include "bfs.h"
+
 
 extern int blkdev;
 
 char *errstr;			/* String for last error */
 static int cached = 0;		/* # blocks currently cached */
+
 
 /*
  * Structure describing a block in the cache
@@ -21,15 +30,17 @@ struct block {
 	int b_blkno;			/* Block we describe */
 	int b_flags;			/* Flags (see below) */
 	void *b_data;			/* Pointer to data */
-	struct llist *b_all,		/* Circular list of all blocks */
-		*b_hash;		/* Linked list on hash collision */
+	struct llist *b_all;		/* Circular list of all blocks */
+	struct llist *b_hash;		/* Linked list on hash collision */
 	int b_refs;			/* # active references */
 };
+
 
 /*
  * Bits in b_flags
  */
 #define B_DIRTY 1		/* New data in buffer */
+
 
 /*
  * Head of hash chains for each hash value, plus linked list of
@@ -37,8 +48,11 @@ struct block {
  */
 #define HASHSIZE 0x20
 #define HASHMASK (HASHSIZE-1)
+
+
 static struct llist hash[HASHSIZE];
 static struct llist allblocks;
+
 
 /*
  * bnew()
@@ -72,8 +86,7 @@ bnew(int blkno)
 				b->b_hash =
 					ll_insert(&hash[blkno & HASHMASK], b);
 				b->b_refs = 1;
-				cached += 1;
-				return(b);
+				return b;
 			}
 			free(b);
 		}
@@ -108,9 +121,7 @@ bnew(int blkno)
 		/*
 		 * Update our "all block" header to point one past us
 		 */
-		ll_delete(b->b_all);
-		b->b_all = ll_insert(&allblocks, b);
-		ASSERT_DEBUG(b->b_all, "bnew: lost the llist");
+		ll_movehead(&allblocks, l->l_forw);
 
 		/*
 		 * Update the hash chain it resides on, and return it.
@@ -121,7 +132,7 @@ bnew(int blkno)
 		b->b_hash = ll_insert(&hash[blkno & HASHMASK], b);
 		b->b_refs = 1;
 		b->b_blkno = blkno;
-		return(b);
+		return b;
 	}
 
 	/*
@@ -129,8 +140,9 @@ bnew(int blkno)
 	 * server, unless we're leaking block references.
 	 */
 	ASSERT(0, "bnew: all blocks busy");
-	return(0);
+	return NULL;
 }
+
 
 /*
  * bfind()
@@ -150,11 +162,12 @@ bfind(int blkno)
 		b = l->l_data;
 		if (blkno == b->b_blkno) {
 			b->b_refs += 1;
-			return(b);
+			return b;
 		}
 	}
-	return(0);
+	return NULL;
 }
+
 
 /*
  * bdirty()
@@ -169,6 +182,7 @@ bdirty(void *bp)
 	b->b_flags |= B_DIRTY;
 }
 
+
 /*
  * binval()
  *	Throw out a buf header, usually to recover from I/O errors
@@ -182,6 +196,7 @@ bjunk(struct block *b)
 	free(b);
 	cached -= 1;
 }
+
 
 /*
  * bget()
@@ -203,17 +218,18 @@ bget(int blkno)
 		if (lseek(blkdev, blkno*(long)BLOCKSIZE, 0) == -1) {
 			bjunk(b);
 			errstr = strerror();
-			return(0);
+			return NULL;
 		}
 		x = read(blkdev, b->b_data, BLOCKSIZE);
 		if (x != BLOCKSIZE) {
 			bjunk(b);
 			errstr = strerror();
-			return(0);
+			return NULL;
 		}
 	}
-	return(b);
+	return b;
 }
+
 
 /*
  * bdata()
@@ -225,8 +241,9 @@ bdata(void *bp)
 	struct block *b = bp;
 
 	ASSERT_DEBUG(b->b_refs > 0, "bdata: no ref");
-	return(b->b_data);
+	return b->b_data;
 }
+
 
 /*
  * bfree()
@@ -241,6 +258,7 @@ bfree(void *bp)
 	b->b_refs -= 1;
 }
 
+
 /*
  * binit()
  *	Initialize our buffer hash chains
@@ -254,6 +272,7 @@ binit(void)
 		ll_init(&hash[x]);
 	ll_init(&allblocks);
 }
+
 
 /*
  * bsync()

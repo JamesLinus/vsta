@@ -1,26 +1,35 @@
 /*
- * main.c
- *	Main handling loop and startup
+ * Filename:	main.c
+ * Developed:	Dave Hudson <dave@humbug.demon.co.uk>
+ * Originated:	Andy Valencia
+ * Last Update: 3rd March 1994
+ * Implemented:	GNU GCC version 2.5.7
+ *
+ * Description: Main message handling and startup routines for the bfs
+ *		filesystem (boot file system)
  */
-#include <sys/perm.h>
-#include <sys/namer.h>
-#include "bfs.h"
-#include <hash.h>
-#include <stdio.h>
+
+
 #include <fcntl.h>
+#include <fdl.h>
+#include <hash.h>
+#include <mnttab.h>
+#include <std.h>
+#include <stdio.h>
+#include <sys/namer.h>
+#include <sys/perm.h>
 #include <syslog.h>
+#include "bfs.h"
 
-extern void *malloc(), bfs_open(), bfs_read(), bfs_write(), *bdata(),
-	*bget(), bfs_remove(), bfs_stat();
-extern char *strerror();
 
-int blkdev;		/* Device this FS is mounted upon */
-port_t rootport;	/* Port we receive contacts through */
-struct super		/* Our filesystem's superblock */
-	*sblock;
-void *shandle;		/*  ...handle for the block entry */
-static struct hash	/* Handle->filehandle mapping */
-	*filehash;
+int blkdev;			/* Device this FS is mounted upon */
+port_t rootport;		/* Port we receive contacts through */
+struct super *sblock;		/* Our filesystem's superblock */
+void *shandle;			/*  ...handle for the block entry */
+static struct hash *filehash;	/* Handle->filehandle mapping */
+
+extern int valid_fname(char *, int);
+extern port_t path_open(char *, int);
 
 /*
  * Protection for all BFS files: everybody can read, only
@@ -29,9 +38,10 @@ static struct hash	/* Handle->filehandle mapping */
 static struct prot bfs_prot = {
 	2,
 	ACC_READ|ACC_EXEC,
-	{1,		1},
-	{0,		ACC_WRITE}
+	{1, 1},
+	{0, ACC_WRITE}
 };
+
 
 /*
  * bfs_seek()
@@ -48,6 +58,7 @@ bfs_seek(struct msg *m, struct file *f)
 	m->m_buflen = m->m_arg = m->m_arg1 = m->m_nseg = 0;
 	msg_reply(m->m_sender, m);
 }
+
 
 /*
  * new_client()
@@ -85,7 +96,8 @@ new_client(struct msg *m)
 	 * possesses.  For an M_CONNECT, the message is
 	 * from the kernel, and trusted.
 	 */
-	f->f_inode = ROOTINO;
+	f->f_inode = ino_find(ROOTINODE);
+	ino_ref(f->f_inode);
 	f->f_pos = 0L;
 	f->f_write = (uperms & ACC_WRITE);
 
@@ -104,6 +116,7 @@ new_client(struct msg *m)
 	msg_accept(m->m_sender);
 }
 
+
 /*
  * dup_client()
  *	Duplicate current file access onto new session
@@ -121,7 +134,6 @@ static void
 dup_client(struct msg *m, struct file *fold)
 {
 	struct file *f;
-	extern void iref();
 
 	/*
 	 * Get data structure
@@ -140,8 +152,8 @@ dup_client(struct msg *m, struct file *fold)
 	f->f_inode = fold->f_inode;
 	f->f_pos = fold->f_pos;
 	f->f_write = fold->f_write;
-	if (f->f_inode != ROOTINO)
-		iref(f->f_inode);
+	if (f->f_inode->i_num != ROOTINODE)
+		ino_ref(f->f_inode);
 
 	/*
 	 * Hash under the sender's handle
@@ -159,6 +171,7 @@ dup_client(struct msg *m, struct file *fold)
 	msg_reply(m->m_sender, m);
 }
 
+
 /*
  * dead_client()
  *	Someone has gone away.  Free their info.
@@ -173,6 +186,7 @@ dead_client(struct msg *m, struct file *f)
 	free(f);
 }
 
+
 /*
  * bfs_main()
  *	Endless loop to receive and serve requests
@@ -181,7 +195,6 @@ static void
 bfs_main()
 {
 	struct msg msg;
-	seg_t resid;
 	char *buf2 = 0;
 	int x;
 	struct file *f;
@@ -195,6 +208,7 @@ loop:
 		syslog(LOG_ERR, "bfs: msg_receive");
 		goto loop;
 	}
+
 
 	/*
 	 * If we've received more than a buffer of data, pull it in
@@ -274,6 +288,7 @@ loop:
 	goto loop;
 }
 
+
 /*
  * usage()
  *	Tell how to use the thing
@@ -285,19 +300,21 @@ usage(void)
 	printf(" or: bfs <filepath> <fsname>\n");
 	exit(1);
 }
+
+
 /*
  * main()
  *	Startup of a boot filesystem
  *
  * A BFS instance expects to start with a command line:
- *	$ bfs <block class> <block instance> <filesystem name>
+ *	$ bfs <block instance> <filesystem name>
  */
+void
 main(int argc, char *argv[])
 {
 	port_t port;
 	port_name fsname;
-	struct msg msg;
-	int chan, fd, x;
+	int x;
 	char *namer_name;
 
 	/*
@@ -329,7 +346,8 @@ main(int argc, char *argv[])
 		}
 		if (port < 0) {
 			syslog(LOG_ERR,
-				"BFS: couldn't connect to block device");
+			       "bfs: couldn't connect to block device %s",
+			       argv[2]);
 			exit(1);
 		}
 		blkdev = __fd_alloc(port);
@@ -345,14 +363,16 @@ main(int argc, char *argv[])
 	/*
 	 * Allocate data structures we'll need
 	 */
-        filehash = hash_alloc(NCACHE/4);
+        filehash = hash_alloc(NCACHE / 4);
 	if (filehash == 0) {
 		syslog(LOG_ERR, "bfs: file hash");
 		exit(1);
         }
+
+	/*
+	 * Initialise the block handler
+	 */
 	binit();
-	iinit();
-	dir_init();
 
 	/*
 	 * Block device is open; read in the first block and verify
@@ -360,14 +380,20 @@ main(int argc, char *argv[])
 	 */
 	shandle = bget(0);
 	if (!shandle) {
-		syslog(LOG_ERR, "BFS: superblock read");
+		syslog(LOG_ERR, "bfs: superblock read");
 		exit(1);
 	}
 	sblock = bdata(shandle);
 	if (sblock->s_magic != SMAGIC) {
-		syslog(LOG_ERR, "BFS: bad superblock on %s", argv[1]);
+		syslog(LOG_ERR, "bfs: bad superblock on %s", argv[1]);
 		exit(1);
 	}
+
+	/*
+	 * OK, we have a superblock to work with now.  We can now initialise
+	 * the directory and inode data
+	 */
+	ino_init();
 
 	/*
 	 * Block device looks good.  Last check is that we can register
@@ -376,7 +402,7 @@ main(int argc, char *argv[])
 	rootport = msg_port((port_name)0, &fsname);
 	x = namer_register(namer_name, fsname);
 	if (x < 0) {
-		syslog(LOG_ERR, "BFS: can't register name");
+		syslog(LOG_ERR, "bfs: can't register name %s", fsname);
 		exit(1);
 	}
 

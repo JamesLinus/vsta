@@ -1,12 +1,22 @@
 /*
- * rw.c
- *	Routines for operating on the data in a file
+ * Filename:	rw.c
+ * Developed:	Dave Hudson <dave@humbug.demon.co.uk>
+ * Originated:	Andy Valencia
+ * Last Update: 11th February 1994
+ * Implemented:	GNU GCC version 2.5.7
+ *
+ * Description: Routines for operating on the data in a file
  */
+
+
+#include <std.h>
+#include <stdio.h>
 #include <sys/param.h>
 #include "bfs.h"
 
-extern void *bget(), *malloc(), *bdata();
-extern char *strerror();
+
+extern struct super *sblock;
+
 
 /*
  * do_write()
@@ -14,7 +24,7 @@ extern char *strerror();
  *
  * Returns 0 on success, 1 on error.
  */
-static
+static int
 do_write(int startblk, int pos, char *buf, int cnt)
 {
 	int x, step, blk, boff;
@@ -27,7 +37,7 @@ do_write(int startblk, int pos, char *buf, int cnt)
 		/*
 		 * Calculate how much to take out of current block
 		 */
-		boff = pos & (BLOCKSIZE-1);
+		boff = pos & (BLOCKSIZE - 1);
 		step = BLOCKSIZE - boff;
 		if (step >= cnt) {
 			step = cnt;
@@ -40,7 +50,7 @@ do_write(int startblk, int pos, char *buf, int cnt)
 		handle = bget(startblk+blk);
 		if (!handle)
 			return 1;
-		memcpy((char *)bdata(handle)+boff, buf+x, step);
+		memcpy((char *)bdata(handle) + boff, buf + x, step);
 		pos += step;
 		bdirty(handle);
 		bfree(handle);
@@ -53,6 +63,7 @@ do_write(int startblk, int pos, char *buf, int cnt)
 	return(0);
 }
 
+
 /*
  * bfs_write()
  *	Write to an open file
@@ -60,26 +71,13 @@ do_write(int startblk, int pos, char *buf, int cnt)
 void
 bfs_write(struct msg *m, struct file *f)
 {
-	void *handle;
-	struct dirent d;
 	struct inode *i = f->f_inode;
 
 	/*
 	 * Can only write to a true file, and only if open for writing.
 	 */
-	if ((i == ROOTINO) || !f->f_write) {
+	if ((i->i_num == ROOTINODE) || !f->f_write) {
 		msg_err(m->m_sender, EPERM);
-		return;
-	}
-
-	/*
-	 * Get a picture of what the directory entry currently
-	 * looks like.  The d_len field will change after new
-	 * blocks are allocated, but d_start will remain the
-	 * same.
-	 */
-	if (dir_copy(i->i_num, &d)) {
-		msg_err(m->m_sender, strerror());
 		return;
 	}
 
@@ -88,7 +86,7 @@ bfs_write(struct msg *m, struct file *f)
 	 * do not necessarily need to allocate space if we're rewriting
 	 * an existing file.
 	 */
-	if ((f->f_pos + m->m_buflen) > d.d_len) {
+	if ((f->f_pos + m->m_buflen) > i->i_fsize) {
 		if (blk_alloc(i, f->f_pos + m->m_buflen)) {
 			msg_err(m->m_sender, ENOSPC);
 			return;
@@ -98,7 +96,7 @@ bfs_write(struct msg *m, struct file *f)
 	/*
 	 * Copy out the buffer
 	 */
-	if (do_write(d.d_start, f->f_pos, m->m_buf, m->m_buflen)) {
+	if (do_write(i->i_start, f->f_pos, m->m_buf, m->m_buflen)) {
 		msg_err(m->m_sender, strerror());
 		return;
 	}
@@ -108,6 +106,7 @@ bfs_write(struct msg *m, struct file *f)
 	msg_reply(m->m_sender, m);
 }
 
+
 /*
  * bfs_readdir()
  *	Do reads on directory entries
@@ -115,14 +114,14 @@ bfs_write(struct msg *m, struct file *f)
 static void
 bfs_readdir(struct msg *m, struct file *f)
 {
-	struct dirent d;
+	struct inode *i;
 	char *buf;
-	int x, len, err;
+	int x, len, err, ok = 1;
 
 	/*
 	 * Make sure it's the root directory
 	 */
-	if (f->f_inode != ROOTINO) {
+	if (f->f_inode->i_num != ROOTINODE) {
 		msg_err(m->m_sender, EINVAL);
 		return;
 	}
@@ -135,7 +134,7 @@ bfs_readdir(struct msg *m, struct file *f)
 	if (len > 256) {
 		len = 256;
 	}
-	if ((buf = malloc(len+1)) == 0) {
+	if ((buf = malloc(len + 1)) == 0) {
 		msg_err(m->m_sender, strerror());
 		return;
 	}
@@ -148,10 +147,16 @@ bfs_readdir(struct msg *m, struct file *f)
 		 * Find next directory entry.  Null name means
 		 * it's an empty slot.
 		 */
-		while (((err = dir_copy(f->f_pos, &d)) == 0) &&
-				(d.d_name[0] == '\0')) {
-			f->f_pos += 1;
+		while (((err = (f->f_pos >= sblock->s_ndirents)) == 0)
+			&& ok) {
+			i = ino_find(f->f_pos);
+			if ((i != NULL) && (i->i_name[0] != '\0')) {
+				ok = 0;
+			} else {
+				f->f_pos += 1;
+			}
 		}
+		ok = 1;
 
 		/*
 		 * If error or EOF, return what we have
@@ -164,16 +169,16 @@ bfs_readdir(struct msg *m, struct file *f)
 		 * If the next entry won't fit, back up the file
 		 * position and return what we have.
 		 */
-		if ((x + strlen(d.d_name) + 1) >= len) {
+		if ((x + strlen(i->i_name) + 1) >= len) {
 			break;
 		}
 
 		/*
 		 * Add entry and a newline
 		 */
-		strcat(buf+x, d.d_name);
-		strcat(buf+x, "\n");
-		x += (strlen(d.d_name)+1);
+		strcat(buf + x, i->i_name);
+		strcat(buf + x, "\n");
+		x += (strlen(i->i_name) + 1);
 		f->f_pos += 1;
 	}
 
@@ -188,6 +193,7 @@ bfs_readdir(struct msg *m, struct file *f)
 	free(buf);
 }
 
+
 /*
  * bfs_read()
  *	Read bytes out of the current file or directory
@@ -200,31 +206,22 @@ bfs_read(struct msg *m, struct file *f)
 	int x, step, cnt, blk, boff;
 	struct inode *i;
 	void *handle;
-	struct dirent d;
 	char *buf;
 
 	/*
 	 * Directory--only one is the root
 	 */
-	if (f->f_inode == ROOTINO) {
+	if (f->f_inode->i_num == ROOTINODE) {
 		bfs_readdir(m, f);
 		return;
 	}
 
-	/*
-	 * Get a snapshot of our dir entry.  It can't change (we're
-	 * single-threaded), and we won't be modifying it.
-	 */
 	i = f->f_inode;
-	if (dir_copy(i->i_num, &d)) {
-		msg_err(m->m_sender, strerror());
-		return;
-	}
 
 	/*
 	 * EOF?
 	 */
-	if (f->f_pos >= d.d_len) {
+	if (f->f_pos >= i->i_fsize) {
 		m->m_arg = m->m_arg1 = m->m_buflen = m->m_nseg = 0;
 		msg_reply(m->m_sender, m);
 		return;
@@ -234,8 +231,8 @@ bfs_read(struct msg *m, struct file *f)
 	 * Calculate # bytes to get
 	 */
 	cnt = m->m_arg;
-	if (cnt > (d.d_len - f->f_pos)) {
-		cnt = d.d_len - f->f_pos;
+	if (cnt > (i->i_fsize - f->f_pos)) {
+		cnt = i->i_fsize - f->f_pos;
 	}
 
 	/*
@@ -254,7 +251,7 @@ bfs_read(struct msg *m, struct file *f)
 		/*
 		 * Calculate how much to take out of current block
 		 */
-		boff = f->f_pos & (BLOCKSIZE-1);
+		boff = f->f_pos & (BLOCKSIZE - 1);
 		step = BLOCKSIZE - boff;
 		if (step >= cnt) {
 			step = cnt;
@@ -264,13 +261,13 @@ bfs_read(struct msg *m, struct file *f)
 		 * Map current block
 		 */
 		blk = f->f_pos / BLOCKSIZE;
-		handle = bget(d.d_start+blk);
+		handle = bget(i->i_start + blk);
 		if (!handle) {
 			free(buf);
 			msg_err(m->m_sender, strerror());
 			return;
 		}
-		memcpy(buf+x, (char *)bdata(handle)+boff, step);
+		memcpy(buf + x, (char *)bdata(handle) + boff, step);
 		f->f_pos += step;
 		bfree(handle);
 
