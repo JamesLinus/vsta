@@ -27,12 +27,12 @@ static struct hash	/* Handle->filehandle mapping */
 
 /*
  * Protection for all DOSFS files: everybody can read, only
- * group 1.2 (sys.dos) can write.
+ * group 1.2 (sys.sys) can write.
  */
 static struct prot dos_prot = {
 	2,
 	ACC_READ|ACC_EXEC,
-	{1,		2},
+	{1,		1},
 	{0,		ACC_WRITE}
 };
 
@@ -430,4 +430,16 @@ main(int argc, char *argv[])
 	 * Start serving requests for the filesystem
 	 */
 	dos_main();
+}
+
+/*
+ * sync()
+ *	Flush out all the junk which can be pending
+ */
+void
+sync(void)
+{
+	bsync();
+	root_sync();
+	fat_sync();
 }
