@@ -37,6 +37,7 @@
 #define S_PAGEOUT 30
 #define S_GETID 31
 #define S_UNHASH 32
-#define S_HIGH S_UNHASH
+#define S_TIME_SET 33
+#define S_HIGH S_TIME_SET
 
 #endif /* _SYSCALL_H */

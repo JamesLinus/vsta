@@ -15,6 +15,8 @@
 #include <mach/gdt.h>
 #include <sys/assert.h>
 
+static int do_dbg_enter();
+
 /* #define SYSCALLTRACE /* */
 
 extern int msg_port(), msg_connect(), msg_accept(), msg_send(),
@@ -23,8 +25,8 @@ extern int do_exit(), fork(), fork_thread(), enable_io(), enable_isr(),
 	mmap(), munmap(), strerror(), notify(), clone();
 extern int page_wire(), page_release(), enable_dma(), time_get(),
 	time_sleep(), exec(), waits(), perm_ctl(), set_swapdev(),
-	run_qio(), set_cmd(), pageout(), getid(), unhash();
-static int do_dbg_enter();
+	run_qio(), set_cmd(), pageout(), getid(), unhash(),
+	time_set();
 
 struct syscall {
 	intfun s_fun;
@@ -63,6 +65,7 @@ struct syscall {
 	{pageout, 0},				/* 30 */
 	{getid, 1},				/* 31 */
 	{unhash, 2},				/* 32 */
+	{time_set, 1},				/* 33 */
 };
 #define NSYSCALL (sizeof(syscalls) / sizeof(struct syscall))
 #define MAXARGS (6)

@@ -60,4 +60,5 @@ ENTRY(set_cmd, S_SET_CMD)
 ENTRY(pageout, S_PAGEOUT)
 ENTRY(_getid, S_GETID)
 ENTRY(unhash, S_UNHASH)
+ENTRY(time_set, S_TIME_SET)
 

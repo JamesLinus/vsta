@@ -173,6 +173,29 @@ hardclock(uint x)
 }
 
 /*
+ * time_set()
+ *	Take time as argument, set system clock
+ */
+time_set(struct time *arg_time)
+{
+	struct time t;
+	uint hz;
+
+	if (!isroot()) {
+		return(-1);
+	}
+	if (copyin(arg_time, &t, sizeof(t))) {
+		return(-1);
+	}
+	hz = (t.t_usec * HZ) / 1000000L;
+	cli();
+		cpu.pc_time[0] = hz;
+		cpu.pc_time[1] = t.t_sec;
+	sti();
+	return(0);
+}
+
+/*
  * time_get()
  *	Return time to the second
  */
@@ -183,7 +206,9 @@ time_get(struct time *arg_time)
 	/*
 	 * Get time in desired format, hand to user
 	 */
-	cli(); CVT_TIME(cpu.pc_time, &t); sti();
+	cli();
+		CVT_TIME(cpu.pc_time, &t);
+	sti();
 	if (copyout(arg_time, &t, sizeof(t))) {
 		return(-1);
 	}
