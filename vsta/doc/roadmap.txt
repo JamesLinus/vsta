@@ -1,4 +1,6 @@
 This is a quick roadmap of where things are and how to get things done.
+Please, please, PLEASE back up your disk before trying to run any of
+this software!
 
 0. Requirements
 
@@ -8,18 +10,20 @@ The disk geometry can be obtained via (1) the controller's "read
 parameter" command, (2) the NVRAM/BIOS stored disk parameters, or
 (3) by hand-entering the disk parameters.  Detailed instructions
 are in the menu.lst file, discussed below.  The default is "read
-parameter", which works fine in most cases.
+parameter", which works fine in most cases.  Note that in pretty
+much all modern IDE controllers, LBA addressing is used, which
+skips much of the hassles previously associated with disk geometries.
 
 Mike Larson has written a SCSI disk driver for the Adaptec 1542[bc]
 interface.  IDE and SCSI appear to co-exist without problems.  Mike also
 has provided support for CDROM filesystems and SCSI tape.
 
-VSTa uses a FAT filesystem (FAT-32 is not yet supported, nor are
-compressed drives).  It is expected that you'll already have set
-up such a filesystem, and you'll be expected to load the VSTa files
-onto it using whatever OS got this filesystem set up.  Examples
-below are for a DOS-like environment (DOS native, or very likely
-a DOS window under Windows).
+VSTa uses a FAT filesystem (FAT-12, FAT-16, and FAT-32 are supported,
+along with VFAT "long filenames").  It is expected that you'll
+already have set up such a filesystem, and you'll be expected to
+load the VSTa files onto it using whatever OS got this filesystem
+set up.  Examples below are for a DOS-like environment (DOS native,
+or very likely a DOS window under Windows).
 
 The console driver supports both MGA and CGA text screen locations.
 It is not auto-detect.  The keyboard driver expects the AT scan
@@ -39,7 +43,8 @@ interesting parts.
 Boot loading happens using the Multiboot standard.  The most common
 Multiboot compliant boot loader is GRUB (GRand Unified Bootloader),
 and a copy of GRUB is included in the VSTa binary distribution.  VSTa
-also works with the Free Software Foundation's version of GRUB.
+also works with the Free Software Foundation's version of GRUB, which
+is the recommended one.
 
 1. Loading the VSTa files onto your disk.
 
