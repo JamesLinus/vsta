@@ -355,7 +355,6 @@ deref_tcp(struct tcp_port *t)
 			tcb = c->t_tcb;
 			if (tcb) {
 				close_tcp(tcb); c->t_tcb = 0;
-				nport -= 1;
 				tcb->user = 0;
 			}
 
@@ -526,6 +525,11 @@ create_conn(struct tcp_port *t)
 	ll_init(&c->t_writers);
 	c->t_port = t;
 	c->t_conn = idx;
+
+	/*
+	 * Here's another port...
+	 */
+	nport += 1;
 
 	return(c);
 }
@@ -875,12 +879,6 @@ inetfs_conn(struct msg *m, struct client *cl, char *val)
 			uncreate_conn(t, c);
 			return;
 		}
-
-		/*
-		 * Update port tally
-		 */
-		nport += 1;
-
 	}
 
 	/*
