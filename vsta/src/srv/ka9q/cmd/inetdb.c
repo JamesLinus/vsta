@@ -241,8 +241,20 @@ main(int argc, char **argv)
 		printf("Usage is: %s <path>\n", argv[0]);
 		exit(1);
 	}
-	fd = open(argv[1], O_RDWR);
-	port = __fd_port(fd);
+	if (argv[1][0] == '/') {
+		fd = open(argv[1], O_RDWR);
+		if (fd < 0) {
+			perror(argv[1]);
+			exit(1);
+		}
+		port = __fd_port(fd);
+	} else {
+		port = path_open(argv[1], ACC_READ | ACC_WRITE);
+		if (port < 0) {
+			perror(argv[1]);
+			exit(1);
+		}
+	}
 
 	/*
 	 * Command loop
