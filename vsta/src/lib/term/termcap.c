@@ -35,6 +35,7 @@
 #define	PBUFSIZ		512	/* max length of filename path */
 #define	PVECSIZ		32	/* max number of names in path */
 
+#include <fcntl.h>
 #include <ctype.h>
 #include <paths.h>
 
@@ -166,7 +167,7 @@ tfindent(char *bp, char *name)
 	tbuf = bp;
 nextfile:
 	i = cnt = 0;
-	while (*pvec && (tf = open(*pvec, 0)) < 0) {
+	while (*pvec && (tf = open(*pvec, O_READ)) < 0) {
 		pvec++;
 	}
 	if (!*pvec) {
