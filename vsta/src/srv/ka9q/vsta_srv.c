@@ -314,6 +314,7 @@ deref_tcp(struct tcp_port *t)
 		 */
 		for (x = 0; x < t->t_maxconn; ++x) {
 			struct tcp_conn *c;
+			struct tcb *tcb;
 
 			/*
 			 * Continue if this slot isn't in use now
@@ -335,9 +336,11 @@ deref_tcp(struct tcp_port *t)
 			 * Clear TCB; note that we aren't being nice
 			 * any more, it's simply deleted.
 			 */
-			if (c->t_tcb) {
-				del_tcp(c->t_tcb); c->t_tcb = 0;
+			tcb = c->t_tcb;
+			if (tcb) {
+				close_tcp(tcb); c->t_tcb = 0;
 				nport -= 1;
+				tcb->user = 0;
 			}
 
 			/*
@@ -730,15 +733,17 @@ inetfs_state(struct tcb *tcb, char old, char new)
 		/*
 		 * Flush last buffers
 		 */
-		fill_sendq(c);
+		if (c) {
+			fill_sendq(c);
+		}
 		close_tcp(tcb);
 		break;
 	
 	case CLOSED:
 		del_tcp(tcb);
-		cleario(&c->t_readers, EIO, 0);
-		cleario(&c->t_writers, EIO, 0);
 		if (c) {
+			cleario(&c->t_readers, EIO, 0);
+			cleario(&c->t_writers, EIO, 0);
 			c->t_tcb = 0;
 		}
 		nport -= 1;
@@ -823,20 +828,36 @@ inetfs_conn(struct msg *m, struct client *cl, char *val)
 	/*
 	 * Get tcp_conn first
 	 */
-	c = create_conn(t);
+	c = get_conn(cl);
+	if (c == 0) {
+		/*
+		 * No existing one, so make one
+		 */
+		c = create_conn(t);
+		if (c == 0) {
+			msg_err(m->m_sender, ENOMEM);
+			return;
+		}
 
-	/*
-	 * Request connection, with upcall connections
-	 */
-	c->t_tcb = open_tcp(&t->t_lsock,
-		((t->t_fsock.address && t->t_fsock.port) ?
-			(&t->t_fsock) : (NULLSOCK)),
-		mode, 0,
-		inetfs_rcv, inetfs_xmt, inetfs_state, 0, c);
-	if (c->t_tcb == NULLTCB) {
-		msg_err(m->m_sender, err2str(net_error));
-		uncreate_conn(t, c);
-		return;
+		/*
+		 * Request connection, with upcall connections
+		 */
+		c->t_tcb = open_tcp(&t->t_lsock,
+			((t->t_fsock.address && t->t_fsock.port) ?
+				(&t->t_fsock) : (NULLSOCK)),
+			mode, 0,
+			inetfs_rcv, inetfs_xmt, inetfs_state, 0, c);
+		if (c->t_tcb == NULLTCB) {
+			msg_err(m->m_sender, err2str(net_error));
+			uncreate_conn(t, c);
+			return;
+		}
+
+		/*
+		 * Update port tally
+		 */
+		nport += 1;
+
 	}
 
 	/*
@@ -849,11 +870,6 @@ inetfs_conn(struct msg *m, struct client *cl, char *val)
 		uncreate_conn(t, c);
 		return;
 	}
-
-	/*
-	 * Update port tally
-	 */
-	nport += 1;
 
 	/*
 	 * Record client message, wait for connection
