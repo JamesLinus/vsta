@@ -13,7 +13,7 @@
 
 extern char *__cwd;	/* Current working dir */
 static void cd(), md(), quit(), ls(), pwd(), mount(), cat(), sleep(),
-	sec(), null();
+	sec(), null(), run();
 
 static char *buf;	/* Utility page buffer */
 
@@ -35,10 +35,33 @@ struct {
 	"null", null,
 	"pwd", pwd,
 	"quit", quit,
+	"run", run,
 	"sector", sec,
 	"sleep", sleep,
 	0, 0
 };
+
+/*
+ * run()
+ *	Fire up an executable
+ */
+static void
+run(char *p)
+{
+	char *q;
+	int x;
+
+	if (!p || !p[0]) {
+		printf("Usage: run <file>\n");
+		return;
+	}
+	if ((q = strchr(p, ' '))) {
+		*q++ = '\0';
+	}
+	x = execl(p, q, (char *)0);
+	perror(p);
+	printf("Error code: %d\n", x);
+}
 
 /*
  * sec()
