@@ -3,6 +3,7 @@
  *	Routines for operating on the data in a file
  */
 #include <sys/fs.h>
+#include <abc.h>
 #include "dos.h"
 #include <std.h>
 #include <ctype.h>

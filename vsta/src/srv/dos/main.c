@@ -13,6 +13,7 @@
 #include <std.h>
 #include <syslog.h>
 #include <fdl.h>
+#include <abc.h>
 #include <getopt.h>
 
 int blkdev;			/* Device this FS is mounted upon */

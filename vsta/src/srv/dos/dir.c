@@ -9,6 +9,7 @@
 #include <hash.h>
 #include <time.h>
 #include <fcntl.h>
+#include <abc.h>
 #include <sys/assert.h>
 #include <syslog.h>
 
