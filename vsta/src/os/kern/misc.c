@@ -200,7 +200,7 @@ canget(int bit)
 	static struct prot rootprot =
 		{2, 0, {1, 1}, {ACC_READ, ACC_WRITE}};
 
-	perms = perm_calc(&curthread->t_proc->p_ids, PROCPERMS, &rootprot);
+	perms = perm_calc(curthread->t_proc->p_ids, PROCPERMS, &rootprot);
 	if (!(perms & bit)) {
 		err(EPERM);
 		return(0);
