@@ -48,12 +48,8 @@
 #include "tcp.h"
 #include "vsta.h"
 
-static void port_daemon(void),
-	inetfs_rcv(struct tcb *, int16),
-	inetfs_xmt(struct tcb *, int16),
-	inetfs_state(struct tcb *, char, char);
-
 #define HASH_SIZE (16)		/* Guess, # clients */
+#define MAXIO (64*1024)		/* Max I/O size */
 
 extern int32 ip_addr;		/* Our node's IP address */
 
@@ -128,8 +124,20 @@ struct client {
 };
 
 /*
+ * Forward references
+ */
+static void port_daemon(void),
+	inetfs_rcv(struct tcb *, int16),
+	inetfs_xmt(struct tcb *, int16),
+	inetfs_state(struct tcb *, char, char),
+	fill_sendq(struct tcp_conn *c);
+
+/*
  * msg_to_mbuf()
  *	Convert VSTa message to mbuf chain
+ *
+ * Payload is bcopy'd so we can complete the writer async to
+ * our outgoing I/O.
  */
 static struct mbuf *
 msg_to_mbuf(struct msg *m)
@@ -141,13 +149,13 @@ msg_to_mbuf(struct msg *m)
 	for (x = 0; x < m->m_nseg; ++x) {
 		seg_t *s;
 
-		mtmp = alloc_mbuf(0);
+		s = &m->m_seg[x];
+		mtmp = alloc_mbuf(s->s_buflen);
 		if (mtmp == NULLBUF) {
 			(void)free_p(mb);
 			return(0);
 		}
-		s = &m->m_seg[x];
-		mtmp->data = s->s_buf;
+		bcopy(s->s_buf, mtmp->data, s->s_buflen);
 		mtmp->cnt = mtmp->size = s->s_buflen;
 		append(&mb, mtmp);
 	}
@@ -719,23 +727,17 @@ inetfs_state(struct tcb *tcb, char old, char new)
 		break;
 
 	case CLOSE_WAIT:
-		/* flush last buffers */
-		while (!LL_EMPTY(&c->t_writers)) {
-			struct mbuf *mb;
-			struct client *cl;
-
-			cl = LL_NEXT(&c->t_writers)->l_data;
-			ll_delete(cl->c_entry); cl->c_entry = 0;
-			mb = msg_to_mbuf(&cl->c_msg);
-			if (mb) {
-				send_tcp(tcb, mb);
-			}
-		}
+		/*
+		 * Flush last buffers
+		 */
+		fill_sendq(c);
 		close_tcp(tcb);
 		break;
 	
 	case CLOSED:
 		del_tcp(tcb);
+		cleario(&c->t_readers, EIO, 0);
+		cleario(&c->t_writers, EIO, 0);
 		if (c) {
 			c->t_tcb = 0;
 		}
@@ -1043,6 +1045,77 @@ inetfs_read(struct msg *m, struct client *cl)
 }
 
 /*
+ * fill_sendq()
+ *	Take enough writers off the queue to keep our window full
+ *
+ * Completes M_WRITE's as they move to our TCB buffer
+ */
+static void
+fill_sendq(struct tcp_conn *c)
+{
+	struct mbuf *mb;
+	struct client *cl;
+	struct llist *lp, *l;
+	struct msg *m;
+	struct tcb *tcb;
+	uint size;
+
+	lp = &c->t_writers;
+	tcb = c->t_tcb;
+	while (!LL_EMPTY(lp)) {
+		/*
+		 * Consider next queued I/O
+		 */
+		l = LL_NEXT(lp);
+		cl = l->l_data;
+		m = &cl->c_msg;
+
+		/*
+		 * If it'll fill more than the open window, don't
+		 * pull it yet
+		 */
+		if ((tcb->sndcnt + m->m_arg) > tcb->window) {
+			break;
+		}
+
+		/*
+		 * Convert to mbuf format
+		 */
+		ll_delete(cl->c_entry); cl->c_entry = 0;
+		mb = msg_to_mbuf(m);
+		if (mb == 0) {
+			msg_err(m->m_sender, ENOMEM);
+			continue;
+		}
+
+		/*
+		 * Sanity
+		 */
+		size = len_mbuf(mb);
+		if (m->m_arg != size) {
+			(void)free_p(mb);
+			msg_err(m->m_sender, EINVAL);
+			return;
+		}
+
+		/*
+		 * Away it goes
+		 */
+		if (send_tcp(tcb, mb) < 0) {
+			msg_err(m->m_sender, err2str(net_error));
+			return;
+		}
+
+		/*
+		 * Success
+		 */
+		m->m_arg = size;
+		m->m_nseg = m->m_arg1 = 0;
+		msg_reply(m->m_sender, m);
+	}
+}
+
+/*
  * inetfs_write()
  *	Write message from VSTa client onto TCP stream
  */
@@ -1050,10 +1123,8 @@ static void
 inetfs_write(struct msg *m, struct client *cl)
 {
 	struct tcp_port *t = cl->c_port;
-	struct mbuf *mb;
 	struct tcp_conn *c;
 	struct tcb *tcb;
-	uint size;
 
 	/*
 	 * Output is only legal once you have a particular TCP port open,
@@ -1065,43 +1136,32 @@ inetfs_write(struct msg *m, struct client *cl)
 	}
 
 	/*
-	 * Convert to mbuf format
+	 * Cap I/O
 	 */
-	mb = msg_to_mbuf(m);
-	if (mb == 0) {
-		msg_err(m->m_sender, ENOMEM);
+	if (m->m_arg == 0) {
+		m->m_nseg = m->m_arg1 = 0;
+		msg_reply(m->m_sender, m);
 		return;
 	}
-	size = len_mbuf(mb);
+	if ((ulong)(m->m_arg) > MAXIO) {
+		msg_err(m->m_sender, E2BIG);
+		return;
+	}
 
 	/*
 	 * Get a a linked list entry, queue us
 	 */
 	cl->c_entry = ll_insert(&c->t_writers, cl);
 	if (cl->c_entry == 0) {
-		free_p(mb);
 		msg_err(m->m_sender, ENOMEM);
 		return;
 	}
-
-	/*
-	 * Record our message parameters
-	 */
 	cl->c_msg = *m;
 
 	/*
-	 * If there's nothing outbound on this TCP port, send.
-	 * Otherwise queueing is sufficient; our transmit upcall
-	 * will send it later.
+	 * Let TCP pull as much into his window as possible
 	 */
-	tcb = c->t_tcb;
-	if (tcb->sndcnt == 0) {
-		if (send_tcp(tcb, mb) < 0) {
-			msg_err(m->m_sender, err2str(net_error));
-			ll_delete(cl->c_entry); cl->c_entry = 0;
-			return;
-		}
-	}
+	fill_sendq(c);
 }
 
 /*
@@ -1382,57 +1442,7 @@ inetfs_rcv(struct tcb *tcb, int16 cnt)
 static void
 inetfs_xmt(struct tcb *tcb, int16 count)
 {
-	struct msg *m;
-	struct llist *l;
-	struct client *cl;
-	struct mbuf *mb;
-	struct tcp_conn *c = tcb->user;
-
-	/*
-	 * If previous write isn't complete, wait until it is.
-	 * Also no-op if there is no writer traffic active.
-	 */
-	if (tcb->sndcnt || LL_EMPTY(&c->t_writers)) {
-		return;
-	}
-
-	/*
-	 * The first entry in the list will be the most
-	 * recent writer
-	 */
-	l = LL_NEXT(&c->t_writers);
-	cl = l->l_data;
-	ll_delete(cl->c_entry); cl->c_entry = 0;
-
-	/*
-	 * Complete his write
-	 */
-	m = &cl->c_msg;
-	m->m_arg1 = c->t_conn;
-	m->m_nseg = 0;
-	msg_reply(m->m_sender, m);
-
-	/*
-	 * If no further writes, done
-	 */
-	if (LL_EMPTY(&c->t_writers)) {
-		return;
-	}
-
-	/*
-	 * Get next writer
-	 */
-	l = LL_NEXT(&c->t_writers);
-	cl = l->l_data;
-
-	/*
-	 * Start his data out the door
-	 */
-	mb = msg_to_mbuf(&cl->c_msg);
-	if (send_tcp(tcb, mb) < 0) {
-		msg_err(m->m_sender, err2str(net_error));
-		ll_delete(cl->c_entry); cl->c_entry = 0;
-	}
+	fill_sendq(tcb->user);
 }
 
 /*
