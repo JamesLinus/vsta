@@ -34,7 +34,7 @@ extern void init_buf(void);
 extern void dirty_buf(struct buf *);
 extern void lock_buf(struct buf *), unlock_buf(struct buf *);
 extern void sync_buf(struct buf *);
-extern int extend_buf(daddr_t, uint, int);
+extern int resize_buf(daddr_t, uint, int);
 extern void inval_buf(daddr_t, uint);
 extern void sync(void);
 
