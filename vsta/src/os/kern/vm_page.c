@@ -81,7 +81,7 @@ alloc_page(void)
 	c = freelist;
 	freelist = c->c_free;
 	v_lock(&mem_lock, SPL0);
-	c->c_flags = 0;
+	c->c_flags = C_ALLOC;
 	c->c_free = 0;
 	return(c-core);
 }
@@ -98,6 +98,7 @@ free_page(uint pfn)
 	c = core+pfn;
 	ASSERT_DEBUG((c >= core) && (c < coreNCORE),
 		"free_page: bad page");
+	c->c_flags &= ~C_ALLOC;
 #ifdef DEBUG
 	/* XXX only works for uniprocessor without preemption */
 	{ struct core *c2;
