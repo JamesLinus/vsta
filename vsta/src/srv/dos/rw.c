@@ -148,6 +148,13 @@ dos_readdir(struct msg *m, struct file *f)
 	buf[0] = '\0';
 
 	/*
+	 * Skip "." and "..", which exist only in non-root directories
+	 */
+	if ((n != rootdir) && (f->f_pos == 0)) {
+		f->f_pos = 2;
+	}
+
+	/*
 	 * Assemble as many names as will fit
 	 */
 	for (x = 0; x < len; ) {
