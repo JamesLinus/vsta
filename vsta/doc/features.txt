@@ -251,3 +251,6 @@ Always let owner (UID) to chown operations on vstafs.  Otherwise you
 	can paint yourself into a corner, where you remove all abilities
 	of all users to touch the file!
 Fix some more long-filename compilation errors.
+Have DLL loader ld.shl try the truncated 8.3 filename in addition to
+	the full DLL name.  This helps when the VSTa distribution was
+	loaded via a utility which only supports 8.3 filenames.
