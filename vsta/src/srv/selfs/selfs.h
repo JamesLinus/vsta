@@ -36,8 +36,6 @@
  * Our per-open-file data structure
  */
 struct file {
-	struct openfile		/* Current file open */
-		*f_file;
 	struct llist		/* Events for us */
 		f_events;
 	ulong f_key;		/* Our key */
