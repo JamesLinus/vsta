@@ -45,6 +45,7 @@ ne_stat(struct msg *m, struct file *f)
 	o = f->f_file;
 	if (!o) {
 		extern struct llist files;
+		extern ulong dropped;
 
 		/*
 		 * Root dir--# files in dir
@@ -53,7 +54,9 @@ ne_stat(struct msg *m, struct file *f)
 		for (l = LL_NEXT(&files); l != &files; l = LL_NEXT(l)) {
 			len += 1;
 		}
-		sprintf(buf, "size=%d\ntype=d\nowner=0\ninode=0\n", len);
+		sprintf(buf, "size=%d\ntype=d\nowner=0\ninode=0\n"
+				"dropped=%lu\n",
+			len, dropped);
 	} else {
 		/*
 		 * File--its byte length
