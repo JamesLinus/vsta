@@ -129,6 +129,20 @@ dos_close(struct file *f)
 }
 
 /*
+ * do_unhash()
+ *	Function to do the unhash() call from a child thread
+ */
+static ulong unhash_fid;
+static void
+do_unhash(void)
+{
+	extern port_t rootport;
+
+	unhash(rootport, unhash_fid);
+	_exit(0);
+}
+
+/*
  * dos_remove()
  *	Remove an entry in the current directory
  */
@@ -169,6 +183,29 @@ dos_remove(struct msg *m, struct file *f)
 	n = dir_look(f->f_node, m->m_buf);
 	if (n == 0) {
 		msg_err(m->m_sender, ESRCH);
+		return;
+	}
+
+	/*
+	 * Try unhashing if it might be the only other reference
+	 */
+	if (n->n_refs == 2) {
+		extern uint inum();
+
+		/*
+		 * Since a closing portref needs to handshake
+		 * with the server, use a child thread to do
+		 * the dirty work.
+		 */
+		unhash_fid = inum(n);
+		(void)tfork(do_unhash);
+
+		/*
+		 * Release our ref and tell the requestor he
+		 * might want to try again.
+		 */
+		deref_node(n);
+		msg_err(m->m_sender, EAGAIN);
 		return;
 	}
 
