@@ -51,9 +51,8 @@ env_write(struct msg *m, struct file *f, uint len)
 	 * Transfer old contents, tack new stuff on end
 	 */
 	strcpy(buf, n->n_val->s_val);
-	seg_copyin(m->m_seg, m->m_nseg,
-		buf + f->f_pos, newlen - f->f_pos);
-	buf[newlen] = '\0';
+	seg_copyin(m->m_seg, m->m_nseg, buf + f->f_pos, len);
+	buf[newlen-1] = '\0';
 
 	/*
 	 * Free old string storage, put ours in its place
