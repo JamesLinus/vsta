@@ -446,7 +446,6 @@ serve_slave(struct client *cl)
 			 * Success.  Tell him the result size in m_arg
 			 */
 			mp->m_arg = x;
-			mp->m_nseg = rxbuf ? 1 : 0;
 
 			/*
 			 * Send back the header.  If it
@@ -460,11 +459,13 @@ serve_slave(struct client *cl)
 			m.m_arg1 = 0;
 			if (rxbuf && x) {
 				m.m_op = FS_WRITE;
+				mp->m_nseg = 1;
 				mp->m_buf = m.m_seg[1].s_buf = rxbuf;
 				mp->m_buflen = m.m_seg[1].s_buflen = x;
 				m.m_arg += x;
 				m.m_nseg = 2;
 			} else {
+				mp->m_nseg = 0;
 				m.m_nseg = 1;
 			}
 			(void)msg_send(txport, &m);
