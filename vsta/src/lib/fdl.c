@@ -20,6 +20,14 @@
 #include <lib/hash.h>
 #include <std.h>
 
+/*
+ * For saving state of fdl on exec()
+ */
+struct save_fdl {
+	int s_fd;	/* File descriptor number */
+	port_t s_port;	/* Its port */
+};
+
 #define NFD (32)		/* # FD's directly mapped to ports */
 
 /*
@@ -160,6 +168,29 @@ __do_open(struct port *port)
 }
 
 /*
+ * setfd()
+ *	Given a file descriptor #, attach to port
+ */
+static void
+setfd(int fd, struct port *port)
+{
+	if (fd < 0) {
+		abort();
+	}
+	if (fd >= NFD) {
+		if (fdhash == 0) {
+			fdhash = hash_alloc(NFD);
+			if (!fdhash) {
+				abort();
+			}
+		}
+		(void)hash_insert(fdhash, fd, port);
+	} else {
+		fdmap[fd] = port;
+	}
+}
+
+/*
  * fd_alloc()
  *	Allocate the next file descriptor
  *
@@ -194,25 +225,17 @@ __fd_alloc(port_t portnum)
 		/*
 		 * On first use of high slots, allocate the hash
 		 */
-		if (!fdhash) {
-			fdhash = hash_alloc(NFD);
-			if (!fdhash) {
-				free(port);
-				return(0);
+		if (fdhash) {
+			/*
+			 * Scan until we find an open value
+			 */
+			while (hash_lookup(fdhash, fdnext)) {
+				INC(fdnext);
 			}
 		}
-
-		/*
-		 * Scan until we find an open value
-		 */
-		while (hash_lookup(fdhash, fdnext)) {
-			INC(fdnext);
-		}
 		x = fdnext; INC(fdnext);
-		hash_insert(fdhash, (ulong)x, port);
-	} else {
-		fdmap[x] = port;
 	}
+	setfd(x, port);
 
 	/*
 	 * Fill in the port, add to the hash
@@ -315,4 +338,145 @@ close(int fd)
 	free(port);
 
 	return(error);
+}
+
+/*
+ * __fdl_restore()
+ *	Restore our fdl state from the array
+ *
+ * Only meant to be used during crt0 startup after an exec().
+ */
+void
+__fdl_restore(char *p)
+{
+	char *endp;
+	uint x;
+	struct port *port;
+	struct save_fdl *s, *s2;
+	ulong len;
+
+	/*
+	 * Extract length
+	 */
+	len = *(ulong *)p;
+	endp = p + len;
+	p += sizeof(ulong);
+
+	while (p < endp) {
+		/*
+		 * Get next pair
+		 */
+		s = (struct save_fdl *)p;
+		p += sizeof(struct save_fdl);
+		if (s->s_fd == -1) {
+			continue;
+		}
+
+		/*
+		 * Allocate port structure
+		 */
+		port = malloc(sizeof(struct port));
+		if (port == 0) {
+			abort();
+		}
+		port->p_port = s->s_port;
+		port->p_data = 0;
+		port->p_refs = 1;
+
+		/*
+		 * Attach to this file descriptor
+		 */
+		setfd(s->s_fd, port);
+
+		/*
+		 * Now scan for all duplicate references, and
+		 * map them to the same port.
+		 */
+		for (s2 = (struct save_fdl *)p; (char *)s2 < endp; ++s2) {
+			if (s2->s_port == s->s_port) {
+				setfd(s2->s_fd, port);
+				s2->s_fd = -1;
+				port->p_refs += 1;
+			}
+		}
+
+		/*
+		 * Let port initialize itself
+		 */
+		__do_open(port);
+	}
+}
+
+/*
+ * addfdl()
+ *	Append a description of the file descriptor/port pair
+ */
+static
+addfdl(long l, struct port *port, char **pp)
+{
+	struct save_fdl *s = (struct save_fdl *)*pp;
+
+	s->s_fd = l;
+	s->s_port = port->p_port;
+	*pp += sizeof(struct save_fdl);
+	return(0);
+}
+
+/*
+ * __fdl_save()
+ *	Save state into given byte area
+ *
+ * The area is assumed to be big enough; presumably they asked
+ * __fdl_size() and haven't opened more stuff since.
+ */
+void
+__fdl_save(char *p, ulong len)
+{
+	uint x;
+	struct save_fdl *s;
+
+	/*
+	 * Store count first
+	 */
+	*(ulong *)p = len;
+	p += sizeof(ulong);
+
+	/*
+	 * Assemble fdl stuff
+	 */
+	for (x = 0; x < NFD; ++x) {
+		if (fdmap[x]) {
+			s = (struct save_fdl *)p;
+			s->s_fd = x;
+			s->s_port = fdmap[x]->p_port;
+			p += sizeof(struct save_fdl);
+		}
+	}
+	if (fdhash) {
+		hash_foreach(fdhash, addfdl, &p);
+	}
+}
+
+/*
+ * __fdl_size()
+ *	Return bytes needed to save fdl state
+ */
+uint
+__fdl_size(void)
+{
+	uint x, plen;
+
+	/*
+	 * Add in length of information for file descriptor layer
+	 */
+	plen = sizeof(ulong);
+	for (x = 0; x < NFD; ++x) {
+		if (fdmap[x]) {
+			plen += sizeof(struct save_fdl);
+		}
+	}
+	if (fdhash) {
+		plen += (hash_size(fdhash) * sizeof(struct save_fdl));
+	}
+	return(plen);
 }
