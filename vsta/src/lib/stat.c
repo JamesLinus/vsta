@@ -179,20 +179,20 @@ fstat(int fd, struct stat *s)
 	 * Set UID/GID
 	 */
 	p = fieldval(sbuf, "owner");
-	if (!p) {
-		return(-1);
+	if (p) {
+		s->st_gid = field(p, 0);
+		s->st_uid = field(p, 1);
+	} else {
+		s->st_gid = s->st_uid = 0;
 	}
-	s->st_gid = field(p, 0);
-	s->st_uid = field(p, 1);
 
 	/*
 	 * Decode "type"
 	 */
 	p = fieldval(sbuf, "type");
 	if (!p) {
-		return(-1);
-	}
-	if (!strcmp(p, "d")) {
+		mode = S_IFREG;
+	} else if (!strcmp(p, "d")) {
 		mode = S_IFDIR;
 	} else if (!strcmp(p, "c")) {
 		mode = S_IFCHR;
@@ -201,22 +201,21 @@ fstat(int fd, struct stat *s)
 	} else if (!strcmp(p, "fifo")) {
 		mode = S_IFIFO;
 	} else {
-		mode = 0;
+		mode = S_IFREG;
 	}
 
 	/*
 	 * Map the default access fields into "other"
 	 */
 	p = fieldval(sbuf, "perm");
-	if (!p) {
-		return(-1);
+	if (p) {
+		mode |= modes(field(p, 0));
+		mode |= modes(field(p, 1)) << 3;
+		mode |= modes(field(p, 2)) << 6;
+		s->st_mode = mode;
+	} else {
+		s->st_mode |= ((S_IREAD|S_IWRITE) << 6);
 	}
-	mode |= modes(field(p, 0));
-	mode |= modes(field(p, 1)) << 3;
-	mode |= modes(field(p, 2)) << 3;
-	mode |= modes(field(p, 3)) << 3;
-	mode |= modes(field(p, 4)) << 3;
-	s->st_mode = mode;
 	return(0);
 }
 
