@@ -78,7 +78,7 @@ fat16_fat12(ushort *fat16, ushort *fat12, uint len)
 	 * Scan across the FAT16's and assemble them back into
 	 * 12-bit format.
 	 */
-	fatend = fat16+len;
+	fatend = (ushort *)(((char *)fat16) + len);
 	dest = (uchar *)fat12;
 	while (fat16 < fatend) {
 		x = *fat16++;
@@ -319,6 +319,7 @@ alloc_clust(uint start)
 	 * Scan the chain to get its length
 	 */
 	for (x = start; fat[x] < FAT_RESERVED; x = fat[x]) {
+		ASSERT_DEBUG(x >= 2, "alloc_clust: free cluster in file");
 		nclust++;
 	}
 
