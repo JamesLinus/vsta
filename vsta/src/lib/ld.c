@@ -173,14 +173,17 @@ _load2(port_name rootname, char *p)
 		if (addr_data == 0) {
 			goto err;
 		}
-		if (aout.a_bss > 0) {
-			addr_bss = do_mmap(addr_data + aout.a_data,
-				roundup(aout.a_bss, PAGESIZE),
-				PROT_READ | PROT_WRITE,
-				MAP_ANON, 0, 0L);
-			if (addr_bss == 0) {
-				goto err;
-			}
+	}
+	if (aout.a_bss > 0) {
+		if (aout.a_data == 0) {
+			addr_data = addr_text + size_text;
+		}
+		addr_bss = do_mmap(addr_data + aout.a_data,
+			roundup(aout.a_bss, PAGESIZE),
+			PROT_READ | PROT_WRITE,
+			MAP_ANON, 0, 0L);
+		if (addr_bss == 0) {
+			goto err;
 		}
 	}
 
