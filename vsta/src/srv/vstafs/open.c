@@ -538,7 +538,7 @@ vfs_open(struct msg *m, struct file *f)
 	struct buf *b;
 	struct openfile *o;
 	struct fs_file *fs;
-	uint x;
+	uint x, want;
 
 	/*
 	 * Get file header, but don't wire down
@@ -608,8 +608,9 @@ vfs_open(struct msg *m, struct file *f)
 	/*
 	 * Check permission
 	 */
+	want = m->m_arg & (ACC_READ|ACC_WRITE|ACC_CHMOD);
 	x = perm_calc(f->f_perms, f->f_nperm, &fs->fs_prot);
-	if ((m->m_arg & x) != m->m_arg) {
+	if ((want & x) != want) {
 		deref_node(o);
 		msg_err(m->m_sender, EPERM);
 		return;
