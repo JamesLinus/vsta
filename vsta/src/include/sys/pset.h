@@ -123,7 +123,7 @@ extern void set_core(uint, struct pset *, uint);
 extern struct pset *alloc_pset_cow(struct pset *, uint, uint);
 extern ulong alloc_swap(uint);
 extern void free_swap(ulong, uint);
-extern struct pset *alloc_pset_fod(struct portref *, ulong);
+extern struct pset *alloc_pset_fod(struct portref *, uint);
 #endif /* KERNEL */
 
 #endif /* _PSET_H */
