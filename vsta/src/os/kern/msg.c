@@ -789,12 +789,6 @@ msg_reply(long arg_who, struct msg *arg_msg)
 				v_lock(&pr->p_lock, SPL0_SAME);
 			}
 			return(0);
-
-			/*
-			 * As we have no segments now we can take an
-			 * early exit out of the function
-			 */
-			return(0);
 		}
 		break;
 
