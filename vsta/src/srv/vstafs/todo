@@ -1,0 +1,17 @@
+Make sure directory entries are not honored in EXTSIZ-allocated
+	storage at end of dir file.
+
+Make sure on file expansion that we don't read in the new space
+	from disk.
+
+Add a "first sector dirty" flag so we don't have to flush the first
+	full extent just to update fs_file
+	In fact, add interface of dirtying a range.  Allows for a
+	bitmap in the future.
+
+Directory block allocation is stupid--it will always be maximally
+	fragmented.  Perhaps use a power-of-two progression when
+	allocating extents?  Certainly can't use the default file
+	allocation algorithm--the usage pattern is too different.
+
+Ensure deletion of a directory can't happen unless it's empty.
