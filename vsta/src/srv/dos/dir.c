@@ -386,7 +386,7 @@ dir_empty(struct node *n)
 			 * Oops.  Found a file.  Not empty.
 			 */
 			bfree(handle);
-			return(1);
+			return(0);
 		}
 		bfree(handle);
 	}
