@@ -1,0 +1,110 @@
+/*
+ * inode.c
+ *	Routines for managing per-file information
+ */
+#include <bfs/bfs.h>
+#include <lib/hash.h>
+#include <sys/assert.h>
+extern int blkdev;
+extern void *malloc(), dir_map();
+
+static int cur_inode = 0;	/* Current in-core inodes */
+static struct hash		/* Hash of in-core inodes */
+	*ihash;
+
+/*
+ * ifind()
+ *	Given inode #, return inode
+ *
+ * If in-core, increment reference and return.  If haven't reached
+ * our limit, allocate a new one and read from directory.  Otherwise
+ * return 0.
+ */
+struct inode *
+ifind(uint inum)
+{
+	struct inode *i;
+	int x;
+
+	/*
+	 * Try for in-core hash first
+	 */
+	i = hash_lookup(ihash, inum);
+	if (i) {
+		i->i_refs += 1;
+		return(i);
+	}
+
+	/*
+	 * Nope.  See if we can get a new structure.
+	 */
+	if (cur_inode >= MAXINODE)
+		return(0);
+	i = malloc(sizeof(struct inode));
+	if (i == 0)
+		return(0);
+
+	/*
+	 * Initialize fields, get directory entry information
+	 */
+	i->i_num = inum;
+	i->i_refs = 1;
+	dir_map(inum, &i->i_dir);
+
+	/*
+	 * Add to inode hash
+	 */
+	if (hash_insert(ihash, inum, i))
+		goto err;
+
+	/*
+	 * Update inode count, return inode
+	 */
+	cur_inode += 1;
+	return(i);
+
+	/*
+	 * Failure
+	 */
+err:
+	free(i);
+	return(0);
+}
+
+/*
+ * ifree()
+ *	Indicate that an inode is no longer needed
+ */
+void
+ifree(struct inode *i)
+{
+	i->i_refs -= 1;
+	if (i->i_refs > 0)
+		return;
+	if (hash_delete(ihash, i->i_num)) {
+		ASSERT(0, "ifree: not in hash");
+	}
+	cur_inode -= 1;
+	free(i);
+}
+
+/*
+ * iref()
+ *	Bump reference on inode object
+ */
+void
+iref(struct inode *i)
+{
+	i->i_refs += 1;
+	ASSERT_DEBUG(i->i_refs != 0, "iref: wrapped");
+}
+
+/*
+ * iinit()
+ *	Initialize inode hash
+ */
+void
+iinit(void)
+{
+	ihash = hash_alloc(MAXINODE/4);
+}

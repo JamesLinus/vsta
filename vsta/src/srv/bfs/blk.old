@@ -1,0 +1,158 @@
+/*
+ * blk.c
+ *	Routines for managing the allocation of blocks
+ *
+ * Not a great choice of names, but I couldn't think of anything
+ * better.  block.c holds routines for buffering blocks off of the
+ * underlying block device.  This file holds the routines for
+ * organizing the free block pool, adding blocks to files, and
+ * freeing blocks out from files.
+ *
+ * The basic strategy is to always allocate off the end of the
+ * filesystem.  Files are always contiguous, with only one writer
+ * permitted at a time.  Truncation simply zeroes out the block
+ * pointer for the file, and updates the overall free block count.
+ * The special case of freeing storage at the end of the filesystem
+ * is handled correctly--the storage is made "really" free.
+ *
+ * Arguably files should coalesce automatically.  My experience
+ * on V.4, however, was that this resulted in a big wait.  Usually
+ * would rather have twiddled things by hand instead.  So I am
+ * leaving coalescing as an off-board user command which you can
+ * inflict on a filesystem as needed.
+ */
+#include <bfs/bfs.h>
+#include <sys/assert.h>
+
+extern struct super *sblock;
+extern void *shandle, *bget();
+
+/*
+ * blk_trunc()
+ *	Remove the blocks from under the named file
+ *
+ * The space is tagged back onto the superblock.  The superblock is
+ * also marked dirty, but the caller is responsible for marking the
+ * dirent dirty.  This is because the caller will often *further*
+ * dirty the dirent, so no need to do it twice.
+ */
+void
+blk_trunc(struct dirent *d)
+{
+	int blocks;
+
+	/*
+	 * Add blocks worth of storage back onto free count
+	 */
+	blocks = BLOCKS(d->d_len);
+	sblock->s_free += blocks;
+
+	/*
+	 * If this space abuts the current free space, make
+	 * it available.
+	 */
+	if ((d->d_start+blocks) == sblock->s_nextfree) {
+		sblock->s_nextfree += blocks;
+	}
+
+	/*
+	 * Flag start/len as 0.  blk_alloc() will notice this
+	 * and update where the free blocks start.
+	 */
+	d->d_start = d->d_len = 0;
+	bdirty(shandle);
+}
+
+/*
+ * blk_alloc()
+ *	Request an existing file have its allocation increased
+ *
+ * Returns 0 on success, 1 on failure.
+ */
+blk_alloc(struct inode *i, uint newsize)
+{
+	void *handle;
+	char *p;
+	struct dirent *d;
+	int oldblocks, newblocks, diff;
+	int err = 0;
+
+	/*
+	 * Get pointer to dir entry
+	 */
+	handle = bget(i->i_dir.d_blkno);
+	if (!handle)
+		return(1);
+	d = (struct dirent *)((char *)bdata(handle) + i->i_dir.d_off);
+
+	/*
+	 * If the start is 0, it's been truncated, so update
+	 * it to the current place our free blocks start
+	 */
+	if (d->d_start == 0) {
+		ASSERT_DEBUG(d->d_len == 0, "blk_alloc: trunc with length");
+		d->d_start = sblock->s_nextfree;
+	}
+
+	/*
+	 * Ignore if doesn't affect allocation of blocks
+	 */
+	oldblocks = BLOCKS(d->d_len);
+	newblocks = BLOCKS(newsize);
+	diff = newblocks-oldblocks;
+	if (diff == 0) {
+		bfree(handle);
+		return(0);
+	}
+
+	if (diff == 0) {		/* Block allocation unchanged */
+		/* Do nothing */
+
+	} else if (diff < 0) {		/* Shrinking */
+		diff = -diff;		/* Turn positive */
+
+		/*
+		 * Mark this many blocks free.
+		 */
+		sblock->s_free += diff;
+
+		/*
+		 * If we're abutting the free space, free it back
+		 * to the free pool also.
+		 */
+		if ((d->d_start+d->d_len) == sblock->s_nextfree) {
+			sblock->s_nextfree -= diff;
+		}
+
+	} else {			/* Growing */
+		/*
+		 * Can't grow if re-writing an existing file not abutting
+		 * free space.
+		 */
+		if ((d->d_start+d->d_len) != sblock->s_nextfree) {
+			err = 1;
+		} else {
+			/*
+			 * Growing tries to pull from end of superblock,
+			 * will fail if no more space.
+			 */
+			if (diff > (sblock->s_nblocks - sblock->s_nextfree)) {
+				err = 1;
+			} else {
+				sblock->s_free -= diff;
+				sblock->s_nextfree += diff;
+			}
+		}
+	}
+	d->d_len = newsize;
+
+	/*
+	 * Free handle on dir entry, mark dirty.  Superblock also
+	 * probably dirty; mark it so.
+	 */
+	bdirty(handle);
+	bfree(handle);
+	bdirty(shandle);
+
+	return(err);
+}
