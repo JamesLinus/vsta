@@ -24,6 +24,27 @@ _outportb:
 	movl	8(%esp),%eax
 	outb	%al,%dx
 	ret
+/*
+ * inportw()
+ *	Get a word from an I/O port
+ */
+	.globl	_inportw
+_inportw:
+	movl	4(%esp),%edx
+	xorl	%eax,%eax
+	inw	%dx,%ax
+	ret
+
+/*
+ * outportw()
+ *	Write a word to an I/O port
+ */
+	.globl	_outportw
+_outportw:
+	movl	4(%esp),%edx
+	movl	8(%esp),%eax
+	outw	%ax,%dx
+	ret
 
 /*
  * repinsw(port, buffer, count)
