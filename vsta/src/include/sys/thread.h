@@ -60,4 +60,8 @@ struct thread {
 #define TS_ONPROC (3)		/* Thread running */
 #define TS_DEAD (4)		/* Thread dead/dying */
 
+#ifdef KERNEL
+extern void dup_stack(struct thread *, struct thread *, voidfun);
+#endif
+
 #endif /* _THREAD_H */
