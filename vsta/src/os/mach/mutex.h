@@ -235,4 +235,14 @@ set_sema(sema_t *s, int cnt)
 	s->s_count = cnt;
 }
 
+/*
+ * adj_sema()
+ *	Manually adjust the value for the semaphore count
+ */
+inline static void
+adj_sema(sema_t *s, int cnt)
+{
+	s->s_count += cnt;
+}
+
 #endif /* _MACH_MUTEX_H */
