@@ -10,7 +10,7 @@
 #include <sys/types.h>
 #include <sys/msg.h>
 
-#define RS232_MAXBUF (1024)	/* # bytes buffered from/to serial port */
+#define RS232_MAXBUF (16*1024)	/* # bytes buffered from/to serial port */
 #define RS232_STDSUPPORT (4)	/* Support 4 standard PC ports, com1-com4 */
 #define RS232_UARTNAMEMAX (8)	/* Max length of name of UART */
 
