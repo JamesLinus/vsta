@@ -76,5 +76,5 @@ signal(int s, voidfun v)
  */
 kill(pid_t pid, int sig)
 {
-	return(notify(pid, -1, sigtostr(sig)));
+	return(notify(pid, 0, sigtostr(sig)));
 }
