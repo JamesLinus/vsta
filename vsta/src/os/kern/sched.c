@@ -21,12 +21,12 @@
 extern ulong random();
 
 lock_t runq_lock;		/* Mutex for scheduling */
-extern uint num_run;
 struct sched
 	sched_rt,		/* Real-time queue */
 	sched_cheated,		/* Low-CPU processes given preference */
 	sched_bg,		/* Background (lowest priority) queue */
 	sched_root;		/* "main" queue */
+volatile uint num_run = 0;	/* # SRUN procs waiting */
 
 /*
  * queue()
