@@ -191,7 +191,8 @@ umount(char *point, int fd)
 	}
 	free(mt->m_name);
 	__nmnttab -= 1;
-	bcopy(mt+1, mt, __nmnttab - (mt-__mnttab));
+	bcopy(mt+1, mt,
+		(__nmnttab - (mt-__mnttab)) * sizeof(struct mnttab));
 	return(0);
 }
 
