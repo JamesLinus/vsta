@@ -96,14 +96,16 @@ strcat(char *dest, const char *src)
  * strncat()
  *	Concatenate, with limit
  */
-char *strncat(char *dest, const char *src, int len)
+char *
+strncat(char *dest, const char *src, int len)
 {
-	char *p, *lim;
+	char *p;
+	const char *lim;
 
-	lim = dest+len;
+	lim = src+len;
 	for (p = dest; *p; ++p)
 		;
-	while (p < lim) {
+	while (src < lim) {
 		if ((*p++ = *src++) == '\0') {
 			break;
 		}
