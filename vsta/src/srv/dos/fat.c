@@ -277,6 +277,11 @@ clust_setlen(struct clust *c, ulong newlen)
 		}
 
 		/*
+		 * Sanity
+		 */
+		ASSERT_DEBUG(y >= 2, "clust_setlen: bad FAT");
+
+		/*
 		 * Otherwise add it to our array.  We will flag it
 		 * consumed soon.
 		 */
