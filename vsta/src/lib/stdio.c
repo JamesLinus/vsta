@@ -767,7 +767,7 @@ setbuffer(FILE *fp, char *buf, uint size)
 		fp->f_flags |= _F_UNBUF;
 		return;
 	}
-	fp->f_pos = fp->f_buf = buf;
+	fp->f_pos = fp->f_buf = (uchar *)buf;
 	fp->f_bufsz = size;
 	fp->f_cnt = 0;
 	fp->f_flags |= _F_UBUF;
