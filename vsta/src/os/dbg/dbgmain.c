@@ -7,7 +7,8 @@
 #include <mach/setjmp.h>
 
 extern void dump_phys(), dump_virt(), dump_procs(), dump_pset(),
-	dump_instr(), trace(), trapframe(), dump_vas(), dump_port();
+	dump_instr(), trace(), trapframe(), dump_vas(), dump_port(),
+	dump_pview();
 extern void dbg_inport(), dbg_outport();
 static void quit(), calc(), set();
 
@@ -31,6 +32,7 @@ struct {
 	"port", dump_port,
 	"proc", dump_procs,
 	"pset", dump_pset,
+	"pview", dump_pview,
 	"quit", quit,
 	"set", set,
 	"tframe", trapframe,

@@ -289,6 +289,36 @@ dump_instr(args)
 }
 
 /*
+ * do_dump_pview()
+ *	Dump fields of a pview
+ */
+static void
+do_dump_pview(struct pview *pv)
+{
+	printf(" pview @ 0x%x vaddr 0x%x len 0x%x off 0x%x\n",
+		pv, pv->p_vaddr, pv->p_len, pv->p_off);
+	printf("  vas 0x%x next 0x%x prot 0x%x pset 0x%x\n",
+		pv->p_vas, pv->p_next, pv->p_prot, pv->p_set);
+}
+
+/*
+ * dump_pview()
+ *	Command interface to display a pview
+ */
+void
+dump_pview(char *p)
+{
+	struct pview *pv;
+
+	if (!p || !p[0]) {
+		printf("Usage: pview <addr>\n");
+		return;
+	}
+	pv = (struct pview *)get_num(p);
+	do_dump_pview(pv);
+}
+
+/*
  * dump_vas()
  *	Dump out the vas at the given address
  */
@@ -310,10 +340,7 @@ dump_vas(char *p)
 
 	printf("vas @ 0x%x hat 0x%x\n", vas, &vas->v_hat);
 	for (pv = vas->v_views; pv; pv = pv->p_next) {
-		printf(" pview @ 0x%x vaddr 0x%x len 0x%x off 0x%x\n",
-			pv, pv->p_vaddr, pv->p_len, pv->p_off);
-		printf("  vas 0x%x next 0x%x prot 0x%x pset 0x%x\n",
-			pv->p_vas, pv->p_next, pv->p_prot, pv->p_set);
+		do_dump_pview(pv);
 	}
 }
 
