@@ -689,7 +689,7 @@ chdir(const char *newdir)
  *	Create a directory
  */
 int
-mkdir(const char *dir)
+mkdir(const char *dir, ...)
 {
 	int fd;
 

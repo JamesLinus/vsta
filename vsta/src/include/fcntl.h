@@ -33,7 +33,7 @@ extern int open(const char *, int, ...), close(int),
 	creat(const char *, int),
 	read(int fd, void *buf, int nbyte),
 	write(int fd, const void *buf, int nbyte),
-	close(int), mkdir(const char *),
+	close(int), mkdir(const char *, ...),
 	unlink(const char *);
 #define remove(path) unlink(path)
 extern off_t lseek(int fd, off_t offset, int whence);
