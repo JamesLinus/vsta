@@ -85,7 +85,7 @@ my_term(char *dummy)
 	printf("Terminal mode.  Enter '.' to end.\n");
 	tcgetattr(0, &told);
 	tnew = told;
-	tnew.c_lflag &= ~ICANON;
+	tnew.c_lflag &= ~(ICANON | ECHO | ISIG);
 	tnew.c_cc[VMIN] = 1;
 	tnew.c_cc[VTIME] = 0;
 	tcsetattr(0, TCSANOW, &tnew);
