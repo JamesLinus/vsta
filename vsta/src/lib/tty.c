@@ -19,6 +19,9 @@
 #include <fdl.h>
 #include <std.h>
 #include <stdio.h>
+#include "getline.h"
+
+#define PROMPT_SIZE (80)	/* Max bytes expected in prompt */
 
 /*
  * Current tty state, initialized for line-by-line
@@ -46,37 +49,10 @@ typedef struct {
 } TTYBUF;
 
 /*
- * addc()
- *	Stuff another character into the buffer
+ * This is global instead of within the TTYBUF, as it needs to
+ * be coordinated between stdin and stdout.
  */
-static void
-addc(TTYBUF *fp, char c)
-{
-	if (fp->f_cnt < fp->f_bufsz) {
-		fp->f_buf[fp->f_cnt] = c;
-		fp->f_cnt += 1;
-	}
-}
-
-/*
- * delc()
- *	Remove last character from buffer
- */
-static void
-delc(TTYBUF *fp)
-{
-	fp->f_cnt -= 1;
-}
-
-/*
- * echo()
- *	Dump bytes directly to TTY
- */
-static void
-echo(char *p)
-{
-	write(1, p, strlen(p));
-}
+static char f_prompt[PROMPT_SIZE];
 
 /*
  * init_port()
@@ -98,115 +74,37 @@ init_port(struct port *port)
 }
 
 /*
- * Macro to do one-time setup of a file descriptor for a TTY
- */
-#define SETUP(port) \
-	if (port->p_data == 0) { \
-		if (init_port(port)) { \
-			return(-1); \
-		} \
-	}
-
-/*
  * canon()
  *	Do input processing when canonical input is set
  */
-static
+static int
 canon(struct termios *t, TTYBUF *fp, struct port *port)
 {
-	char c, c2;
-	char echobuf[2];
-	struct msg m;
+	char *prompt;
 
 	/*
-	 * Get ready to read from scratch
+	 * Calculate the prompt by digging through the last
+	 * write() to see what would be on the current output
+	 * line.
 	 */
-	echobuf[1] = 0;
-	fp->f_cnt = 0;
-	fp->f_pos = fp->f_buf;
-
-	/*
-	 * Loop getting characters
-	 */
-	for (;;) {
-		/*
-		 * Build request
-		 */
-		m.m_op = FS_READ|M_READ;
-		m.m_buf = &c2;
-		m.m_arg = m.m_buflen = sizeof(c2);
-		m.m_nseg = 1;
-		m.m_arg1 = 0;
-
-		/*
-		 * Errors are handled below.  Otherwise we
-		 * move to a local variable so the optimizer
-		 * can leave it in a register if it likes.
-		 */
-		if (msg_send(port->p_port, &m) != sizeof(c2)) {
-			return(-1);
-		}
-		c = c2;
-
-		/*
-		 * Null char--always store.  Null in c_cc[] means
-		 * an * inactive entry, so null characters would
-		 * cause some confusion.
-		 */
-		if (!c) {
-			addc(fp, c);
-			continue;
-		}
-
-		/*
-		 * ICRNL--map CR to NL
-		 */
-		if ((c == '\r') && (t->c_iflag & ICRNL)) {
-			c = '\n';
-		}
-
-		/*
-		 * Erase?
-		 */
-		if (c == t->c_cc[VERASE]) {
-			if (fp->f_cnt < 1) {
-				continue;
-			}
-			delc(fp);
-			echo("\b \b");	/* Not right for tab */
-			continue;
-		}
-
-		/*
-		 * Kill?
-		 */
-		if (c == t->c_cc[VKILL]) {
-			echo("\\\r\n");	/* Should be optional */
-			fp->f_cnt = 0;
-			fp->f_pos = fp->f_buf;
-			continue;
-		}
-
-		/*
-		 * Add the character
-		 */
-		addc(fp, c);
-
-		/*
-		 * Echo?
-		 */
-		if (t->c_lflag & ECHO) {
-			echobuf[0] = c;
-			echo(echobuf);
-		}
-
-		/*
-		 * End of line?
-		 */
-		if (c == t->c_cc[VEOL]) {
-			break;
-		}
+	prompt = strrchr(f_prompt, '\n');
+	if (prompt) {
+		prompt += 1;
+	} else {
+		prompt = f_prompt;
 	}
+
+	/*
+	 * Use getline() to fill the buffer.  Add to history.
+	 * Note that we keep our own f_buf, but don't use it
+	 * since getline() gave us his.
+	 */
+	fp->f_pos = getline(prompt);
+	fp->f_cnt = strlen(fp->f_pos);
+	if (fp->f_cnt > 0) {
+		gl_histadd(fp->f_pos);
+	}
+
 	return(0);
 }
 
@@ -218,17 +116,15 @@ canon(struct termios *t, TTYBUF *fp, struct port *port)
  * for the common cases (especially VMIN==1, VTIME==0!) but does not
  * pretend to handle all those timing-sensitive modes.
  */
-static
+static int
 non_canon(struct termios *t, TTYBUF *fp, struct port *port)
 {
 	int x;
-	char echobuf[2];
 	struct msg m;
 
 	/*
 	 * Set up
 	 */
-	echobuf[1] = 0;
 	fp->f_cnt = 0;
 	fp->f_pos = fp->f_buf;
 
@@ -269,6 +165,16 @@ non_canon(struct termios *t, TTYBUF *fp, struct port *port)
 	 */
 	return(-1);
 }
+
+/*
+ * Macro to do one-time setup of a file descriptor for a TTY
+ */
+#define SETUP(port) \
+	if (port->p_data == 0) { \
+		if (init_port(port)) { \
+			return(-1); \
+		} \
+	}
 
 /*
  * __tty_read()
@@ -328,13 +234,48 @@ __tty_read(struct port *port, void *buf, uint nbyte)
 __tty_write(struct port *port, void *buf, uint nbyte)
 {
 	struct msg m;
+	TTYBUF *fp;
+	int ret;
 
+	/*
+	 * Display string.  Shortcut out if not doing
+	 * canonical input processing
+	 */
 	m.m_op = FS_WRITE;
 	m.m_buf = buf;
 	m.m_arg = m.m_buflen = nbyte;
 	m.m_nseg = 1;
 	m.m_arg1 = 0;
-	return(msg_send(port->p_port, &m));
+	ret = msg_send(port->p_port, &m);
+	if ((ret < 0) || ((tty_state.c_lflag & ICANON) == 0)) {
+		return(ret);
+	}
+
+	/*
+	 * Get buffering for prompt, get pointer to port state
+	 */
+	SETUP(port);
+	fp = port->p_data;
+
+	/*
+	 * Keep track of byte displayed to cursor on this line.
+	 * Needed to provide prompt string for input editing. Bleh.
+	 * Note we assume that the last write() will be (at least) the
+	 * entire prompt.  We leave digging around for the \n until we
+	 * really need to prompt, favoring speeds of write()'s to TTYs
+	 * over speed to set up a getline().
+	 *
+	 * f_prompt is actually PROMPT_SIZE+1 bytes, so there IS
+	 * room for the \0 termination.
+	 */
+	if (nbyte > PROMPT_SIZE) {
+		buf = (char *)buf + (nbyte - PROMPT_SIZE);
+		nbyte = PROMPT_SIZE;
+	}
+	bcopy(buf, f_prompt, nbyte);
+	f_prompt[nbyte] = '\0';
+
+	return(ret);
 }
 
 /*

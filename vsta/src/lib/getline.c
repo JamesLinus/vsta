@@ -21,7 +21,6 @@ static int      gl_tab();  /* forward reference needed for gl_tab_hook */
 
 #include <string.h>
 #include <ctype.h>
-#include <errno.h>
 #include <signal.h>
 #include <std.h>
 
@@ -107,7 +106,7 @@ gl_char_init()			/* turn off input echo */
     new_termios = old_termios;
     new_termios.c_iflag &= ~(BRKINT|ISTRIP|IXON|IXOFF);
     new_termios.c_iflag |= (IGNBRK|IGNPAR);
-    new_termios.c_lflag &= ~(ICANON|ISIG|IEXTEN|ECHO);
+    new_termios.c_lflag &= ~(ICANON|ISIG|ECHO);
     new_termios.c_cc[VMIN] = 1;
     new_termios.c_cc[VTIME] = 0;
     tcsetattr(0, TCSANOW, &new_termios);

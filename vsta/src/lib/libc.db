@@ -268,3 +268,10 @@ ___get_iob
 ___get_ctab
 __mmap
 ___start
+_getline hidden
+_gl_setwidth hidden
+_gl_histadd hidden
+_gl_strwidth hidden
+_gl_in_hook hidden
+_gl_out_hook hidden
+_gl_tab_hook hidden
