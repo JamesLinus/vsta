@@ -30,6 +30,10 @@ typedef unsigned long daddr_t;
 #define btors(x) (((x) + SECSZ-1) / SECSZ)
 #define stob(x) ((x) * SECSZ)
 
+/* Utility */
+#define MIN(x, y) (((x) < (y)) ? (x) : (y))
+#define MAX(x, y) (((x) >= (y)) ? (x) : (y))
+
 /*
  * The first sector of a filesystem
  */
