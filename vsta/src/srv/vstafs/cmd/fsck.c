@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <mach/param.h>
 #include "../vstafs.h"
+#include <stdio.h>
 
 static int fd;			/* Open block device */
 static daddr_t max_blk;		/* Highest block # in filesystem */
@@ -17,6 +18,41 @@ static char *allocmap;		/*  ...of blocks in files */
 static char *prog;		/* Name fsck is running under */
 
 static int check_tree(daddr_t, char *);
+
+/*
+ * ask()
+ *	Ask a question, get an answer
+ */
+static int
+ask(void)
+{
+	char buf[128];
+
+	printf(" (y/n)? ");
+	fflush(stdout);
+	gets(buf);
+	return ((buf[0] == 'y') || (buf[0] == 'Y'));
+}
+
+/*
+ * write_sec()
+ *	Write back the buffer as a sector
+ */
+static void
+write_sec(daddr_t sec, void *buf)
+{
+	off_t pos;
+
+	pos = stob(sec);
+	if (lseek(fd, pos, SEEK_SET) != pos) {
+printf("write error seeking to sector %ld: %s\n", sec, strerror());
+		exit(1);
+	}
+	if (write(fd, buf, SECSZ) != SECSZ) {
+printf("write error reading sector %ld: %s\n", sec, strerror());
+		exit(1);
+	}
+}
 
 /*
  * get_sec()
@@ -413,7 +449,7 @@ check_fsdir(daddr_t sec, char *name)
 {
 	ulong idx = sizeof(struct fs_file);
 	struct fs_file fs;
-	uint x;
+	uint x, tmpoff;
 
 	/*
 	 * Snapshot the fs_file so we can refer to it directly
@@ -442,13 +478,13 @@ printf("Error: directory %s has unaligned length %ld\n", name, fs.fs_len);
 		blk = a->a_start;
 		blkend = blk + a->a_len;
 		while (blk < blkend) {
-			struct fs_dirent *d, *dend;
+			struct fs_dirent *d, *dend, *dbase;
 
 			/*
 			 * Position at top of this sector.  For the first
 			 * sector in a file, skip the fs_file part.
 			 */
-			d = get_sec(blk);
+			dbase = d = get_sec(blk);
 			dend = (struct fs_dirent *)((char *)d + SECSZ);
 			if (idx == sizeof(struct fs_file)) {
 				d = (struct fs_dirent *)((char *)d + idx);
@@ -457,34 +493,57 @@ printf("Error: directory %s has unaligned length %ld\n", name, fs.fs_len);
 			/*
 			 * Walk the entries, sanity checking
 			 */
-			while ((d < dend) && (idx < fs.fs_len)) {
+			for (; (d < dend) && (idx < fs.fs_len);
+					idx += sizeof(struct fs_dirent),
+					d += 1) {
+				char *p;
+
 				/*
 				 * Skip deleted entries
 				 */
-				if (d->fs_clstart &&
-						!(d->fs_name[0] & 0x80)) {
-					char *p;
+				if (!d->fs_clstart || (d->fs_name[0] & 0x80)) {
+					continue;
+				}
 
-					/*
-					 * Check entry for sanity
-					 */
-					if (check_dirent(d)) {
+				/*
+				 * Check entry for sanity
+				 */
+				if (check_dirent(d)) {
 printf("Corrupt directory entry file %s position %ld\n",
 	name, idx - sizeof(struct fs_file));
-						return(1);
-					}
-
 					/*
-					 * Recurse to check the file
+					 * Delete, but leave name and start
+					 * sector so we have some bones to
+					 * study if things go badly.
 					 */
-					p = concat(name, d->fs_name);
-					/* XXX offer to delete? */
-					(void)check_tree(d->fs_clstart, p);
-					free(p);
-					(void)get_sec(blk);
+					printf("Delete");
+					if (ask()) {
+						d->fs_name[0] |= 0x80;
+						write_sec(blk, dbase);
+					}
+					continue;
 				}
-				idx += sizeof(struct fs_dirent);
-				d += 1;
+
+				/*
+				 * Recurse to check the file
+				 */
+				tmpoff = (char *)d - (char *)dbase;
+				p = concat(name, d->fs_name);
+				if (check_tree(d->fs_clstart, p)) {
+					printf("Delete");
+					if (ask()) {
+						(void)get_sec(blk);
+						d->fs_name[0] |= 0x80;
+						write_sec(blk, dbase);
+					}
+				}
+				free(p);
+
+				/*
+				 * XXX this breaks if get_sec ever
+				 * has more than a single sector buffer
+				 */
+				(void)get_sec(blk);
 			}
 
 			/*
@@ -579,6 +638,15 @@ printf("Dir entry for %s at block %ld mismatches alloc information\n",
 		sprintf(buf, ",,%U", fs->fs_rev);
 		p = concat(name, buf);
 		res = check_tree(prev, name);
+		if (res) {
+			printf("Delete");
+			if (ask()) {
+				fs = get_sec(sec);
+				fs->fs_prev = 0;
+				write_sec(sec, fs);
+				res = 0;
+			}
+		}
 		free(p);
 		return(res);
 	}
@@ -597,47 +665,70 @@ static void
 check_lostblocks(void)
 {
 	ulong x, lost = 0;
+	uint ntofree;
+	struct fs *fs;
+	struct alloc *a;
 
 	for (x = FREE_SEC+1; x <= max_blk; ++x) {
 		if (!getbit(freemap, x, 1)) {
 			lost += 1;
 		}
 	}
-	if (lost > 0) {
-		printf(" %ld blocks lost\n", lost);
+
+	/*
+	 * If all is well, or they don't want to try their luck,
+	 * just return.
+	 */
+	if (!lost) {
+		return;
 	}
+	printf(" %ld blocks lost\nReclaim", lost);
+	if (!ask()) {
+		return;
+	}
+
+	/*
+	 * Convert all the lost blocks into a queue of free space
+	 * to be freed by vstafs when it next starts in "cleanup"
+	 * mode.
+	 */
+	ntofree = 0;
+	fs = get_sec(BASE_SEC);
+	bzero(fs->fs_freesecs, sizeof(daddr_t) * 2 * BASE_FREESECS);
+	for (x = FREE_SEC+1; x <= max_blk; ++x) {
+		if (!getbit(freemap, x, 1)) {
+			if (ntofree > BASE_FREESECS) {
+printf("Warning: couldn't free all pending space\n");
+				break;
+			}
+			a = &fs->fs_freesecs[ntofree++];
+			a->a_start = x;
+			a->a_len = 0;
+			while (!getbit(freemap, x, 1)) {
+				a->a_len += 1;
+				x += 1;
+			}
+		}
+	}
+	write_sec(BASE_SEC, fs);
 }
 
 static void
 usage(void)
 {
-	printf("Usage is: %s [-p] <disk>\n", prog);
+	printf("Usage is: %s <disk>\n", prog);
 	exit(1);
 }
 
 main(int argc, char **argv)
 {
 	prog = argv[0];
-	if ((argc < 2) || (argc > 3)) {
+	if (argc != 2) {
 		usage();
 	}
-	if (argc == 2) {
-		if ((fd = open(argv[1], O_READ)) < 0) {
-			perror(argv[1]);
-			exit(1);
-		}
-	} else {
-		port_t p;
-
-		if (strcmp(argv[1], "-p")) {
-			usage();
-		}
-		p = path_open(argv[2], ACC_READ | ACC_WRITE);
-		if (p < 0) {
-			perror(argv[2]);
-			exit(1);
-		}
-		fd = __fd_alloc(p);
+	if ((fd = open(argv[1], O_READ)) < 0) {
+		perror(argv[1]);
+		exit(1);
 	}
 	check_root();
 	check_freelist();
