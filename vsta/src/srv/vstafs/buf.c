@@ -22,6 +22,20 @@ static struct hash *bufpool;	/* Hash daddr_t -> buf */
 static struct llist allbufs;	/* Time-ordered list, for aging */
 
 /*
+ * free_buf()
+ *	Release buffer storage, remove from hash
+ */
+static void
+free_buf(struct buf *b)
+{
+	ll_delete(b->b_list);
+	hash_delete(bufpool, b->b_start);
+	bufsize -= b->b_nsec;
+	free(b->b_data);
+	free(b);
+}
+
+/*
  * age_buf()
  *	Find the next available buf header, flush and free it
  *
@@ -54,11 +68,7 @@ age_buf(void)
 		/*
 		 * Remove from list, update data structures
 		 */
-		ll_delete(l);
-		hash_delete(bufpool, b->b_start);
-		bufsize -= b->b_nsec;
-		free(b->b_data);
-		free(b);
+		free_buf(b);
 		return;
 	}
 }
@@ -293,4 +303,19 @@ sync_buf(struct buf *b)
 	 */
 	write_secs(b->b_start, b->b_data, b->b_nsec);
 	b->b_flags &= ~B_DIRTY;
+}
+
+/*
+ * inval_buf()
+ *	Clear out (without sync'ing) some buffer data
+ */
+void
+inval_buf(daddr_t d, uint len)
+{
+	struct buf *b;
+
+	b = hash_lookup(bufpool, d);
+	if (b) {
+		free_buf(b);
+	}
 }

@@ -118,11 +118,12 @@ dir_lookup(struct buf *b, struct fs_file *fs, char *name)
  *
  *
 static struct openfile *
-create_file(uint type)
+create_file(struct file *f, uint type)
 {
 	daddr_t da;
 	struct buf *b;
 	struct fs_dirent *d;
+	struct prot *p;
 
 	/*
 	 * Get the block, map it
@@ -147,10 +148,20 @@ create_file(uint type)
 	d->fs_len = 0;
 	d->fs_type = type;
 	d->fs_nlink = 1;
-	d->fs_prot = XXX
 	d->fs_nblk = 1;
 	d->fs_blks[0].a_start = da;
 	d->fs_blks[0].a_len = 1;
+
+	/*
+	 * Default protection, use 0'th perm
+	 */
+	p = &d->fs_prot;
+	bzero(p, sizeof(*p));
+	p->prot_len = PERM_LEN(&f->f_perms[0]);
+	bcopy(f->f_perms[0].perm_id, p->prot_id, PERMLEN);
+	p->prot_bits[p->prot_len-1] =
+		ACC_READ|ACC_WRITE|ACC_CHMOD;
+	d->fs_owner = f->f_perms[0].perm_uid;
 
 	/*
 	 * Allocate an openfile to it
@@ -169,24 +180,80 @@ create_file(uint type)
 }
 
 /*
+ * uncreate_file()
+ *	Release resources of an openfile
+ */
+static void
+uncreate_file(struct openfile *o)
+{
+	uint x;
+	struct buf *b;
+	struct fs_file *fs;
+
+	ASSERT(o->o_refs == 1, "uncreate_file: refs");
+
+	/*
+	 * Access file structure info
+	 */
+	b = find_buf(o->o_file, o->o_len);
+	fs = index_buf(b, 0, 1);
+
+	/*
+	 * Free all allocated blocks, then free openfile itself
+	 */
+	for (x = 0; x < fs->fs_nblk; ++x) {
+		struct alloc *a = &fs->fs_blks[x];
+		uint y;
+
+		/*
+		 * Invalidate out any buffers associated with
+		 * the file's data.
+		 */
+		for (y = 0; y < a->a_len; y += EXTSIZ) {
+			ulong len;
+
+			len = a->a_len - y;
+			if (len > EXTSIZ)
+				len = EXTSIZ;
+			inval_buf(a->a_start + y, (uint)y);
+		}
+
+		/*
+		 * Now release the physical storage
+		 */
+		free_block(a->a_start, a->a_len);
+	}
+	free(o);
+}
+
+/*
  * dir_newfile()
  *	Create a new entry in the current directory
- *
- * "b" is locked throughout.
  */
 static struct openfile *
-dir_newfile(struct buf *b, struct fs_file *fs, char *name, int type)
+dir_newfile(struct file *f, char *name, int type)
 {
-	ulong off;
-	struct buf *b2;
-	uint extent;
+	struct buf *b, *b2;
+	struct fs_file *fs;
+	uint off, extent;
 	struct openfile *o;
+	struct fs_dirent *d;
+	int err = 0;
+
+	/*
+	 * Access file structure of enclosing dir
+	 */
+	b = find_buf(f->f_file->o_file, f->f_file->o_len);
+	if (b == 0) {
+		return(0);
+	}
+	lock_buf(b);
+	fs = index_buf(b, 0, 1);
 
 	/*
 	 * Get the openfile first
 	 */
-
-	o = create_file(type);
+	o = create_file(f, type);
 
 	/*
 	 * Walk the directory entries one extent at a time
@@ -199,8 +266,6 @@ dir_newfile(struct buf *b, struct fs_file *fs, char *name, int type)
 		 * Walk through an extent one buffer-full at a time
 		 */
 		for (x = 0; x < a->a_len; x += EXTSIZ) {
-			struct fs_dirent *d;
-
 			/*
 			 * Figure out size of next buffer-full
 			 */
@@ -214,7 +279,8 @@ dir_newfile(struct buf *b, struct fs_file *fs, char *name, int type)
 			 */
 			b2 = find_buf(a->a_start+x, len);
 			if (b2 == 0) {
-				return(0);
+				err = 1;
+				goto out;
 			}
 			d = index_buf(b2, 0, len);
 
@@ -232,16 +298,7 @@ dir_newfile(struct buf *b, struct fs_file *fs, char *name, int type)
 			 */
 			d = findfree(d, len/sizeof(struct fs_dirent));
 			if (d) {
-				/*
-				 * Found a slot.  Put our data
-				 * into place, make sure it's registered
-				 * on-disk, and return an openfile.
-				 */
-				strcpy(d->d_name, name);
-				d->d_clstart = o->o_file;
-				dirty_buf(b2);
-				sync_buf(b2)
-				return(o);
+				goto out;
 			}
 
 		}
@@ -251,31 +308,32 @@ dir_newfile(struct buf *b, struct fs_file *fs, char *name, int type)
 	 * No luck with existing blocks.  Use bmap() to map in some
 	 * more storage.
 	 */
-	{
-		struct fs_dirent *dp;
-		uint size;
+	b2 = bmap(fs, fs->fs_len, sizeof(struct fs_dirent),
+		&d, &off);
+	if (b2 == 0) {
+		err = 1;
+		goto out;
+	}
+	ASSERT_DEBUG(off >= sizeof(struct fs_dirent),
+		"dir_newfile: bad growth");
 
-		b2 = bmap(fs, fs->fs_len, sizeof(struct fs_dirent),
-			&dp, &size);
-		if (b2 == 0) {
-			return(0);
-		}
-		ASSERT_DEBUG(size >= sizeof(struct fs_dirent),
-			"dir_newfile: bad growth");
-
-		/*
-		 * Now we have a slot, so fill it in & return success
-		 */
-		strcpy(dp->d_name, name);
-		dp->d_clstart = o->o_file;
-		dirty_buf(b2);
-		sync_buf(b2)
-		return(o);
+out:
+	/*
+	 * On error, release germinal file allocation, return 0
+	 */
+	if (err) {
+		uncreate_file(o);
+		return(0);
 	}
 
 	/*
-	 * We have failed.
-	return(0);
+	 * We have a slot, so fill it in & return success
+	 */
+	strcpy(d->d_name, name);
+	d->d_clstart = o->o_file;
+	dirty_buf(b2);
+	sync_buf(b2)
+	return(o);
 }
 
 /*
@@ -329,7 +387,7 @@ vfs_open(struct msg *m, struct file *f)
 		/*
 		 * Failure?
 		 */
-		o = dir_newfile(b, fs, m->m_buf, (m->m_arg & ACC_DIR) ?
+		o = dir_newfile(f, m->m_buf, (m->m_arg & ACC_DIR) ?
 				FT_DIR : FT_FILE);
 		if (o == 0) {
 			msg_err(m->m_sender, ENOMEM);

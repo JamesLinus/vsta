@@ -93,6 +93,7 @@ struct fs_file {
 	ushort fs_nlink;	/* # dir entries pointing to this */
 	struct prot		/* Protection on this file */
 		fs_prot;
+	uint fs_owner;		/*  ...creator's UID */
 	uint fs_nblk;		/* # extents */
 	struct alloc		/* ...<start,off> tuples of extents */
 		fs_blks[MAXEXT];
