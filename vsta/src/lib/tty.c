@@ -164,7 +164,7 @@ non_canon(struct termios *t, TTYBUF *fp, struct port *port)
 	/*
 	 * Others not supported (yet)
 	 */
-	return(-1);
+	return(__seterr(ENOTSUP));
 }
 
 /*
