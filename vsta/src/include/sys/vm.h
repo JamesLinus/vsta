@@ -39,7 +39,5 @@ extern int clock_page(uint);
 extern uint alloc_page(void);
 extern void free_page(uint);
 extern void *alloc_pages(uint), free_pages(void *, uint);
-extern void deref_slot(struct pset *, struct perpage *, uint);
-extern void ref_slot(struct pset *, struct perpage *, uint);
 
 #endif /* _VM_H */
