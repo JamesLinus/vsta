@@ -276,7 +276,7 @@ switch_screen(uint new)
 	 * memory.
 	 */
 	s = &screens[curscreen = new];
-	set_screen(s->s_curimg, s->s_pos);
+	set_screen(s);
 }
 
 /*
@@ -663,11 +663,6 @@ main(int argc, char **argv)
 	}
 
 	/*
-	 * Let screen mapping get initialized
-	 */
-	init_screen(vid_type);
-
-	/*
 	 * Initialize state for all screens.
 	 */
 	for (i = 0, s = screens; i < NVTY; ++i, ++s) {
@@ -688,7 +683,13 @@ main(int argc, char **argv)
 		syslog(LOG_ERR, "can't allocated screen #0 image");
 		exit(1);
 	}
-	screens[0].s_curimg = hw_screen;
+
+	/*
+	 * Let screen mapping get initialized.  screens[0] will be
+	 * used initially, and will be the one displayed on the
+	 * hardware.
+	 */
+	init_screen(vid_type);
 
 	/*
 	 * Start serving requests for the filesystem

@@ -58,6 +58,8 @@ struct screen {
 		*s_pgrp_lead;
 	struct llist
 		s_selectors;	/* List of select() clients */
+	struct scroll
+		*s_scroll;	/* Scroll region(s), if not NULL */
 };
 
 /*
@@ -73,6 +75,7 @@ struct screen {
 #define TABS 8		/* Tab stops every 8 positions */
 #define SCREENMEM (ROWS*COLS*CELLSZ)
 #define NVTY 8		/* # virtual screens supported */
+#define LINESZ (COLS*CELLSZ)	/* Bytes in a single line */
 
 #define ROOTDIR NVTY	/* Special screen # for root dir */
 #define SCREEN(idx) (&screens[idx])
@@ -101,7 +104,7 @@ struct screen {
  * Shared routines
  */
 extern void save_screen(struct screen *), load_screen(struct screen *),
-	set_screen(char *, uint), cursor(void),
+	set_screen(struct screen *), cursor(void),
 	save_screen_pos(struct screen *);
 extern void select_screen(uint);
 extern void write_string(char *, uint), init_screen(int);

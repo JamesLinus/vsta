@@ -1,4 +1,4 @@
-COPTS=-Wall -DKDB -DDEBUG
+COPTS=-g -Wall -DKDB -DDEBUG
 OBJS=main.o cons.o stat.o isr.o kbd.o
 OUT=cons
 
