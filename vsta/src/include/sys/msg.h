@@ -91,9 +91,9 @@ int msg_receive(port_t, msg_t *);	/* Receive message on port */
 int msg_reply(long, msg_t *);		/* Reply to message received */
 int msg_disconnect(port_t);		/* All done with port */
 #ifdef KERNEL
-int msg_err(long, char *, int);		/* Request had error */
+int msg_err(long, const char *, int);	/* Request had error */
 #else
-int msg_err(long, char *);		/* Stub does the strlen() */
+int msg_err(long, const char *);	/* Stub does the strlen() */
 #endif
 int msg_portname(port_t);		/* Get port_name for port */
 

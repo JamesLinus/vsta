@@ -24,7 +24,7 @@ static voidfun atexits[NEXIT];
  * It's a lot harder to do in kernel mode, so count length in the system
  * call layer.
  */
-msg_err(long port, char *errmsg)
+msg_err(long port, const char *errmsg)
 {
 	extern int _msg_err();
 
@@ -35,7 +35,8 @@ msg_err(long port, char *errmsg)
  * notify()
  *	Similarly for notify
  */
-notify(long pid, long tid, char *event)
+int
+notify(long pid, long tid, const char *event)
 {
 	int x;
 	extern int _notify();

@@ -73,7 +73,7 @@ extern int ptrace(pid_t pid, port_name name);
 extern int notify_handler(voidfun);
 
 #ifndef KERNEL
-extern int notify(pid_t, pid_t, char *);
+extern int notify(pid_t, pid_t, const char *);
 extern int mutex_thread(pid_t);
 #endif
 
