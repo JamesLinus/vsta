@@ -129,7 +129,10 @@ FREE(void *ptr, uint type)
 		return;
 	}
 	b = &buckets[size];
-	free(ptr);
+	p_lock_void(&b->b_lock, SPL0_SAME);
+	*(void **)ptr = b->b_mem;
+	b->b_mem = ptr;
+	v_lock(&b->b_lock, SPL0_SAME);
 }
 
 #endif /* !DEBUG */
