@@ -181,13 +181,15 @@ fat_init(void)
 	lseek(blkdev, 1 * SECSZ, 0);
 	if (fat12) {
 		if (read(blkdev, fat12, fat12len) != fat12len) {
-			printf("Read of FAT12 failed\n");
+			printf("Read (%d bytes) of FAT12 failed\n",
+				fat12len);
 			exit(1);
 		}
 		fat12_fat16(fat12, fat, fat12len);
 	} else {
 		if (read(blkdev, fat, fatlen) != fatlen) {
-			printf("Read of FAT failed\n");
+			printf("Read (%d bytes) of FAT failed\n",
+				fatlen);
 			exit(1);
 		}
 	}
