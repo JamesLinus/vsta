@@ -43,7 +43,6 @@ static void
 key_event(uchar c)
 {
 	uchar ch;
-	extern void kbd_enqueue();
 
 	/*
 	 * Function keys--HACK
@@ -91,7 +90,7 @@ key_event(uchar c)
 	/*
 	 * Hand off straight data now
 	 */
-	kbd_enqueue((uint)ch);
+	kbd_enqueue(&screens[curscreen], (uint)ch);
 }
 
 /*
