@@ -67,6 +67,15 @@ key_event(uchar c)
 		ch &= 0x1F;
 	}
 
+#ifdef DEBUG
+	if (ch == '\32') {
+		extern void dbg_enter();
+
+		dbg_enter();
+		return;
+	}
+#endif
+
 	/*
 	 * Hand off straight data now
 	 */
