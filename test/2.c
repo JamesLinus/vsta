@@ -1,3 +1,4 @@
+b
 #include <stdio.h>
 
 xmain(char c)
