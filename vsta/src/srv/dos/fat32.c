@@ -5,6 +5,7 @@
 #include "dos.h"
 #include "fat.h"
 #include <std.h>
+#include <unistd.h>
 #include <sys/param.h>
 #include <sys/assert.h>
 #include <fcntl.h>
@@ -27,8 +28,9 @@ static struct fat32_info {
 	ulong signature1;	/* Magic number 1 */
 	ulong free;		/* Free clusters in filesystem */
 	ulong last;		/* Last location allocated from */
-} info;
-static uint infobase;		/* Sector addr of info sector */
+} *info;
+static uint infobase,		/* Sector addr of info sector */
+	infosize;		/*  ...its size, rounded up to sector */
 
 /*
  * Values for the signature[01] fields
@@ -44,8 +46,9 @@ typedef ulong fat32_t;
 /*
  * Private storage
  */
-static fat32_t *fat;	/* Our in-core FAT */
-static uint fatlen;	/*  ...length */
+static fat32_t **fatv;	/* Our in-core FAT sections */
+static uint fatlen,	/*  ...length of overall FAT */
+	fatvlen;	/*  ...size of fatv array */
 static uchar *dirtymap;	/* Map of sectors with dirty FAT entries */
 static uint		/*  ...size of map */
 	dirtymapsize;
@@ -60,6 +63,90 @@ static uint fatbase;	/* Sector # of base of FAT */
 #define DIRTY(idx) (dirtymap[(idx * sizeof(fat32_t)) / SECSZ] = 1)
 
 /*
+ * FATSEG()
+ *	Calculate segment index for fatv given cluster number
+ */
+#define FATSEGSIZE (64*1024)
+#define FATSEG(idx) (((idx) * sizeof(fat32_t)) / FATSEGSIZE)
+#define FATIDX(idx) ((idx) % (FATSEGSIZE / sizeof(fat32_t)))
+
+/*
+ * FATSECTSEG()
+ *	Convert sector index to segment index
+ */
+#define FATSECT(sect) ((sect)*SECSZ / sizeof(fat32_t))
+#define FATSECTSEG(sect) FATSEG(FATSECT(sect))
+
+/*
+ * lookup()
+ *	Return pointer to fat32_t slot for this index value
+ *
+ * Uses fatv[] to permit only active parts of the FAT table
+ * to reside in memory.  TBD: remove parts not recently used?
+ * Creates any needed chunk of fat32_t entries on demand.
+ */
+static fat32_t *
+lookup(claddr_t idx)
+{
+	uint seg = FATSEG(idx);
+	fat32_t *fatp, *ptr;
+	off_t off;
+
+	/*
+	 * If it isn't there yet, need to go fetch it now
+	 */
+	fatp = fatv[seg];
+	if (fatp == 0) {
+		/*
+		 * Allocate this chunk
+		 */
+		fatp = fatv[seg] = malloc(FATSEGSIZE);
+
+		/*
+		 * Seek over in the FAT and read it
+		 */
+		off = (fatbase * SECSZ) + (seg * FATSEGSIZE);
+		lseek(blkdev, off, SEEK_SET);
+		if (read(blkdev, fatp, FATSEGSIZE) != FATSEGSIZE) {
+			syslog(LOG_ERR,
+				"read (%d bytes) of FAT at 0x%lx failed",
+				FATSEGSIZE, off);
+			ASSERT(0, "FAT-32 get(): FAT fill failed");
+		}
+	}
+
+	/*
+	 * Now return the particular entry within
+	 */
+	ptr = &fatp[FATIDX(idx)];
+	ASSERT_DEBUG((ptr >= fatp) &&
+		(ptr < (fat32_t *)((char *)fatp + FATSEGSIZE)),
+		"fat32 lookup(): bad index");
+	return(ptr);
+}
+
+/*
+ * get()
+ *	Access a FAT-32 entry
+ */
+static fat32_t
+get(claddr_t idx)
+{
+	return(*lookup(idx));
+}
+
+/*
+ * set()
+ *	Set a FAT-32 entry
+ */
+static void
+set(claddr_t idx, fat32_t val)
+{
+	*lookup(idx) = val;
+	DIRTY(idx);
+}
+
+/*
  * fat32_init()
  *	Initialize FAT handling
  *
@@ -69,6 +156,7 @@ static void
 fat32_init(void)
 {
 	uint x;
+	int err;
 
 	/*
 	 * Calculate some global parameters
@@ -96,21 +184,14 @@ fat32_init(void)
 	 */
 	fatbase = bootb.nrsvsect;
 	fatlen = bootb.u.fat32.bigFat * SECSZ;
-	fat = malloc(fatlen);
-	if (fat == 0) {
+	fatvlen = (roundup(fatlen, FATSEGSIZE) / FATSEGSIZE) *
+		sizeof(fat32_t *);
+	fatv = malloc(fatvlen);
+	if (fatv == 0) {
 		perror("fat32_init");
 		exit(1);
 	}
-
-	/*
-	 * Seek to FAT table on disk, read into buffer
-	 */
-	lseek(blkdev, fatbase * SECSZ, 0);
-	if (read(blkdev, fat, fatlen) != fatlen) {
-		syslog(LOG_ERR, "read (%d bytes) of FAT failed",
-			fatlen);
-		exit(1);
-	}
+	bzero(fatv, fatvlen);
 
 	/*
 	 * If there's an info sector, get it, too
@@ -121,26 +202,31 @@ fat32_init(void)
 		 * Read in the sector
 		 */
 		lseek(blkdev, infobase * SECSZ, 0);
-		if (read(blkdev, &info, sizeof(info)) != sizeof(info)) {
+		infosize = roundup(sizeof(struct fat32_info), SECSZ);
+		info = malloc(infosize);
+		ASSERT_DEBUG(info, "fat32_init: malloc failed");
+		err = read(blkdev, info, infosize);
+		if (err != infosize) {
 			syslog(LOG_ERR,
-				"read (%d bytes) of info sector failed",
-				sizeof(info));
+				"read (%d bytes) of info sector failed"
+				": %d(%s)",
+				infosize, err, strerror());
 			exit(1);
 		}
 
 		/*
 		 * Sanity check
 		 */
-		if ((info.signature0 != INFOSECT_SIGNATURE0) ||
-				(info.signature1 != INFOSECT_SIGNATURE1)) {
+		if ((info->signature0 != INFOSECT_SIGNATURE0) ||
+				(info->signature1 != INFOSECT_SIGNATURE1)) {
 			syslog(LOG_WARNING, "corrupt info sector");
 			infobase = 0;
 		}
 	} else {
 		/*
-		 * Map 0xFFFF onto 0 (info sector not active)
+		 * Flag no info sector
 		 */
-		infobase = 0;
+		info = 0;
 	}
 }
 
@@ -175,13 +261,13 @@ fat32_setlen(struct clust *c, uint newclust)
 				ASSERT(0, "fat_setlen: bad clust");
 			}
 #endif
-			fat[cl] = 0;
-			DIRTY(cl);
+			set(cl, 0);
 		}
-		info.free += (c->c_nclust - newclust);
+		if (info) {
+			info->free += (c->c_nclust - newclust);
+		}
 		if (newclust > 0) {
-			fat[cl = c->c_clust[newclust-1]] = FAT_EOF;
-			DIRTY(cl);
+			set(c->c_clust[newclust-1], FAT_EOF);
 		}
 		c->c_nclust = newclust;
 		fat_dirty = 1;
@@ -205,7 +291,7 @@ fat32_setlen(struct clust *c, uint newclust)
 		/*
 		 * Scan for next free cluster
 		 */
-		while ((clust_cnt++ < nclust) && fat[cl]) {
+		while ((clust_cnt++ < nclust) && get(cl)) {
 			if (++cl >= nclust) {
 				cl = 0;
 			}
@@ -252,28 +338,27 @@ fat32_setlen(struct clust *c, uint newclust)
 	 * space.
 	 */
 	if (c->c_nclust > 0) {
-		fat[cl = c->c_clust[c->c_nclust-1]] = c->c_clust[c->c_nclust];
-		DIRTY(cl);
+		set(c->c_clust[c->c_nclust-1], c->c_clust[c->c_nclust]);
 	}
 
 	/*
 	 * Chain all the new clusters together
 	 */
 	for (x = c->c_nclust; x < newclust-1; ++x) {
-		fat[cl = c->c_clust[x]] = c->c_clust[x+1];
-		DIRTY(cl);
+		set(c->c_clust[x], c->c_clust[x+1]);
 	}
 
 	/*
 	 * Update free list count
 	 */
-	info.free -= (newclust - c->c_nclust);
+	if (info) {
+		info->free -= (newclust - c->c_nclust);
+	}
 
 	/*
 	 * Mark the EOF cluster for the last one
 	 */
-	fat[cl = c->c_clust[newclust-1]] = FAT_EOF;
-	DIRTY(cl);
+	set(c->c_clust[newclust-1], FAT_EOF);
 	c->c_nclust = newclust;
 	fat_dirty = 1;
 	return(0);
@@ -296,7 +381,7 @@ fat32_alloc(struct clust *c, struct directory *d)
 	/*
 	 * Scan the chain to get its length
 	 */
-	for (x = start; fat[x] < FAT_RESERVED; x = fat[x]) {
+	for (x = start; get(x) < FAT_RESERVED; x = get(x)) {
 		ASSERT_DEBUG(x >= 2, "alloc_clust: free cluster in file");
 		nclust++;
 	}
@@ -317,20 +402,21 @@ fat32_alloc(struct clust *c, struct directory *d)
 	nclust = 0;
 	do {
 		c->c_clust[nclust++] = x;
-		x = fat[x];
+		x = get(x);
 	} while (x < FAT_RESERVED);
 	return(c);
 }
 
 /*
  * fat32_sync()
- *	Write a FAT16 using the dirtymap to minimize I/O
+ *	Write a FAT32 using the dirtymap to minimize I/O
  */
 static void
 fat32_sync(void)
 {
-	int x, cnt, pass;
+	uint x, cnt, pass, baseSeg;
 	off_t off;
+	fat32_t *fatp;
 
 	/*
 	 * There are two copies of the FAT, so do them iteratively
@@ -339,7 +425,7 @@ fat32_sync(void)
 		/*
 		 * Calculate the offset once per pass
 		 */
-		off = pass*(long)fatlen;
+		off = pass*(ulong)fatlen;
 
 		/*
 		 * Walk across the dirty map, find the next dirty sector
@@ -358,20 +444,26 @@ fat32_sync(void)
 			 * Now find runs, so we can flush adjacent sectors
 			 * in a single operation.
 			 */
+			baseSeg = FATSECTSEG(x);
 			for (cnt = 1; ((x+cnt) < dirtymapsize) &&
 					dirtymap[x+cnt]; ++cnt) {
-				;
+				/*
+				 * Can't write() across distinct
+				 * chunks of FAT entries.
+				 */
+				if (FATSECTSEG(x+cnt) != baseSeg) {
+					break;
+				}
 			}
 
 			/*
 			 * Seek to the right place, and write the data
 			 */
 			lseek(blkdev, fatbase*SECSZ + x*SECSZ + off, 0);
-			if (write(blkdev,
-					&fat[x*SECSZ/sizeof(fat32_t)],
-					SECSZ*cnt) != (SECSZ*cnt)) {
-				perror("fat32");
-				syslog(LOG_ERR, "write of FAT16 #%d failed",
+			fatp = lookup(FATSECT(x));
+			if (write(blkdev, fatp, SECSZ*cnt) != (SECSZ*cnt)) {
+				perror("fat32 sync");
+				syslog(LOG_ERR, "write of FAT32 #%d failed",
 					pass);
 				exit(1);
 			}
@@ -391,17 +483,17 @@ fat32_sync(void)
 	/*
 	 * Update info sector, if present
 	 */
-	if (infobase) {
+	if (info) {
 		/*
 		 * Copy over our rotor for allocation attempt starting point
 		 */
-		info.last = nxt_clust;
+		info->last = nxt_clust;
 
 		/*
 		 * Write the info sector
 		 */
 		lseek(blkdev, infobase * SECSZ, 0);
-		if (write(blkdev, &info, sizeof(info)) != sizeof(info)) {
+		if (write(blkdev, info, infosize) != infosize) {
 			syslog(LOG_ERR, "write of info sector failed");
 			exit(1);
 		}
