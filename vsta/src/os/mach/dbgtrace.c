@@ -190,4 +190,17 @@ trapframe(char *p)
 	printf("esp 0x%x:0x%x ebp 0x%x eflags 0x%x\n",
 		f->ess, f->esp, f->ebp, f->eflags);
 }
+
+/*
+ * reboot()
+ *	Cause an i386 machine reset
+ */
+void
+reboot(void)
+{
+	for (;;) {
+		set_cr3(0);
+		bzero(0, NBPG);
+	}
+}
 #endif /* KDB */
