@@ -7,7 +7,10 @@ LIBS= -lc
 .c.o:
 	$(CC) $(CFLAGS) -c $*.c
 
-all: test args cat id ls swapd rm cp sleep
+all: test args cat id ls swapd rm cp sleep mkdir
+
+mkdir: mkdir.o
+	$(LD) $(LDFLAGS) -e start -o mkdir ../../libc/crt0.o mkdir.o -lc
 
 sleep: sleep.o
 	$(LD) $(LDFLAGS) -e start -o sleep ../../libc/crt0.o sleep.o -lc
@@ -46,3 +49,4 @@ clean:
 	del id
 	del rm
 	del cp
+	del mkdir
