@@ -100,13 +100,13 @@ struct fs_file {
 		fs_prot;
 	uint fs_owner;		/*  ...creator's UID 32 */
 	uint fs_nblk;		/* # extents 36 */
-	struct alloc		/* ...<start,off> tuples of extents */
-		fs_blks[MAXEXT];	/* 288 */
-	time_t fs_ctime,	/* Create/mod timestamps */
+	struct alloc		/* ...<start,off> tuples of extents 40 */
+		fs_blks[MAXEXT];
+	time_t fs_ctime,	/* Create/mod timestamps 296 */
 		fs_mtime;
 	char fs_pad[16];	/* Pad to 32-byte boundary */
-				/*  ...this keeps fs_dirent's aligned */
-	char fs_data[0];	/* Data starts here */
+				/*  ...this keeps fs_dirent's aligned 304 */
+	char fs_data[0];	/* Data starts here 320 */
 };
 
 /*

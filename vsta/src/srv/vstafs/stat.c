@@ -13,17 +13,34 @@
 extern char *perm_print(struct prot *);
 
 /*
+ * getrev()
+ *	Given cluster addr for a fs_file, return its revision number
+ */
+static ulong
+getrev(daddr_t d)
+{
+	struct openfile *o;
+	ulong rev;
+	struct fs_file *fs;
+
+	o = get_node(d);
+	fs = getfs(o, 0);
+	rev = fs->fs_rev;
+	deref_node(o);
+	return(rev);
+}
+
+/*
  * vfs_stat()
  *	Do stat
  */
 void
 vfs_stat(struct msg *m, struct file *f)
 {
-	char buf[MAXSTAT];
+	char *revs, typec, buf[MAXSTAT], buf2[32];
 	struct fs_file *fs;
 	struct buf *b;
 	uint len;
-	char typec;
 
 	/*
 	 * Verify access
@@ -68,14 +85,19 @@ vfs_stat(struct msg *m, struct file *f)
 			idx += sizeof(struct fs_dirent);
 		}
 		unlock_buf(b);
+		revs = "";
 	} else {
 		typec = 'f';
 		len = fs->fs_len - sizeof(struct fs_file);
+		sprintf(buf2, "rev=%U\nprev=%U\n",
+			fs->fs_rev,
+			fs->fs_prev ? getrev(fs->fs_prev) : 0);
+		revs = buf2;
 	}
 	sprintf(buf, "size=%u\ntype=%c\nowner=%d\ninode=%u\n"
-		"ctime=%u\nmtime=%u\n",
+		"ctime=%u\nmtime=%u\n%s",
 		len, typec, fs->fs_owner, fs->fs_blks[0].a_start,
-		fs->fs_ctime, fs->fs_mtime);
+		fs->fs_ctime, fs->fs_mtime, revs);
 	strcat(buf, perm_print(&fs->fs_prot));
 	m->m_buf = buf;
 	m->m_arg = m->m_buflen = strlen(buf);

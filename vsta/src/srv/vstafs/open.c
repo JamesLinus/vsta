@@ -12,6 +12,51 @@
 #include <time.h>
 
 static struct hash *rename_pending;
+static char *parse_name(char *, ulong *);
+
+#define isdigit(c) (((c) >= '0') && ((c) <= '9'))
+
+/*
+ * walkto()
+ *	Walk to given revision of file, given base
+ *
+ * Optionally can return pointer to next newer file revision
+ */
+static struct openfile *
+walkto(struct openfile *o, ulong rev)
+{
+	daddr_t prev;
+	struct fs_file *fs;
+
+	/*
+	 * Walk backwards in file's revision chain
+	 */
+	for (;;) {
+		/*
+		 * Get next fs_file
+		 */
+		fs = getfs(o, 0);
+
+		/*
+		 * Match?  Return it.
+		 */
+		if (fs->fs_rev == rev) {
+			break;
+		}
+
+		/*
+		 * Walk back a level.  When reach 0, we didn't
+		 * find the requested revision number.
+		 */
+		prev = fs->fs_prev;
+		if (prev == 0) {
+			return(0);
+		}
+		deref_node(o);
+		o = get_node(prev);
+	}
+	return(o);
+}
 
 /*
  * dir_fillnew()
@@ -679,10 +724,13 @@ out:
 void
 vfs_open(struct msg *m, struct file *f)
 {
-	struct buf *b;
+	struct buf *b, *debp;
 	struct openfile *o;
 	struct fs_file *fs;
 	uint x, want;
+	struct fs_dirent *de;
+	char *nm = 0;
+	ulong rev = 0;
 
 	/*
 	 * Get file header, but don't wire down
@@ -711,18 +759,34 @@ vfs_open(struct msg *m, struct file *f)
 	}
 
 	/*
+	 * Parse name for version field.  Bounce on illegal
+	 * behavior.
+	 */
+	nm = parse_name(m->m_buf, &rev);
+	if (rev && (m->m_arg & ACC_CREATE)) {
+		msg_err(m->m_sender, EINVAL);
+		return;
+	}
+
+	/*
 	 * Look up name, make sure "fs" stays valid
 	 */
 	lock_buf(b);
-	o = dir_lookup(b, fs, m->m_buf, 0, 0);
-	unlock_buf(b);
+	o = dir_lookup(b, fs, nm, &de, &debp);
+
+	/*
+	 * If they want a particular revision, find it now
+	 */
+	if (o && rev) {
+		o = walkto(o, rev);
+	}
 
 	/*
 	 * No such file--do they want to create?
 	 */
 	if (!o && !(m->m_arg & ACC_CREATE)) {
 		msg_err(m->m_sender, ESRCH);
-		return;
+		goto out;
 	}
 
 	/*
@@ -734,7 +798,7 @@ vfs_open(struct msg *m, struct file *f)
 		 */
 		if ((f->f_perm & (ACC_WRITE|ACC_CHMOD)) == 0) {
 			msg_err(m->m_sender, EPERM);
-			return;
+			goto out;
 		}
 
 		/*
@@ -744,7 +808,7 @@ vfs_open(struct msg *m, struct file *f)
 				FT_DIR : FT_FILE);
 		if (o == 0) {
 			msg_err(m->m_sender, ENOMEM);
-			return;
+			goto out;
 		}
 
 		/*
@@ -755,37 +819,79 @@ vfs_open(struct msg *m, struct file *f)
 		f->f_perm = ACC_READ|ACC_WRITE|ACC_CHMOD;
 		m->m_nseg = m->m_arg = m->m_arg1 = 0;
 		msg_reply(m->m_sender, m);
-		return;
+		goto out;
 	}
 
 	/*
-	 * Check permission
+	 * Check permission.  Hand off "fs" and "b" from the containing
+	 * directory to the file being opened.
 	 */
+	unlock_buf(b);
+	lock_buf(debp);
 	fs = getfs(o, &b);
+	unlock_buf(debp);
+	lock_buf(b);
 	want = m->m_arg & (ACC_READ|ACC_WRITE|ACC_CHMOD);
 	x = perm_calc(f->f_perms, f->f_nperm, &fs->fs_prot);
 	if ((want & x) != want) {
 		deref_node(o);
 		msg_err(m->m_sender, EPERM);
-		return;
+		goto out;
 	}
 
 	/*
-	 * If they wanted it truncated, do it now
+	 * If they wanted it truncated, do it now.  Truncation
+	 * actually results in a new file revision, pushed down
+	 * on top of the current one.
 	 */
 	if (m->m_arg & ACC_CREATE) {
-		if ((x & ACC_WRITE) == 0) {
+		struct openfile *o2;
+		struct fs_file *fs2;
+		struct buf *b2;
+
+		/*
+		 * Make sure this entry is writable
+		 */
+		if (((x & ACC_WRITE) == 0) ||
+				(fs->fs_type != FT_FILE)) {
 			deref_node(o);
 			msg_err(m->m_sender, EPERM);
-			return;
+			goto out;
 		}
-		file_shrink(o, sizeof(struct fs_file));
-	}
 
-	/*
-	 * If opening for writing or truncation, update mtime
-	 */
-	if (m->m_arg & (ACC_CREATE | ACC_WRITE)) {
+		/*
+		 * Create the new instance of this file
+		 * Grab the revision before getfs()'ing as we won't
+		 * need fs again, and it saves us a buffer lock.
+		 */
+		lock_buf(debp);
+		o2 = create_file(f, FT_FILE);
+		unlock_buf(debp);
+
+		/*
+		 * The directory entry points to the new one
+		 */
+		de->fs_clstart = o2->o_file;
+		dirty_buf(debp);
+
+		/*
+		 * And the new one points to the older one by way
+		 * of the fs_prev field.
+		 */
+		fs2 = getfs(o2, &b2);
+		fs2->fs_prev = o->o_file;
+		fs2->fs_rev = fs->fs_rev + 1;
+
+		/*
+		 * This new one will be the node of interest
+		 * from here on.
+		 */
+		deref_node(o);
+		o = o2;
+	} else if (m->m_arg & ACC_WRITE) {
+		/*
+		 * If opening for writing, update mtime
+		 */
 		time(&fs->fs_mtime);
 		dirty_buf(b);
 	}
@@ -798,6 +904,11 @@ vfs_open(struct msg *m, struct file *f)
 	f->f_perm = m->m_arg | (x & ACC_CHMOD);
 	m->m_nseg = m->m_arg = m->m_arg1 = 0;
 	msg_reply(m->m_sender, m);
+out:
+	unlock_buf(b);
+	if (nm && rev) {
+		free(nm);
+	}
 }
 
 /*
@@ -900,58 +1011,96 @@ dir_empty(struct buf *b, struct fs_file *fs)
 }
 
 /*
+ * parse_name()
+ *	Break name into basename and revision portions
+ *
+ * If there's a revision, the returned pointer is malloc'ed memory and
+ * *revp holds the revision.  Otherwise the original pointer is
+ * returned.
+ */
+static char *
+parse_name(char *nm, ulong *revp)
+{
+	char *p, *buf;
+	int len;
+
+	p = strrchr(nm, ',');
+	if (p && (p > nm) && (p[-1] == ',') && isdigit(p[1])) {
+		*revp = atoi(p+1);
+		len = p - nm;
+		buf = malloc(len);
+		len -= 1;
+		bcopy(nm, buf, len);
+		buf[len] = '\0';
+		return(buf);
+	}
+	*revp = 0;
+	return(nm);
+}
+
+/*
  * vfs_remove()
  *	Remove an entry in the current directory
  */
 void
 vfs_remove(struct msg *m, struct file *f)
 {
-	struct buf *b, *b2, *b3;
-	struct fs_file *fs, *fs3;
-	struct openfile *o;
+	struct buf *b, *bdir, *bdirent, *bfile, *brevp;
+	struct fs_file *fs, *fsdir, *fsfile;
+	struct openfile *odirent, *o;
 	uint x;
 	struct fs_dirent *de;
-	char *err;
+	char *nm, *err;
+	ulong rev;
+	daddr_t da, *revp;
 
 	/*
 	 * Initialize the pointers which flag various active
 	 * data structures
 	 */
-	b = b2 = b3 = 0;
+	bdir = bdirent = bfile = 0;
 	err = 0;
+	o = 0;
+	nm = 0;
+	rev = 0;
 
 	/*
 	 * Look at file structure
 	 */
-	fs = getfs(f->f_file, &b);
-	if (fs == 0) {
+	fsdir = getfs(f->f_file, &bdir);
+	if (fsdir == 0) {
 		msg_err(m->m_sender, strerror());
 		return;
 	}
-	lock_buf(b);
+	lock_buf(bdir);
 
 	/*
 	 * Have to be in a dir
 	 */
-	if (fs->fs_type != FT_DIR) {
+	if (fsdir->fs_type != FT_DIR) {
 		err = ENOTDIR;
 		goto out;
 	}
 
 	/*
+	 * See if we're clearing a particular revision, or all
+	 */
+	nm = parse_name(m->m_buf, &rev);
+
+	/*
 	 * Look up entry.  Bail if no such file.
 	 */
-	o = dir_lookup(b, fs, m->m_buf, &de, &b2);
-	if (o == 0) {
+	odirent = dir_lookup(bdir, fsdir, nm, &de, &bdirent);
+	if (odirent == 0) {
 		err = ESRCH;
 		goto out;
 	}
-	lock_buf(b2);
+	lock_buf(bdirent);
 
 	/*
 	 * Check permission
 	 */
-	x = perm_calc(f->f_perms, f->f_nperm, &fs->fs_prot);
+	x = perm_calc(f->f_perms, f->f_nperm, &fsdir->fs_prot);
 	if ((x & (ACC_WRITE|ACC_CHMOD)) == 0) {
 		err = EPERM;
 		goto out;
@@ -960,61 +1109,136 @@ vfs_remove(struct msg *m, struct file *f)
 	/*
 	 * If directory, make sure it's empty
 	 */
-	fs3 = getfs(o, &b3);
-	if (fs3 == 0) {
+	fsfile = getfs(odirent, &bfile);
+	if (fsfile == 0) {
 		err = strerror();
 		goto out;
 	}
-	lock_buf(b3);
-	if (fs3->fs_type == FT_DIR) {
-		if (!dir_empty(b3, fs3)) {
+	lock_buf(bfile);
+	if (fsfile->fs_type == FT_DIR) {
+		if (!dir_empty(bfile, fsfile)) {
 			err = EBUSY;
 			goto out;
 		}
 	}
+	unlock_buf(bfile); bfile = 0;
 
 	/*
-	 * Try unhashing if it might be the only other reference
+	 * Walk the revision chain backwards, taking action based
+	 * on the specified name.
 	 */
-	if (o->o_refs == 2) {
+	da = odirent->o_file;
+	revp = &de->fs_clstart;
+	brevp = bdirent;
+	deref_node(odirent);
+	while (da) {
 		/*
-		 * Since a closing portref needs to handshake
-		 * with the server, use a child thread to do
-		 * the dirty work.
+		 * Access file under this name, prepare for next
 		 */
-		(void)tfork(do_unhash, o->o_file);
+		lock_buf(brevp);
+		o = get_node(da);
+		fs = getfs(o, &b);
+		da = fs->fs_prev;
+		unlock_buf(brevp);
 
 		/*
-		 * Release our ref and tell the requestor he
-		 * might want to try again.
+		 * If we're looking for a particular revision, and this
+		 * isn't it, continue.
 		 */
-		err = EAGAIN;
-		goto out;
+		if (rev && (fs->fs_rev != rev)) {
+			deref_node(o); o = 0;
+
+			/*
+			 * If we've passed the requested revision,
+			 * end the loop now.
+			 */
+			if (fs->fs_rev < rev) {
+				break;
+			}
+
+			/*
+			 * Otherwise continue walking backwards
+			 */
+			revp = &fs->fs_prev;
+			brevp = b;
+			continue;
+		}
+
+		/*
+		 * Try unhashing if it might be the only other reference
+		 */
+		if (o->o_refs == 2) {
+			/*
+			 * Since a closing portref needs to handshake
+			 * with the server, use a child thread to do
+			 * the dirty work.
+			 */
+			(void)tfork(do_unhash, da);
+
+			/*
+			 * Release our ref and tell the requestor he
+			 * might want to try again.
+			 */
+			err = EAGAIN;
+			goto out;
+		}
+
+		/*
+		 * Can't be any other users
+		 */
+		if (o->o_refs > 1) {
+			err = EBUSY;
+			goto out;
+		}
+
+		/*
+		 * Patch this file out of the chain
+		 */
+		*revp = fs->fs_prev;
+		dirty_buf(brevp);
+
+		/*
+		 * Zap the blocks
+		 */
+		uncreate_file(o); o = 0;
+
+		/*
+		 * Move to next, unless we're done
+		 */
+		if (rev) {
+			break;
+		}
 	}
 
 	/*
-	 * Can't be any other users
+	 * If they asked to delete the file and all its revisions,
+	 * and we successfully did so, zap the dir entry.
 	 */
-	if (o->o_refs > 1) {
-		err = EBUSY;
-		goto out;
+	if (!rev) {
+		de->fs_name[0] |= 0x80;
+		dirty_buf(bdirent);
+		sync_buf(bdirent);
 	}
-
-	/*
-	 * Zap the dir entry, then blocks.  The file's going away,
-	 * so release our lock on the buffer for its file header.
-	 */
-	de->fs_name[0] |= 0x80; dirty_buf(b2); sync_buf(b2);
-	unlock_buf(b3); b3 = 0;
-	uncreate_file(o);
 
 	/*
 	 * Clean up
 	 */
 out:
-	if (b3) { unlock_buf(b3); }
-	if (b2) { unlock_buf(b2); }
-	if (b) { unlock_buf(b); }
+	if (bfile) {
+		unlock_buf(bfile);
+	}
+	if (bdirent) {
+		unlock_buf(bdirent);
+	}
+	if (bdir) {
+		unlock_buf(bdir);
+	}
+	if (o) {
+		deref_node(o);
+	}
+	if (nm && rev) {
+		free(nm);
+	}
 
 	/*
 	 * Return success/error
