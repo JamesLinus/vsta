@@ -13,7 +13,6 @@
 #include <unistd.h>
 #include <stat.h>
 
-extern char *__cwd;	/* Current working dir */
 static void cd(), md(), quit(), ls(), pwd(), do_mount(), cat(), mysleep(),
 	sec(), null(), testsh_wstat(), do_fork(), get(), set(),
 	do_umount(), rm(), source(), show_mount();
@@ -26,7 +25,7 @@ static char *buf;	/* Utility page buffer */
 #define MAXSTACK (4)
 static FILE *instack[MAXSTACK];
 static int insp = 0;
-static FILE *infile = stdin;
+static FILE *infile;
 
 /*
  * Table of commands
@@ -71,9 +70,10 @@ show_mount(void)
 {
 	struct mnttab *m;
 	struct mntent *me;
-	extern struct mnttab *__mnttab;
-	extern int __nmnttab;
+	struct mnttab *__mnttab;
+	int __nmnttab;
 
+	__get_mntinfo(&__nmnttab, &__mnttab);
 	for (m = __mnttab; m < __mnttab+__nmnttab; ++m) {
 		printf("Mounted on %s:\n ", m->m_name);
 		for (me = m->m_entries; me; me = me->m_next) {
@@ -491,7 +491,9 @@ cd(char *p)
 	if (chdir(p) < 0) {
 		perror(p);
 	} else {
-		printf("New dir: %s\n", __cwd);
+		char buf[128];
+		getcwd(buf, sizeof(buf));
+		printf("New dir: %s\n", buf);
 	}
 }
 
@@ -502,7 +504,10 @@ cd(char *p)
 static void
 pwd(void)
 {
-	printf("%s\n", __cwd);
+	char buf[128];
+
+	getcwd(buf, sizeof(buf));
+	printf("%s\n", buf);
 }
 
 /*
@@ -573,9 +578,9 @@ ls(char *p)
 	/*
 	 * Open current dir
 	 */
-	fd = open(__cwd, O_READ);
+	fd = open(".", O_READ);
 	if (fd < 0) {
-		perror(__cwd);
+		perror(".");
 		return;
 	}
 	while ((x = read(fd, buf, sizeof(buf)-1)) > 0) {
@@ -656,6 +661,7 @@ main(void)
 		source("boot.bat");
 	}
 
+	infile = stdin;
 	for (;;) {
 		if (infile == stdin) {
 			printf("%% ");
