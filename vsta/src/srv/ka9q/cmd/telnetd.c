@@ -635,8 +635,7 @@ launch_client(port_t tn_read)
 		 * stdin/out
 		 */
 		sprintf(buf, "%d", tn.tn_pn);
-		(void)execl("/vsta/src/bin/login/login",
-			"login", buf, (char *)0);
+		(void)execl("/vsta/bin/login", "login", buf, (char *)0);
 		syslog(LOG_ERR, "Can't login: %s", strerror());
 		_exit(1);
 	}
