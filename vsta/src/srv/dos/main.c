@@ -16,7 +16,7 @@
 
 extern void fat_init(), binit(), dir_init();
 extern void dos_open(), dos_read(), dos_write(), *bdata(),
-	*bget(), dos_remove(), dos_stat();
+	*bget(), dos_remove(), dos_stat(), dos_fid();
 
 int blkdev;		/* Device this FS is mounted upon */
 port_t rootport;	/* Port we receive contacts through */
@@ -278,6 +278,9 @@ loop:
 		break;
 	case FS_STAT:		/* Tell about file */
 		dos_stat(&msg, f);
+		break;
+	case FS_FID:		/* File ID */
+		dos_fid(&msg, f);
 		break;
 	default:		/* Unknown */
 		msg_err(msg.m_sender, EINVAL);

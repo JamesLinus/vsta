@@ -5,6 +5,7 @@
 #include <sys/fs.h>
 #include <dos/dos.h>
 #include <std.h>
+#include <sys/param.h>
 
 /*
  * inum()
@@ -89,5 +90,31 @@ dos_stat(struct msg *m, struct file *f)
 	m->m_buflen = strlen(result);
 	m->m_nseg = 1;
 	m->m_arg = m->m_arg1 = 0;
+	msg_reply(m->m_sender, m);
+}
+
+/*
+ * dos_fid()
+ *	Return ID for file
+ */
+void
+dos_fid(struct msg *m, struct file *f)
+{
+	struct node *n = f->f_node;
+
+	/*
+	 * Only *files* get an ID (and thus can be mapped shared)
+	 */
+	if (n->n_type == T_DIR) {
+		msg_err(m->m_sender, EINVAL);
+		return;
+	}
+
+	/*
+	 * arg is the inode value; arg1 is the size in pages
+	 */
+	m->m_arg = inum(n);
+	m->m_arg1 = btop(isize(n));
+	m->m_nseg = 0;
 	msg_reply(m->m_sender, m);
 }
