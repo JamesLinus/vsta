@@ -15,6 +15,7 @@ struct time {
 };
 typedef int port_t;
 typedef int port_name;
+typedef long pid_t;
 typedef void (*voidfun)();
 typedef int (*intfun)();
 
