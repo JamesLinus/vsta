@@ -515,6 +515,10 @@ retry:
 		compress_freelist();
 		goto retry;
 	}
+#ifdef DEBUG
+	/* Not strictly needed, but useful for debugging */
+	write_sec(fr->fr_this, f);
+#endif
 
 	/*
 	 * If there are pending blocks, iterate with one of them
