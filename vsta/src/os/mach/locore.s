@@ -485,7 +485,7 @@ _stray_ign:
 _xint##n##: ; \
 	cld ; \
 	pushl	$0 ; \
-	pushb	$(n - T_EXTERN) ; \
+	pushl	$(n - T_EXTERN) ; \
 	pushal ; \
 	SAVE_SEGS ; \
 	SET_KSEGS ; \
