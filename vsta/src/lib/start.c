@@ -16,6 +16,7 @@ __start(int *argcp, char ***argvp, char *a)
 {
 	char *p, **argv = 0;
 	int x, argc = 0, len;
+	char *basemem;
 
 	/*
 	 * Boot programs get this
@@ -26,6 +27,7 @@ noargs:
 		*argvp = 0;
 		return;
 	}
+	basemem = a;
 
 	/*
 	 * Get count of arguments
@@ -71,5 +73,10 @@ noargs:
 	/*
 	 * Restore current working directory
 	 */
-	__cwd_restore(a);
+	a = __cwd_restore(a);
+
+	/*
+	 * Unmap the argument memory
+	 */
+	(void)munmap(basemem, a-basemem);
 }
