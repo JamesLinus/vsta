@@ -24,6 +24,9 @@
 #define FS_ABSWRITE 151
 #define FS_FID 152		/* For caching of mapped files */
 #define FS_RENAME 153		/* Renaming of files */
+#define FS_BLKREAD 155		/* Block I/O: offsets in 512 byte sectors */
+#define FS_BLKWRITE 156		/*  to permit disk size > 4 gigabytes */
+				/*  Otherwise much like ABS{READ,WRITE} */
 
 /*
  * Used for tunneling an error code within a struct msg
@@ -34,7 +37,8 @@
  * How to ask if an operation is a bulk read/write
  */
 #define FS_RW(op) (((op) == FS_READ) || ((op) == FS_WRITE) || \
-	((op) == FS_ABSREAD) || ((op) == FS_ABSWRITE))
+	((op) == FS_ABSREAD) || ((op) == FS_ABSWRITE) || \
+	((op) == FS_BLKREAD) || ((op) == FS_BLKWRITE) )
 
 /*
  * Access modes
