@@ -912,6 +912,28 @@ off_t
 fseek(FILE *fp, off_t off, int whence)
 {
 	/*
+	 * If moving within the buffered portion, just play games
+	 * locally
+	 */
+	if (whence == SEEK_CUR) {
+		/*
+		 * Moving forward
+		 */
+		if (off <= fp->f_cnt) {
+			fp->f_cnt -= off;
+			fp->f_pos += off;
+			return(0);
+		}
+
+		/*
+		 * Not within what we have; reduce forward offset to
+		 * reflect what we already consumed out of the underlying
+		 * file descriptor
+		 */
+		off -= fp->f_cnt;
+	}
+
+	/*
 	 * Clear out any pending dirty data.  Reset buffering so
 	 * we will fill from new position.
 	 */
