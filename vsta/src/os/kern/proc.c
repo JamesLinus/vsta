@@ -126,7 +126,7 @@ bootproc(struct boot_task *b)
 	 */
 	vas = MALLOC(sizeof(struct vas), MT_VAS);
 	vas->v_views = 0;
-	vas->v_flags = VF_MEMLOCK;
+	vas->v_flags = VF_MEMLOCK | VF_BOOT;
 	init_lock(&vas->v_lock);
 	hat_initvas(vas);
 	p->p_vas = vas;
@@ -552,6 +552,12 @@ do_exit(int code)
 	 */
 	PTRACE_PENDING(p, PD_EXIT, 0);
 
+#ifdef DEBUG
+	if (p->p_vas->v_flags & VF_BOOT) {
+		printf("Boot process %d dies\n", p->p_pid);
+		dbg_enter();
+	}
+#endif
 	/*
 	 * Remove our thread from the process hash list
 	 */
