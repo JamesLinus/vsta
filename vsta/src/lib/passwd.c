@@ -22,20 +22,18 @@ extern void parse_perm();
 static void
 fillin(char *rec, struct uinfo *u)
 {
-	int x;
 	char *p;
+	extern void zero_ids();
 
 	/*
 	 * Default to something harmless
 	 */
-	u->u_gid = 2;
+	u->u_uid = u->u_gid = 2;
 	strcpy(u->u_passwd, "*");
 	strcpy(u->u_home, DEFHOME);
 	strcpy(u->u_shell, DEFSHELL);
 	strcpy(u->u_env, DEFENV);
-	for (x = 0; x < PROCPERMS; ++x) {
-		u->u_perms[x].perm_len = PERMLEN+1;
-	}
+	zero_ids(u->u_perms, PROCPERMS);
 
 	/*
 	 * Password
@@ -86,9 +84,14 @@ fillin(char *rec, struct uinfo *u)
 		*p++ = '\0';
 	}
 	parse_perm(&u->u_perms[0], rec);
+	u->u_perms[0].perm_uid = u->u_uid;
 	if ((rec = p) == 0) {
 		return;
 	}
+
+	/*
+	 * XXX add more perms based on group
+	 */
 
 	/*
 	 * Parse home

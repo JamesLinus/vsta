@@ -20,7 +20,7 @@ swap_stat(struct msg *m, struct file *f)
 	 * Root is hard-coded
 	 */
 	sprintf(result,
-	 "perm=1/1\nacc=0/4/2\nsize=%ld\ntype=f\nowner=1/1\nfree=%ld\n",
+	 "perm=1/1\nacc=0/4/2\nsize=%ld\ntype=f\nowner=0\nfree=%ld\n",
 		total_swap, free_swap);
 	m->m_buf = result;
 	m->m_arg = m->m_buflen = strlen(result);
