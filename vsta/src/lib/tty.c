@@ -420,7 +420,11 @@ tcgetsize(int fd, int *rowsp, int *colsp)
 	if (!p || (sscanf(p, "%d", &cols) != 1)) {
 		return(__seterr(ENOTSUP));
 	}
-	*rowsp = rows;
-	*colsp = cols;
+	if (rowsp) {
+		*rowsp = rows;
+	}
+	if (colsp) {
+		*colsp = cols;
+	}
 	return(0);
 }
