@@ -62,6 +62,9 @@ cd ..
 cd sema
 make $*
 cd ..
+cd selfs
+make $*
+cd ..
 cd mach
 cd cons2
 make $*
