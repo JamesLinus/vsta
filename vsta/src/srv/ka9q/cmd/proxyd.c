@@ -1,9 +1,3 @@
-XXX
-	Need a serially reentrant scheduler flag to protect the malloc
-	Who free()'s the memory from rxmsg()?  The main server
-		loops looks like it wants to get involved, but
-		that may not be the right place.
-
 /*
  * proxyd.c
  *	Do proxy filesystem actions for a remote client
@@ -49,6 +43,7 @@ struct client {
 	int c_abort;		/* Client was interrupting */
 	long c_sender;		/* Record of client m_sender */
 };
+static void free_cl(struct client *);
 
 /*
  * Maximum message size we accept
@@ -87,7 +82,7 @@ struct msg *
 rxmsg(void)
 {
 	struct msg *mp;
-	int ret, x, msgleft, bodyleft;
+	int x, msgleft, bodyleft;
 	char *bufp, *clmsgp, *body = 0, *bodyp;
 	char clbuf[1024];
 	static char *pushback;
@@ -126,6 +121,8 @@ rxmsg(void)
 		 * Get next message, clean up on error
 		 */
 		if (!pushback) {
+			struct msg m;
+
 			m.m_op = FS_READ | M_READ;
 			m.m_buf = clbuf;
 			m.m_arg = m.m_buflen = sizeof(clbuf);
@@ -133,7 +130,6 @@ rxmsg(void)
 			m.m_arg1 = 0;
 			x = msg_send(rxport, &m);
 			if (x < 0) {
-				ret = x;
 				goto out;
 			}
 			bufp = clbuf;
@@ -144,6 +140,8 @@ rxmsg(void)
 		 * bytes as needed.
 		 */
 		if (msgleft) {
+			uint seg;
+
 			if (x < msgleft) {
 				bcopy(bufp, clmsgp, x);
 				clmsgp += x;
@@ -154,12 +152,27 @@ rxmsg(void)
 			x -= msgleft;
 			bufp += msgleft;
 			msgleft = 0;
-			if (mp->m_arg > MAXMSG) {
+
+			/*
+			 * Calculate body size from segments in sender's
+			 * view of message.  It'll all be coalesced into
+			 * a single message on this side.
+			 */
+			bodyleft = 0;
+			for (seg = 0; seg < mp->m_nseg; ++seg) {
+				bodyleft += mp->m_seg[seg].s_buflen;
+			}
+			if (bodyleft > MAXMSG) {
 				syslog(LOG_ERR, "message too large");
 				goto out;
 			}
-			bodyleft = mp->m_arg;
-			body = bodyp = malloc(bodyleft);
+			if (bodyleft) {
+				mp->m_buf = body = bodyp = malloc(bodyleft);
+				mp->m_buflen = bodyleft;
+				mp->m_nseg = 1;
+			} else {
+				mp->m_nseg = 0;
+			}
 		}
 
 		/*
@@ -202,9 +215,6 @@ rxmsg(void)
 		/*
 		 * We're at the end of the message, return it
 		 */
-		mp->m_buf = body;
-		mp->m_buflen = mp->m_arg;
-		mp->m_nseg = (mp->m_arg ? 1 : 0);
 		return(mp);
 	}
 
@@ -252,7 +262,7 @@ send_err(long clid)
 	m.m_arg = m.m_seg[0].s_buflen + m.m_seg[1].s_buflen;
 	m.m_arg1 = 0;
 	m.m_nseg = 2;
-	(void)msg_send(dest, &m);
+	(void)msg_send(txport, &m);
 }
 
 /*
@@ -341,7 +351,7 @@ serve_slave(struct client *cl)
 			(void)msg_send(txport, &m);
 			(void)msg_send(txport, mp);
 		} else {
-			bcopy(mp->m_seg[0], mp->m_seg[1],
+			bcopy(&mp->m_seg[0], &mp->m_seg[1],
 				mp->m_nseg * sizeof(seg_t));
 			mp->m_sender = cl->c_sender;
 			mp->m_buf = mp;
@@ -434,7 +444,7 @@ free_cl(struct client *cl)
 static void
 serve_clients(void)
 {
-	struct msg clmsg;
+	struct msg *mp;
 	struct client *cl;
 
 	/*
@@ -541,7 +551,7 @@ serve_client(port_t clport)
 	 * Receive first message, which must be an FS_OPEN telling
 	 * us where to attach locally
 	 */
-	if (rxmsg(cl) < 0) {
+	if (rxmsg() == 0) {
 		syslog(LOG_DEBUG, "err on FS_OPEN");
 		cleanup();
 		exit(1);
