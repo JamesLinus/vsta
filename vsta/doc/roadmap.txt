@@ -105,7 +105,7 @@ compliant loader), you can skip this.
 Create a GRUB boot loader floppy by doing:
 
 	(Put formatted, empty, floppy in A:)
-	cd \vsta\grub
+	cd \vsta\grub\bin_std
 	(If you don't have rawrite.exe, get it from the VSTa
 	 distribution site)
 	rawrite stage12 a:
