@@ -1,11 +1,15 @@
 /*
- * clock.c
+ * xclock.c
  *	Handling of clock ticks and such
  *
  * The assumption in VSTa is that each CPU has a regular clock tick.
  * Each CPU keeps its own count of time; in systems where the CPUs
  * run off a common bus clock there will be no time drift.  For
  * others, additional code to correct drift would have to be added.
+ *
+ * In order to simplify things we actually only keep track of the time
+ * since VSTa was booted - if our system time is changed we simply adjust
+ * our boot time and keep the number of seconds of uptime consistent.
  */
 #include <sys/percpu.h>
 #include <sys/thread.h>
@@ -41,6 +45,8 @@ static lock_t time_lock;	/* Mutex on eventq */
 
 extern uint pageout_secs;	/* Interval to call pageout */
 static uint pageout_wait;	/* Secs since last call */
+static struct time		/* Time that the system booted */
+	boot_time = {0, 0};
 
 /*
  * alarm_wakeup()
@@ -49,7 +55,7 @@ static uint pageout_wait;	/* Secs since last call */
 static void
 alarm_wakeup(struct time *t)
 {
-	ulong l = t->t_sec, l2 = t->t_usec;
+	long l = t->t_sec, l2 = t->t_usec;
 	struct eventq *e, **ep;
 
 	ep = &eventq;
@@ -184,8 +190,7 @@ hardclock(struct trapframe *f)
  */
 time_set(struct time *arg_time)
 {
-	struct time t;
-	uint hz;
+	struct time t, ct;
 
 	if (!isroot()) {
 		return(-1);
@@ -193,10 +198,25 @@ time_set(struct time *arg_time)
 	if (copyin(arg_time, &t, sizeof(t))) {
 		return(-1);
 	}
-	hz = (t.t_usec * HZ) / 1000000L;
+
+	/*
+	 * Reference the new time to our CPU time and determine when
+	 * our boot-time really was
+	 */
 	cli();
-		cpu.pc_time[0] = hz;
-		cpu.pc_time[1] = t.t_sec;
+		CVT_TIME(cpu.pc_time, &ct);
+	sti();
+	
+	t.t_sec -= ct.t_sec;
+	t.t_usec -= ct.t_usec;
+	if (t.t_usec < 0) {
+		t.t_sec--;
+		t.t_usec += 1000000;
+	}
+
+	cli();
+		boot_time.t_usec = t.t_usec;
+		boot_time.t_sec = t.t_sec;
 	sti();
 	return(0);
 }
@@ -214,7 +234,14 @@ time_get(struct time *arg_time)
 	 */
 	cli();
 		CVT_TIME(cpu.pc_time, &t);
+		t.t_sec += boot_time.t_sec;
+		t.t_usec += boot_time.t_usec;
 	sti();
+	if (t.t_usec > 1000000) {
+		t.t_sec++;
+		t.t_usec -= 1000000;
+	}
+
 	if (copyout(arg_time, &t, sizeof(t))) {
 		return(-1);
 	}
@@ -237,6 +264,19 @@ time_sleep(struct time *arg_time)
 	if (copyin(arg_time, &t, sizeof(t))) {
 		return(-1);
 	}
+	
+	/*
+	 * Convert the time to a boot time referenced value
+	 */
+	cli();
+		t.t_sec -= boot_time.t_sec;
+		t.t_usec -= boot_time.t_usec;
+	sti();
+	if (t.t_usec < 0) {
+		t.t_sec--;
+		t.t_usec += 1000000;
+	}
+
 	l = t.t_sec;
 
 	/*
@@ -303,4 +343,15 @@ time_sleep(struct time *arg_time)
 	ASSERT(ev->e_onlist == 0, "alarm_set: spurious wakeup");
 	FREE(ev, MT_EVENTQ);
 	return(0);
+}
+
+/*
+ * uptime()
+ *	Return the uptime of the system
+ */
+void uptime(struct time *t)
+{
+	cli();
+		CVT_TIME(cpu.pc_time, t);
+	sti();
 }
