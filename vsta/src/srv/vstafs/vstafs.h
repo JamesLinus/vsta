@@ -150,5 +150,6 @@ extern void init_buf(void), init_node(void), init_block(void);
 extern void ref_node(struct openfile *), deref_node(struct openfile *);
 extern struct openfile *get_node(daddr_t);
 extern uint fs_perms(struct perm *, uint, struct openfile *);
+extern struct buf *bmap(struct fs_file *, ulong, uint, char **, uint *);
 
 #endif /* VSTAFS_H */
