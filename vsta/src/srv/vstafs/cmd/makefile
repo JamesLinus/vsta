@@ -22,3 +22,4 @@ clean:
 	del *.o
 	del mkfs
 	del fsdb
+	del fsck
