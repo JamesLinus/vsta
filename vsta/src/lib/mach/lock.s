@@ -3,13 +3,11 @@
  *	Spinlocks for user level mutexes
  */
 
-	.globl	_p_lock,___msleep
+	.globl	_p_lock,_yield
 _p_lock:
 	movl	4(%esp),%eax
 	bts	$0,(%eax)
 	jc	1f
 	ret
-1:	pushl	$10
-	call	___msleep
-	popl	%eax
+1:	call	_yield
 	jmp	_p_lock

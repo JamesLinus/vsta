@@ -161,6 +161,7 @@ ENTRY1(msg_portname, S_MSG_PORTNAME)
 ENTRY(pstat, S_PSTAT)
 ENTRY2(sched_op, S_SCHED_OP)
 ENTRY0(setsid, S_SETSID)
+ENTRY1(mutex_thread, S_MUTEX_THREAD)
 
 /*
  * notify_handler()

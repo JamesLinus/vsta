@@ -321,3 +321,5 @@ _fchmod
 ___map_errno hidden
 _setsid
 ___fieldval
+_mutex_thread
+_yield

@@ -4,6 +4,7 @@
  */
 #include <sys/types.h>
 #include <sys/fs.h>
+#include <sys/sched.h>
 
 extern pid_t _getid(int);
 char *strerror(void);
@@ -189,4 +190,15 @@ int
 vfork(void)
 {
 	return(fork());
+}
+
+/*
+ * yield()
+ *	Yield CPU, remaining runnable
+ */
+int
+yield(void)
+{
+	sched_op(SCHEDOP_YIELD, 0);
+	return(0);
 }
