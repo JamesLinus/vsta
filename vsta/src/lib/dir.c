@@ -38,7 +38,7 @@ opendir(char *path)
 	if (path[0] == '/') {
 		p = strdup(path);
 	} else {
-		p = malloc(strlen(path) + strlen(__cwd) + 1);
+		p = malloc(strlen(path) + strlen(__cwd) + 2);
 		if (p ) {
 			sprintf(p, "%s/%s", __cwd, path);
 		}
