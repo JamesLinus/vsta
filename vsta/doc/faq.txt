@@ -38,13 +38,9 @@ has been reported yet.
 
 4. How do I get VSTa?
 
-Cygnus has kindly made some space available at their FTP site:
-
-	ftp.cygnus.com:pub/embedded/vsta
-
 Its primary distribution site is:
 
-	ftp.zendo.com:vsta
+	ftp://ftp.vsta.org/vsta
 
 Other mirror sites exist; use a search engine.
 
@@ -52,13 +48,16 @@ Other mirror sites exist; use a search engine.
 
 VSTa uses the Multiboot standard, and can be loaded from any
 bootloader which uses that standard.  The most common is GRUB
-("GRand Unified Bootloader), which is included in the VSTa
-distribution.  It loads the kernel image, any "boot servers" (which
-are like any program running under VSTa, except they exist as
-processes at boot time, so they can provide disk I/O and such
-without having to build this into the kernel).  DOS is your "boot
-filesystem"; you can access many types of filesystems (including
-DOS) once VSTa is running.
+("GRand Unified Bootloader), which is available at:
+
+	http://www.gnu.org/software/grub/
+
+GRUB loads the kernel image and any "boot servers" (which are like any
+program running under VSTa, except they exist as processes at boot
+time, so they can provide disk I/O and such without having to build
+this into the kernel).  DOS/FAT is your "boot filesystem"; you can
+access many types of filesystems (including DOS) once VSTa is
+running.
 
 For the nuts and bolts of doing this, see the file vsta_*.readme on the
 FTP site.  This will point you to the files "license" and "readme" in
