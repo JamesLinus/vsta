@@ -1,10 +1,10 @@
 OUT=test args cat id ls swapd rm cp sleep mkdir pwd kill mv stat \
-	dumpsect man fstab rmdir touch strings xargs echo du \
+	dumpsect fstab rmdir touch strings xargs echo du \
 	tput basename uname fmt purge printf ps rcsdo changed \
 	which true false whoami egrep fgrep awk cc [ view ascii
 
 OBJS= args.o basename.o cat.o changed.o chmod.o cp.o du.o dumpsect.o \
-	echo.o fmt.o fstab.o id.o kill.o ls.o man.o mkdir.o \
+	echo.o fmt.o fstab.o id.o kill.o ls.o mkdir.o \
 	mv.o printf.o ps.o purge.o pwd.o rcsdo.o rm.o rmdir.o \
 	sleep.o stat.o strings.o swapd.o test.o touch.o tput.o \
 	uname.o wc.o which.o xargs.o dump.o operators.o true.o \
@@ -36,9 +36,6 @@ rmdir: rmdir.o
 
 fstab: fstab.o
 	$(LD) $(LDFLAGS) -o fstab $(CRT0) fstab.o -lc
-
-man: man.o
-	$(LD) $(LDFLAGS) -o man $(CRT0) man.o -lc
 
 stat: stat.o
 	$(LD) $(LDFLAGS) -o stat $(CRT0) stat.o -lc
