@@ -9,9 +9,27 @@ Add a "first sector dirty" flag so we don't have to flush the first
 	In fact, add interface of dirtying a range.  Allows for a
 	bitmap in the future.
 
+Add a "only first sector is valid" flag, so we don't have to read
+	the whole 64K of a file just to do a stat--just read the
+	1st sector which holds all the file information.
+
 Directory block allocation is stupid--it will always be maximally
 	fragmented.  Perhaps use a power-of-two progression when
 	allocating extents?  Certainly can't use the default file
 	allocation algorithm--the usage pattern is too different.
 
 Ensure deletion of a directory can't happen unless it's empty.
+
+Directory rename.  Does it work?
+
+fsck--when find "lost" blocks need to add back to free list
+
+Buffers shouldn't be moving on resize.  We should use a 64K-sized
+	buffer and just munmap() (or something) the trailing pages.
+
+Flushing as you go is wasteful.  We need a "transaction" data structure
+	so we can explicitly order the writes needed to complete a
+	filesystem operation safely.
+
+The "transaction" should be tagged under the open file.  This allows
+	fsync() to be turned into a "commit" of the transaction.
