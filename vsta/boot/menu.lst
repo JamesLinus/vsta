@@ -31,10 +31,10 @@
 # This is similar to "chainload", but loads a specific file
 
 # For booting Microdreck stuff
-title=          Boot Win95
-root=           (0x80,0)
+title=          Boot DOS
+root=           (hd0,0)
 makeactive
-chainloader=	+1
+chainloader=    +1
 
 #
 # For booting VSTa
@@ -49,8 +49,8 @@ kernel=         /vsta/boot/vsta
 #  you must edit them again.
 
 # The console driver
-# cons -color		(default)
-# or cons -mono		- For MGA text screen location
+# cons -color           (default)
+# or cons -mono         - For MGA text screen location
 module= /vsta/boot/cons
 
 # The name to port # mapper
@@ -62,12 +62,12 @@ module= /vsta/boot/namer
 # is "readp", which reads the parameters from the IDE interface.
 #
 module= /vsta/boot/wd d0:readp
-# or wd d0:cmos		- For CMOS parameter setup
-# wd d0:cmos d1:cmos	- For two drives
-# wd d0:cmos d1:readp	-  ...any combination, as needed
-#		- D0 from CMOS, D1 from controller
+# or wd d0:cmos         - For CMOS parameter setup
+# wd d0:cmos d1:cmos    - For two drives
+# wd d0:cmos d1:readp   -  ...any combination, as needed
+#               - D0 from CMOS, D1 from controller
 # wd d0:<cyls>:<heads>:<sec/track>
-#		- Manual setup; hand-specify the parameters
+#               - Manual setup; hand-specify the parameters
 
 # Adaptec 1542b/c SCSI disk support
 # You will almost certainly also want to read ../src/srv/mach/scsi/readme
@@ -80,13 +80,15 @@ module= /vsta/boot/wd d0:readp
 # module= /vsta/boot/swap
 
 # The first DOS filesystem
-module= /vsta/boot/dos -p disk/wd:wd0_dos0 fs/root
+module= /vsta/boot/dos -d //disk/wd:wd0_dos0 -n fs/root -B 8192
 # This mounts the first DOS partition on the first WD drive, and
 #  advertises it (via namer) as the root filesystem for the system.
+# "-B 8192" uses a 4 meg buffer cache; trim back to 4096 or 2048
+#  if you have less than 16 megs of memory.
 
 # A VSTa filesystem as root
 # Use this only if you have previously set up a vstafs filesystem.
-# module= /vsta/boot/vstafs //disk/wd:wd0_bfs0 fs/root
+# module= /vsta/boot/vstafs -d //disk/wd:wd0_bfs0 -n fs/root -B 8192
 
 # The only program not a server in this file
 module= /vsta/boot/init
@@ -108,5 +110,5 @@ kernel=         /vsta/src/os/make/vsta
 module= /vsta/boot/cons
 module= /vsta/boot/namer
 module= /vsta/boot/wd d0:readp
-module= /vsta/boot/dos -p disk/wd:wd0_dos0 fs/root
+module= /vsta/boot/dos -d //disk/wd:wd0_dos0 -n fs/root -B 8192
 module= /vsta/boot/init
