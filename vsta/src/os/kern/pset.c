@@ -67,6 +67,7 @@ free_pset(struct pset *ps)
 
 				ps2 = ps->p_cow;
 				idx = ps->p_off + x;
+				p_lock(&ps2->p_lock, SPL0);
 				pp2 = find_pp(ps2, idx);
 				lock_slot(ps2, pp2);
 				deref_slot(ps2, pp2, idx);
