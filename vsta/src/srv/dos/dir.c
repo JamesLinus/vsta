@@ -514,7 +514,7 @@ dir_findslot(struct node *n, void **handlep)
 		 */
 		d = bdata(handle);
 		endd = d+cldirs;
-		while (d < endd) {
+		for ( ; d < endd; ++d) {
 			ch = (d->name[0] & 0xFF);
 			if ((ch == 0) || (ch == 0xe5)) {
 				*handlep = handle;
