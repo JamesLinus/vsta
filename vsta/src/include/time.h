@@ -94,13 +94,21 @@ extern char *asctime(const struct tm *);
 extern struct tm *gmtime(time_t *);
 extern struct tm *localtime(time_t *);
 extern time_t mktime(struct tm *);
-extern int __usleep(int);
-extern int __msleep(int);
+extern int __usleep(uint);
+extern int __msleep(uint);
 extern time_t time(time_t *);
 extern int utimes(const char *, struct timeval *);
 extern size_t strftime(char *, size_t, const char *, const struct tm *);
 extern void tzset(void);
 extern void tzsetwall(void);
+
+/*
+ * clock() API from ANSI
+ */
+#include <mach/param.h>
+#define CLOCKS_PER_SEC (HZ)
+typedef unsigned int clock_t;
+extern clock_t clock(void);
 
 /*
  * isleap()
