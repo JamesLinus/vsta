@@ -5,6 +5,7 @@ OUT=wd
 include ../../../makefile.all
 
 wd: $(OBJS)
+	rm -f wd
 	$(LD) $(LDFLAGS) -o wd $(CRT0SRV) $(OBJS) -ldpart -lsrv
 
 install: all
