@@ -3,7 +3,7 @@ AS=as
 CPP=cpp
 LD=ld
 STRIP=strip
-INCS=-I../../../include -I.
+INCS=-I../../include -I.
 
 target: vsta
 
