@@ -13,22 +13,6 @@ struct mnttab *__mnttab;
 int __nmnttab = 0;
 
 /*
- * For mapping well-known-addresses into their port names
- */
-static struct map {
-	char *m_name;
-	port_name m_addr;
-} names[] = {
-	{"NAMER", PORT_NAMER},
-	{"TIMER", PORT_TIMER},
-	{"ENV", PORT_ENV},
-	{"CONS", PORT_CONS},
-	{"KBD", PORT_KBD},
-	{"SWAP", PORT_SWAP},
-	{(char *)0, 0}
-};
-
-/*
  * mountport()
  *	Like mount(), but mount on given port
  */
@@ -394,9 +378,9 @@ __mount_restore(char *p)
 mount_init(char *fstab)
 {
 	FILE *fp;
-	char *r, buf[80], *point, *path;
+	char *r, buf[80], *point;
 	port_t p;
-	port_name pn;
+	extern port_t path_open(char *, int);
 
 	if ((fp = fopen(fstab, "r")) == NULL) {
 		return(-1);
@@ -421,80 +405,12 @@ mount_init(char *fstab)
 		*point++ = '\0';
 
 		/*
-		 * See if we want to walk down into the port
-		 * before mounting.
+		 * Open access down into either namer path or
+		 * namer path plus subdirs.
 		 */
-		path = strchr(buf, ':');
-		if (path) {
-			*path++ = '\0';
-		}
-
-		/*
-		 * Numeric are used as-is
-		 */
-		if (isdigit(buf[0])) {
-			pn = atoi(buf);
-
-		/*
-		 * Upper are well-known only
-		 */
-		} else if (isupper(buf[0])) {
-			int x;
-
-			for (x = 0; names[x].m_name; ++x) {
-				if (!strcmp(names[x].m_name, buf)) {
-					break;
-				}
-			}
-			if (names[x].m_name == 0) {
-				printf("mount: unknown port %s\n", buf);
-				continue;
-			}
-			pn = names[x].m_addr;
-		} else {
-			/*
-			 * Look up via namer for others
-			 */
-			pn = namer_find(buf);
-			if (pn < 0) {
-				printf("mount: can't find: %s\n", buf);
-				continue;
-			}
-		}
-
-		/*
-		 * Connect to named port
-		 */
-		p = msg_connect(pn, ACC_READ);
+		p = path_open(buf, ACC_READ);
 		if (p < 0) {
 			printf("mount: can't connect to: %s\n", buf);
-		}
-
-		/*
-		 * If there's a path within, walk it now
-		 */
-		if (path) {
-			struct msg m;
-			char *q;
-
-			do {
-				q = strchr(path, '/');
-				if (q) {
-					*q++ = '\0';
-				}
-				m.m_op = FS_OPEN;
-				m.m_nseg = 1;
-				m.m_buf = path;
-				m.m_buflen = strlen(path)+1;
-				m.m_arg = ACC_READ;
-				m.m_arg1 = 0;
-				if (msg_send(p, &m) < 0) {
-					perror(path);
-					msg_disconnect(p);
-					continue;
-				}
-				path = q;
-			} while (path);
 		}
 
 		/*
