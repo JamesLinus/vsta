@@ -632,7 +632,7 @@ waits(struct exitst *w)
 	 */
 	if (w) {
 		e->e_next = 0;
-		if (copyout(w, &e, sizeof(struct exitst))) {
+		if (copyout(w, e, sizeof(struct exitst))) {
 			return(err(EFAULT));
 		}
 	}
