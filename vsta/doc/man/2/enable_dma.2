@@ -1,0 +1,51 @@
+.ll 74
+.he 'enable_dma(2)'VSTa Manual'enable_dma(2)'
+.fo ''%''
+.sp 2
+.bd 1
+NAME
+.br
+.ti +6
+enable_dma - enable DMA abilities for current process
+.sp
+.bd 1
+SYNOPSIS
+.br
+.in +6
+.li 3
+#include <sys/syscall.h>
+
+int enable_dma(void);
+.sp 1
+.in -6
+.bd 1
+DESCRIPTION
+.br
+.in +6
+The
+.ul 1
+enable_dma()
+system call
+changes the behavior of the kernel to permit a server
+to operate in a DMA mode.  In particular, the process
+is permitted to use the
+.ul 1
+page_wire()
+and
+.ul 1
+page_release()
+system calls, and messages received using
+.ul 1
+msg_receive()
+are mapped into a DMA server's address space
+as writable pages, thus permitting programmed I/O
+directly into a client's memory.
+.sp
+.in -6
+.bd 1
+NOTES
+.br
+.in +6
+This call is generally useful only to DMA-based I/O servers,
+although certain transaction-oriented direct I/O filesystems
+might benefit.
