@@ -14,6 +14,26 @@
 extern char *perm_print(struct prot *);
 
 /*
+ * update_select()
+ *	Generate select() server events for our current state
+ */
+void
+update_select(struct screen *s)
+{
+	struct file *f;
+	struct llist *l;
+
+	if (s->s_nbuf == 0) {
+		return;
+	}
+	for (l = LL_NEXT(&s->s_selectors); l != &s->s_selectors;
+			l = LL_NEXT(l)) {
+		f = l->l_data;
+		sc_event(&f->f_selfs, ACC_READ);
+	}
+}
+
+/*
  * cons_stat()
  *	Do stat
  */
@@ -63,13 +83,23 @@ cons_wstat(struct msg *m, struct file *f)
 	/*
 	 * See if common handling code can do it
 	 */
-	if (do_wstat(m, &cons_prot, f->f_flags, &field, &val) == 0)
+	if (do_wstat(m, &cons_prot, f->f_flags, &field, &val) == 0) {
 		return;
+	}
+
+	/*
+	 * select() support?
+	 */
+	s = SCREEN(f->f_screen);
+	if (sc_wstat(m, &f->f_selfs, field, val) == 0) {
+		f->f_sentry = ll_insert(&s->s_selectors, f);
+		update_select(s);
+		return;
+	}
 
 	/*
 	 * Process each kind of field we can write
 	 */
-	s = SCREEN(f->f_screen);
 	if (!strcmp(field, "gen")) {
 		/*
 		 * Set access-generation field

@@ -28,6 +28,7 @@ kbd_read(struct msg *m, struct file *f)
 	if ((m->m_arg == 0) && (s->s_nbuf == 0)) {
 		m->m_buflen = m->m_nseg = m->m_arg = m->m_arg1 = 0;
 		msg_reply(m->m_sender, m);
+		f->f_selfs.sc_needsel = 1;
 		return;
 	}
 
@@ -59,6 +60,7 @@ kbd_read(struct msg *m, struct file *f)
 		s->s_nbuf = 0;
 		m->m_arg1 = 0;
 		msg_reply(m->m_sender, m);
+		f->f_selfs.sc_needsel = 1;
 		return;
 	}
 
@@ -99,6 +101,7 @@ kbd_read(struct msg *m, struct file *f)
 		m->m_arg = m->m_buflen;
 		m->m_arg1 = 0;
 		msg_reply(m->m_sender, m);
+		f->f_selfs.sc_needsel = 1;
 		return;
 	}
 
@@ -309,6 +312,7 @@ kbd_enqueue(struct screen *s, uint c)
 		m.m_nseg = 1;
 		m.m_arg1 = 0;
 		msg_reply(f->f_sender, &m);
+		f->f_selfs.sc_needsel = 1;
 
 		/*
 		 * Clear pending transaction
@@ -336,4 +340,9 @@ kbd_enqueue(struct screen *s, uint c)
 	if (s->s_hd >= KEYBD_MAXBUF) {
 		s->s_hd = 0;
 	}
+
+	/*
+	 * Tell any select() waiters
+	 */
+	update_select(s);
 }

@@ -8,6 +8,7 @@
 #include <sys/perm.h>
 #include <llist.h>
 #include <mach/kbd.h>
+#include <selfs.h>
 
 /*
  * An open file
@@ -23,6 +24,10 @@ struct file {
 		f_perms[PROCPERMS];
 	uchar f_nperm;
 	uchar f_isig;		/* Look for signal keys? */
+	struct selclient
+		f_selfs;	/* State for select() support */
+	struct llist
+		*f_sentry;	/*  ...list of select() clients per screen */
 };
 
 /*
@@ -50,6 +55,8 @@ struct screen {
 	pid_t s_pgrp;		/* Process group to signal */
 	struct file		/* Client who opened the pgrp */
 		*s_pgrp_lead;
+	struct llist
+		s_selectors;	/* List of select() clients */
 };
 
 /*
@@ -105,6 +112,7 @@ extern void kbd_read(struct msg *, struct file *);
 extern void abort_read(struct file *);
 extern void do_dbg_enter(void);
 extern void clear_screen(char *);
+extern void update_select(struct screen *s);
 
 /*
  * Shared data

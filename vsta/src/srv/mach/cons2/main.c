@@ -81,6 +81,8 @@ new_client(struct msg *m)
 	f->f_flags = uperms;
 	f->f_screen = ROOTDIR;
 	f->f_isig = F_ANY;
+	sc_init(&f->f_selfs);
+	f->f_selfs.sc_nosupp = ACC_WRITE;
 
 	/*
 	 * Record perms so we can mimic their identity to send
@@ -125,6 +127,9 @@ dup_client(struct msg *m, struct file *fold)
 	 * Fill in fields.  Simply duplicate old file.
 	 */
 	bcopy(fold, f, sizeof(*f));
+	f->f_sentry = 0;
+	sc_init(&f->f_selfs);
+	f->f_selfs.sc_nosupp = ACC_WRITE;
 
 	/*
 	 * Hash under the sender's handle
@@ -158,6 +163,14 @@ dead_client(struct msg *m, struct file *f)
 	if (s->s_pgrp_lead == f) {
 		s->s_pgrp_lead = 0;
 		s->s_pgrp = 0;
+	}
+
+	/*
+	 * Stop being a select() client
+	 */
+	if (f->f_sentry) {
+		sc_done(&f->f_selfs);
+		ll_delete(f->f_sentry);
 	}
 
 	/*
@@ -209,8 +222,7 @@ do_open(struct msg *m, struct file *f)
 	}
 
 	/*
-	 * Allocate screen memory if it isn't there already.  This should
-	 * be its first use, so init its queue structure as well.
+	 * Allocate screen memory if it isn't there already
 	 */
 	s = &screens[x];
 	if (s->s_img == 0) {
@@ -219,7 +231,6 @@ do_open(struct msg *m, struct file *f)
 			msg_err(m->m_sender, strerror());
 			return;
 		}
-		ll_init(&s->s_readers);
 
 		/*
 		 * Record it as off-screen initially, and start it
@@ -456,6 +467,15 @@ loop:
 			if (check_gen(&msg, f)) {
 				break;
 			}
+
+			/*
+			 * Update I/O count, flag that a complete I/O has
+			 * occurred, * and thus we'll need to update
+			 * select() status on the next change.
+			 */
+			f->f_selfs.sc_iocount += 1;
+			f->f_selfs.sc_needsel = 0;
+
 			refresh_isig(f);
 			kbd_read(&msg, f);
 		}
@@ -476,7 +496,6 @@ loop:
 		if (check_gen(&msg, f)) {
 			break;
 		}
-
 
 		/*
 		 * If this is I/O to a different display than was
@@ -583,6 +602,7 @@ main(int argc, char **argv)
 {
 	int vid_type = VID_CGA;
 	int i;
+	struct screen *s;
 
 	/*
 	 * Initialize syslog
@@ -646,6 +666,17 @@ main(int argc, char **argv)
 	init_screen(vid_type);
 
 	/*
+	 * Initialize signal state for all screens.
+	 */
+	for (i = 0, s = screens; i < NVTY; ++i, ++s) {
+		s->s_intr = '\3';	/* ^C */
+		s->s_quit = '\34';	/* ^\ */
+		s->s_isig = 1;
+		ll_init(&s->s_readers);
+		ll_init(&s->s_selectors);
+	}
+
+	/*
 	 * Allocate memory for screen 0, the current screen.  Mark
 	 * him as currently using the hardware.
 	 */
@@ -655,16 +686,6 @@ main(int argc, char **argv)
 		exit(1);
 	}
 	screens[0].s_curimg = hw_screen;
-	ll_init(&screens[0].s_readers);
-
-	/*
-	 * Initialize signal state for all screens.
-	 */
-	for (i = 0; i < NVTY; ++i) {
-		screens[i].s_intr = '\3';	/* ^C */
-		screens[i].s_quit = '\34';	/* ^\ */
-		screens[i].s_isig = 1;
-	}
 
 	/*
 	 * Start serving requests for the filesystem
