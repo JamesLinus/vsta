@@ -533,11 +533,6 @@ do_exit(int code)
 	int last;
 
 	/*
-	 * Let debugger take a crack, if configured
-	 */
-	PTRACE_PENDING(p, PD_EXIT, 0);
-
-	/*
 	 * Remove our thread from the process hash list
 	 */
 	p_sema(&p->p_sema, PRIHI);
@@ -559,6 +554,17 @@ do_exit(int code)
 	p->p_sys += t->t_syscpu;
 
 	v_sema(&p->p_sema);
+
+#ifdef PROC_DEBUG
+	/*
+	 * Let debugger take a crack, if configured
+	 */
+	if (last) {
+		PTRACE_PENDING(p, PD_EXIT, 0);
+	} else {
+		PTRACE_PENDING(p, PD_THREAD_EXIT, 0);
+	}
+#endif
 
 	/*
 	 * Tear down the thread's user stack if not last.  If it's

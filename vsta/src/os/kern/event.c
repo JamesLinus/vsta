@@ -254,6 +254,24 @@ selfsig(char *ev)
 }
 
 /*
+ * ptrace_event()
+ *	See if we should go into the debugger
+ */
+inline static void
+ptrace_event(struct thread *t, char *event)
+{
+#ifdef PROC_DEBUG
+	struct proc *p = t->t_proc;
+
+	if (p->p_handler) {
+		PTRACE_PENDING(p, PD_EVENT_ALL, event);
+	} else {
+		PTRACE_PENDING(p, PD_EVENT, event);
+	}
+#endif
+}
+
+/*
  * check_events()
  *	Handle any events that may be pending.
  *
@@ -278,18 +296,20 @@ check_events(void)
 		strcpy(event, t->t_evsys);
 		t->t_evsys[0] = '\0';
 		v_lock(&runq_lock, s);
-		PTRACE_PENDING(t->t_proc, PD_EVENT, event);
-		if (event[0])
+		ptrace_event(t, event);
+		if (event[0]) {
 			sendev(t, event);
+		}
 		return;
 	}
 	if (t->t_evproc[0]) {
 		strcpy(event, t->t_evproc);
 		t->t_evproc[0] = '\0';
 		v_lock(&runq_lock, s);
-		PTRACE_PENDING(t->t_proc, PD_EVENT, event);
-		if (event[0])
+		ptrace_event(t, event);
+		if (event[0]) {
 			sendev(t, event);
+		}
 		return;
 	}
 	v_lock(&runq_lock, s);

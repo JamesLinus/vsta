@@ -8,12 +8,14 @@
  */
 
 /* Bits in pd_flags */
-#define PD_ALWAYS 1		/* Stop at next chance */
-#define PD_SYSCALL 2		/*  ...before & after syscalls */
-#define PD_EVENT 4		/*  ...when receiving an event */
-#define PD_EXIT 8		/*  ...when exiting */
-#define PD_BPOINT 16		/*  ...breakpoint reached */
-#define PD_EXEC 32		/*  ...exec done (new addr space) */
+#define PD_ALWAYS 0x1		/* Stop at next chance */
+#define PD_SYSCALL 0x2		/*  ...before & after syscalls */
+#define PD_EVENT 0x4		/*  ...when receiving unhandled event */
+#define PD_EXIT 0x8		/*  ...when last thread exiting */
+#define PD_BPOINT 0x10		/*  ...breakpoint reached */
+#define PD_EXEC 0x20		/*  ...exec done (new addr space) */
+#define PD_THREAD_EXIT 0x40	/*  ...when single thread exiting */
+#define PD_EVENT_ALL 0x80	/*  ...when receiving any event */
 #define PD_CONNECTING 0x8000	/* Slave has connect in progress */
 
 /*
