@@ -5,8 +5,8 @@
 #include <sys/param.h>
 #include <sys/perm.h>
 #include <sys/fs.h>
+#include <string.h>
 
-extern char *strchr();
 extern int perm_set();
 
 /*
