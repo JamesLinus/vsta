@@ -34,15 +34,46 @@ statename(struct pstat_proc *p)
 }
 
 /*
+ * timestr()
+ *	Display time in human-friendly ranges
+ *
+ * Returned string is in malloc()'ed memory, which we leak.  It shouldn't
+ * add up to enough to cause problems in any given ps(1) run (famous last
+ * words).
+ */
+static char *
+timestr(uint tm)
+{
+	char *buf = malloc(16);
+
+	if (tm < 60) {
+		sprintf(buf, "%ds", tm);
+	} else if (tm < 60*60) {
+		sprintf(buf, "%dm", tm / 60);
+	} else if (tm < 24*60*60) {
+		sprintf(buf, "%dh%dm", tm/(60*60), (tm % (60*60)) / 60);
+	} else {
+		sprintf(buf, "%dd%dh", tm/(24*60*60),
+			(tm % (24*60*60)) / 60*60);
+	}
+	return(buf);
+}
+
+/*
  * printps()
  *	Dump out a process entry
  */
 static void
 printps(struct pstat_proc *p)
 {
-	printf("%6d %-8s %s %7d %d/%d\n", p->psp_pid, p->psp_cmd,
+	struct prot *prot;
+	extern char *cvt_id();
+
+	prot = &p->psp_prot;
+	printf("%-6d %-8s %s %4d    %6s/%-6s %-16s\n", p->psp_pid, p->psp_cmd,
 		statename(p), p->psp_nthread,
-		p->psp_usrcpu, p->psp_syscpu);
+		timestr(p->psp_usrcpu), timestr(p->psp_syscpu),
+		cvt_id(prot->prot_id, prot->prot_len));
 }
 
 main(int argc, char **argv)
@@ -88,7 +119,7 @@ main(int argc, char **argv)
 	/*
 	 * Print them
 	 */
-	printf("PID    CMD      STATE  NTHREAD USR/SYS\n");
+	printf("PID    CMD      STATE  NTHREAD    USR/SYS    ID\n");
 	for (p = phead; p; p = p->pl_next) {
 		printps(&p->pl_pstat);
 	}
