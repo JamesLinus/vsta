@@ -24,4 +24,11 @@
 #define X_OK (1)
 #define F_OK (0)
 
+/*
+ * Standard file number definitions
+ */
+#define STDIN_FILENO (0)
+#define STDOUT_FILENO (1)
+#define STDERR_FILENO (2)
+
 #endif /* _UNISTD_H */

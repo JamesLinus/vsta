@@ -29,5 +29,6 @@ extern size_t strspn(const char *, const char *);
 extern void *memmove(void *, const void *, size_t),
 	*memchr(const void *, unsigned char, size_t),
 	*memset(void *, int, size_t);
+extern char *strsep(char **, const char *);
 
 #endif /* _STRING_H */

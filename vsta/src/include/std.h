@@ -31,6 +31,8 @@ extern int atoi(const char *);
 extern void perror(const char *);
 extern uint sleep(uint);
 extern int chdir(const char *);
+extern void *bsearch(const void *key, const void *base, size_t nmemb,
+		     size_t size, int (*compar)(const void *, const void *));
 
 /*
  * getopt() package
