@@ -41,7 +41,7 @@ struct prot cons_prot = {
 /*
  * Per-virtual screen state
  */
-static struct screen screens[NVTY];
+struct screen screens[NVTY];
 
 /*
  * new_client()
@@ -77,10 +77,9 @@ new_client(struct msg *m)
 	/*
 	 * Fill in fields.
 	 */
-	f->f_gen = 0;
+	bzero(f, sizeof(struct file));
 	f->f_flags = uperms;
 	f->f_screen = ROOTDIR;
-	f->f_pos = 0;
 
 	/*
 	 * Hash under the sender's handle
@@ -205,7 +204,7 @@ do_open(struct msg *m, struct file *f)
 		 * as blank.
 		 */
 		s->s_curimg = s->s_img;
-		bzero(s->s_img, SCREENMEM);
+		clear_screen(s->s_img);
 	}
 
 	/*
@@ -259,9 +258,10 @@ select_screen(uint new)
 
 	/*
 	 * Don't switch to a screen which has never been opened.  Don't
-	 * bother switching to the current (it's a no-op anyway).
+	 * bother switching to the current (it's a no-op anyway).  Bounce
+	 * attempts to switch to an unconfigured screen.
 	 */
-	if ((snew->s_img == 0) || (new == curscreen)) {
+	if ((new >= NVTY) || (snew->s_img == 0) || (new == curscreen)) {
 		return;
 	}
 
@@ -352,7 +352,7 @@ screen_main()
 {
 	struct msg msg;
 	char *buf2 = 0;
-	int x;
+	int x, tmpscreen;
 	struct file *f;
 
 loop:
@@ -397,9 +397,13 @@ loop:
 		break;
 	case M_ABORT:		/* Aborted operation */
 		/*
-		 * We're synchronous, so presumably the operation
-		 * is all done and this abort is old news.
+		 * If there's a pending read, abort it.  Writes are
+		 * synchronous.
 		 */
+		if (f->f_readcnt) {
+			abort_read(f);
+			f->f_readcnt = 0;
+		}
 		msg_reply(msg.m_sender, &msg);
 		break;
 
@@ -417,11 +421,14 @@ loop:
 	case FS_WRITE:		/* Write file */
 
 		/*
-		 * Can't write dir
+		 * We redirect writes to ROOTDIR into screen #0.  This
+		 * is just for compatibility with logging messages during
+		 * bootup.
 		 */
 		if (f->f_screen == ROOTDIR) {
-			msg_err(msg.m_sender, EINVAL);
-			break;
+			tmpscreen = 0;
+		} else {
+			tmpscreen = f->f_screen;
 		}
 
 		/*
@@ -429,8 +436,8 @@ loop:
 		 * last rendered via write_string(), tell it to switch
 		 * over.
 		 */
-		if (curscreen != f->f_screen) {
-			switch_screen(f->f_screen);
+		if (curscreen != tmpscreen) {
+			switch_screen(tmpscreen);
 		}
 
 		/*
@@ -486,6 +493,11 @@ loop:
 		}
 		do_open(&msg, f);
 		break;
+
+	case M_ISR:		/* Interrupt */
+		kbd_isr(&msg);
+		break;
+
 	default:		/* Unknown */
 		msg_err(msg.m_sender, EINVAL);
 		break;
@@ -500,6 +512,25 @@ loop:
 	}
 	goto loop;
 }
+
+#ifdef DEBUG
+/*
+ * do_dbg_enter()
+ *	Drop into kernel debugger
+ *
+ * Save/restore screen so on-screen kernel debugger won't mess up
+ * our screen.
+ */
+void
+do_dbg_enter(void)
+{
+	extern void dbg_enter(void);
+
+	save_screen(&screens[curscreen]);
+	dbg_enter();
+	load_screen(&screens[curscreen]);
+}
+#endif
 
 /*
  * main()
