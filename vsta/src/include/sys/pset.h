@@ -109,6 +109,7 @@ struct pset {
  * Bits in p_flags
  */
 #define PF_SHARED 1	/* All views share (shared memory, etc.) */
+#define PF_BOOT 2	/* Pages in PT_MEM are a bootup process image */
 
 #ifdef KERNEL
 extern void lock_slot(struct pset *, struct perpage *),
