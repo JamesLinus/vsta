@@ -9,14 +9,24 @@
  * structures!
  */
 #include <sys/types.h>
+#include <time.h>
+
+typedef ulong mode_t;	/* POSIX types, "A name for everybody" */
+typedef ulong nlink_t;
+typedef ulong dev_t;
+typedef ulong ino_t;
 
 struct	stat {
-	ushort st_dev, st_ino;
-	ushort st_mode, st_nlink;
+	dev_t st_dev;
+	inot_t st_ino;
+	mode_t st_mode;
+	nlink_t st_nlink;
 	ulong st_uid, st_gid;
-	ulong st_rdev, st_size;
-	ulong st_atime, st_mtime, st_ctime;
+	dev_t st_rdev;
+	off_t st_size;
+	time_t st_atime, st_mtime, st_ctime;
 	ulong st_blksize;
+	ulong st_blocks;
 };
 
 #define S_IFMT		0xF000	/* file type mask */
