@@ -57,7 +57,7 @@ args: args.o
 	$(LD) $(LDFLAGS) -o args ../../libc/crt0.o args.o -lc
 
 clean:
-	del *.o
+	rm -f *.o
 
 clobber: clean
 	rm -f $(PROGS)
