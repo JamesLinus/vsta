@@ -41,7 +41,7 @@ fd_stat(struct msg *m, struct file *f)
 		type = 's';
 	}
 	sprintf(buf,
-	 "size=%d\ntype=%c\nowner=1/1\ninode=%d\n", size, type, ino);
+	 "size=%d\ntype=%c\nowner=0\ninode=%d\n", size, type, ino);
 	strcat(buf, perm_print(&fd_prot));
 	m->m_buf = buf;
 	m->m_buflen = strlen(buf);

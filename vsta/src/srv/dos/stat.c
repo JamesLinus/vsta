@@ -75,14 +75,14 @@ dos_stat(struct msg *m, struct file *f)
 	 */
 	if (n->n_type == T_DIR) {
 		sprintf(result,
-		 "perm=1/1\nacc=5/0/2\nsize=%d\ntype=d\nowner=1/1\ninode=%d\n",
+		 "perm=1/1\nacc=5/0/2\nsize=%d\ntype=d\nowner=0\ninode=%d\n",
 			isize(n), inum(n));
 	} else {
 		/*
 		 * Otherwise look up file and get dope
 		 */
 		sprintf(result,
-		 "perm=1/1\nacc=5/0/2\nsize=%d\ntype=f\nowner=1/1\ninode=%d\n",
+		 "perm=1/1\nacc=5/0/2\nsize=%d\ntype=f\nowner=0\ninode=%d\n",
 			n->n_len, inum(n));
 	}
 	m->m_buf = result;

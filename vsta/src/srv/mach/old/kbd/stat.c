@@ -28,7 +28,7 @@ kbd_stat(struct msg *m, struct file *f)
 		return;
 	}
 	sprintf(buf,
-	 "size=%d\ntype=c\nowner=1/1\ninode=0\ngen=%d\n",
+	 "size=%d\ntype=c\nowner=0\ninode=0\ngen=%d\n",
 		key_nbuf, accgen);
 	strcat(buf, perm_print(&kbd_prot));
 	m->m_buf = buf;
