@@ -166,10 +166,10 @@ mbuf_to_msg(struct mbuf *mb, struct msg *m, uint size)
 	count = nseg = mb_pullup = 0;
 	while (size && mb && (nseg < MSGSEGS)) {
 		m->m_seg[nseg].s_buf = mb->data;
-		if (mb->size > size) {
+		if (mb->cnt > size) {
 			mb_pullup = step = size;
 		} else {
-			step = mb->size;
+			step = mb->cnt;
 		}
 		m->m_seg[nseg].s_buflen = step;
 		size -= step;
