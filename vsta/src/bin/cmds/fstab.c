@@ -15,8 +15,8 @@
 /*
  * External variables - these provide the details of the mounted ports
  */
-extern struct mnttab *__mnttab;
-extern int __nmnttab;
+static struct mnttab *__mnttab;
+static int __nmnttab;
 
 /*
  * usage()
@@ -73,11 +73,16 @@ int
 main(int argc, char **argv)
 {
 	/*
-	* Scan for command line options
-	*/
+	 * Scan for command line options
+	 */
 	if (argc > 2) {
 		usage(argv[0]);
 	}
+
+	/*
+	 * Get library pointers for mount table
+	 */
+	__get_mntinfo(&__nmnttab, &__mnttab);
 
 	if (argc == 1) {
 		/*
