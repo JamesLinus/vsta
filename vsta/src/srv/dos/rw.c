@@ -14,7 +14,7 @@
  *
  * Returns 0 on success, 1 on error.
  */
-static
+static int
 do_write(struct clust *c, uint pos, char *buf, uint cnt)
 {
 	uint bufoff, step, blk, boff;
@@ -67,7 +67,6 @@ do_write(struct clust *c, uint pos, char *buf, uint cnt)
 void
 dos_write(struct msg *m, struct file *f)
 {
-	void *handle;
 	struct node *n = f->f_node;
 	ulong newlen;
 
