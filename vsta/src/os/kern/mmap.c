@@ -26,7 +26,7 @@
  * Many combinations of options are not allowed.
  */
 void *
-mmap(void *addr, ulong len, int prot, int flags,
+mmap(caddr_t addr, ulong len, int prot, int flags,
 	port_t port, ulong offset)
 {
 	struct proc *p = curthread->t_proc;
@@ -161,7 +161,7 @@ mmap(void *addr, ulong len, int prot, int flags,
  *	Unmap a region given an address within
  */
 int
-munmap(void *vaddr, ulong len)
+munmap(caddr_t vaddr, ulong len)
 {
 	struct vas *vas = &curthread->t_proc->p_vas;
 	struct pview *pv;
@@ -302,7 +302,7 @@ get_map_pset(struct portref *pr)
  * Returns 0 on failure, attach address on success
  */
 void *
-add_map(struct vas *vas, struct portref *pr, void *vaddr, ulong len,
+add_map(struct vas *vas, struct portref *pr, caddr_t vaddr, ulong len,
 		ulong off, int readonly)
 {
 	struct pset *ps;
