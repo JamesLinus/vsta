@@ -62,6 +62,13 @@ alloc_page(void)
 	 * semaphore queue for memory.
 	 */
 	while (freemem == 0) {
+#ifdef DEBUG
+		/*
+		 * XXX for now.  Isn't "really" a problem, but often it's
+		 * good to look about when things get this desperate.
+		 */
+		dbg_enter();
+#endif
 		p_sema_v_lock(&mem_sema, PRIHI, &mem_lock);
 		p_lock(&mem_lock, SPL0);
 	}
