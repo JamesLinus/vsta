@@ -7,7 +7,7 @@ INCS=-I../../../include -I.
 
 target: vsta
 
-include ../mach/Makefile.inc
+include ../mach/makefile.inc
 
 DEFS= -DKERNEL -DKDB -DDEBUG
 CFLAGS= $(DEFS) $(INCS) -O2
