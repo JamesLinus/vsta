@@ -914,6 +914,20 @@ do_rename(struct file *fsrc, char *src, struct file *fdest, char *dest)
 	}
 
 	/*
+	 * Remove the old filename entry (which actually now resides
+	 * in the source filename's directory slot).
+	 */
+	dir_remove(ndest);
+
+	/*
+	 * Release references to the nodes we have fiddled.  The
+	 * directory nodes are help open by our client, who will
+	 * close them on his own.
+	 */
+	deref_node(ndest);
+	deref_node(nsrc);
+
+	/*
 	 * Flush dir entries
 	 */
 	sync();
@@ -981,7 +995,7 @@ dos_rename(struct msg *m, struct file *f)
 		 * pending operation.
 		 */
 		f->f_rename_id = m->m_arg1;
-		f->f_rename_msg = m;
+		f->f_rename_msg = *m;
 		return;
 	}
 
@@ -998,21 +1012,20 @@ dos_rename(struct msg *m, struct file *f)
 	/*
 	 * Do our magic
 	 */
-	errstr = do_rename(f2, f2->f_rename_msg->m_buf, f, m->m_buf);
+	errstr = do_rename(f2, f2->f_rename_msg.m_buf, f, m->m_buf);
 	if (errstr) {
 		msg_err(m->m_sender, errstr);
-		msg_err(f2->f_rename_msg->m_sender, errstr);
+		msg_err(f2->f_rename_msg.m_sender, errstr);
 	} else {
 		m->m_nseg = m->m_arg = m->m_arg1 = 0;
 		msg_reply(m->m_sender, m);
-		msg_reply(f2->f_rename_msg->m_sender, m);
+		msg_reply(f2->f_rename_msg.m_sender, m);
 	}
 
 	/*
 	 * Clear state
 	 */
 	f2->f_rename_id = 0;
-	f2->f_rename_msg = 0;
 }
 
 /*
@@ -1024,5 +1037,4 @@ cancel_rename(struct file *f)
 {
 	(void)hash_delete(rename_pending, f->f_rename_id);
 	f->f_rename_id = 0;
-	f->f_rename_msg = 0;
 }

@@ -13,6 +13,7 @@
  * perhaps the mtools would suffice.  Or just use tar.
  */
 #include <sys/types.h>
+#include <sys/msg.h>
 
 #define SECSZ (512)		/* Bytes in a sector */
 
@@ -72,7 +73,7 @@ struct file {
 	struct node *f_node;	/* Either a dosdir or a dosfile */
 	long f_rename_id;	/* Transaction # for rename() */
 	struct msg		/*  ...message for that transaction */
-		*f_rename_msg;
+		f_rename_msg;
 };
 
 /*
