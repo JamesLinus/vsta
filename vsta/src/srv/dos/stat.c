@@ -161,7 +161,11 @@ dos_stat(struct msg *m, struct file *f)
 	/*
 	 * Directories
 	 */
-	dir_copy(n->n_dir, n->n_slot, &d);
+	if (n != rootdir) {
+		dir_copy(n->n_dir, n->n_slot, &d);
+	} else {
+		bzero(&d, sizeof(d));
+	}
 	if (n->n_type == T_DIR) {
 		sprintf(result,
  "perm=1/1\nacc=5/0/2\nsize=%d\ntype=d\nowner=0\ninode=%d\nmtime=%ld\n",
