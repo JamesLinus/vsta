@@ -21,6 +21,7 @@ static struct hash	/* Map of all active users */
 port_t rootport;	/* Port we receive contacts through */
 struct llist		/* All files in filesystem */
 	files;
+char pipe_sysmsg[] = "pipe (fs/pipe):";
 
 /*
  * new_client()
@@ -150,7 +151,7 @@ loop:
 	 */
 	x = msg_receive(rootport, &msg);
 	if (x < 0) {
-		syslog(LOG_ERR, "pipe: msg_receive");
+		syslog(LOG_ERR, "%s msg_receive", pipe_sysmsg);
 		goto loop;
 	}
 
@@ -207,7 +208,7 @@ main()
 	 */
         filehash = hash_alloc(NCACHE/4);
 	if (filehash == 0) {
-		syslog(LOG_ERR, "pipe: file hash");
+		syslog(LOG_ERR, "%s file hash not allocated", pipe_sysmsg);
 		exit(1);
         }
 	ll_init(&files);
@@ -217,7 +218,7 @@ main()
 	 */
 	rootport = msg_port(0, &nm);
 	if (rootport < 0) {
-		syslog(LOG_ERR, "pipe: port");
+		syslog(LOG_ERR, "%s can't establish port", pipe_sysmsg);
 		exit(1);
 	}
 
@@ -225,9 +226,11 @@ main()
 	 * Register port name
 	 */
 	if (namer_register("fs/pipe", nm) < 0) {
-		syslog(LOG_ERR, "pipe: name");
+		syslog(LOG_ERR, "%s unable to register name", pipe_sysmsg);
 		exit(1);
 	}
+
+	syslog(LOG_INFO, "%s pipe filesystem started", pipe_sysmsg);
 
 	/*
 	 * Start serving requests for the filesystem

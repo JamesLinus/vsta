@@ -111,7 +111,8 @@ init_block(void)
 	 * Report
 	 */
 	syslog(LOG_INFO,
-		" %ld free extents, longest %ld sectors", nextent, largest);
+		"%s %ld free extents, longest %ld sectors",
+		vfs_sysmsg, nextent, largest);
 }
 
 /*

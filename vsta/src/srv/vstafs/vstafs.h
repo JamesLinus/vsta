@@ -165,5 +165,6 @@ extern struct buf *bmap(struct buf *, struct fs_file *,
 extern struct fs_file *getfs(struct openfile *, struct buf **);
 extern void cancel_rename(struct file *);
 extern void vfs_rename(struct msg *, struct file *);
+extern char vfs_sysmsg[];
 
 #endif /* VSTAFS_H */

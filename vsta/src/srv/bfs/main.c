@@ -2,7 +2,7 @@
  * Filename:	main.c
  * Developed:	Dave Hudson <dave@humbug.demon.co.uk>
  * Originated:	Andy Valencia
- * Last Update: 8th April 1994
+ * Last Update: 11th May 1994
  * Implemented:	GNU GCC version 2.5.7
  *
  * Description: Main message handling and startup routines for the bfs
@@ -27,6 +27,7 @@ port_t rootport;		/* Port we receive contacts through */
 struct super *sblock;		/* Our filesystem's superblock */
 void *shandle;			/*  ...handle for the block entry */
 static struct hash *filehash;	/* Handle->filehandle mapping */
+char bfs_sysmsg[7 + NAMESZ];	/* Syslog message prefix */
 
 
 extern valid_fname(char *, int);
@@ -208,7 +209,7 @@ loop:
 	 */
 	x = msg_receive(rootport, &msg);
 	if (x < 0) {
-		syslog(LOG_ERR, "bfs: msg_receive");
+		syslog(LOG_ERR, "%s msg_receive", bfs_sysmsg);
 		goto loop;
 	}
 
@@ -320,9 +321,25 @@ loop:
 static void
 usage(void)
 {
-	printf("Usage is: bfs -p <portpath> <fsname>\n");
-	printf(" or: bfs <filepath> <fsname>\n");
+	printf("Usage: bfs -p <portpath> <fsname>\n" \
+	       "   or: bfs <filepath> <fsname>\n");
 	exit(1);
+}
+
+
+/*
+ * create_sysmsg()
+ *	Create the first part of any syslog message
+ */
+static void
+create_sysmsg(char *namer_name)
+{
+	strcpy(bfs_sysmsg, "bfs (");
+	strncpy(&bfs_sysmsg[5], namer_name, 16);
+	if (strlen(namer_name) >= NAMESZ) {
+		bfs_sysmsg[5 + NAMESZ - 1] = '\0';
+	}
+	strcat(bfs_sysmsg, "):");
 }
 
 
@@ -345,14 +362,20 @@ main(int argc, char *argv[])
 	 * Check arguments
 	 */
 	if (argc == 3) {
+		namer_name = argv[2];
+		create_sysmsg(namer_name);
+
 		blkdev = open(argv[1], O_RDWR);
 		if (blkdev < 0) {
-			syslog(LOG_ERR, "bfs: %s %s", argv[1], strerror());
+			syslog(LOG_ERR, "%s %s %s", bfs_sysmsg,
+			       argv[1], strerror());
 			exit(1);
 		}
-		namer_name = argv[2];
 	} else if (argc == 4) {
 		int retries;
+
+		namer_name = argv[3];
+		create_sysmsg(namer_name);
 
 		/*
 		 * Version of invocation where service is specified
@@ -370,16 +393,16 @@ main(int argc, char *argv[])
 		}
 		if (port < 0) {
 			syslog(LOG_ERR,
-			       "bfs: couldn't connect to block device %s",
-			       argv[2]);
+			       "%s couldn't connect to block device %s",
+			       bfs_sysmsg, argv[2]);
 			exit(1);
 		}
 		blkdev = __fd_alloc(port);
 		if (blkdev < 0) {
-			syslog(LOG_ERR, "bfs: %s %s", argv[2], strerror());
+			syslog(LOG_ERR, "%s %s %s", bfs_sysmsg,
+			       argv[2], strerror());
 			exit(1);
 		}
-		namer_name = argv[3];
 	} else {
 		usage();
 	}
@@ -389,7 +412,8 @@ main(int argc, char *argv[])
 	 */
         filehash = hash_alloc(NCACHE / 4);
 	if (filehash == 0) {
-		syslog(LOG_ERR, "bfs: file hash");
+		syslog(LOG_ERR, "%s file hash allocation failed",
+		       bfs_sysmsg);
 		exit(1);
         }
 
@@ -404,12 +428,14 @@ main(int argc, char *argv[])
 	 */
 	shandle = bget(0);
 	if (!shandle) {
-		syslog(LOG_ERR, "bfs: superblock read");
+		syslog(LOG_ERR, "%s superblock read failed for %s",
+		       bfs_sysmsg, argv[1]);
 		exit(1);
 	}
 	sblock = bdata(shandle);
 	if (sblock->s_magic != SMAGIC) {
-		syslog(LOG_ERR, "bfs: bad superblock on %s", argv[1]);
+		syslog(LOG_ERR, "%s bad superblock on %s",
+		       bfs_sysmsg, argv[1]);
 		exit(1);
 	}
 
@@ -426,9 +452,12 @@ main(int argc, char *argv[])
 	rootport = msg_port((port_name)0, &fsname);
 	x = namer_register(namer_name, fsname);
 	if (x < 0) {
-		syslog(LOG_ERR, "bfs: can't register name %s", fsname);
+		syslog(LOG_ERR, "%s can't register with namer",
+		       bfs_sysmsg);
 		exit(1);
 	}
+
+	syslog(LOG_INFO, "%s filesystem established", bfs_sysmsg);
 
 	/*
 	 * Start serving requests for the filesystem

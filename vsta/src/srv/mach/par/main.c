@@ -11,8 +11,10 @@
 #include <sys/ports.h>
 #include <sys/msg.h>
 #include <sys/namer.h>
+#include <syslog.h>
 #include "par.h"
 #include "par_port.h"
+
 extern volatile void exit(int error);
 
 static struct hash *filehash;	/* Map session->context structure */
@@ -22,6 +24,7 @@ uint accgen = 0;		/* Generation counter for access */
 struct par_port printer;	/* the printer "object" */
 int timeout = 30;		/* number of seconds before a write is
 				   aborted */
+char par_sysmsg[7 + NAMESZ];
 
 /*
  * Protection for port; starts out with access for all.  sys can
@@ -165,7 +168,7 @@ loop:
 	 */
 	x = msg_receive(lp_port, &msg);
 	if (x < 0) {
-		perror("par: msg_receive");
+		syslog(LOG_ERR, "%s msg_receive", par_sysmsg);
 		goto loop;
 	}
 
@@ -235,6 +238,21 @@ usage(void)
 	exit(1);
 }
 
+/*
+ * create_sysmsg()
+ *	Create the first part of any syslog message
+ */
+static void
+create_sysmsg(char *namer_name)
+{
+	strcpy(par_sysmsg, "par (");
+	strncpy(&par_sysmsg[5], namer_name, 16);
+	if (strlen(namer_name) >= NAMESZ) {
+		par_sysmsg[5 + NAMESZ - 1] = '\0';
+	}
+	strcat(par_sysmsg, "):");
+}
+
 int main(int argc, char *argv[])
 {
 	port_name n;
@@ -243,6 +261,8 @@ int main(int argc, char *argv[])
 	if (argc != 3) {
 		usage();
 	}
+
+	create_sysmsg(argv[2]);
 
 	if (!strcmp(argv[1], "par0") || (argv[1][0] == '0')) {
 		status = par_init(&printer, 0);
@@ -254,7 +274,7 @@ int main(int argc, char *argv[])
 		usage();
 	}
 	if (status) {
-		perror("can't init printer object");
+		syslog(LOG_ERR, "%s can't get I/O permissions", par_sysmsg);
 		exit(1);
 	}
 	par_reset(&printer);
@@ -265,13 +285,14 @@ int main(int argc, char *argv[])
 	 */
 	filehash = hash_alloc(16);
 	if (filehash == 0) {
-		perror("file hash");
+		syslog(LOG_ERR, "%s file hash not allocated", par_sysmsg);
 		exit(1);
 	}
 
 	lp_port = msg_port((port_name)0, &n);
 	if (namer_register(argv[2], n) < 0) {
-		perror("Name registry");
+		syslog(LOG_ERR, "%s unable to register name '%s'",
+		       par_sysmsg, argv[2]);
 		exit(1);
 	}
 

@@ -15,11 +15,13 @@
 #include <sys/types.h>
 #include <stdio.h>
 #include <std.h>
+#include <syslog.h>
 
 port_t envport;	/* Port we receive contacts through */
 
 static struct hash *filehash;
 struct node rootnode;
+char env_sysmsg[] = "env (ENV):";
 
 /*
  * Default protection for system-defined names; anybody can read,
@@ -233,7 +235,7 @@ loop:
 	 */
 	x = msg_receive(envport, &msg);
 	if (x < 0) {
-		perror("env: msg_receive");
+		syslog(LOG_ERR, "%s msg_receive", env_sysmsg);
 		goto loop;
 	}
 
@@ -309,7 +311,7 @@ main()
 	 */
         filehash = hash_alloc(16);
 	if (filehash == 0) {
-		perror("file hash");
+		syslog(LOG_ERR, "%s file hash not allocated", env_sysmsg);
 		exit(1);
         }
 
@@ -329,9 +331,11 @@ main()
 	 */
 	envport = msg_port(PORT_ENV, 0);
 	if (envport < 0) {
-		fprintf(stderr, "env: can't register name\n");
+		syslog(LOG_ERR, "%s can't register name", env_sysmsg);
 		exit(1);
 	}
+
+	syslog(LOG_INFO, "%s environment manager started", env_sysmsg);
 
 	/*
 	 * Start serving requests for the filesystem

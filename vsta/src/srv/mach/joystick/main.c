@@ -2,7 +2,7 @@
  * Filename:	main.c
  * Author:	Dave Hudson <dave@humbug.demon.co.uk>
  * Started:	5th January 1994
- * Last Update: 21st March 1994
+ * Last Update: 11th May 1994
  * Implemented:	GNU GCC version 2.5.7
  *
  * Description: Main message handling for the game port/joystick device.  Also
@@ -32,6 +32,8 @@ port_name js_name;		/* And it's name */
 uint js_accgen = 0;		/* Generation counter for access */
 uchar js_mask = 0;		/* Channel availability mask */
 int js_channels = 0;		/* Number of channels masked in */
+char js_sysmsg[] = "joystick (srv/joystick):";
+				/* Syslog message prefix */
 
 struct prot js_prot = {		/* Protection for the joystick starts */
   1,				/* as access for all.  Sys can change */
@@ -172,7 +174,7 @@ loop:
    */
   x = msg_receive(js_port, &msg);
   if (x < 0) {
-    syslog(LOG_ERR, "joystick: msg_receive");
+    syslog(LOG_ERR, "%s msg_receive", js_sysmsg);
     goto loop;
   }
 
@@ -251,7 +253,7 @@ void main(void)
    */
   filehash = hash_alloc(16);
   if (filehash == 0) {
-    syslog(LOG_ERR, "joystick: file hash");
+    syslog(LOG_ERR, "%s file hash not allocated", js_sysmsg);
     exit(1);
   }
 
@@ -259,7 +261,7 @@ void main(void)
    * Enable I/O for the joystick driver port
    */
   if (enable_io(JS_DATA, JS_DATA) < 0) {
-    syslog(LOG_ERR, "joystick: unable to get I/O permissions");
+    syslog(LOG_ERR, "%s unable to get I/O permissions", js_sysmsg);
     exit(1);
   }
 
@@ -267,7 +269,7 @@ void main(void)
    * Enable I/O for the high resolution timer
    */
   if (enable_io(PIT_CH0, PIT_CTRL) < 0) {
-    syslog(LOG_ERR, "joystick: unable to get timer I/O permissions");
+    syslog(LOG_ERR, "%s unable to get timer I/O permissions", js_sysmsg);
     exit(1);
   }
 
@@ -286,7 +288,7 @@ void main(void)
    * Register the device name with the namer
    */
   if (namer_register("srv/joystick", js_name) < 0) {
-    syslog(LOG_ERR, "joystick: can't register name 'srv/joystick'\n");
+    syslog(LOG_ERR, "%s can't register name", js_sysmsg);
     exit(1);
   }
 

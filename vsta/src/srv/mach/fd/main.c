@@ -22,6 +22,7 @@ static struct hash *filehash;	/* Map session->context structure */
 
 port_t fdport;		/* Port we receive contacts through */
 port_name fdname;	/*  ...its name */
+char fd_sysmsg[] = "fd (disk/fd):";
 
 /*
  * Default protection for floppy drives:  anybody can read/write, sys
@@ -158,7 +159,7 @@ loop:
 	 */
 	x = msg_receive(fdport, &msg);
 	if (x < 0) {
-		syslog(LOG_ERR, "fd: msg_receive");
+		syslog(LOG_ERR, "%s msg_receive", fd_sysmsg);
 		goto loop;
 	}
 
@@ -267,7 +268,7 @@ main(void)
 	 */
         filehash = hash_alloc(8);
 	if (filehash == 0) {
-		syslog(LOG_ERR, "fd: file hash");
+		syslog(LOG_ERR, "%s file hash not allocated", fd_sysmsg);
 		exit(1);
         }
 
@@ -278,7 +279,7 @@ main(void)
 	 * two floppy tasks.
 	 */
 	if (enable_dma(FD_DRQ) < 0) {
-		syslog(LOG_ERR, "fd: DMA");
+		syslog(LOG_ERR, "%s DMA not enabled", fd_sysmsg);
 		exit(1);
 	}
 
@@ -286,7 +287,7 @@ main(void)
 	 * Enable I/O for the needed range
 	 */
 	if (enable_io(FD_LOW, FD_HIGH) < 0) {
-		syslog(LOG_ERR, "fd: I/O");
+		syslog(LOG_ERR, "%s I/O permissions not granted", fd_sysmsg);
 		exit(1);
 	}
 
@@ -306,7 +307,7 @@ main(void)
 	 * Register as floppy drives
 	 */
 	if (namer_register("disk/fd", fdname) < 0) {
-		syslog(LOG_ERR, "fd: can't register name\n");
+		syslog(LOG_ERR, "%s can't register name 'disk/fd'", fd_sysmsg);
 		exit(1);
 	}
 
@@ -314,7 +315,7 @@ main(void)
 	 * Tell system about our I/O vector
 	 */
 	if (enable_isr(fdport, FD_IRQ)) {
-		syslog(LOG_ERR, "fd: IRQ");
+		syslog(LOG_ERR, "%s couldn't get IRQ %d", fd_sysmsg, FD_IRQ);
 		exit(1);
 	}
 

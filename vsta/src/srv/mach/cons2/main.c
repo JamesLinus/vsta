@@ -24,6 +24,7 @@ static struct hash
 	*filehash;	/* Map session->context structure */
 
 port_t consport;	/* Port we receive contacts through */
+char cons_sysmsg[] = "cons (CONS):";
 uint
 	curscreen = 0,	/* Current screen # receiving data */
 	hwscreen = 0;	/* Screen # showing on HW */
@@ -366,7 +367,7 @@ loop:
 	 */
 	x = msg_receive(consport, &msg);
 	if (x < 0) {
-		syslog(LOG_ERR, "cons: msg_receive");
+		syslog(LOG_ERR, "%s msg_receive", cons_sysmsg);
 		goto loop;
 	}
 
@@ -557,7 +558,7 @@ main(int argc, char **argv)
 	 */
         filehash = hash_alloc(16);
 	if (filehash == 0) {
-		syslog(LOG_ERR, "cons: file hash");
+		syslog(LOG_ERR, "%s file hash not allocated", cons_sysmsg);
 		exit(1);
         }
 
@@ -565,11 +566,13 @@ main(int argc, char **argv)
 	 * Turn on our I/O access
 	 */
 	if (enable_io(CONS_LOW, CONS_HIGH) < 0) {
-		syslog(LOG_ERR, "cons: can't do I/O operations");
+		syslog(LOG_ERR, "%s can't do display I/O operations",
+			cons_sysmsg);
 		exit(1);
 	}
 	if (enable_io(KEYBD_LOW, KEYBD_HIGH) < 0) {
-		syslog(LOG_ERR, "cons/kbd: can't do I/O operations");
+		syslog(LOG_ERR, "%s can't do keyboard I/O operations",
+			cons_sysmsg);
 		exit(1);
 	}
 
@@ -583,7 +586,8 @@ main(int argc, char **argv)
 	 * Tell system about our I/O vector
 	 */
 	if (enable_isr(consport, KEYBD_IRQ)) {
-		syslog(LOG_ERR, "cons: Keyboard IRQ");
+		syslog(LOG_ERR, "%s can't get keyboard IRQ %d",
+			cons_sysmsg, KEYBD_IRQ);
 		exit(1);
 	}
 
@@ -598,7 +602,8 @@ main(int argc, char **argv)
 	 */
 	screens[0].s_img = malloc(SCREENMEM);
 	if (screens[0].s_img == 0) {
-		syslog(LOG_ERR, "cons: Screen #0 image");
+		syslog(LOG_ERR, "%s can't allocated screen #0 image",
+			cons_sysmsg);
 		exit(1);
 	}
 	screens[0].s_curimg = hw_screen;

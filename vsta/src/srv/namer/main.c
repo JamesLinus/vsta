@@ -25,6 +25,7 @@ extern char *strerror();
 #define BUFSIZE (NAMESZ*3)	/* That should be enough */
 
 port_t namerport;	/* Port we receive contacts through */
+char namer_sysmsg[] = "namer (NAMER):";
 
 static struct hash *filehash;
 static struct node rootnode;
@@ -312,7 +313,7 @@ main()
 	 */
 	namerport = msg_port(PORT_NAMER, 0);
 	if (x < 0) {
-		syslog(LOG_ERR, "NAMER: can't register name\n");
+		syslog(LOG_ERR, "%s can't register name", namer_sysmsg);
 		exit(1);
 	}
 

@@ -27,6 +27,7 @@ static void unit_spinup(), unit_recal(), unit_seek(), unit_spindown(),
 	unit_reset(), unit_failed(), unit_settle();
 
 extern port_t fdport;			/* Our server port */
+extern char fd_sysmsg[];		/* Syslog message prefix */
 struct floppy floppies[NFD];		/* Per-floppy state */
 static void *bounceva, *bouncepa;	/* Bounce buffer */
 static int errors = 0;			/* Global error count */
@@ -119,12 +120,12 @@ fdc_in(void)
 			break;
 		}
 		if (j == F_MASTER) {
-			syslog(LOG_ERR, "fd: fdc_in failed\n");
+			syslog(LOG_ERR, "%s fdc_in failed", fd_sysmsg);
 			return(-1);
 		}
 	}
 	if (i < 1) {
-		syslog(LOG_ERR, "fd: fdc_in failed2\n");
+		syslog(LOG_ERR, "%s fdc_in failed2", fd_sysmsg);
 		return(-1);
 	}
 	return(inportb(FD_DATA));
@@ -146,7 +147,7 @@ fdc_out(uchar c)
 		}
 	}
 	if (i < 1) {
-		syslog(LOG_ERR, "fd: fdc_out failed\n");
+		syslog(LOG_ERR, "%s fdc_out failed", fd_sysmsg);
 		return(-1);
 	}
 	outportb(FD_DATA, c);
@@ -880,18 +881,18 @@ fd_init(void)
 			continue;
 		}
 		if ((types & TYMASK) == FD12) {
-			syslog(LOG_INFO, "fd%d: 1.2M\n", x);
+			syslog(LOG_INFO, "%s fd%d: 1.2M", fd_sysmsg, x);
 			fl->f_state = F_CLOSED;
 			fl->f_density = 0;
 			continue;
 		}
 		if ((types & TYMASK) == FD144) {
-			syslog(LOG_INFO, "fd%d: 1.44M\n", x);
+			syslog(LOG_INFO, "%s fd%d: 1.44M\n", fd_sysmsg, x);
 			fl->f_state = F_CLOSED;
 			fl->f_density = 1;
 			continue;
 		}
-		syslog(LOG_INFO, "fd%d: unknown type\n", x);
+		syslog(LOG_INFO, "%s fd%d: unknown type", fd_sysmsg, x);
 		fl->f_state = F_NXIO;
 	}
 
@@ -900,7 +901,7 @@ fd_init(void)
 	 */
 	bounceva = malloc(NBPG);
 	if (page_wire(bounceva, &bouncepa) < 0) {
-		syslog(LOG_ERR, "Can't get bounce buffer\n");
+		syslog(LOG_ERR, "%s can't get bounce buffer", fd_sysmsg);
 		exit(1);
 	}
 }
@@ -996,7 +997,8 @@ unit_failed(int old, int new)
 {
 	if (!busy)
 		return;
-	syslog(LOG_ERR, "fd%d: won't reset--deconfiguring\n", busy->f_unit);
+	syslog(LOG_ERR, "%s fd%d: won't reset--deconfiguring",
+		fd_sysmsg, busy->f_unit);
 	busy->f_state = F_NXIO;
 	busy->f_spinning = 0;
 	motors();

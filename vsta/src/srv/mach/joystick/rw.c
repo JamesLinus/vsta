@@ -2,7 +2,7 @@
  * Filename:	rw.c
  * Author:	Dave Hudson <dave@humbug.demon.co.uk>
  * Started:	5th January 1994
- * Last Update: 21st March 1994
+ * Last Update: 10th May 1994
  * Implemented:	GNU GCC version 2.5.7
  *
  * Description: Deals with read/write requests to the joystick device
@@ -25,6 +25,7 @@
 
 extern uchar js_mask;
 extern int js_channels;
+extern char js_sysmsg[];
 
 
 /*
@@ -220,7 +221,7 @@ void js_init(void)
   j = inportb(JS_DATA) & JS_CH_MASK;
 
   if (j == JS_CH_MASK) {
-    syslog(LOG_ERR, "joystick: no device connections found\n");
+    syslog(LOG_ERR, "%s no device connections found", js_sysmsg);
     return;
   }
   if (!(j & JS_CH_A)) {
@@ -252,6 +253,6 @@ void js_init(void)
     js_mask |= JS_CH_D;
     js_channels++;
   }
-  syslog(LOG_INFO, "joystick: connections found on channel%s %s\n", 
-  	 (js_channels == 1) ? "" : "s", init_msg);
+  syslog(LOG_INFO, "%s connections found on channel%s %s\n", 
+  	 js_sysmsg, (js_channels == 1) ? "" : "s", init_msg);
 }

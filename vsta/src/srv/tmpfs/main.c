@@ -22,6 +22,7 @@ port_t rootport;	/* Port we receive contacts through */
 struct llist		/* All files in filesystem */
 	files;
 char *zeroes;		/* BLOCKSIZE worth of 0's */
+char tmpfs_sysmsg[9 + NAMESZ];
 
 /*
  * tmpfs_seek()
@@ -171,7 +172,7 @@ loop:
 	 */
 	x = msg_receive(rootport, &msg);
 	if (x < 0) {
-		syslog(LOG_ERR, "tmpfs: msg_receive");
+		syslog(LOG_ERR, "%s msg_receive", tmpfs_sysmsg);
 		goto loop;
 	}
 
@@ -267,7 +268,7 @@ usage(void)
  *	Startup of a boot filesystem
  *
  * A TMPFS instance expects to start with a command line:
- *	$ tmpfs <block class> <block instance> <filesystem name>
+ *	$ tmpfs <filesystem name>
  */
 main(int argc, char *argv[])
 {
@@ -283,26 +284,36 @@ main(int argc, char *argv[])
 	}
 
 	/*
+	 * Name we'll offer service as
+	 */
+	namer_name = argv[1];
+
+	/*
+	 * Sort out the syslog prefix message
+	 */
+	strcpy(tmpfs_sysmsg, "tmpfs (");
+	strncpy(&tmpfs_sysmsg[7], namer_name, 16);
+	if (strlen(namer_name) >= NAMESZ) {
+		tmpfs_sysmsg[7 + NAMESZ - 1] = '\0';
+	}
+	strcat(tmpfs_sysmsg, "):");
+
+	/*
 	 * Zero memory
 	 */
 	zeroes = malloc(BLOCKSIZE);
 	if (zeroes == 0) {
-		syslog(LOG_ERR, "tmpfs: zeroes");
+		syslog(LOG_ERR, "%s unable to allocte zeroes", tmpfs_sysmsg);
 		exit(1);
 	}
 	bzero(zeroes, BLOCKSIZE);
-
-	/*
-	 * Name we'll offer service as
-	 */
-	namer_name = argv[1];
 
 	/*
 	 * Allocate data structures we'll need
 	 */
         filehash = hash_alloc(NCACHE/4);
 	if (filehash == 0) {
-		syslog(LOG_ERR, "tmpfs: file hash");
+		syslog(LOG_ERR, "%s file hash not allocated", tmpfs_sysmsg);
 		exit(1);
         }
 	ll_init(&files);
@@ -313,12 +324,13 @@ main(int argc, char *argv[])
 	rootport = msg_port((port_name)0, &fsname);
 	x = namer_register(namer_name, fsname);
 	if (x < 0) {
-		syslog(LOG_ERR, "tmpfs: can't register name\n");
+		syslog(LOG_ERR, "%s can't register name '%s'", tmpfs_sysmsg);
 		exit(1);
 	}
 
 	/*
 	 * Start serving requests for the filesystem
 	 */
+	syslog(LOG_INFO, "%s filesystem established", tmpfs_sysmsg);
 	tmpfs_main();
 }

@@ -8,12 +8,14 @@
 #include <sys/fs.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <syslog.h>
 #include <time.h>
 #include "par.h"
 #include "par_port.h"
 
 extern struct par_port printer;
 extern int timeout;
+extern char par_sysmsg[];
 
 /*
  * wait_printer()
@@ -37,14 +39,16 @@ wait_printer(void)
 		switch (par_isready(&printer)) {
 		case P_OK:
 			if (notified) {
-				puts("par: parallel port ok");
+				syslog(LOG_INFO, "%s parallel port ok",
+				       par_sysmsg);
 			}
 			return P_OK;
 		case P_ERROR:
 			if (!notified) {
 				notified = 1;
 				if (!printer.quiet) {
-					printf("par: %s\n",
+					syslog(LOG_WARNING, "%s %s",
+					       par_sysmsg,
 					       printer.last_error);
 				}
 			}
@@ -53,8 +57,10 @@ wait_printer(void)
 			break;
 		}
 		if ((time(NULL) - tstart) > timeout) {
-			if (!printer.quiet)
-				puts("par: parallel port timed out");
+			if (!printer.quiet) {
+				syslog(LOG_ERR, "%s parallel port timed out",
+				       par_sysmsg);
+			}
 			return P_TIMEOUT;
 		}
 		__msleep(100);
