@@ -573,7 +573,8 @@ shut_server(struct port *port)
 	 * to fiddle with mappings.
 	 */
 	p_sema(&port->p_mapsema, PRIHI);
-	ASSERT(port->p_maps == 0, "shut_server: maps");
+	ASSERT((port->p_maps == 0) || (port->p_maps == NO_MAP_HASH),
+		"shut_server: maps");
 
 	FREE(port, MT_PORT);
 	return(0);
