@@ -44,13 +44,10 @@ vfs_stat(struct msg *m, struct file *f)
 	/*
 	 * Verify access
 	 */
-	if (!(f->f_perm & ACC_READ)) {
-		msg_err(m->m_sender, EPERM);
-		return;
-	}
 	fs = getfs(f->f_file, &b);
-	if (!fs) {
-		msg_err(m->m_sender, ENOMEM);
+	if (!(f->f_perm & (ACC_READ | ACC_CHMOD)) &&
+			(f->f_perms[0].perm_uid != fs->fs_owner)) {
+		msg_err(m->m_sender, EPERM);
 		return;
 	}
 
@@ -119,15 +116,12 @@ vfs_wstat(struct msg *m, struct file *f)
 	/*
 	 * Can't modify files unless have write permission
 	 */
-	if (!(f->f_perm & (ACC_WRITE | ACC_CHMOD))) {
+	fs = getfs(f->f_file, &b);
+	if (!(f->f_perm & (ACC_CHMOD)) &&
+			(f->f_perms[0].perm_uid != fs->fs_owner)) {
 		msg_err(m->m_sender, EPERM);
 		return;
 	}
-
-	/*
-	 * Get file's node
-	 */
-	fs = getfs(f->f_file, &b);
 
 	/*
 	 * See if common handling code can do it
