@@ -61,4 +61,5 @@ ENTRY(pageout, S_PAGEOUT)
 ENTRY(_getid, S_GETID)
 ENTRY(unhash, S_UNHASH)
 ENTRY(time_set, S_TIME_SET)
+ENTRY(ptrace, S_PTRACE)
 
