@@ -47,8 +47,8 @@ static ushort ibm_serial_delay_period = 100;
 static uint ibm_serial_update_allowed = TRUE;
 static ibm_model_t ibm_serial_model = RS_MICROSOFT;
 static port_t	ibm_serial_port;
-static uchar *ibm_serial_buffer;
-static int ibm_serial_bufoffs = 0;
+static uchar *buff;
+static int bufoff = 0;
 
 static struct ibm_serial_config ibm_serial_data[5] = {
 	{0x40, 0x40, 0x40, 0x00,		/* MicroSoft */
@@ -99,15 +99,15 @@ rs232_read(void)
 	int x;
 
 	m.m_op = M_READ|FS_READ;
-	m.m_buf = &ibm_serial_buffer[ibm_serial_bufoffs];
+	m.m_buf = &buff[bufoff];
 	m.m_arg = 0;
-	m.m_buflen = IBM_SERIAL_BUFSIZ - ibm_serial_bufoffs;
+	m.m_buflen = IBM_SERIAL_BUFSIZ - bufoff;
 	m.m_nseg = 1;
 	m.m_arg1 = 0;
 
 	x = msg_send(ibm_serial_port, &m);
 	if (x > 0) {
-		ibm_serial_bufoffs += x;
+		bufoff += x;
 	}
 	return(x);
 }
@@ -135,6 +135,7 @@ ibm_serial_check_status(void)
 		MOUSE_LEFT_BUTTON | MOUSE_RIGHT_BUTTON | MOUSE_MIDDLE_BUTTON
 	};
 
+	buttons = p->buttons;
 	set_semaphore(&ibm_serial_update_allowed, FALSE);
 
 	rs232_read();
@@ -142,19 +143,19 @@ restart:
 	/*
 	 * Find a header byte
 	 */
-	while ((i < ibm_serial_bufoffs) &&
-		((ibm_serial_buffer[i] & m_data->mask0) != m_data->test0)) {
+	while ((i < bufoff) &&
+		((buff[i] & m_data->mask0) != m_data->test0)) {
 			i++;
 	}
 
 	/*
 	 * Read in the rest of the packet
 	 */
-	while (ibm_serial_bufoffs - i >= m_data->dmax) {
-		buffer = &ibm_serial_buffer[i++];
+	while ((bufoff - i) >= m_data->dmin) {
+		buffer = &buff[i++];
 		x = 1;
 		got_packet = 0;
-		while(!got_packet && x < m_data->dmax) {
+		while (!got_packet && (i < bufoff) && (x < m_data->dmax)) {
 			/*
 			 * Check whether we have a data packet.  Restart
 			 * if we see the start of a new packet.
@@ -173,7 +174,6 @@ restart:
 				i++, x++;
 			}
 		}
-
 		switch (ibm_serial_model) {
 		case RS_MICROSOFT:	/* Microsoft */
 		default:
@@ -211,7 +211,7 @@ restart:
 		 * If they've changed, update the current coordinates
 		 */
 		p->dx += x_off;
-		p->dy += y_off;
+		p->dy -= y_off;
 	}
 	changed = p->dx || p->dy || (p->buttons != buttons);
 	p->buttons = buttons;
@@ -220,11 +220,10 @@ restart:
 	 * After all that, do we need to shunt our buffers about?
 	 */
 	if (i) {
-		if (ibm_serial_bufoffs - i) {
-			memmove(ibm_serial_buffer, &ibm_serial_buffer[i],
-				ibm_serial_bufoffs - i);
+		if (bufoff - i) {
+			memmove(buff, &buff[i], bufoff - i);
 		}
-		ibm_serial_bufoffs -= i;
+		bufoff -= i;
 	}
 
 	set_semaphore(&ibm_serial_update_allowed, TRUE);
@@ -440,8 +439,8 @@ ibm_serial_initialise(int argc, char **argv)
 	m->irq_number = 0;
 	m->update_frequency = ibm_serial_delay_period;
 
-	ibm_serial_buffer = (uchar *)malloc(IBM_SERIAL_BUFSIZ);
-	if (!ibm_serial_buffer) {
+	buff = (uchar *)malloc(IBM_SERIAL_BUFSIZ);
+	if (!buff) {
 		syslog(LOG_ERR, "unable to allocate data buffer");
 		exit(1);
 	}
