@@ -14,6 +14,7 @@ static struct {
 	int errnum;
 	char *errstr;
 } errmap[] = {
+	{ 0, "" },
 	{ EPERM, "perm" },
 	{ ENOENT, "no file" },
 	{ ESRCH, "no entry" },
@@ -51,7 +52,10 @@ static struct {
 	{ EMATH, "math" },
 	{ EILL, "ill instr" },
 	{ EKILL, "kill" },
-	{0, 0}
+	{ EBALIGN, "blk align" },
+	{ ESYMLINK, "symlink" },
+	{ ELOOP, "symlink loop" },
+	{ 0, 0 }
 };
 
 /*
@@ -88,14 +92,14 @@ map_errno(int err)
 {
 	static char errdef[] = "unknown error";
 	int x;
-	int e;
+	char *e;
 
 	/*
 	 * Scan for string match
 	 */
-	for (x = 0; e = errmap[x].errnum; ++x) {
-		if (e == err) {
-			return(errmap[x].errstr);
+	for (x = 0; e = errmap[x].errstr; ++x) {
+		if (errmap[x].errnum == err) {
+			return(e);
 		}
 	}
 
@@ -112,49 +116,34 @@ map_errno(int err)
  * In order to keep the POSIX errno in step with the VSTa system error
  * message code we need to do some pretty nasty hacks to keep track of what
  * the "errno" value was when we last entered the routine.  If it's changed,
- * either because a new errno has been set, or because a new __err has been
- * set we do what we can to put things back in sync
+ * either because a new errno has been set, or because a new kernel error has
+ * been set we do what we can to put things back in sync
  */
 int *
 __ptr_errno(void)
 {
-	static uint old_errcnt;
-	static int old_errno;
+	extern int _old_errno;
 	extern int _errno;
-	extern uint _errcnt;
 	char *p;
 
 	/*
 	 * First we want to know if someone has modified errno.  If they
 	 * have, we want to put things back in sync
 	 */
-	if (old_errno != _errno) {
+	if (_old_errno != _errno) {
 		__seterr(map_errno(_errno));
-		old_errno = _errno;
 		return(&_errno);
 	}
 
 	/*
-	 * Has the system error string been updated?  If not, then we've
-	 * already done everything before and simply return the old answer
-	 */
-	if (old_errcnt == _errcnt) {
-		return(&_errno);
-	}
-	old_errcnt = _errcnt;
-
-	/*
-	 * Get current error.  Don't touch anything if there is none.
+	 * Get current error.
 	 */
 	p = strerror();
-	if (!p) {
-		return(&_errno);
-	}
 
 	/*
 	 * Map from string to a value.
 	 */
-	_errno = map_errstr(p);
+	_old_errno = _errno = map_errstr(p);
 
 	return(&_errno);
 }

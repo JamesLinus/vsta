@@ -25,7 +25,7 @@ extern int *__ptr_errno(void);
 #define	EBADF (9)	/* Bad file number */
 #define	ECHILD (10)	/* No children */
 #define	EAGAIN (11)	/* No more processes */
-#define EWOULDBLOCK EAGAIN
+#define EWOULDBLOCK (EAGAIN)
 #define	ENOMEM (12)	/* Not enough core */
 #define	EACCES (13)	/* Permission denied */
 #define	EFAULT (14)	/* Bad address */
@@ -98,5 +98,8 @@ extern int *__ptr_errno(void);
 #define EMATH (100)	/* VSTa math error */
 #define EILL (101)	/* VSTa illegal instruction */
 #define EKILL (102)	/* VSTa kill */
+#define EBALIGN (103)	/* Block alignment required */
+#define ESYMLINK (104)	/* Symbolic link */
+#define ELOOP (105)	/* Symbolic link loop */
 
 #endif /* _ERRNO_H */

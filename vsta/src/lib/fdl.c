@@ -19,9 +19,11 @@
 #include <fdl.h>
 #include <hash.h>
 #include <std.h>
+#include <string.h>
 #include <unistd.h>
 
 extern char *rstat(port_t, char *);
+static off_t do_seek(struct port *, long, int);
 
 /*
  * For saving state of fdl on exec()
@@ -82,26 +84,221 @@ __fd_port(int fd)
 }
 
 /*
- * do_write()
- *	Build a write message for a generic port
+ * balign_io()
+ *	Try to do block I/O after running into alignment problems
+ *
+ * Try and work around with block aligned requests
+ * instead.  We assume that blocks are arranged as powers of 2.
+ * We also do this I/O slowly - one block at a time.  This is the
+ * penalty we extract for having to do this at all!
+ *
+ * We attempt to manage requests to write non block-aligned data to servers
+ * that only provide block access by running a read/modify/write cycle.
+ * If by some strange quirk of fate you have write permissions, but no read
+ * permissions then this doesn't work - you shouldn't be doing such antisocial
+ * writes anyway!
  */
-static
-do_write(struct port *port, void *buf, uint nbyte)
+static int
+balign_io(struct port *port, void *buf, uint nbyte, int do_read)
+{
+	int offs, x, apos, count, block_size, buf_st;
+	char *blk_stat;
+	uchar *abuf;
+	struct msg m;
+	
+	/*
+	 * Determine the block size to try to align to!  Assume
+	 * 512 bytes unless given a definitive answer by the server
+	 */
+	blk_stat = rstat(port->p_port, "blksize");
+	if (blk_stat) {
+		block_size = atoi(blk_stat);
+	} else {
+		block_size = 512;
+	}
+
+	/*
+	 * Get a working buffer
+	 */
+	if ((abuf = (uchar *)malloc(block_size * sizeof(uchar))) == 0) {
+		return(x);
+	}
+
+	/*
+	 * Keep track of where we're starting from
+	 */
+	apos = port->p_pos & ~(block_size - 1);
+	count = apos - port->p_pos;
+	buf_st = -count;
+
+	do {
+		if (do_read) {
+			/*
+			 * Read the aligned data
+			 */
+			m.m_op = FS_ABSREAD | M_READ;
+			m.m_buf = abuf;
+			m.m_buflen = block_size;
+			m.m_arg = block_size;
+			m.m_arg1 = apos;
+			m.m_nseg = 1;
+			x = msg_send(port->p_port, &m);
+			if (x < 0) {
+				continue;
+			}
+
+			offs = (count >= 0) ? count : 0;
+			count += x;
+			if (count > nbyte) {
+				count = nbyte;
+			} else if (count < 0) {
+				/*
+				 * Shouldn't be able to happen so flag error
+				 */
+				x = -1;
+				continue;
+			}
+
+			/*
+			 * Copy the relevant non-aligned data into the
+			 * requester's buffer
+			 */
+			memcpy(&((uchar *)buf)[offs], &abuf[buf_st],
+			       count - offs);
+		} else {
+			/*
+			 * Only read the data if we need to modify
+			 * it and write it back - if the next write is
+			 * a complete block don't bother
+			 */
+			if ((count < 0) || (count + block_size > nbyte)) {
+				/*
+				 * Read the aligned data
+				 */
+				m.m_op = FS_ABSREAD | M_READ;
+				m.m_buf = abuf;
+				m.m_buflen = block_size;
+				m.m_arg = block_size;
+				m.m_arg1 = apos;
+				m.m_nseg = 1;
+				x = msg_send(port->p_port, &m);
+				if (x < 0) {
+					continue;
+				}
+
+				offs = (count >= 0) ? count : 0;
+				count += x;
+				if (count > nbyte) {
+					count = nbyte;
+				} else if (count < 0) {
+					/*
+					 * Shouldn't be able to happen
+					 * so flag error
+					 */
+					x = -1;
+					continue;
+				}
+			} else {
+				/*
+				 * Fake that we read a block
+				 */
+				offs = count;
+				count += block_size;
+				x = block_size;
+			}
+
+			/*
+			 * Copy the relevant non-aligned data from the
+			 * requester's buffer
+			 */
+			memcpy(&abuf[buf_st], &((uchar *)buf)[offs],
+			       count - offs);
+
+			/*
+			 * Write the now aligned data
+			 */
+			m.m_op = FS_ABSWRITE;
+			m.m_buf = abuf;
+			m.m_buflen = block_size;
+			m.m_arg = block_size;
+			m.m_arg1 = apos;
+			m.m_nseg = 1;
+			x = msg_send(port->p_port, &m);
+			if (x < 0) {
+				continue;
+			}
+		}
+		buf_st = 0;
+		apos += block_size;
+	} while ((count < nbyte) && (x > 0));
+		
+	/*
+	 * Completed the I/O, free up the buffer and re-establish
+	 * where we think we should be!
+	 */
+	free(abuf);
+	if (count < 0) {
+		count = 0;
+	}
+	port->p_pos += count;
+	do_seek(port, port->p_pos, SEEK_SET);
+
+	if (count > 0) {
+		x = count;
+	}
+	return(x);
+}
+
+/*
+ * do_io()
+ *	Read vs. write is virtually identical; share the code
+ */
+inline static int
+do_io(int op, struct port *port, void *buf, uint nbyte)
 {
 	struct msg m;
 	int x;
 
-	m.m_op = FS_WRITE;
+	/*
+	 * Send off request
+	 */
+	m.m_op = op;
 	m.m_buf = buf;
 	m.m_buflen = nbyte;
 	m.m_arg = nbyte;
 	m.m_arg1 = 0;
 	m.m_nseg = 1;
 	x = msg_send(port->p_port, &m);
+
+	/*
+	 * Update file position on successful I/O
+	 */
 	if (x > 0) {
 		port->p_pos += x;
+		return(x);
 	}
-	return(x);
+
+	/*
+	 * Errors other than alignment finish here.
+	 */
+	if (strcmp(strerror(), EBALIGN)) {
+		return(x);
+	}
+
+	/*
+	 * Go ahead and try to align the I/O on the fly
+	 */
+	return(balign_io(port, buf, nbyte, (op != FS_WRITE)));
+}
+
+/*
+ * do_write()
+ *	Build a write message for a generic port
+ */
+static
+do_write(struct port *port, void *buf, uint nbyte)
+{
+	return(do_io(FS_WRITE, port, buf, nbyte));
 }
 
 /*
@@ -111,20 +308,7 @@ do_write(struct port *port, void *buf, uint nbyte)
 static
 do_read(struct port *port, void *buf, uint nbyte)
 {
-	struct msg m;
-	int x;
-
-	m.m_op = FS_READ|M_READ;
-	m.m_buf = buf;
-	m.m_buflen = nbyte;
-	m.m_arg = nbyte;
-	m.m_arg1 = 0;
-	m.m_nseg = 1;
-	x = msg_send(port->p_port, &m);
-	if (x > 0) {
-		port->p_pos += x;
-	}
-	return(x);
+	return(do_io(FS_READ | M_READ, port, buf, nbyte));
 }
 
 /*
@@ -405,8 +589,14 @@ read(int fd, void *buf, uint nbyte)
 	struct port *port;
 
 	if ((port = __port(fd)) == 0) {
+		__seterr(EBADF);
 		return(-1);
 	}
+
+	if (nbyte == 0) {
+		return(0);
+	}
+	
 	return((*(port->p_read))(port, buf, nbyte));
 }
 
@@ -419,6 +609,7 @@ write(int fd, void *buf, uint nbyte)
 	struct port *port;
 
 	if ((port = __port(fd)) == 0) {
+		__seterr(EBADF);
 		return(-1);
 	}
 	if (nbyte == 0) {
@@ -437,6 +628,7 @@ lseek(int fd, off_t off, int whence)
 	struct port *port;
 
 	if ((port = __port(fd)) == 0) {
+		__seterr(EBADF);
 		return(-1);
 	}
 	return((*(port->p_seek))(port, off, whence));
@@ -455,6 +647,7 @@ close(int fd)
 	 * Look up FD
 	 */
 	if ((port = __port(fd)) == 0) {
+		__seterr(EBADF);
 		return(-1);
 	}
 

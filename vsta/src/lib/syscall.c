@@ -7,9 +7,10 @@
 
 extern pid_t _getid(int);
 
-char __err[ERRLEN];	/* Latest error string */
-uint _errcnt;		/* Bumped on each error (errno.h emulation) */
-int _errno;		/* Simulation for POSIX errno */
+char __err[ERRLEN] = "";	/* Latest error string */
+int _errno = 0;			/* Simulation for POSIX errno */
+int _old_errno = 0;		/* Last used value of the POSIX errno */
+int _err_sync = 0;		/* Used to sync errors in kernel and libc */
 
 /*
  * msg_err()
@@ -84,30 +85,54 @@ abort(void)
 char *
 strerror()
 {
+	/*
+	 * This is a bit of a hack - we would include <errno.h>, but there
+	 * are some #define'd constants with the same names, but different
+	 * values as those in <sys/fs.h>
+	 */
+	extern int *__ptr_errno(void);
 
-	if (__err[0] == '\0') {
-		if ((_strerror(__err) < 0) || !__err[0]) {
-			_errcnt += 1;
-			strcpy(__err, "unknown error");
+	/*
+	 * We first check whether or not there's been an "errno" change
+	 * since the last error string check/modification.  If there has,
+	 * the new errno represents the latest error and should be used
+	 */
+	if (_errno != _old_errno) {
+		int x = *__ptr_errno();
+	} else if (_err_sync) {
+		if (_strerror(__err) < 0) {
+			strcpy(__err, "fault");
+			_err_sync = 0;
 		}
 	}
+
 	return(__err);
 }
-
+ 
 /*
  * __seterr()
  *	Set error string to given value
  *
- * Used by internals of C library to set our error without involving
- * the kernel.
+ * Used by internals of C library to set our error state.  We then inform
+ * the kernel to keep matters straight.
  */
 __seterr(char *p)
 {
-	if (strlen(p) >= ERRLEN) {
+	/*
+	 * We need to make sure that the errno emulation won't become confused
+	 * by what we're doing.  We also need to override any kernel messages
+	 */
+	_old_errno = _errno;
+	_err_sync = 0;
+
+	if (!p) {
+		__err[0] = '\0';
+	} else if (strlen(p) >= ERRLEN) {
 		abort();
+	} else {
+		strcpy(__err, p);
 	}
-	strcpy(__err, p);
-	_errcnt += 1;
+
 	return(-1);
 }
 

@@ -12,17 +12,22 @@
  * syserr()
  *	A hidden wrapper for system error string handling
  *
- * The point of this routine is NOT to get the error string; we
- * merely clear the current error string from user space, so that
- * a subsequent strerror() call will know that it must ask the
- * kernel anew about the value.
+ * The point of this routine is NOT to get the error string.  We simply
+ * ensure that any pending __errno changes are invalidated by the new
+ * error status.  We also make sure that a flag is set to tell the libc
+ * code that it should pick it's next error string up from the kernel
  */
 	.data
-	.globl	___err
-	.globl	__errcnt
+	.globl	__errno
+	.globl	__old_errno
+	.globl	__err_sync
 	.text
-syserr:	movb	$0,___err
-	incl	__errcnt
+
+syserr:	movl	$1, __err_sync
+	push	%eax
+	movl	__errno, %eax
+	movl	%eax, __old_errno
+	pop	%eax
 	ret
 
 #define ENTRY(n, v)	.globl	_##n ; \
