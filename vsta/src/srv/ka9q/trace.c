@@ -20,7 +20,7 @@ static char nullpak[] = "empty packet!!\n";
 static char if_tr_i[] = "%s recv: [%s]\n";
 static char if_tr_o[] = "%s sent: [%s]\n";
 
-FILE *trfp = stdout;            /* file pointer used for tracing */
+FILE *trfp;			/* file pointer used for tracing */
 int trcount = 0;                /* used to close file for flushing */
 char trname[40];                /* name if not stdout */
 int notraceall;			/* 0 = trace all, 1 = only in cmd mode */

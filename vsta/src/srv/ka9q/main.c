@@ -319,6 +319,8 @@ char *argv[];
 	static char inbuf[BUFSIZ];	/* keep it off the stack */
 	FILE *fp;
 
+	trfp = stdout;
+	tty_init();
 	fileinit(argv[0]);
 	ioinit();
 

@@ -56,7 +56,7 @@ struct ttystate {
 static unsigned char std_linebuf[LINESIZE];
 
 static struct ttystate std_ttystate = 
-   { 0, stdout, TTY_COOKED, TTY_ECHO, 0, std_linebuf, std_linebuf };
+   { 0, 0, TTY_COOKED, TTY_ECHO, 0, std_linebuf, std_linebuf };
 
 #ifdef	FLOW
 int ttyflow=1;
@@ -468,4 +468,9 @@ remote_tty_iflag(tts)
  struct ttystate *tts;
 {
   return(tts->savecon.c_iflag);
+}
+
+tty_init()
+{
+  std_ttystate.file = stdout;
 }
