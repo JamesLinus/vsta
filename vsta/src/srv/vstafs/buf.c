@@ -18,6 +18,7 @@
 #include <std.h>
 #ifdef DEBUG
 #include <stdio.h>
+/* #define TRACE /* Very noisy */
 #endif
 
 static uint bufsize;		/* # sectors held in memory currently */
@@ -31,6 +32,9 @@ static struct llist allbufs;	/* Time-ordered list, for aging */
 static void
 free_buf(struct buf *b)
 {
+#ifdef TRACE
+	printf("free_buf start %ld len %d\n", b->b_start, b->b_nsec);
+#endif
 	ll_delete(b->b_list);
 	hash_delete(bufpool, b->b_start);
 	bufsize -= b->b_nsec;
@@ -191,6 +195,9 @@ resize_buf(daddr_t d, uint newsize, int fill)
 	char *p;
 	struct buf *b;
 
+#ifdef TRACE
+	printf("resize_buf start %ld len %d fill %d\n", d, newsize, fill);
+#endif
 	ASSERT_DEBUG(newsize <= EXTSIZ, "resize_buf: too large");
 	ASSERT_DEBUG(newsize > 0, "resize_buf: zero");
 	/*
@@ -205,6 +212,9 @@ resize_buf(daddr_t d, uint newsize, int fill)
 		hash_foreach(bufpool, check_span,
 			(void *)(b->b_start + newsize - 1));
 	}
+#ifdef TRACE
+	printf(" oldsize %d\n", b->b_nsec);
+#endif
 #endif
 
 	/*
@@ -276,6 +286,9 @@ init_buf(void)
 void
 dirty_buf(struct buf *b)
 {
+#ifdef TRACE
+	printf("dirty_buf start %ld\n", b->b_start);
+#endif
 	b->b_flags |= B_DIRTY;
 }
 
@@ -314,6 +327,10 @@ unlock_buf(struct buf *b)
 void
 sync_buf(struct buf *b)
 {
+#ifdef TRACE
+	printf("sync_buf start %ld (%s)\n", b->b_start,
+		(b->b_flags & B_DIRTY) ? "dirty" : "clean");
+#endif
 	/*
 	 * Skip it if not dirty
 	 */
@@ -340,9 +357,16 @@ inval_buf(daddr_t d, uint len)
 {
 	struct buf *b;
 
+#ifdef TRACE
+	printf("inval_buf start %ld len %d\n", d, len);
+#endif
 	for (;;) {
 		b = hash_lookup(bufpool, d);
 		if (b) {
+#ifdef TRACE
+			printf(" extent at %ld len %d\n", b->b_start,
+				b->b_nsec);
+#endif
 			free_buf(b);
 		}
 		if (len <= EXTSIZ) {
@@ -362,10 +386,16 @@ sync(void)
 {
 	struct llist *l;
 
+#ifdef TRACE
+	printf("sync\n");
+#endif
 	for (l = LL_NEXT(&allbufs); l != &allbufs; l = LL_NEXT(l)) {
 		struct buf *b = l->l_data;
 
 		if (b->b_flags & B_DIRTY) {
+#ifdef TRACE
+			printf(" write %ld len %d\n", b->b_start, b->b_nsec);
+#endif
 			sync_buf(b);
 		}
 	}
