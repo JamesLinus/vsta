@@ -30,6 +30,7 @@ static struct {
 	{ EINVAL, "invalid" },
 	{ ENOSPC, "no space" },
 	{ EROFS, "RO fs" },
+	{ EXDEV, "cross dev"},
 	{ 0, 0 }
 };
 
