@@ -146,7 +146,14 @@ shortname(struct directory *d)
 {
 	static char buf[14];
 
-	pack_name(d, buf);
+	/*
+	 * NULL'ed out entry means root directory
+	 */
+	if (d->name[0] == '\0') {
+		strcpy(buf, "/");
+	} else {
+		pack_name(d, buf);
+	}
 	return(buf);
 }
 
