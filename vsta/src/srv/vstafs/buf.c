@@ -18,7 +18,7 @@
 #include <std.h>
 #ifdef DEBUG
 #include <stdio.h>
-/* #define TRACE /* Very noisy */
+#undef TRACE /* Very noisy */
 #endif
 
 static uint bufsize;		/* # sectors held in memory currently */
@@ -78,6 +78,7 @@ age_buf(void)
 		free_buf(b);
 		return;
 	}
+	ASSERT(bufsize <= CORESEC, "age_buf: buffers too large");
 }
 
 #ifdef DEBUG
@@ -218,6 +219,11 @@ resize_buf(daddr_t d, uint newsize, int fill)
 #endif
 
 	/*
+	 * Current activity--move to end of age list
+	 */
+	ll_movehead(&allbufs, b->b_list);
+
+	/*
 	 * Resize to current size is a no-op
 	 */
 	if (newsize == b->b_nsec) {
@@ -246,7 +252,11 @@ resize_buf(daddr_t d, uint newsize, int fill)
 	/*
 	 * Update buf and return success
 	 */
+	bufsize = (int)bufsize + ((int)newsize - (int)b->b_nsec);
 	b->b_nsec = newsize;
+	while (bufsize > CORESEC) {
+		age_buf();
+	}
 	return(0);
 }
 
