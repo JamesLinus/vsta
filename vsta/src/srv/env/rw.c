@@ -16,17 +16,16 @@
  *	Write to an open file
  */
 void
-env_write(struct msg *m, struct file *f, int len)
+env_write(struct msg *m, struct file *f, uint len)
 {
 	struct node *n = f->f_node;
-	uint newlen, oldlen, x;
+	uint newlen, oldlen;
 	char *buf;
-	struct string *str;
 
 	/*
 	 * Can only write to a true file, and only if open for writing.
 	 */
-	if ((n->n_internal) || !(f->f_mode & ACC_WRITE)) {
+	if (DIR(n) || !(f->f_mode & ACC_WRITE)) {
 		msg_err(m->m_sender, EPERM);
 		return;
 	}
@@ -103,18 +102,19 @@ env_readdir(struct msg *m, struct file *f)
 	 */
 	x = 0;
 	buf[0] = '\0';
-	l = n->n_elems.l_forw;
+	l = LL_NEXT(&n->n_elems);
 	while (x < f->f_pos) {
 		/*
 		 * Check "EOF"
 		 */
-		if (l == &n->n_elems)
+		if (l == &n->n_elems) {
 			break;
+		}
 
 		/*
 		 * Advance
 		 */
-		l = l->l_forw;
+		l = LL_NEXT(l);
 		++x;
 	}
 
@@ -148,7 +148,7 @@ env_readdir(struct msg *m, struct file *f)
 		strcat(buf+x, "\n");
 		x += (strlen(n2->n_name)+1);
 		f->f_pos += 1;
-		l = l->l_forw;
+		l = LL_NEXT(l);
 	}
 
 	/*
@@ -169,7 +169,7 @@ env_readdir(struct msg *m, struct file *f)
  * Internal nodes get their own routine.
  */
 void
-env_read(struct msg *m, struct file *f, int len)
+env_read(struct msg *m, struct file *f, uint len)
 {
 	int cnt;
 	char *buf;
@@ -178,7 +178,7 @@ env_read(struct msg *m, struct file *f, int len)
 	/*
 	 * Directory
 	 */
-	if (n->n_internal) {
+	if (DIR(n)) {
 		env_readdir(m, f);
 		return;
 	}
