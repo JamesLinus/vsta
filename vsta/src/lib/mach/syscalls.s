@@ -33,4 +33,6 @@ ENTRY(clone, S_CLONE)
 ENTRY(page_wire, S_PAGE_WIRE)
 ENTRY(page_release, S_PAGE_RELEASE)
 ENTRY(enable_dma, S_ENABLE_DMA)
+ENTRY(time_get, S_TIME_GET)
+ENTRY(time_sleep, S_TIME_SLEEP)
 

@@ -21,7 +21,8 @@ extern int msg_port(), msg_connect(), msg_accept(), msg_send(),
 	msg_receive(), msg_reply(), msg_disconnect(), msg_err();
 extern int exit(), fork(), fork_thread(), enable_io(), enable_isr(),
 	mmap(), munmap(), strerror(), notify(), clone();
-extern int page_wire(), page_release(), enable_dma();
+extern int page_wire(), page_release(), enable_dma(), time_get(),
+	time_sleep();
 
 struct syscall {
 	intfun s_fun;
@@ -48,6 +49,8 @@ struct syscall {
 	{page_wire, 2},				/* 18 */
 	{page_release, 1},			/* 19 */
 	{enable_dma, 0},			/* 20 */
+	{time_get, 1},				/* 21 */
+	{time_sleep, 1},			/* 22 */
 };
 #define NSYSCALL (sizeof(syscalls) / sizeof(struct syscall))
 #define MAXARGS (6)

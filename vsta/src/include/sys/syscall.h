@@ -25,6 +25,8 @@
 #define S_PAGE_WIRE 18
 #define S_PAGE_RELEASE 19
 #define S_ENABLE_DMA 20
-#define S_HIGH S_ENABLE_DMA
+#define S_TIME_GET 21
+#define S_TIME_SLEEP 22
+#define S_HIGH S_TIME_SLEEP
 
 #endif /* _SYSCALL_H */
