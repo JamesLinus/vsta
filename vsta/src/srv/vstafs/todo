@@ -1,28 +1,28 @@
-Make sure directory entries are not honored in EXTSIZ-allocated
-	storage at end of dir file.
+X Make sure directory entries are not honored in EXTSIZ-allocated
+X 	storage at end of dir file.
 
-Make sure on file expansion that we don't read in the new space
-	from disk.
+X Make sure on file expansion that we don't read in the new space
+X 	from disk.
 
-Add a "first sector dirty" flag so we don't have to flush the first
-	full extent just to update fs_file
-	In fact, add interface of dirtying a range.  Allows for a
-	bitmap in the future.
+X Add a "first sector dirty" flag so we don't have to flush the first
+X 	full extent just to update fs_file
+X 	In fact, add interface of dirtying a range.  Allows for a
+X 	bitmap in the future.
 
-Add a "only first sector is valid" flag, so we don't have to read
-	the whole 64K of a file just to do a stat--just read the
-	1st sector which holds all the file information.
+X Add a "only first sector is valid" flag, so we don't have to read
+X 	the whole 64K of a file just to do a stat--just read the
+X 	1st sector which holds all the file information.
 
 Directory block allocation is stupid--it will always be maximally
 	fragmented.  Perhaps use a power-of-two progression when
 	allocating extents?  Certainly can't use the default file
 	allocation algorithm--the usage pattern is too different.
 
-Ensure deletion of a directory can't happen unless it's empty.
+X Ensure deletion of a directory can't happen unless it's empty.
 
 Directory rename.  Does it work?
 
-fsck--when find "lost" blocks need to add back to free list
+X fsck--when find "lost" blocks need to add back to free list
 
 Buffers shouldn't be moving on resize.  We should use a 64K-sized
 	buffer and just munmap() (or something) the trailing pages.
