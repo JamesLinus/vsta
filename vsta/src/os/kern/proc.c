@@ -496,6 +496,14 @@ free_proc(struct proc *p)
 	 */
 	close_ports(p->p_ports, PROCPORTS);
 	close_portrefs(p->p_open, PROCOPENS);
+	if (p->p_prefs) {
+		ASSERT_DEBUG(hash_size(p->p_prefs) == 0,
+			"free_proc: p_prefs not empty");
+		hash_dealloc(p->p_prefs);
+#ifdef DEBUG
+		p->p_prefs = 0;
+#endif
+	}
 
 	/*
 	 * Delete us from the "allproc" list
