@@ -6,6 +6,7 @@
 #include <sys/assert.h>
 #include <sys/malloc.h>
 #include <alloc.h>
+#include "../mach/mutex.h"
 
 /*
  * parent_exitgrp()
@@ -16,13 +17,13 @@ parent_exitgrp(struct exitgrp *e)
 {
 	pid_t pid;
 
-	(void)p_lock(&e->e_lock, SPL0);
+	p_lock_fast(&e->e_lock, SPL0);
 	if (e->e_parent) {
 		pid = e->e_parent->p_pid;
 	} else {
 		pid = -1;
 	}
-	v_lock(&e->e_lock, SPL0);
+	v_lock(&e->e_lock, SPL0_SAME);
 	return(pid);
 }
 
@@ -51,10 +52,10 @@ alloc_exitgrp(struct proc *parent)
 void
 ref_exitgrp(struct exitgrp *e)
 {
-	(void)p_lock(&e->e_lock, SPL0);
+	p_lock_fast(&e->e_lock, SPL0);
 	e->e_refs += 1;
 	ASSERT_DEBUG(e->e_refs > 0, "ref_exitgrp: overflow");
-	v_lock(&e->e_lock, SPL0);
+	v_lock(&e->e_lock, SPL0_SAME);
 }
 
 /*
@@ -67,16 +68,16 @@ ref_exitgrp(struct exitgrp *e)
 void
 deref_exitgrp(struct exitgrp *e)
 {
-	p_lock(&e->e_lock, SPL0);
+	p_lock_fast(&e->e_lock, SPL0);
 	ASSERT_DEBUG(e->e_refs > 0, "deref_exitgrp: no refs");
 	e->e_refs -= 1;
 	if (e->e_refs > 0) {
-		v_lock(&e->e_lock, SPL0);
+		v_lock(&e->e_lock, SPL0_SAME);
 		return;
 	}
 	ASSERT_DEBUG(e->e_parent == 0, "deref_exitgrp: !ref parent");
 	ASSERT_DEBUG(e->e_stat == 0, "deref_exitgrp: stat");
-	v_lock(&e->e_lock, SPL0);	/* for per-CPU lock counting */
+	v_lock(&e->e_lock, SPL0_SAME);	/* for per-CPU lock counting */
 	FREE(e, MT_EXITGRP);
 }
 
@@ -93,7 +94,7 @@ noparent_exitgrp(struct exitgrp *e)
 {
 	struct exitst *es, *esn;
 
-	p_lock(&e->e_lock, SPL0);
+	p_lock_fast(&e->e_lock, SPL0);
 	ASSERT_DEBUG(e->e_parent, "noparent_exitgrp: no parent");
 
 	/*
@@ -108,7 +109,7 @@ noparent_exitgrp(struct exitgrp *e)
 	 */
 	es = e->e_stat;
 	e->e_stat = 0;
-	v_lock(&e->e_lock, SPL0);
+	v_lock(&e->e_lock, SPL0_SAME);
 
 	/*
 	 * Free the status messages
@@ -157,14 +158,14 @@ post_exitgrp(struct exitgrp *e, struct proc *p, int code)
 	 * Queue.  Zero our pointer if it was queued, leave it non-zero
 	 * if our parent has departed.
 	 */
-	p_lock(&e->e_lock, SPL0);
+	p_lock_fast(&e->e_lock, SPL0);
 	if (e->e_parent) {
 		es->e_next = e->e_stat;
 		e->e_stat = es;
 		es = 0;
 		v_sema(&e->e_sema);
 	}
-	v_lock(&e->e_lock, SPL0);
+	v_lock(&e->e_lock, SPL0_SAME);
 
 	/*
 	 * If we raced, free the (unqueued) message
@@ -185,7 +186,7 @@ wait_exitgrp(struct exitgrp *e, int block)
 
 	ASSERT_DEBUG(e->e_parent, "wait_exitgrp: !parent");
 retry:
-	p_lock(&e->e_lock, SPL0);
+	p_lock_fast(&e->e_lock, SPL0);
 
 	/*
 	 * A status message awaits.  Take it.
@@ -207,11 +208,11 @@ retry:
 		/*
 		 * We now have a message to remove
 		 */
-		p_lock(&e->e_lock, SPL0);
+		p_lock_fast(&e->e_lock, SPL0);
 		es = e->e_stat;
 		ASSERT_DEBUG(es, "wait_exitgrp: stat out of synch");
 		e->e_stat = es->e_next;
-		v_lock(&e->e_lock, SPL0);
+		v_lock(&e->e_lock, SPL0_SAME);
 		return(es);
 	}
 

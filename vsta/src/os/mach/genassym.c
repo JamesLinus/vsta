@@ -92,6 +92,11 @@ main(int argc, char **argv)
 	CONST(T_GENPRO); CONST(T_PGFLT); CONST(T_NPX); CONST(T_SYSCALL);
 	CONST(T_CPSOVER);
 
+	/*
+	 * IRQ software vector
+	 */
+	CONST(T_EXTERN);
+
 	close(outfd);
 	return(0);
 }

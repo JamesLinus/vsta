@@ -20,7 +20,9 @@
 #include <sys/thread.h>
 #include <sys/assert.h>
 #include <sys/malloc.h>
+#include <sys/misc.h>
 #include <hash.h>
+#include "msg.h"
 
 extern void free_seg(), ref_port(), deref_port();
 extern struct portref *find_portref();
@@ -29,56 +31,18 @@ extern struct seg *make_seg();
 extern int attach_seg();
 
 /*
- * lqueue_msg()
- *	Queue a message when port is already locked
- */
-void
-lqueue_msg(struct port *port, struct sysmsg *sm)
-{
-	sm->m_next = 0;
-	if (port->p_tl) {
-		port->p_tl->m_next = sm;
-	}
-	port->p_tl = sm;
-	if (!port->p_hd) {
-		port->p_hd = sm;
-	}
-	v_sema(&port->p_wait);
-}
-
-/*
- * queue_msg()
- *	Queue a message to the given port's queue
- *
- * This routine handles all locking of the given port.
- */
-void
-queue_msg(struct port *port, struct sysmsg *sm)
-{
-	spl_t s;
-
-	/*
-	 * Lock down destination port, put message in queue, and
-	 * bump its sleeping semaphore.
-	 */
-	s = p_lock(&port->p_lock, SPLHI);
-	lqueue_msg(port, sm);
-	v_lock(&port->p_lock, s);
-}
-
-/*
  * freesegs()
  *	Release all references indicated by the segments of a sysmsg
  */
-void
+inline void
 freesegs(struct sysmsg *sm)
 {
-	int x;
+	uint x;
 
-	for (x = 0; x < sm->m_nseg; ++x) {
-		free_seg(sm->m_seg[x]);
+	for (x = 0; x < sm->sm_nseg; ++x) {
+		free_seg(sm->sm_seg[x]);
 	}
-	sm->m_nseg = 0;
+	sm->sm_nseg = 0;
 }
 
 /*
@@ -90,10 +54,10 @@ freesegs(struct sysmsg *sm)
 void
 unmapsegs(struct segref *segref)
 {
-	int x;
+	uint x;
 	struct seg *s;
 
-	for (x = 0; x <= MSGSEGS; ++x) {
+	for (x = 0; x < MSGSEGS; ++x) {
 		if ((s = segref->s_refs[x]) == 0) {
 			break;
 		}
@@ -110,63 +74,61 @@ unmapsegs(struct segref *segref)
  * Records the attachment under the segref structure, which
  * will be cleared of old mappings if necessary.
  */
-static
+static int
 mapsegs(struct proc *p, struct sysmsg *sm, struct segref *segref)
 {
-	int x;
+	uint x;
 	uint cnt = 0;
 	struct seg *s;
 
-	if (segref->s_refs[0]) {
-		unmapsegs(segref);
-	}
-	for (x = 0; x < sm->m_nseg; ++x) {
-		s = sm->m_seg[x];
+	for (x = 0; x < sm->sm_nseg; ++x) {
+		s = sm->sm_seg[x];
 		if (attach_seg(p->p_vas, s)) {
-			int y;
+			uint y;
 
 			for (y = 0; y < x; ++y) {
-				s = sm->m_seg[y];
+				s = sm->sm_seg[y];
 				segref->s_refs[y] = 0;
 				detach_seg(s);
 			}
-			err(ENOMEM);
-			return(-1);
+			return(err(ENOMEM));
 		}
 		segref->s_refs[x] = s;
 		cnt += s->s_len;
 	}
-	segref->s_refs[sm->m_nseg] = 0;
+	if (sm->sm_nseg != MSGSEGS) {
+		segref->s_refs[sm->sm_nseg] = 0;
+	}
 	return(cnt);
 }
 
 /*
  * sm_to_m()
- *	Convert the segment information from sysmsg to struct msg format
+ *	Convert the segment information from the sysmsg format to its
+ *	internal msg format
  */
 static void
-sm_to_m(struct sysmsg *sm, struct msg *m)
+sm_to_m(struct sysmsg *sm)
 {
-	int x;
+	uint x;
 	seg_t *s;
 	struct seg *seg;
+	struct msg *m = &sm->sm_msg;
 
-	m->m_sender = (port_t)sm->m_sender;
-	m->m_op = sm->m_op & ~M_READ;
-	m->m_arg = sm->m_arg;
-	m->m_arg1 = sm->m_arg1;
-	m->m_nseg = sm->m_nseg;
-	for (x = 0, s = m->m_seg; x < sm->m_nseg; ++x,++s) {
-		seg = sm->m_seg[x];
+	m->m_op &= ~M_READ;
+	m->m_nseg = sm->sm_nseg;
+	m->m_sender = (ulong)sm->sm_sender;
+	for (x = 0, s = m->m_seg; x < sm->sm_nseg; ++x, ++s) {
+		seg = sm->sm_seg[x];
 		s->s_buf = (char *)(seg->s_pview.p_vaddr) + seg->s_off;
 		s->s_buflen = seg->s_len;
 	}
-	sm->m_nseg = 0;
+	sm->sm_nseg = 0;
 }
 
 /*
  * m_to_sm()
- *	Convert from user segments to sysmsg format
+ *	Convert from user segments (msg format) to sysmsg format
  *
  * For !M_READ, creates segments for each chunk of user memory,
  * walks across all the "segments" of the user's message,
@@ -179,12 +141,13 @@ sm_to_m(struct sysmsg *sm, struct msg *m)
  *
  * On error, sets err() and returns -1.  On success, returns 0.
  */
-static
-m_to_sm(struct vas *vas, struct msg *m, struct sysmsg *sm)
+static int
+m_to_sm(struct vas *vas, struct sysmsg *sm)
 {
-	int x;
+	uint x;
 	struct seg *seg;
 	seg_t *s;
+	struct msg *m = &sm->sm_msg;
 
 	/*
 	 * Sanity check # segments
@@ -194,16 +157,9 @@ m_to_sm(struct vas *vas, struct msg *m, struct sysmsg *sm)
 	}
 
 	/*
-	 * Copy over header part
-	 */
-	sm->m_op = m->m_op;
-	sm->m_arg = m->m_arg;
-	sm->m_arg1 = m->m_arg1;
-
-	/*
 	 * Walk user segments, construct struct seg's for each part
 	 */
-	if (!(sm->m_op & M_READ)) {
+	if (!(sm->sm_op & M_READ)) {
 		for (x = 0, s = m->m_seg; x < m->m_nseg; ++x, ++s) {
 			/*
 			 * On error, have to go back and clean up the
@@ -212,20 +168,20 @@ m_to_sm(struct vas *vas, struct msg *m, struct sysmsg *sm)
 			 */
 			seg = make_seg(vas, s->s_buf, s->s_buflen);
 			if (seg == 0) {
-				int y;
+				uint y;
 
 				for (y = 0; y < x; ++y) {
-					free_seg(sm->m_seg[y]);
-					sm->m_seg[y] = 0;
+					free_seg(sm->sm_seg[y]);
+					sm->sm_seg[y] = 0;
 				}
-				sm->m_nseg = 0;
+				sm->sm_nseg = 0;
 				return(err(EFAULT));
 			}
-			sm->m_seg[x] = seg;
+			sm->sm_seg[x] = seg;
 		}
-		sm->m_nseg = m->m_nseg;
+		sm->sm_nseg = m->m_nseg;
 	} else {
-		sm->m_nseg = 0;
+		sm->sm_nseg = 0;
 	}
 	return(0);
 }
@@ -241,22 +197,19 @@ m_to_sm(struct vas *vas, struct msg *m, struct sysmsg *sm)
  * any corresponding reply segments and maps them back into
  * this process' address space.
  */
+int
 msg_send(port_t arg_port, struct msg *arg_msg)
 {
 	struct portref *pr;
-	int holding_pr = 0;
-	struct msg *m;
-	struct sysmsg *sm = 0;
+	struct sysmsg sm;
 	struct proc *p = curthread->t_proc;
 	int error = 0;
 
 	/*
 	 * Get message body
 	 */
-	m = MALLOC(sizeof(struct msg), MT_MSG);
-	if (copyin(arg_msg, m, sizeof(struct msg))) {
-		error = err(EFAULT);
-		goto out;
+	if (copyin(arg_msg, &sm.sm_msg, sizeof(struct msg))) {
+		return(err(EFAULT));
 	}
 
 	/*
@@ -268,9 +221,8 @@ msg_send(port_t arg_port, struct msg *arg_msg)
 	 * We mask the low bits to avoid being confused by the
 	 * M_READ bit in the higher bits.
 	 */
-	if ((m->m_op & 0xFFF) < M_RESVD) {
-		if ((m->m_op & 0xFFF) != M_TIME) {
-			FREE(m, MT_MSG);
+	if ((sm.sm_op & 0xFFF) < M_RESVD) {
+		if ((sm.sm_op & 0xFFF) != M_TIME) {
 			return(err(EINVAL));
 		}
 	}
@@ -278,10 +230,9 @@ msg_send(port_t arg_port, struct msg *arg_msg)
 	/*
 	 * Construct a system message
 	 */
-	sm = MALLOC(sizeof(struct sysmsg), MT_SYSMSG);
-	if (m_to_sm(p->p_vas, m, sm)) {
+	if (m_to_sm(p->p_vas, &sm)) {
 		error = -1;
-		goto out;
+		goto out2;
 	}
 
 	/*
@@ -290,13 +241,14 @@ msg_send(port_t arg_port, struct msg *arg_msg)
 	 */
 	pr = find_portref(p, arg_port);
 	if (pr == 0) {
-		/* find_portref() sets err() */
+		/*
+		 * find_portref() sets err() for us
+		 */
 		error = -1;
-		goto out;
+		goto out2;
 	}
-	holding_pr = 1;
-	sm->m_sender = pr;
-	pr->p_msg = sm;
+	sm.sm_sender = pr;
+	pr->p_msg = &sm;
 
 	/*
 	 * Set up our message transfer state
@@ -307,13 +259,13 @@ msg_send(port_t arg_port, struct msg *arg_msg)
 	/*
 	 * Put message on queue
 	 */
-	queue_msg(pr->p_port, sm);
+	queue_msg(pr->p_port, &sm, SPL0);
 
 	/*
 	 * Now wait for the I/O to finish or be interrupted
 	 */
 	if (p_sema_v_lock(&pr->p_iowait, PRICATCH, &pr->p_lock)) {
-		struct sysmsg *sm2;
+		struct sysmsg sm2;
 
 		/*
 		 * Oops.  Interrupted.  Grapple with the server for
@@ -321,8 +273,7 @@ msg_send(port_t arg_port, struct msg *arg_msg)
 		 * message before we take the lock, in case we need
 		 * it.
 		 */
-		sm2 = MALLOC(sizeof(struct sysmsg), MT_SYSMSG);
-		p_lock(&pr->p_lock, SPL0);
+		p_lock_fast(&pr->p_lock, SPL0_SAME);
 
 		/*
 		 * Based on the state, either abort the I/O or
@@ -334,11 +285,11 @@ msg_send(port_t arg_port, struct msg *arg_msg)
 			 * Send an M_ABORT and then wait for completion
 			 * ignoring further interrupts.
 			 */
-			sm2->m_sender = pr;
-			sm2->m_op = M_ABORT;
-			sm2->m_arg = sm2->m_arg1 = 0;
-			sm2->m_nseg = 0;
-			queue_msg(pr->p_port, sm2);
+			sm2.sm_sender = pr;
+			sm2.sm_op = M_ABORT;
+			sm2.sm_arg = sm2.sm_arg1 = 0;
+			sm2.sm_nseg = 0;
+			queue_msg(pr->p_port, &sm2, SPL0);
 			pr->p_state = PS_ABWAIT;
 			p_sema_v_lock(&pr->p_iowait, PRIHI, &pr->p_lock);
 			ASSERT_DEBUG(pr->p_state == PS_ABDONE,
@@ -354,30 +305,29 @@ msg_send(port_t arg_port, struct msg *arg_msg)
 			 * it for next time.
 			 */
 			set_sema(&pr->p_iowait, 0);
-			v_lock(&pr->p_lock, SPL0);
+			v_lock(&pr->p_lock, SPL0_SAME);
 			break;
 		default:
-			printf("Port 0x%x, state %d\n", pr, pr->p_state);
 			ASSERT(0, "msg_send: illegal PS state");
+			break;
 		}
-		FREE(sm2, MT_SYSMSG);
 
 		/*
 		 * Done with I/O on port.  Return error.
 		 */
 		error = err(EINTR);
-		goto out;
+		goto out1;
 	}
 
 	/*
 	 * If the server indicates error, set it and leave
 	 */
-	if (sm->m_arg == -1) {
-		error = err(sm->m_err);
-		goto out;
+	if (sm.sm_arg == -1) {
+		error = err(sm.sm_err);
+		goto out1;
 	}
 
-	if (sm->m_nseg) {
+	if (sm.sm_nseg) {
 		struct segref segrefs;
 
 		/*
@@ -385,27 +335,28 @@ msg_send(port_t arg_port, struct msg *arg_msg)
 		 * space.
 		 */
 		segrefs.s_refs[0] = 0;
-		error = mapsegs(p, sm, &segrefs);
-		if (error == -1) {
-			goto out;
+		if (mapsegs(p, &sm, &segrefs) == -1) {
+			error = -1;
+			goto out1;
 		}
 
 		/*
 		 * Copy out segments to user's buffer, then let them go
 		 */
-		error = copyoutsegs(sm, m);
+		error = copyoutsegs(&sm);
 		unmapsegs(&segrefs);
 		if (error == -1) {
-			goto out;
+			goto out1;
 		}
 
 		/*
 		 * Translate rest of message to user format, give back
 		 * to user.
 		 */
-		sm_to_m(sm, m);
-		if (copyout(arg_msg, m, sizeof(struct msg))) {
+		sm_to_m(&sm);
+		if (copyout(arg_msg, &sm.sm_msg, sizeof(struct msg))) {
 			error = err(EFAULT);
+			goto out1;
 		}
 	}
 
@@ -413,25 +364,19 @@ msg_send(port_t arg_port, struct msg *arg_msg)
 	 * If return value is not otherwise indicated, use m_arg
 	 */
 	if (error == 0) {
-		error = sm->m_arg;
+		error = sm.sm_arg;
 	}
 
-out:
+out1:
 	/*
 	 * Clean up and return success/failure
 	 */
-	if (holding_pr) {
-		v_sema(&pr->p_svwait);
-		v_sema(&pr->p_sema);
-	}
-	if (m) {
-		FREE(m, MT_MSG);
-	}
-	if (sm) {
-		if (sm->m_nseg) {
-			freesegs(sm);
-		}
-		FREE(sm, MT_SYSMSG);
+	v_sema(&pr->p_svwait);
+	v_sema(&pr->p_sema);
+
+out2:
+	if (sm.sm_nseg) {
+		freesegs(&sm);
 	}
 	return(error);
 }
@@ -440,7 +385,7 @@ out:
  * new_client()
  *	Record a new client for this server port
  */
-static void
+static inline void
 new_client(struct portref *pr)
 {
 	struct proc *p = curthread->t_proc;
@@ -456,7 +401,7 @@ new_client(struct portref *pr)
  * del_client()
  *	Delete an existing client from our hash
  */
-static void
+static inline void
 del_client(struct portref *pr)
 {
 	struct proc *p = curthread->t_proc;
@@ -472,7 +417,7 @@ del_client(struct portref *pr)
  * receive_isr()
  *	Copy out an M_ISR message to the user
  */
-static
+static inline int
 receive_isr(int isr, int nintr, struct msg *arg_msg)
 {
 	struct msg m;
@@ -484,24 +429,24 @@ receive_isr(int isr, int nintr, struct msg *arg_msg)
 	m.m_arg = isr;
 	m.m_arg1 = nintr;
 	m.m_nseg = 0;
+	m.m_sender = 0;
 
 	/*
 	 * Send it out to him
 	 */
-	return(copyout(arg_msg, &m, sizeof(m)));
+	return(copyout(arg_msg, &m, sizeof(struct msg)));
 }
 
 /*
  * msg_receive()
  *	Receive next message from queue
  */
+int
 msg_receive(port_t arg_port, struct msg *arg_msg)
 {
 	struct port *port;
-	int holding_port = 0;
 	struct proc *p = curthread->t_proc;
-	struct sysmsg *sm = 0;
-	struct msg *m = 0;
+	struct sysmsg *sm;
 	int error = 0;
 	struct portref *pr;
 
@@ -512,21 +457,19 @@ msg_receive(port_t arg_port, struct msg *arg_msg)
 	if (!port) {
 		return(-1);
 	}
-	holding_port = 1;
 
 	/*
 	 * Wait for something to arrive for us
 	 */
-	error = p_sema_v_lock(&port->p_wait, PRICATCH, &port->p_lock);
-	p_lock(&port->p_lock, SPLHI);
-
-	/*
-	 * Interrupted system call.
-	 */
-	if (error) {
-		error = err(EINTR);
-		goto out;
+	if (p_sema_v_lock(&port->p_wait, PRICATCH, &port->p_lock)) {
+		/*
+		 * Interrupted system call.
+		 */
+		v_sema(&port->p_sema);
+		return(err(EINTR));
 	}
+
+	p_lock_fast(&port->p_lock, SPLHI);
 	ASSERT_DEBUG(port->p_hd,
 		"msg_receive: p_wait/p_hd disagree");
 
@@ -534,7 +477,7 @@ msg_receive(port_t arg_port, struct msg *arg_msg)
 	 * Extract next message, then release port
 	 */
 	sm = port->p_hd;
-	port->p_hd = sm->m_next;
+	port->p_hd = sm->sm_next;
 	if (port->p_hd == 0) {
 		port->p_tl = 0;
 	}
@@ -544,21 +487,21 @@ msg_receive(port_t arg_port, struct msg *arg_msg)
 	 * special messages we handle carefully to avoid losing
 	 * an interrupt.
 	 */
-	if (sm->m_op == M_ISR) {
+	if (sm->sm_op == M_ISR) {
 		int isr, nintr;
 
 		/*
 		 * Record ISR and count before we release the sysmsg
 		 * back for further use.
 		 */
-		isr = sm->m_arg;
-		nintr = sm->m_arg1;
+		isr = sm->sm_arg;
+		nintr = sm->sm_arg1;
 
 		/*
 		 * Flag sysmsg as "off the queue"
 		 */
-		sm->m_op = 0;
-		v_lock(&port->p_lock, SPL0); holding_port = 0;
+		sm->sm_op = 0;
+		v_lock(&port->p_lock, SPL0);
 
 		/*
 		 * Make sure we don't fiddle with the sysmsg any more.
@@ -572,74 +515,75 @@ msg_receive(port_t arg_port, struct msg *arg_msg)
 	/*
 	 * Have our message, release port.
 	 */
-	pr = sm->m_sender;
+	pr = sm->sm_sender;
 
 	/*
 	 * Connect messages are special; the buffer is the array
 	 * of permissions which the connector possesses.  The portref
 	 * is new and must be added to our hash.
 	 */
-	if (sm->m_op == M_CONNECT) {
+	if (sm->sm_op == M_CONNECT) {
 		extern struct seg *kern_mem();
 
 		ref_port(port, pr);
-		v_lock(&port->p_lock, SPL0); holding_port = 0;
+		v_lock(&port->p_lock, SPL0);
 		new_client(pr);
 
-		sm->m_seg[0] = kern_mem(sm->m_seg[0], sm->m_nseg);
-		sm->m_nseg = 1;
+		sm->sm_seg[0] = kern_mem(sm->sm_seg[0], sm->sm_nseg);
+		sm->sm_nseg = 1;
 
 	/*
 	 * Disconnect message mean we remove the portref from
 	 * our hash, tell our server he's gone, and let the
 	 * client complete his disconnect and free his portref.
 	 */
-	} else if (sm->m_op == M_DISCONNECT) {
+	} else if (sm->sm_op == M_DISCONNECT) {
 		ASSERT_DEBUG(pr->p_state == PS_CLOSING,
 			"msg_receive: DISC but not CLOSING");
 		ASSERT_DEBUG(pr->p_port == port,
 			"msg_receive: DISC pr mismatch");
 		deref_port(port, pr);
-		v_lock(&port->p_lock, SPL0); holding_port = 0;
+		v_lock(&port->p_lock, SPL0);
 		del_client(pr);
 		unmapsegs(&pr->p_segs);
 		v_sema(&pr->p_iowait);
 	} else {
-		v_lock(&port->p_lock, SPL0); holding_port = 0;
+		v_lock(&port->p_lock, SPL0);
 	}
 
 	/*
 	 * We now have a message, and are running under an address space
 	 * into which we now may want to map the parts of the message.
 	 */
-	m = MALLOC(sizeof(struct msg), MT_MSG);
-	if (sm->m_nseg) {
+	if (sm->sm_nseg) {
+		if (pr->p_segs.s_refs[0]) {
+			unmapsegs(&pr->p_segs);
+		}
 		error = mapsegs(p, sm, &pr->p_segs);
 		if (error == -1) {
 			goto out;
 		}
 	}
-	sm_to_m(sm, m);
-	if (copyout(arg_msg, m, sizeof(struct msg))) {
+	sm_to_m(sm);
+	if (!copyout(arg_msg, &sm->sm_msg, sizeof(struct msg))) {
+		/*
+		 * All completed successfully - release the
+		 * port semaphore and return
+		 */
+		v_sema(&port->p_sema);
+		return(error);
+	} else {
 		error = err(EFAULT);
-		goto out;
 	}
 
 	/*
-	 * All done.  Release any remaining locks and return
-	 * success/failure.
+	 * All done.  Release the port semaphore and report our
+	 * failure (we've already returned if we were successful
 	 */
 out:
-	if (holding_port) {
-		v_lock(&port->p_lock, SPL0);
-	}
 	v_sema(&port->p_sema);
-	if (m) {
-		FREE(m, MT_MSG);
-	}
-	if (sm && sm->m_nseg) {
+	if (sm && sm->sm_nseg) {
 		freesegs(sm);
-		sm->m_nseg = 0;
 	}
 	return(error);
 }
@@ -648,29 +592,25 @@ out:
  * msg_reply()
  *	Reply to a message received through msg_receive()
  */
+int
 msg_reply(long arg_who, struct msg *arg_msg)
 {
 	struct proc *p = curthread->t_proc;
 	struct portref *pr;
-	int holding_pr = 0;
-	struct msg *m;
-	struct sysmsg *sm;
+	struct sysmsg sm;
 	int error = 0;
 
 	/*
 	 * Get a copy of the user's reply message
 	 */
-	m = MALLOC(sizeof(struct msg), MT_MSG);
-	if (copyin(arg_msg, m, sizeof(struct msg))) {
-		FREE(m, MT_MSG);
+	if (copyin(arg_msg, &sm.sm_msg, sizeof(struct msg))) {
 		return(err(EFAULT));
 	}
-	sm = MALLOC(sizeof(struct sysmsg), MT_SYSMSG);
 
 	/*
 	 * Try to map segments into sysmsg format
 	 */
-	if (m_to_sm(p->p_vas, m, sm)) {
+	if (m_to_sm(p->p_vas, &sm)) {
 		error = -1;
 		goto out;
 	}
@@ -685,14 +625,13 @@ msg_reply(long arg_who, struct msg *arg_msg)
 	pr = hash_lookup(p->p_prefs, arg_who);
 	if (pr) {
 		unmapsegs(&pr->p_segs);
-		p_lock(&pr->p_lock, SPL0); holding_pr = 1;
-	}
-	v_sema(&p->p_sema);
-
-	/*
-	 * If we didn't find the portref, bounce them.
-	 */
-	if (!pr) {
+		p_lock_fast(&pr->p_lock, SPL0_SAME);
+		v_sema(&p->p_sema);
+	} else {
+		/*
+		 * If we didn't find the portref, bounce them.
+		 */
+		v_sema(&p->p_sema);
 		error = err(EINVAL);
 		goto out;
 	}
@@ -709,25 +648,35 @@ msg_reply(long arg_who, struct msg *arg_msg)
 	 * the message, and let us free.
 	 */
 	case PS_IOWAIT:
-		if ((pr->p_msg->m_op == M_DUP) && (sm->m_arg != -1)) {
+		if ((pr->p_msg->sm_op == M_DUP) && (sm.sm_arg != -1)) {
 			struct port *port = pr->p_port;
 			struct portref *newpr = (struct portref *)
-				(pr->p_msg->m_arg);
+				(pr->p_msg->sm_arg);
 
 			ASSERT_DEBUG(newpr->p_port == port,
 				"msg_reply: newpr != port");
-			p_lock(&port->p_lock, SPLHI);
-			ref_port(pr->p_port, newpr);
+			p_lock_fast(&port->p_lock, SPLHI);
+			ref_port(port, newpr);
 			v_lock(&port->p_lock, SPL0);
-			v_lock(&pr->p_lock, SPL0); holding_pr = 0;
+			v_lock(&pr->p_lock, SPL0_SAME);
 			v_sema(&pr->p_iowait);
 			new_client(newpr);
 		} else {
 			/*
-			 * Give him the sysmsg.
+			 * Give him the parts of the sysmsg
+			 * that he needs from us
 			 */
-			*(pr->p_msg) = *sm;	
-			sm->m_nseg = 0;		/* He has them */
+			struct sysmsg *om = pr->p_msg;
+			
+			om->sm_op = sm.sm_op;
+			om->sm_arg = sm.sm_arg;
+			om->sm_arg1 = sm.sm_arg1;
+			om->sm_nseg = sm.sm_nseg;
+			om->sm_sender = sm.sm_sender;
+			om->sm_segs = sm.sm_segs;
+			om->sm_errs = sm.sm_errs;
+			
+			sm.sm_nseg = 0;		/* He has them */
 
 			/*
 			 * Let him run
@@ -736,7 +685,12 @@ msg_reply(long arg_who, struct msg *arg_msg)
 			set_sema(&pr->p_svwait, 0);
 			v_sema(&pr->p_iowait);
 			p_sema_v_lock(&pr->p_svwait, PRIHI, &pr->p_lock);
-			holding_pr = 0;
+
+			/*
+			 * As we have no segments now we can take an
+			 * early exit out of the function
+			 */
+			return(0);
 		}
 		break;
 
@@ -747,12 +701,14 @@ msg_reply(long arg_who, struct msg *arg_msg)
 	 * response.
 	 */
 	case PS_ABWAIT:
-		if (sm->m_op != M_ABORT) {
+		if (sm.sm_op != M_ABORT) {
 			error = err(EIO);
+			v_lock(&pr->p_lock, SPL0_SAME);
 			goto out;
 		}
 		pr->p_state = PS_ABDONE;
 		v_sema(&pr->p_iowait);
+		v_lock(&pr->p_lock, SPL0_SAME);
 		break;
 
 	/*
@@ -763,6 +719,7 @@ msg_reply(long arg_who, struct msg *arg_msg)
 	case PS_ABDONE:
 	default:
 		error = err(EINVAL);
+		v_lock(&pr->p_lock, SPL0_SAME);
 		break;
 	}
 
@@ -770,17 +727,8 @@ msg_reply(long arg_who, struct msg *arg_msg)
 	 * All done.  Release locks, free memory, return result
 	 */
 out:
-	if (holding_pr) {
-		v_lock(&pr->p_lock, SPL0);
-	}
-	if (m) {
-		FREE(m, MT_MSG);
-	}
-	if (sm) {
-		if (sm->m_nseg) {
-			freesegs(sm);
-		}
-		FREE(sm, MT_SYSMSG);
+	if (sm.sm_nseg) {
+		freesegs(&sm);
 	}
 	return(error);
 }

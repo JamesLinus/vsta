@@ -7,10 +7,10 @@
 #include <sys/proc.h>
 #include <sys/thread.h>
 #include <sys/msg.h>
-#include <sys/mutex.h>
 #include <sys/fs.h>
 #include <sys/malloc.h>
 #include <sys/assert.h>
+#include "../mach/mutex.h"
 
 /*
  * find_portref()
@@ -59,14 +59,14 @@ find_portref(struct proc *p, port_t port)
 	/*
 	 * Take spinlock on portref.  Release proc.
 	 */
-	p_lock(&ptref->p_lock, SPL0);
+	p_lock_fast(&ptref->p_lock, SPL0_SAME);
 	v_sema(&p->p_sema);
 
 	/*
 	 * If the server exited, return I/O errors instead
 	 */
 	if (ptref->p_port == 0) {
-		v_lock(&ptref->p_lock, SPL0);
+		v_lock(&ptref->p_lock, SPL0_SAME);
 		err(EIO);
 		return(0);
 	}
@@ -80,9 +80,9 @@ find_portref(struct proc *p, port_t port)
 		err(EINTR);
 		return(0);
 	}
-	p_lock(&ptref->p_lock, SPL0);
+	p_lock_fast(&ptref->p_lock, SPL0_SAME);
 	if (ptref->p_port == 0) {
-		v_lock(&ptref->p_lock, SPL0);
+		v_lock(&ptref->p_lock, SPL0_SAME);
 		v_sema(&ptref->p_sema);
 		err(EIO);
 		return(0);
@@ -130,7 +130,7 @@ delete_portref(struct proc *p, port_t port)
 	/*
 	 * Take spinlock on portref.  Release proc.
 	 */
-	p_lock(&ptref->p_lock, SPL0);
+	p_lock_fast(&ptref->p_lock, SPL0_SAME);
 	v_sema(&p->p_sema);
 
 	/*
@@ -178,7 +178,7 @@ find_port(struct proc *p, port_t portid)
 	/*
 	 * Take spinlock on port.  Release proc.
 	 */
-	p_lock(&port->p_lock, SPLHI);
+	p_lock_fast(&port->p_lock, SPLHI);
 	v_sema(&p->p_sema);
 
 	/*
@@ -190,7 +190,7 @@ find_port(struct proc *p, port_t portid)
 		err(EINTR);
 		return(0);
 	}
-	p_lock(&port->p_lock, SPLHI);
+	p_lock_fast(&port->p_lock, SPLHI);
 	return(port);
 }
 
@@ -231,7 +231,7 @@ delete_port(struct proc *p, port_t portid)
 	/*
 	 * Take spinlock on port.  Release proc.
 	 */
-	p_lock(&port->p_lock, SPLHI);
+	p_lock_fast(&port->p_lock, SPLHI);
 	v_sema(&p->p_sema);
 
 	/*
@@ -432,7 +432,7 @@ clone(port_t arg_port)
 		free_open(p, slot);
 		return(-1);
 	}
-	v_lock(&pr->p_lock, SPL0);
+	v_lock(&pr->p_lock, SPL0_SAME);
 
 	/*
 	 * Try to clone it

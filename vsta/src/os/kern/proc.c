@@ -16,6 +16,10 @@
 #include <sys/fs.h>
 #include <sys/malloc.h>
 #include <sys/assert.h>
+#include <sys/misc.h>
+#include "../mach/mutex.h"
+#include "../mach/locore.h"
+#include "pset.h"
 
 extern void setrun(), dup_stack();
 extern struct sched sched_root;
@@ -134,7 +138,6 @@ bootproc(struct boot_task *b)
 	p->p_threads = t;
 	boot_regs(t, b);
 	t->t_runq = sched_thread(p->p_runq, t);
-	init_sema(&t->t_msgwait);
 	t->t_proc = p;
 	init_sema(&t->t_evq);
 	t->t_state = TS_SLEEP;	/* -> RUN in setrun() */
@@ -310,7 +313,7 @@ fork_thread(voidfun f)
 	}
 
 	/*
-	 * Get a user stack first
+	 * Then get a user stack
 	 */
 	ustack = alloc_zfod(p->p_vas, btop(UMINSTACK));
 	if (!ustack) {
@@ -344,7 +347,6 @@ fork_thread(voidfun f)
 	/*
 	 * Initialize
 	 */
-	init_sema(&t->t_msgwait);
 	t->t_usrcpu = t->t_syscpu = 0L;
 	t->t_evsys[0] = t->t_evproc[0] = '\0';
 	init_sema(&t->t_evq);
@@ -410,7 +412,6 @@ fork(void)
 
 	/*
 	 * Check thread limit here
-	/*
 	 * Allocate new structures
 	 */
 	tnew = MALLOC(sizeof(struct thread), MT_THREAD);
@@ -423,7 +424,6 @@ fork(void)
 	 */
 	tnew->t_kstack = MALLOC(KSTACK_SIZE, MT_KSTACK);
 	tnew->t_flags = told->t_flags;
-	init_sema(&tnew->t_msgwait);
 	init_sema(&tnew->t_evq);
 	tnew->t_state = TS_SLEEP;	/* -> RUN in setrun() */
 	tnew->t_ustack = (void *)USTACKADDR;
@@ -662,7 +662,7 @@ do_exit(int code)
 	FREE(curthread, MT_THREAD);
 	curthread = 0;
 	ATOMIC_DEC(&nthread);
-	p_lock(&runq_lock, SPLHI);
+	p_lock_fast(&runq_lock, SPLHI);
 	PREEMPT_OK();	/* Can't preempt now with runq_lock held */
 	for (;;) {
 		swtch();

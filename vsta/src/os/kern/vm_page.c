@@ -4,16 +4,15 @@
  */
 #include <sys/types.h>
 #include <sys/pset.h>
-#include <sys/mutex.h>
 #include <sys/thread.h>
 #include <sys/assert.h>
 #include <sys/core.h>
 #include <sys/percpu.h>
 #include <sys/param.h>
-#include <sys/vm.h>
 #include <rmap.h>
+#include "../mach/mutex.h"
+#include "../mach/vm.h"
 
-extern void kern_addtrans(), kern_deletetrans();
 extern char *heapstart, *heap;
 extern int bootpgs;
 
@@ -53,7 +52,7 @@ alloc_page(void)
 	struct thread *t = curthread;
 	struct core *c;
 
-	p_lock(&mem_lock, SPL0);
+	p_lock_fast(&mem_lock, SPL0);
 	/*
 	 * This is a classic "sleeping for memory"
 	 * scenario.  Because our allocate and free primitives
@@ -62,7 +61,7 @@ alloc_page(void)
 	 */
 	while (freemem == 0) {
 		p_sema_v_lock(&mem_sema, PRIHI, &mem_lock);
-		p_lock(&mem_lock, SPL0);
+		p_lock_fast(&mem_lock, SPL0_SAME);
 	}
 	freemem -= 1;
 
@@ -72,7 +71,7 @@ alloc_page(void)
 	 */
 	c = freelist;
 	freelist = c->c_free;
-	v_lock(&mem_lock, SPL0);
+	v_lock(&mem_lock, SPL0_SAME);
 	c->c_flags = C_ALLOC;
 	c->c_free = 0;
 	return(c-core);
@@ -100,14 +99,14 @@ free_page(uint pfn)
 	}
 #endif
 	ASSERT_DEBUG(!(c->c_flags & C_BAD), "free_page: C_BAD");
-	p_lock(&mem_lock, SPL0);
+	p_lock_fast(&mem_lock, SPL0);
 	c->c_free = freelist;
 	freelist = c;
 	freemem += 1;
 	if (blocked_sema(&mem_sema)) {
 		v_sema(&mem_sema);
 	}
-	v_lock(&mem_lock, SPL0);
+	v_lock(&mem_lock, SPL0_SAME);
 }
 
 /*
@@ -134,9 +133,9 @@ init_page(void)
 	 * the core array?
 	 */
 	core = (struct core *)heap;
-	coreNCORE = core+bootpgs;
+	coreNCORE = core + bootpgs;
 	heap = (char *)coreNCORE;
-	bzero(core, bootpgs*sizeof(struct core));
+	bzero(core, bootpgs * sizeof(struct core));
 
 	/*
 	 * Fill low range with C_SYS for our kernel text/data/bss
@@ -207,13 +206,13 @@ alloc_vmap(uint npg)
 	uint idx;
 
 	for (;;) {
-		p_lock(&vmap_lock, SPL0);
+		p_lock_fast(&vmap_lock, SPL0);
 		idx = rmap_alloc(vmap, npg);
 		if (idx)
 			break;
 		(void)p_sema_v_lock(&vmap_sema, PRIHI, &vmap_lock);
 	}
-	v_lock(&vmap_lock, SPL0);
+	v_lock(&vmap_lock, SPL0_SAME);
 	return(idx);
 }
 
@@ -221,12 +220,12 @@ alloc_vmap(uint npg)
  * free_vmap()
  *	Put some space back into the virtual map
  */
-static void
+inline static void
 free_vmap(uint idx, uint npg)
 {
-	p_lock(&vmap_lock, SPL0);
+	p_lock_fast(&vmap_lock, SPL0);
 	rmap_free(vmap, idx, npg);
-	v_lock(&vmap_lock, SPL0);
+	v_lock(&vmap_lock, SPL0_SAME);
 }
 
 /*
@@ -281,7 +280,7 @@ free_pages(void *vaddr, uint npg)
 void
 lock_page(uint pfn)
 {
-	uint slot = pfn & (NC_SEMA-1);
+	uint slot = pfn & (NC_SEMA - 1);
 
 	p_sema(&core_semas[slot], PRIHI);
 }
@@ -294,12 +293,9 @@ lock_page(uint pfn)
  */
 clock_page(uint pfn)
 {
-	uint slot = pfn & (NC_SEMA-1);
+	uint slot = pfn & (NC_SEMA - 1);
 
-	if (cp_sema(&core_semas[slot])) {
-		return(1);
-	}
-	return(0);
+	return(cp_sema(&core_semas[slot]));
 }
 
 /*
@@ -309,7 +305,7 @@ clock_page(uint pfn)
 void
 unlock_page(uint pfn)
 {
-	uint slot = pfn & (NC_SEMA-1);
+	uint slot = pfn & (NC_SEMA - 1);
 
 	v_sema(&core_semas[slot]);
 }

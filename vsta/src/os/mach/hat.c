@@ -26,16 +26,17 @@
 #include <sys/param.h>
 #include <sys/pview.h>
 #include <sys/vas.h>
-#include <sys/vm.h>
 #include <mach/pte.h>
 #include <sys/pset.h>
 #include <sys/thread.h>
 #include <sys/percpu.h>
 #include <sys/malloc.h>
+#include "../mach/locore.h"
+#include "../mach/vm.h"
 
 #define NRMAPSLOT (20)		/* # slots for our vaddr map */
 
-extern void flush_tlb(), rmap_init();
+extern void rmap_init();
 
 /*
  * hat_initvas()
@@ -65,7 +66,7 @@ hat_initvas(struct vas *vas)
 	 * Get an address map for doing on-demand virtual address
 	 * allocations.
 	 */
-	vas->v_hat.h_map = MALLOC(NRMAPSLOT*sizeof(struct rmap),
+	vas->v_hat.h_map = MALLOC(NRMAPSLOT * sizeof(struct rmap),
 		MT_RMAP);
 	rmap_init(vas->v_hat.h_map, NRMAPSLOT);
 	rmap_free(vas->v_hat.h_map, btop(VMAP_BASE), btop(VMAP_SIZE));
@@ -206,10 +207,11 @@ hat_deletetrans(struct pview *pv, void *va, uint pfn)
  * hat_getbits()
  *	Atomically get and clear the ref/mod bits on a translation
  */
+uchar
 hat_getbits(struct pview *pv, void *vaddr)
 {
 	pte_t *pt;
-	int x;
+	uchar x;
 
 	vaddr = (void *)((ulong)vaddr | 0x80000000);
 	pt = pv->p_vas->v_hat.h_vcr3 + L1IDX(vaddr);
@@ -236,6 +238,7 @@ hat_getbits(struct pview *pv, void *vaddr)
  *
  * Returns 0 on success, 1 on failure.
  */
+int
 hat_attach(struct pview *pv, void *vaddr)
 {
 	uint pg;

@@ -8,24 +8,27 @@
  *	Zero some memory
  */
 	.globl	_bzero
-_bzero:	pushl	%edi
-	pushl	%ecx
-	movl	0xC(%esp),%edi
-	movl	0x10(%esp),%ecx
+	.align	4
+
+_bzero:
+	pushl	%edi
+	movl	0x8(%esp),%edi
+	movl	0xC(%esp),%ecx
+	cld
 	xorl	%eax,%eax
 	cmpl	$4,%ecx			/* Zero longwords */
 	jb	1f
 	shrl	$2,%ecx			/* Scale to longword count */
-	cld
 	rep
 	stosl
-	movl	0x10(%esp),%ecx		/* Calculate byte resid */
+	movl	0xC(%esp),%ecx		/* Calculate byte resid */
 	andl	$3,%ecx
-	jz	2f
-1:	cld
-	rep				/* Zero bytes */
+	jnz	1f
+	popl	%edi
+	ret
+
+1:	rep				/* Zero bytes */
 	stosb
-2:	popl	%ecx
 	popl	%edi
 	ret
 
@@ -34,48 +37,51 @@ _bzero:	pushl	%edi
  *	Copy some memory
  */
 	.globl	_bcopy
-_bcopy:	pushl	%esi
-	pushl	%edi
-	pushl	%ecx
-	movl	0x10(%esp),%esi
-	movl	0x14(%esp),%edi
-	movl	0x18(%esp),%ecx
+	.align	4
 
-	cmpl	%edi,%esi	/* Potential ripple in copy? */
+_bcopy:
+	pushl	%esi
+	pushl	%edi
+	movl	0xC(%esp),%esi
+	movl	0x10(%esp),%edi
+	movl	0x14(%esp),%ecx
+	cmpl	%edi,%esi		/* Potential ripple in copy? */
 	jb	2f
 
-1:	cmpl	$4,%ecx		/* Move longwords */
+1:	cld
+	cmpl	$4,%ecx			/* Move longwords */
 	jb	5f
-	shrl	$2,%ecx		/* Scale units */
-	cld
+	shrl	$2,%ecx			/* Scale units */
 	rep
 	movsl
-	movl	0x18(%esp),%ecx
+	movl	0x14(%esp),%ecx
 	andl	$3,%ecx
-	jz	3f
-
-5:	cld
-	rep			/* Resid copy of bytes */
-	movsb
-
-3:	popl	%ecx		/* Restore registers and return */
-	popl	%edi
+	jnz	5f
+	popl	%edi			/* Restore registers and return */
 	popl	%esi
 	ret
 
-2:	addl	%ecx,%esi	/* If no overlap, still copy forward */
+5:	rep				/* Resid copy of bytes */
+	movsb
+	popl	%edi			/* Restore registers and return */
+	popl	%esi
+	ret
+
+	.align	4,0x90
+
+2:	addl	%ecx,%esi		/* If no overlap, still copy forward */
 	cmpl	%edi,%esi
 	jae	4f
-	movl	0x10(%esp),%esi	/* Restore register */
-	jmp	1b		/* Forward copy */
+	subl	%ecx,%esi		/* Restore register */
+	jmp	1b			/* Forward copy */
 
-4:				/* Overlap; copy backwards */
-	std
-	/* addl	%ecx,%esi	Done in overlap check */
+4:	std				/* Overlap; copy backwards */
 	decl	%esi
 	addl	%ecx,%edi
 	decl	%edi
 	rep
 	movsb
 	cld
-	jmp	3b
+	popl	%edi			/* Restore registers and return */
+	popl	%esi
+	ret

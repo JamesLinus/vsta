@@ -15,6 +15,10 @@
 #include <mach/machreg.h>
 #include <mach/gdt.h>
 #include <sys/assert.h>
+#include <sys/pstat.h>
+#include <mach/vm.h>
+#include <sys/misc.h>
+#include "../mach/locore.h"
 
 static int do_dbg_enter();
 
@@ -24,9 +28,10 @@ extern int do_exit(), fork(), fork_thread(), enable_io(), enable_isr(),
 	mmap(), munmap(), strerror(), notify(), clone();
 extern int page_wire(), page_release(), enable_dma(), time_get(),
 	time_sleep(), exec(), waits(), perm_ctl(), set_swapdev(),
-	run_qio(), set_cmd(), pageout(), getid(), unhash(),
+	set_cmd(), pageout(), unhash(),
 	time_set(), ptrace(), nop(), msg_portname(), pstat();
 extern int notify_handler(), sched_op();
+extern void check_events(), nudge();
 
 struct syscall {
 	intfun s_fun;
@@ -60,10 +65,10 @@ struct syscall {
 	{waits, 2},				/* 25 */
 	{perm_ctl, 3},				/* 26 */
 	{set_swapdev, 1},			/* 27 */
-	{run_qio, 0},				/* 28 */
+	{(intfun)run_qio, 0},			/* 28 */
 	{set_cmd, 1},				/* 29 */
 	{pageout, 0},				/* 30 */
-	{getid, 1},				/* 31 */
+	{(intfun)getid, 1},			/* 31 */
 	{unhash, 2},				/* 32 */
 	{time_set, 1},				/* 33 */
 #ifdef PROC_DEBUG
@@ -90,7 +95,7 @@ struct syscall {
 static
 do_dbg_enter(void)
 {
-#if defined(DEBUG) && defined(KDB)
+#if defined(KDB)
 	dbg_enter();
 	return(0);
 #else
@@ -113,10 +118,13 @@ mach_flagerr(struct trapframe *f)
  *	Code to handle a trap for system services
  */
 void
-syscall(struct trapframe *f)
+syscall(ulong place_holder)
 {
-	int callnum, args[MAXARGS];
+	struct trapframe *f = (struct trapframe *)&place_holder;
+	int callnum;
 	struct syscall *s;
+	ulong *parms;
+	struct thread *t = curthread;
 
 	/*
 	 * Sanity check system call number
@@ -130,34 +138,23 @@ syscall(struct trapframe *f)
 		f->eax = err(EINVAL);
 		return;
 	}
+	t->t_uregs = f;
+
 	s = &syscalls[callnum];
 	ASSERT_DEBUG(s->s_narg <= MAXARGS, "syscall: too many args");
 
 	/*
-	 * See if can get needed number of arguments
-	 */
-	if (copyin(f->esp + sizeof(ulong), args,
-			s->s_narg * sizeof(int))) {
-#ifdef DEBUG
-		printf("Short syscall args\n");
-		dbg_enter();
-#endif
-		f->eax = err(EFAULT);
-		return;
-	}
-
-	/*
-	 * Default to carry flag clear--no error
-	 */
-	f->eflags &= ~F_CF;
-
-	/*
 	 * Interrupted system calls vector here
 	 */
-	if (setjmp(curthread->t_qsav)) {
+	if (setjmp(t->t_qsav)) {
 		err(EINTR);
 		return;
 	}
+
+	/*
+	 * Default to carry flag clear - no interruption, no error
+	 */
+	f->eflags &= ~F_CF;
 
 	/*
 	 * Call function with needed number of arguments
@@ -167,27 +164,84 @@ syscall(struct trapframe *f)
 		f->eax = (*(s->s_fun))();
 		break;
 	case 1:
-		f->eax = (*(s->s_fun))(args[0]);
+		parms = (ulong *)(f->esp + sizeof(ulong) + UOFF);
+		if ((ulong)parms < 0xFFFFFFFCL) {
+			f->eax = (*(s->s_fun))(parms[0]);
+		} else {
+			ASSERT_DEBUG(0, "short syscall args");
+			f->eax = err(EFAULT);
+		}
 		break;
 	case 2:
-		f->eax = (*(s->s_fun))(args[0], args[1]);
+		parms = (ulong *)(f->esp + sizeof(ulong) + UOFF);
+		if ((ulong)parms < 0xFFFFFFF8L) {
+			f->eax = (*(s->s_fun))(parms[0], parms[1]);
+		} else {
+			ASSERT_DEBUG(0, "short syscall args");
+			f->eax = err(EFAULT);
+		}
 		break;
 	case 3:
-		f->eax = (*(s->s_fun))(args[0], args[1], args[2]);
+		parms = (ulong *)(f->esp + sizeof(ulong) + UOFF);
+		if ((ulong)parms < 0xFFFFFFF4L) {
+			f->eax = (*(s->s_fun))(parms[0], parms[1], parms[2]);
+		} else {
+			ASSERT_DEBUG(0, "short syscall args");
+			f->eax = err(EFAULT);
+		}
 		break;
 	case 4:
-		f->eax = (*(s->s_fun))(args[0], args[1], args[2],
-			args[3]);
+		parms = (ulong *)(f->esp + sizeof(ulong) + UOFF);
+		if ((ulong)parms < 0xFFFFFFF0L) {
+			f->eax = (*(s->s_fun))(parms[0], parms[1],
+					       parms[2], parms[3]);
+		} else {
+			ASSERT_DEBUG(0, "short syscall args");
+			f->eax = err(EFAULT);
+		}
 		break;
 	case 5:
-		f->eax = (*(s->s_fun))(args[0], args[1], args[2],
-			args[3], args[4]);
+		parms = (ulong *)(f->esp + sizeof(ulong) + UOFF);
+		if ((ulong)parms < 0xFFFFFFECL) {
+			f->eax = (*(s->s_fun))(parms[0], parms[1], parms[2],
+					       parms[3], parms[4]);
+		} else {
+			ASSERT_DEBUG(0, "short syscall args");
+			f->eax = err(EFAULT);
+		}
 		break;
 	case 6:
-		f->eax = (*(s->s_fun))(args[0], args[1], args[2],
-			args[3], args[4], args[5]);
+		parms = (ulong *)(f->esp + sizeof(ulong) + UOFF);
+		if ((ulong)parms < 0xFFFFFFECL) {
+			f->eax = (*(s->s_fun))(parms[0], parms[1], parms[2],
+					       parms[3], parms[4], parms[5]);
+		} else {
+			ASSERT_DEBUG(0, "short syscall args");
+			f->eax = err(EFAULT);
+		}
 		break;
 	default:
 		ASSERT(0, "syscall: bad s_narg");
+		return;
 	}
+
+	ASSERT_DEBUG(cpu.pc_locks == 0, "syscall: locks held");
+
+	/*
+	 * See if we should get off the CPU
+	 */
+	check_preempt();
+
+	/*
+	 * See if we should handle any events
+	 */
+	if (EVENT(t)) {
+		check_events();
+	}
+
+	/*
+	 * Clear uregs if nesting back to user
+	 */
+	PTRACE_PENDING(t->t_proc, PD_ALWAYS, 0);
+	t->t_uregs = 0;
 }

@@ -3,11 +3,11 @@
  *	Trap handling for i386 uP
  */
 #include <sys/proc.h>
-#include <sys/percpu.h>
 #include <sys/thread.h>
 #include <sys/wait.h>
 #include <sys/fs.h>
 #include <sys/malloc.h>
+#include <sys/percpu.h>
 #include <mach/trap.h>
 #include <mach/gdt.h>
 #include <mach/tss.h>
@@ -15,17 +15,21 @@
 #include <mach/icu.h>
 #include <mach/isr.h>
 #include <mach/pit.h>
-#include <mach/io.h>
 #include <sys/assert.h>
+#include <sys/pstat.h>
+#include <sys/misc.h>
+#include "../mach/locore.h"
 
-extern void selfsig(), check_events(), syscall();
-extern int deliver_isr();
+extern void selfsig(), check_events();
+extern int deliver_isr(), vm_fault();
 
 extern char *heap;
 
 struct gate *idt;	/* Our IDT for VSTa */
 struct segment *gdt;	/*  ...and GDT */
 struct tss *tss;	/*  ...and TSS */
+
+ulong latch_ticks = PIT_LATCH;
 
 #ifdef KDB
 /* This can be helpful sometimes while debugging */
@@ -54,30 +58,14 @@ struct trap_tab {
 };
 
 /*
- * check_preempt()
- *	If appropriate, preempt current thread
- *
- * This routine will swtch() itself out as needed; just calling
- * it does the job.
+ * eoi()
+ *	Clear an interrupt and allow new ones to arrive
  */
-void
-check_preempt(void)
+inline static void
+eoi(void)
 {
-	extern void timeslice();
-
-	/*
-	 * If no preemption needed, holding locks, or not running
-	 * with a process, don't preempt.
-	 */
-	if (!do_preempt || !curthread || (cpu.pc_locks > 0)
-			|| (cpu.pc_nopreempt > 0)) {
-		return;
-	}
-
-	/*
-	 * Use timeslice() to switch us off
-	 */
-	timeslice();
+	outportb(ICU0, EOI_FLAG);
+	outportb(ICU1, EOI_FLAG);
 }
 
 /*
@@ -100,14 +88,26 @@ nudge(struct percpu *c)
  * This is the machine-dependent code which calls the portable vas_fault()
  * once it has figured out the faulting address and such.
  */
-static void
-page_fault(struct trapframe *f)
+void
+page_fault(ulong place_holder)
 {
+	struct trapframe *f = (struct trapframe *)&place_holder;
 	ulong l;
 	struct vas *vas;
+	int user_mode = USERMODE(f);
+	struct thread *t = curthread;
 
-	ASSERT(curthread, "page_fault: no proc");
+#ifdef KDB
+	dbg_trap_frame = f;
+#endif
 
+	if (user_mode) {
+		ASSERT_DEBUG(t, "page_fault: user !curthread");
+		ASSERT_DEBUG(t->t_uregs == 0,
+			"page_fault: nested user");
+		t->t_uregs = f;
+	}
+	
 	/*
 	 * Get fault address.  Drop the high bit because the
 	 * user's 0 maps to our 0x80000000, but our vas is set
@@ -115,27 +115,32 @@ page_fault(struct trapframe *f)
 	 */
 	l = get_cr2();
 	if (l < 0x80000000) {
-		ASSERT(f->ecs & 0x3, "trap: kernel fault");
+		ASSERT(user_mode, "trap: kernel fault");
 
 		/*
 		 * Naughty, trying to touch the kernel
 		 */
 		selfsig(EFAULT);
-		return;
+		goto out;
 	}
 	l &= ~0x80000000;
+
 #ifdef DEBUG
+	/*
+	 * If we have the kernel debugger available this can
+	 * tell us the address that caused the last page fault
+	 */
 	dbg_fault_addr = l;
 #endif
 
 	/*
 	 * Let the portable code try to resolve it
 	 */
-	vas = curthread->t_proc->p_vas;
-	if (vas_fault(vas, l, f->errcode & EC_WRITE)) {
-		if (curthread->t_probe) {
-			ASSERT(!USERMODE(f), "page_fault: probe from user");
-			f->eip = (ulong)(curthread->t_probe);
+	vas = t->t_proc->p_vas;
+	if (vas_fault(vas, (void *)l, f->errcode & EC_WRITE)) {
+		if (t->t_probe) {
+			ASSERT(!user_mode, "page_fault: probe from user");
+			f->eip = (ulong)(t->t_probe);
 		} else {
 			/*
 			 * Stack growth.  We try to grow it if it's
@@ -144,8 +149,8 @@ page_fault(struct trapframe *f)
 			if ((l < USTACKADDR) &&
 					(l > (USTACKADDR-UMINSTACK))) {
 				if (alloc_zfod_vaddr(vas, btop(UMAXSTACK),
-						USTACKADDR-UMAXSTACK)) {
-					return;
+					(void *)(USTACKADDR-UMAXSTACK))) {
+					goto out;
 				}
 			}
 
@@ -154,6 +159,29 @@ page_fault(struct trapframe *f)
 			 */
 			selfsig(EFAULT);
 		}
+	}
+
+out:
+	ASSERT_DEBUG(cpu.pc_locks == 0, "trap: locks held");
+
+	/*
+	 * See if we should get off the CPU
+	 */
+	check_preempt();
+
+	/*
+	 * See if we should handle any events
+	 */
+	if (EVENT(t)) {
+		check_events();
+	}
+
+	/*
+	 * Clear uregs if nesting back to user
+	 */
+	if (user_mode) {
+		PTRACE_PENDING(t->t_proc, PD_ALWAYS, 0);
+		t->t_uregs = 0;
 	}
 }
 
@@ -165,7 +193,7 @@ void
 trap(ulong place_holder)
 {
 	struct trapframe *f = (struct trapframe *)&place_holder;
-	int kern_mode;
+	int user_mode;
 
 #ifdef KDB
 	dbg_trap_frame = f;
@@ -176,32 +204,87 @@ trap(ulong place_holder)
 	 * on the stack.  XXX but it's invariant, is this a waste
 	 * of time?
 	 */
-	kern_mode = ((f->ecs & 0x3) == 0);
-	if (!kern_mode) {
+	user_mode = USERMODE(f);
+	if (user_mode) {
 		ASSERT_DEBUG(curthread, "trap: user !curthread");
 		ASSERT_DEBUG(curthread->t_uregs == 0, "trap: nested user");
 		curthread->t_uregs = f;
-	}
 
-	/*
-	 * Pick action based on trap.  System calls account for
-	 * most entries, so special case them first.
-	 */
-	if (f->traptype == T_SYSCALL) {
-		syscall(f);
-	} else if (kern_mode) {
 		/*
-		 * We break out kernel versus user traps
-		 * to encode switch tables densely and allow
-		 * greater optimization.  This is the kernel
-		 * table.
+		 * Handle user mode traps
 		 */
 		switch (f->traptype) {
 		case T_PGFLT:
-			page_fault(f);
+			ASSERT(0, "trap: page fault handler elsewhere");
+
+		case T_387:
+			if (cpu.pc_flags & CPU_FP) {
+				ASSERT((curthread->t_flags & T_FPU) == 0,
+					"trap: T_387 but 387 enabled");
+				if (curthread->t_fpu == 0) {
+					curthread->t_fpu =
+						MALLOC(sizeof(struct fpu),
+						       MT_FPU);
+					fpu_enable((struct fpu *)0);
+				} else {
+					fpu_enable(curthread->t_fpu);
+				}
+				curthread->t_flags |= T_FPU;
+				break;
+			}
+
+			/* VVV Otherwise, fall into VVV */
+
+		case T_NPX:
+			if (curthread->t_flags & T_FPU) {
+				fpu_maskexcep();
+			}
+
+			/* VVV continue falling... VVV */
+
+		case T_DIV:
+		case T_OVFL:
+		case T_BOUND:
+			selfsig(EMATH);
 			break;
+
+		case T_DEBUG:
+		case T_BPT:
+#ifdef PROC_DEBUG
+			f->eflags |= F_RF;	/* i386 doesn't set it */
+			ASSERT_DEBUG(curthread, "trap: user debug !curthread");
+			PTRACE_PENDING(curthread->t_proc, PD_BPOINT, 0);
+			break;
+#endif
+		case T_INSTR:
+			selfsig(EILL);
+			break;
+
+		case T_DFAULT:
+		case T_INVTSS:
+		case T_SEG:
+		case T_STACK:
+		case T_GENPRO:
+		case T_CPSOVER:
+			selfsig(EFAULT);
+			break;
+
+		default:
+			printf("trap frame at 0x%x\n", f);
+			ASSERT(0, "trap: bad user type");
+			return;
+		}
+	} else {
+		/*
+		 * Handle kernel mode traps
+		 */
+		switch (f->traptype) {
+		case T_PGFLT:
+			ASSERT(0, "trap: page fault handler elsewhere");
+
 		case T_DIV:
 			ASSERT(0, "trap: kernel divide error");
+
 #ifdef DEBUG
 		case T_DEBUG:
 		case T_BPT:
@@ -209,84 +292,31 @@ trap(ulong place_holder)
 			dbg_enter();
 			break;
 #endif
+
 		case T_387:
 		case T_NPX:
 			ASSERT(0, "trap: FP used in kernel");
 
+		/*
+		 * We need these explicitly listed as a hint to the
+		 * compiler otherwise things don't optimise too well
+		 */
+		case T_DFAULT:
+		case T_INVTSS:
+		case T_SEG:
+		case T_STACK:
+		case T_GENPRO:
+		case T_OVFL:
+		case T_BOUND:
+		case T_CPSOVER:
 		default:
-			printf("Trap frame in kern at 0x%x\n", f);
-			ASSERT(0, "trap: bad type");
+			printf("trap frame at 0x%x\n", f);
+			ASSERT(0, "trap: bad kernel type");
+			return;
 		}
-	/*
-	 * This is the user table of trap types (except system calls,
-	 * handled before all this).
-	 */
-	} else switch (f->traptype) {
-	case T_PGFLT:
-		page_fault(f);
-		break;
-
-	case T_387:
-		if (cpu.pc_flags & CPU_FP) {
-			ASSERT((curthread->t_flags & T_FPU) == 0,
-				"trap: T_387 but 387 enabled");
-			if (curthread->t_fpu == 0) {
-				curthread->t_fpu =
-					MALLOC(sizeof(struct fpu), MT_FPU);
-				fpu_enable((struct fpu *)0);
-			} else {
-				fpu_enable(curthread->t_fpu);
-			}
-			curthread->t_flags |= T_FPU;
-			break;
-		}
-
-		/* VVV Otherwise, fall into VVV */
-
-	case T_NPX:
-		if (curthread->t_flags & T_FPU) {
-			fpu_maskexcep();
-		}
-
-		/* VVV continue falling... VVV */
-
-	case T_DIV:
-	case T_OVFL:
-	case T_BOUND:
-		selfsig(EMATH);
-		break;
-
-	case T_DEBUG:
-	case T_BPT:
-#ifdef PROC_DEBUG
-		f->eflags |= F_RF;	/* i386 doesn't set it */
-		ASSERT_DEBUG(curthread, "trap: user debug !curthread");
-		PTRACE_PENDING(curthread->t_proc, PD_BPOINT, 0);
-		break;
-#endif
-	case T_INSTR:
-		selfsig(EILL);
-		break;
-
-	case T_DFAULT:
-	case T_INVTSS:
-	case T_SEG:
-	case T_STACK:
-	case T_GENPRO:
-	case T_CPSOVER:
-		selfsig(EFAULT);
-		break;
-
-	default:
-		printf("Trap frame at 0x%x\n", f);
-		ASSERT(0, "trap: bad type");
 	}
-	ASSERT_DEBUG(cpu.pc_locks == 0, "trap: locks held");
 
-	/*
-	 * See if we should handle any events
-	 */
-	check_events();
+	ASSERT_DEBUG(cpu.pc_locks == 0, "trap: locks held");
 
 	/*
 	 * See if we should get off the CPU
@@ -294,9 +324,16 @@ trap(ulong place_holder)
 	check_preempt();
 
 	/*
+	 * See if we should handle any events
+	 */
+	if (EVENT(curthread)) {
+		check_events();
+	}
+
+	/*
 	 * Clear uregs if nesting back to user
 	 */
-	if (!kern_mode) {
+	if (user_mode) {
 		PTRACE_PENDING(curthread->t_proc, PD_ALWAYS, 0);
 		curthread->t_uregs = 0;
 	}
@@ -340,8 +377,8 @@ init_pit(void)
 	 * calculations get screwed up,
 	 */
 	outportb(PIT_CTRL, CMD_SQR_WAVE);
-	outportb(PIT_CH0, (PIT_TICK / HZ) & 0x00ff);
-	outportb(PIT_CH0, ((PIT_TICK / HZ) & 0xff00) >> 8);
+	outportb(PIT_CH0, PIT_LATCH & 0x00ff);
+	outportb(PIT_CH0, (PIT_LATCH & 0xff00) >> 8);
 }
 
 /*
@@ -355,7 +392,6 @@ setup_gdt(void)
 	struct segment *g, *s;
 	struct linmem l;
 	extern pte_t *cr3;
-	extern void panic();
 	extern char id_stack[];
 
 	/*
@@ -484,7 +520,8 @@ init_trap(void)
 	struct trap_tab *t;
 	struct linmem l;
 	char *p;
-	extern void stray_intr(), stray_ign(), xint32(), xint33();
+	extern void stray_intr(), stray_ign();
+	extern void xint32(), xint33();
 
 	/*
 	 * Set up GDT first
@@ -516,15 +553,22 @@ init_trap(void)
 	}
 
 	/*
-	 * Wire all interrupts to a vector which will push their
+	 * Wire all hard interrupts to a vector which will push their
 	 * interrupt number and call our common C code.
 	 */
 	p = (char *)xint32;
 	intrlen = (char *)xint33 - (char *)xint32;
-	for (x = CPUIDT; x < NIDT; ++x) {
+	for (x = CPUIDT; x < CPUIDT + IDTISA; ++x) {
 		set_idt(&idt[x],
-			(voidfun)(p + (x - CPUIDT)*intrlen),
+			(voidfun)(p + (x - CPUIDT) * intrlen),
 			T_INTR);
+	}
+
+	/*
+	 * Any other interrupts are stray so handle them appropriately
+	 */
+	for (x = CPUIDT + IDTISA; x < NIDT; ++x) {
+		set_idt(&idt[x], (voidfun)stray_intr, T_INTR);
 	}
 
 	/*
@@ -594,7 +638,7 @@ sendev(struct thread *t, char *ev)
 	/*
 	 * Try and place it on the stack
 	 */
-	if (copyout(f->esp - sizeof(e), &e, sizeof(e))) {
+	if (copyout((void *)(f->esp - sizeof(e)), &e, sizeof(e))) {
 #ifdef DEBUG
 		printf("Stack overflow pid %ld/%ld sp 0x%x\n",
 			p->p_pid, t->t_pid, f->esp);
@@ -612,7 +656,7 @@ sendev(struct thread *t, char *ev)
 
 /*
  * interrupt()
- *	Common code for all CPU interrupts
+ *	Hardware interrupt delivery code
  */
 void
 interrupt(ulong place_holder)
@@ -621,14 +665,10 @@ interrupt(ulong place_holder)
 	int isr = f->traptype;
 
 	/*
-	 * Sanity check and fold into range 0..MAX_IRQ-1.  Enable
-	 * further interrupts from the ICU--interrupts are still
-	 * masked on-chip.
+	 * Enable further interrupts from the ICU - interrupts are
+	 * still masked on-chip.
 	 */
-	ASSERT(isr >= T_EXTERN, "interrupt: stray low");
-	isr -= T_EXTERN;
-	ASSERT(isr < MAX_IRQ, "interrupt: stray high");
-	EOI();
+	eoi();
 
 	/*
 	 * Our only hard-wired interrupt handler; the clock
@@ -640,17 +680,19 @@ interrupt(ulong place_holder)
 		goto out;
 	}
 
+#ifdef KDB
+	dbg_trap_frame = f;
+#endif
+
 	/*
 	 * Let processes registered for an IRQ get them
 	 */
-	if (deliver_isr(isr)) {
-		goto out;
+	if (!deliver_isr(isr)) {
+		/*
+		 * Otherwise bomb on stray interrupt
+		 */
+		ASSERT(0, "handle_isr: stray");
 	}
-
-	/*
-	 * Otherwise bomb on stray interrupt
-	 */
-	ASSERT(0, "interrupt: stray");
 
 	/*
 	 * Check for preemption and events if we pushed in from user mode.
@@ -658,7 +700,7 @@ interrupt(ulong place_holder)
 	 * the "if" statement.
 	 */
 out:
-	if ((f->ecs & 0x3) == PRIV_USER) {
+	if (USERMODE(f)) {
 		struct thread *t = curthread;
 
 		sti();
@@ -669,4 +711,30 @@ out:
 		}
 		check_preempt();
 	}
+}
+
+/*
+ * stray_interrupt()
+ *	Code for all miscellaneous CPU interrupts that don't have
+ *	aynwhere better to be processed
+ */
+void
+stray_interrupt(ulong place_holder)
+{
+	struct trapframe *f = (struct trapframe *)&place_holder;
+	int isr = f->traptype;
+
+#ifdef KDB
+	dbg_trap_frame = f;
+#endif
+
+	/*
+	 * The kernel certainly shouldn't lead us here!
+	 */
+	ASSERT(USERMODE(f), "interrupt: stray kernel interrupt");
+
+	/*
+	 * OK so the user's been messing us about - we'll show him!
+	 */
+	selfsig(EILL);
 }

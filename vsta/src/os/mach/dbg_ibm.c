@@ -5,6 +5,7 @@
  * This code contributed by G.T.Nicol.
  */
 #include <mach/param.h>
+#include "locore.h"
 
 #ifndef SERIAL
 
@@ -95,8 +96,9 @@ cons_putc(int c)
 {
 	switch (c) {
 	case '\t':
-		while (dbg_current_row % 8)
+		do {
 			cons_putc(' ');
+		} while (dbg_current_col % 8);
 		break;
 	case '\r':
 		dbg_current_col = 0;

@@ -14,9 +14,10 @@
 #include <mach/pte.h>
 #include <sys/vm.h>
 #include <mach/kbd.h>
-#include <mach/io.h>
 #include <mach/machreg.h>
 #include <std.h>
+#include <sys/pstat.h>
+#include "../mach/locore.h"
 
 #define K (1024)
 

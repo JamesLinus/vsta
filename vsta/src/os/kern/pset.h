@@ -37,7 +37,7 @@ inline static void
 deref_slot(struct pset *ps, struct perpage *pp, uint idx)
 {
 	ASSERT_DEBUG(pp->pp_refs > 0, "deref_slot: zero");
-	pp->pp_refs--;
+	pp->pp_refs -= 1;
 }
 
 /*
@@ -49,7 +49,7 @@ deref_slot(struct pset *ps, struct perpage *pp, uint idx)
 inline static void
 ref_slot(struct pset *ps, struct perpage *pp, uint idx)
 {
-	pp->pp_refs++;
+	pp->pp_refs += 1;
 	ASSERT_DEBUG(pp->pp_refs > 0, "ref_slot: overflow");
 }
 

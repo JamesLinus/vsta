@@ -12,6 +12,7 @@
 #include <mach/tss.h>
 #include <mach/gdt.h>
 #include <sys/assert.h>
+#include "../mach/locore.h"
 
 extern void retuser(), reload_dr(struct dbg_regs *);
 
@@ -190,7 +191,7 @@ set_execarg(struct thread *t, void *arg)
 
 	ASSERT_DEBUG(u, "set_execarg: no user frame");
 	u->esp -= sizeof(void *);
-	(void)copyout(u->esp, &arg, sizeof(arg));
+	(void)copyout((void *)u->esp, &arg, sizeof(arg));
 }
 
 /*

@@ -10,6 +10,7 @@
 #include <sys/fs.h>
 #include <sys/percpu.h>
 #include <sys/port.h>
+#include "../mach/mutex.h"
 
 /*
  * ptrace()
@@ -245,7 +246,7 @@ retry:
 
 		case PD_RDMEM:	/* Read memory */
 			{ ulong l;
-			  if (copyin(args[0], &l, sizeof(l)) < 0) {
+			  if (copyin((void *)args[0], &l, sizeof(l)) < 0) {
 				args[1] = 1;
 			  } else {
 			  	args[0] = l;
@@ -254,7 +255,8 @@ retry:
 			}
 			break;
 		case PD_WRMEM:	/* Write memory */
-			if (copyout(args[0], &args[1], sizeof(args[1]))) {
+			if (copyout((void *)args[0], &args[1],
+					sizeof(args[1]))) {
 				args[1] = 1;
 			} else {
 				args[1] = 0;

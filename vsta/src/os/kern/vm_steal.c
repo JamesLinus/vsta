@@ -24,7 +24,6 @@
  * process.  The HAT for such an implementation will not be trivial.
  */
 #include <sys/types.h>
-#include <sys/mutex.h>
 #include <mach/param.h>
 #include <sys/pview.h>
 #include <sys/pset.h>
@@ -32,6 +31,11 @@
 #include <sys/fs.h>
 #include <sys/vm.h>
 #include <sys/malloc.h>
+#include <sys/misc.h>
+#include <sys/assert.h>
+#include "../mach/mutex.h"
+#include "pset.h"
+
 /* #define WATCHMEM /* */
 
 #define CONTAINS(base, cnt, num) \
@@ -53,8 +57,6 @@
 
 #define PAGEOUT_SECS (5)	/* Interval to run pageout() */
 
-extern struct core *core,		/* Per-page info */
-	*coreNCORE;
 extern uint freemem, totalmem;		/* Free and total pages in system */
 					/*  total does not include C_SYS */
 sema_t pageout_sema;
@@ -215,14 +217,14 @@ do_hand(struct core *c, int trouble, intfun steal)
 	/*
 	 * Lock pset
 	 */
-	p_lock(&ps->p_lock, SPL0);
+	p_lock_fast(&ps->p_lock, SPL0);
 
 	/*
 	 * 0 references means we've come upon this pset in the process
 	 * of creation or tear-down.  Leave it alone.
 	 */
 	if (ps->p_refs == 0) {
-		v_lock(&ps->p_lock, SPL0);
+		v_lock(&ps->p_lock, SPL0_SAME);
 		unlock_page(pgidx);
 		return;
 	}
@@ -232,7 +234,7 @@ do_hand(struct core *c, int trouble, intfun steal)
 	 */
 	pp = find_pp(ps, idx);
 	if (clock_slot(ps, pp)) {
-		v_lock(&ps->p_lock, SPL0);
+		v_lock(&ps->p_lock, SPL0_SAME);
 		unlock_page(pgidx);
 		return;
 	}
@@ -404,15 +406,22 @@ pageout(void)
 		if (npg > troub_cnt[trouble]) {
 			npg = 0;
 #ifdef WATCHMEM
-			{ ulong ofree, odes, omin, otroub;
-			if ((freemem != ofree) || (desfree != odes) ||
+			{
+				ulong ofree, odes, omin, otroub;
+
+				if ((freemem != ofree) ||
+					(desfree != odes) ||
 					(minfree != omin) ||
 					(trouble != otroub)) {
-			printf("pageout free %d des %d min %d trouble %d\n",
-				freemem, desfree, minfree, trouble);
-			ofree = freemem; odes = desfree; omin = minfree;
-			otroub = trouble;
-			}
+					printf("pageout free %d des %d " \
+						"min %d trouble %d\n",
+						freemem, desfree,
+						minfree, trouble);
+					ofree = freemem;
+					odes = desfree;
+					omin = minfree;
+					otroub = trouble;
+				}
 			}
 #endif
 			p_sema(&pageout_sema, PRIHI);

@@ -8,6 +8,8 @@
 #include <sys/proc.h>
 #include <sys/thread.h>
 #include <sys/fs.h>
+#include <stdarg.h>
+#include "../mach/locore.h"
 
 #define NUMBUF (16)	/* Buffer size for numbers */
 
@@ -18,10 +20,9 @@ char *strcpy(char *, const char *);
  * get_ustr()
  *	Get a counted user string, enforce sanity
  */
+int
 get_ustr(char *kstr, int klen, void *ustr, int ulen)
 {
-	int x;
-
 	if ((ulen+1) > klen) {
 		return(err(EINVAL));
 	}
@@ -68,7 +69,7 @@ puts(char *s)
 {
 	char c;
 
-	while (c = *s++) {
+	while ((c = *s++)) {
 		putchar(c);
 	}
 }
@@ -78,17 +79,17 @@ puts(char *s)
  *	Very small subset printf()
  */
 static void
-do_print(char *buf, char *fmt, int *args)
+do_print(char *buf, const char *fmt, int *args)
 {
-	char *p = fmt, c;
+	char *p = (char *)fmt, c;
 	char numbuf[NUMBUF];
 
-	while (c = *p++) {
+	while ((c = *p++)) {
 		if (c != '%') {
 			*buf++ = c;
 			continue;
 		}
-		switch (c = *p++) {
+		switch ((c = *p++)) {
 		case 'd':
 			num(numbuf, *args++, 10);
 			strcpy(buf, numbuf);
@@ -116,9 +117,12 @@ do_print(char *buf, char *fmt, int *args)
  *	Print into a string
  */
 void
-sprintf(char *buf, char *fmt, int arg1, ...)
+sprintf(char *buf, const char *fmt, ...)
 {
-	do_print(buf, fmt, &arg1);
+	va_list ap;
+
+	va_start(ap, fmt);
+	do_print(buf, fmt, (int *)ap);
 }
 
 /*
@@ -126,11 +130,13 @@ sprintf(char *buf, char *fmt, int arg1, ...)
  *	Print onto console
  */
 void
-printf(char *fmt, int arg1, ...)
+printf(const char *fmt, ...)
 {
 	char buf[132];
+	va_list ap;
 
-	do_print(buf, fmt, &arg1);
+	va_start(ap, fmt);
+	do_print(buf, fmt, (int *)ap);
 	puts(buf);
 }
 
@@ -139,14 +145,16 @@ printf(char *fmt, int arg1, ...)
  *	Print message and crash
  */
 void
-panic(char *msg, int arg1, ...)
+panic(const char *msg, ...)
 {
 	char buf[132];
+	va_list ap;
 
 	cli();
-	do_print(buf, msg, &arg1);
+	va_start(ap, msg);
+	do_print(buf, msg, (int *)ap);
 	puts(buf);
-	printf("\n", 0);
+	printf("\n");
 	for (;;) {
 #ifdef KDB
 		extern void dbg_enter();
@@ -167,6 +175,7 @@ panic(char *msg, int arg1, ...)
  * Always returns -1, which is the return value for a syscall
  * which has an error.
  */
+int
 err(char *msg)
 {
 	extern void mach_flagerr();
@@ -183,7 +192,7 @@ err(char *msg)
 char *
 strcpy(char *dest, const char *src)
 {
-	while (*dest++ = *src++)
+	while ((*dest++ = *src++))
 		;
 	return(0);
 }
@@ -197,8 +206,9 @@ strlen(const char *p)
 {
 	int x = 0;
 
-	while (*p++)
+	while (*p++) {
 		++x;
+	}
 	return(x);
 }
 
@@ -227,6 +237,7 @@ canget(int bit)
  *
  * Sets err(EPERM) if he isn't.
  */
+int
 isroot(void)
 {
 	return(canget(ACC_WRITE));
@@ -236,6 +247,7 @@ isroot(void)
  * issys()
  *	Like root, but little shots OK too...
  */
+int
 issys(void)
 {
 	return(canget(ACC_READ));
@@ -274,6 +286,7 @@ strcmp(const char *s1, const char *s2)
  * strerror()
  *	Return current error string to user
  */
+int
 strerror(char *ustr)
 {
 	int len;
@@ -289,9 +302,11 @@ strerror(char *ustr)
  * perm_ctl()
  *	Set a slot to given permission value, or read slot
  */
+int
 perm_ctl(int arg_idx, struct perm *arg_perm, struct perm *arg_ret)
 {
 	uint x;
+	int i;
 	struct perm perm;
 	struct proc *p = curthread->t_proc;
 
@@ -340,9 +355,8 @@ perm_ctl(int arg_idx, struct perm *arg_perm, struct perm *arg_ret)
 		 * protections match our new self
 		 */
 		if (arg_idx == 0) {
-			int i, plen;
+			int plen = PERM_LEN(&perm);
 
-			plen = PERM_LEN(&perm);
 			p->p_prot.prot_bits[plen]
 				= p->p_prot.prot_bits[p->p_prot.prot_len];
 			p->p_prot.prot_len = plen;
@@ -383,6 +397,7 @@ perm_ctl(int arg_idx, struct perm *arg_perm, struct perm *arg_ret)
  *
  * Merely an advisory tool; it isn't trusted in any way
  */
+int
 set_cmd(char *arg_cmd)
 {
 	struct proc *p = curthread->t_proc;
@@ -428,7 +443,7 @@ assfail(const char *msg, const char *file, int line)
 {
 	printf("Assertion failed line %d file %s\n",
 		line, file);
-	panic((char *)msg, 0);
+	panic((char *)msg);
 }
 
 /*

@@ -8,6 +8,8 @@
 #include <sys/malloc.h>
 #include <sys/assert.h>
 #include <std.h>
+#include "../mach/mutex.h"
+#include "pset.h"
 
 /*
  * alloc_pview()

@@ -4,83 +4,15 @@
  *
  * Mutual exclusion's not very hard on a uniprocessor, eh?
  */
-#include <sys/mutex.h>
 #include <sys/assert.h>
 #include <sys/thread.h>
 #include <sys/percpu.h>
 #include <sys/sched.h>
+#include "../mach/mutex.h"
+#include "../mach/locore.h"
 
 extern lock_t runq_lock;
-
-/*
- * p_lock()
- *	Take spinlock
- */
-spl_t
-p_lock(lock_t *l, spl_t s)
-{
-	int x;
-
-	if (s == SPLHI) {
-		x = cli();
-	} else {
-		x = 1;
-	}
-	ASSERT_DEBUG(l->l_lock == 0, "p_lock: deadlock");
-	l->l_lock = 1;
-	ATOMIC_INCW(&cpu.pc_locks);
-	return(x ? SPL0 : SPLHI);
-}
-
-/*
- * cp_lock()
- *	Conditional take of spinlock
- */
-spl_t
-cp_lock(lock_t *l, spl_t s)
-{
-	int x;
-
-	if (s == SPLHI) {
-		x = cli();
-	} else {
-		x = 1;
-	}
-	if (l->l_lock) {
-		if ((s == SPLHI) && x) {
-			sti();
-		}
-		return(-1);
-	}
-	l->l_lock = 1;
-	ATOMIC_INCW(&cpu.pc_locks);
-	return(x ? SPL0 : SPLHI);
-}
-
-/*
- * v_lock()
- *	Release spinlock
- */
-void
-v_lock(lock_t *l, spl_t s)
-{
-	ASSERT_DEBUG(l->l_lock, "v_lock: not held");
-	l->l_lock = 0;
-	if (s == SPL0) {
-		sti();
-	}
-	ATOMIC_DECW(&cpu.pc_locks);
-}
-
-/*
- * init_lock()
- *	Initialize lock to "not held"
- */
-void
-init_lock(lock_t *l)
-{
-	l->l_lock = 0;
-}
+extern void lsetrun(), swtch();
 
 /*
  * q_sema()
@@ -88,16 +20,15 @@ init_lock(lock_t *l)
  *
  * Assumes semaphore is locked.
  */
-static void
+inline static void
 q_sema(struct sema *s, struct thread *t)
 {
 	if (!s->s_sleepq) {
 		s->s_sleepq = t;
 		t->t_hd = t->t_tl = t;
 	} else {
-		struct thread *t2;
+		struct thread *t2 = s->s_sleepq;
 
-		t2 = s->s_sleepq;
 		t->t_hd = t2;
 		t->t_tl = t2->t_tl;
 		t->t_tl->t_hd = t;
@@ -111,7 +42,7 @@ q_sema(struct sema *s, struct thread *t)
  *
  * Assumes semaphore is locked.
  */
-void
+inline static void
 dq_sema(struct sema *s, struct thread *t)
 {
 	ASSERT_DEBUG(s->s_count < 0, "dq_sema: bad count");
@@ -119,10 +50,13 @@ dq_sema(struct sema *s, struct thread *t)
 	if (t->t_hd == t) {
 		s->s_sleepq = 0;
 	} else {
-		t->t_hd->t_tl = t->t_tl;
-		t->t_tl->t_hd = t->t_hd;
+		struct thread *t_hd = t->t_hd;
+		struct thread *t_tl = t->t_tl;
+		
+		t_hd->t_tl = t_tl;
+		t_tl->t_hd = t_hd;
 		if (s->s_sleepq == t) {
-			s->s_sleepq = t->t_hd;
+			s->s_sleepq = t_hd;
 		}
 	}
 #ifdef DEBUG
@@ -145,7 +79,7 @@ p_sema(sema_t *s, pri_t p)
 	/*
 	 * Counts > 0, just decrement the count and go
 	 */
-	(void)p_lock(&s->s_lock, SPLHI);
+	p_lock_fast(&s->s_lock, SPLHI);
 	s->s_count -= 1;
 	if (s->s_count >= 0) {
 		v_lock(&s->s_lock, SPL0);
@@ -161,8 +95,8 @@ p_sema(sema_t *s, pri_t p)
 	t->t_nointr = (p == PRIHI);
 	t->t_intr = 0;	/* XXX this can race with notify */
 	q_sema(s, t);
-	p_lock(&runq_lock, SPLHI);
-	v_lock(&s->s_lock, SPLHI);
+	p_lock_fast(&runq_lock, SPLHI_SAME);
+	v_lock(&s->s_lock, SPLHI_SAME);
 	t->t_state = TS_SLEEP;
 	ATOMIC_DEC(&num_run);
 	swtch();
@@ -228,7 +162,9 @@ v_sema(sema_t *s)
 		ASSERT_DEBUG(t->t_wchan == s, "v_sema: mismatch");
 		dq_sema(s, t);
 		t->t_wchan = 0;
-		setrun(t);
+		p_lock_fast(&runq_lock, SPLHI_SAME);
+		lsetrun(t);
+		v_lock(&runq_lock, SPLHI_SAME);
 	} else {
 		/* dq_sema() does it otherwise */
 		s->s_count += 1;
@@ -250,43 +186,6 @@ vall_sema(sema_t *s)
 }
 
 /*
- * blocked_sema()
- *	Tell if anyone's sleeping on the semaphore
- */
-int
-blocked_sema(sema_t *s)
-{
-	return (s->s_count < 0);
-}
-
-/*
- * init_sema()
- * 	Initialize semaphore
- *
- * The s_count starts at 1.
- */
-void
-init_sema(sema_t *s)
-{
-	s->s_count = 1;
-	s->s_sleepq = 0;
-	init_lock(&s->s_lock);
-}
-
-/*
- * set_sema()
- *	Manually set the value for the semaphore count
- *
- * Use with care; if you strand someone on the queue your system
- * will start to act funny.  If DEBUG is on, it'll probably panic.
- */
-void
-set_sema(sema_t *s, int cnt)
-{
-	s->s_count = cnt;
-}
-
-/*
  * p_sema_v_lock()
  *	Atomically transfer from a spinlock to a semaphore
  */
@@ -294,7 +193,6 @@ int
 p_sema_v_lock(sema_t *s, pri_t p, lock_t *l)
 {
 	struct thread *t;
-	spl_t spl;
 
 	ASSERT_DEBUG(cpu.pc_locks == 1, "p_sema_v: bad lock count");
 	ASSERT_DEBUG(s->s_lock.l_lock == 0, "p_sema_v: deadlock");
@@ -303,10 +201,10 @@ p_sema_v_lock(sema_t *s, pri_t p, lock_t *l)
 	 * Take semaphore lock.  If count is high enough, release
 	 * semaphore and lock now.
 	 */
-	spl = p_lock(&s->s_lock, SPLHI);
+	p_lock_fast(&s->s_lock, SPLHI);
 	s->s_count -= 1;
 	if (s->s_count >= 0) {
-		v_lock(&s->s_lock, spl);
+		v_lock(&s->s_lock, SPLHI_SAME);
 		v_lock(l, SPL0);
 		return(0);
 	}
@@ -320,9 +218,9 @@ p_sema_v_lock(sema_t *s, pri_t p, lock_t *l)
 	t->t_intr = 0;
 	t->t_nointr = (p == PRIHI);
 	q_sema(s, t);
-	p_lock(&runq_lock, SPLHI);
-	v_lock(&s->s_lock, SPLHI);
-	v_lock(l, SPLHI);
+	p_lock_fast(&runq_lock, SPLHI_SAME);
+	v_lock(&s->s_lock, SPLHI_SAME);
+	v_lock(l, SPLHI_SAME);
 	t->t_state = TS_SLEEP;
 	ATOMIC_DEC(&num_run);
 	swtch();

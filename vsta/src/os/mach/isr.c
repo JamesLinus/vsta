@@ -6,13 +6,15 @@
 #include <mach/isr.h>
 #include <sys/fs.h>
 #include <sys/port.h>
-#include <sys/mutex.h>
 #include <sys/percpu.h>
 #include <sys/proc.h>
 #include <sys/thread.h>
 #include <mach/machreg.h>
 #include <mach/icu.h>
 #include <sys/assert.h>
+#include <sys/misc.h>
+#include "../kern/msg.h"
+
 
 /*
  * Per-IRQ information on who to call when an IRQ is entered
@@ -51,9 +53,21 @@ struct prot io_prot = {
 };
 
 /*
+ * setmask()
+ *	Set the interrupt mask
+ */
+inline static void
+setmask(ushort mask)
+{
+	outportb(ICU0 + 1, mask & 0xFF);
+	outportb(ICU1 + 1, (mask >> 8) & 0xFF);
+}
+
+/*
  * enable_isr()
  *	Connect an ISR to a port
  */
+int
 enable_isr(port_t arg_port, int irq)
 {
 	struct sysmsg *sm;
@@ -93,9 +107,9 @@ enable_isr(port_t arg_port, int irq)
 	 * Initialize the message
 	 */
 	sm = &handler[irq].i_msg;
-	sm->m_op = 0;
-	sm->m_nseg = sm->m_arg = sm->m_arg1 = 0;
-	sm->m_sender = 0;
+	sm->sm_op = 0;
+	sm->sm_nseg = sm->sm_arg = sm->sm_arg1 = 0;
+	sm->sm_sender = 0;
 
 	/*
 	 * Put it in the handler slot
@@ -116,7 +130,7 @@ enable_isr(port_t arg_port, int irq)
 		++cnt_slave;
 		intr_mask &= ~(1 << MASTER_SLAVE);
 	}
-	SETMASK(intr_mask);
+	setmask(intr_mask);
 out:
 	v_lock(&port->p_lock, SPL0);
 	v_sema(&port->p_sema);
@@ -146,7 +160,7 @@ disable_isr(struct port *port)
 					intr_mask |= (1 << MASTER_SLAVE);
 				}
 			}
-			SETMASK(intr_mask);
+			setmask(intr_mask);
 
 			/*
 			 * Remove handler
@@ -165,6 +179,7 @@ disable_isr(struct port *port)
  * use the I/O bitmap, but I hear it has bugs, and I don't feel like
  * chasing them just yet.
  */
+int
 enable_io(int arg_low, int arg_high)
 {
 	struct trapframe *f = curthread->t_uregs;
@@ -196,10 +211,10 @@ enable_io(int arg_low, int arg_high)
  *
  * Return 1 if a handler was found, 0 otherwise.
  */
+int
 deliver_isr(int isr)
 {
 	struct sysmsg *sm;
-	extern void queue_msg();
 
 	/*
 	 * Only 16 supported through ISA ICU
@@ -216,14 +231,15 @@ deliver_isr(int isr)
 
 	/*
 	 * If the m_op field is 0, this message isn't currently
-	 * queued.  Set m_op and queue it.
+	 * queued.  Set m_op and queue it.  We still have interrupts
+	 * disabled so we queue SPLHI
 	 */
 	sm = &handler[isr].i_msg;
-	if (sm->m_op == 0) {
-		sm->m_op = M_ISR;
-		sm->m_arg = isr;
-		sm->m_arg1 = 1;
-		queue_msg(handler[isr].i_port, sm);
+	if (sm->sm_op == 0) {
+		sm->sm_op = M_ISR;
+		sm->sm_arg = isr;
+		sm->sm_arg1 = 1;
+		queue_msg(handler[isr].i_port, sm, SPLHI);
 		return(1);
 	}
 
@@ -231,7 +247,7 @@ deliver_isr(int isr)
 	 * Otherwise it's still languishing there.  Bump the
 	 * m_arg field to tell them how many times they missed.
 	 */
-	sm->m_arg1 += 1;
+	sm->sm_arg1 += 1;
 	dupintr += 1;
 	return(1);
 }
@@ -245,6 +261,6 @@ start_clock(void)
 {
 	cli();
 	intr_mask &= ~(1 << 0);
-	SETMASK(intr_mask);
+	setmask(intr_mask);
 	sti();
 }

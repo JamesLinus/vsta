@@ -6,6 +6,8 @@
  * configured, only the parts needed to display kernel printf()'s
  * are compiled in.
  */
+#include <sys/misc.h>
+#include "../mach/locore.h"
 
 extern void cons_putc(int);
 static int col = 0;		/* When to wrap */
@@ -112,7 +114,8 @@ dbg_enter(void)
 	int was_on;
 	extern void dbg_main(void);
 
-	was_on = cli();
+	was_on = geti();
+	cli();
 	printf("[Kernel debugger]\n");
 	dbg_main();
 	if (was_on) {

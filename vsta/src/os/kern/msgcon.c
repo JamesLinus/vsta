@@ -6,7 +6,6 @@
 #include <sys/msg.h>
 #include <sys/fs.h>
 #include <hash.h>
-#include <sys/mutex.h>
 #include <sys/percpu.h>
 #include <sys/proc.h>
 #include <sys/assert.h>
@@ -15,6 +14,7 @@
 #include <sys/thread.h>
 #include <sys/malloc.h>
 #include <alloc.h>
+#include "msg.h"
 
 #define START_ROTOR (1024)	/* Where we start searching for an open # */
 
@@ -74,10 +74,9 @@ deref_port(struct port *port, struct portref *pr)
 			ASSERT(ref == pr, "deref_port: ref not in port");
 			ASSERT(!blocked_sema(&port->p_wait),
 				"deref_port: waiters");
-			port->p_refs = 0;
-			for (sm = port->p_hd; sm; sm = sm->m_next) {
-				ASSERT((sm->m_op == M_ISR) ||
-					(sm->m_op == M_CONNECT),
+			for (sm = port->p_hd; sm; sm = sm->sm_next) {
+				ASSERT((sm->sm_op == M_ISR) ||
+					(sm->sm_op == M_CONNECT),
 					"deref_port: messages");
 			}
 		}
@@ -89,6 +88,8 @@ deref_port(struct port *port, struct portref *pr)
 		if (ref == pr) {
 			port->p_refs = pr->p_next;
 		}
+	} else {
+		port->p_refs = 0;
 	}
 #ifdef DEBUG
 	pr->p_next = pr->p_prev = 0;
@@ -197,10 +198,8 @@ msg_connect(port_name arg_port, int arg_mode)
 	int slot;
 	struct portref *pr;
 	struct port *port;
-	int holding_port = 0;
-	int holding_hash = 0;
 	int error = 0;
-	struct sysmsg *sm = 0;
+	struct sysmsg sm;
 
 	/*
 	 * Allocate a portref data structure, set it up
@@ -210,15 +209,13 @@ msg_connect(port_name arg_port, int arg_mode)
 	/*
 	 * Allocate a system message, fill it in.
 	 */
-	sm = MALLOC(sizeof(struct sysmsg), MT_SYSMSG);
-	sm->m_op = M_CONNECT;
-	sm->m_sender = pr;
-	sm->m_seg[0] = (void *)(p->p_ids);
-	sm->m_nseg = sizeof(p->p_ids);
-	sm->m_arg = arg_mode;
-	sm->m_arg1 = 0;
-	sm->m_next = 0;
-	pr->p_msg = sm;
+	sm.sm_op = M_CONNECT;
+	sm.sm_sender = pr;
+	sm.sm_seg[0] = (void *)(p->p_ids);
+	sm.sm_nseg = sizeof(p->p_ids);
+	sm.sm_arg = arg_mode;
+	sm.sm_arg1 = 0;
+	pr->p_msg = &sm;
 
 	/*
 	 * Get an open slot
@@ -231,9 +228,10 @@ msg_connect(port_name arg_port, int arg_mode)
 	/*
 	 * Now lock name semaphore, and look up our port
 	 */
-	p_sema(&name_sema, PRIHI); holding_hash = 1;
+	p_sema(&name_sema, PRIHI);
 	port = hash_lookup(portnames, arg_port);
 	if (!port) {
+		v_sema(&name_sema);
 		error = err(ESRCH);
 		goto out;
 	}
@@ -241,7 +239,7 @@ msg_connect(port_name arg_port, int arg_mode)
 	/*
 	 * Lock port
 	 */
-	p_lock(&port->p_lock, SPLHI); holding_port = 1;
+	p_lock_fast(&port->p_lock, SPLHI);
 
 	/*
 	 * Fill in port we're trying to attach
@@ -251,18 +249,17 @@ msg_connect(port_name arg_port, int arg_mode)
 	/*
 	 * Free up semaphores we don't need to hold any more
 	 */
-	v_sema(&name_sema); holding_hash = 0;
+	v_sema(&name_sema);
 
 	/*
 	 * Queue our message onto the server's queue, kick him awake
 	 */
-	lqueue_msg(port, sm);
+	lqueue_msg(port, &sm);
 
 	/*
 	 * Release lock and fall asleep on our own semaphore
 	 */
 	p_sema_v_lock(&pr->p_iowait, PRIHI, &port->p_lock);
-	holding_port = 0;
 
 	/*
 	 * If p_port went away, we raced with him closing
@@ -276,7 +273,7 @@ msg_connect(port_name arg_port, int arg_mode)
 	 * The reason has been placed in m_err field of our sysmsg.
 	 */
 	else if (pr->p_state != PS_IODONE) {
-		error = err(sm->m_err);
+		error = err(sm.sm_err);
 	}
 
 	/*
@@ -294,20 +291,11 @@ msg_connect(port_name arg_port, int arg_mode)
 	 * All done.  Release references as needed, return
 	 */
 out:
-	if (holding_port) {
-		v_lock(&port->p_lock, SPL0);
-	}
-	if (holding_hash) {
-		v_sema(&name_sema);
-	}
 	if (slot >= 0) {
 		free_open(p, slot);
 	}
 	if (pr) {
 		FREE(pr, MT_PORTREF);
-	}
-	if (sm)	{
-		FREE(sm, MT_SYSMSG);
 	}
 	return(error);
 }
@@ -327,7 +315,7 @@ tran_find(long arg_tran)
 	if (!pr) {
 		err(EINVAL);
 	} else {
-		p_lock(&pr->p_lock, SPL0);
+		p_lock_fast(&pr->p_lock, SPL0);
 	}
 	v_sema(&p->p_sema);
 	return(pr);
@@ -337,6 +325,7 @@ tran_find(long arg_tran)
  * msg_accept()
  *	Accept a connection with ID "arg_tran"
  */
+int
 msg_accept(long arg_tran)
 {
 	struct portref *pr;
@@ -374,27 +363,25 @@ msg_accept(long arg_tran)
 void
 shut_client(struct portref *pr)
 {
-	struct sysmsg *sm;
+	struct sysmsg sm;
 	struct port *port;
 
 	/*
 	 * Get a system message
 	 */
-	sm = MALLOC(sizeof(struct sysmsg), MT_SYSMSG);
-	sm->m_sender = pr;
-	sm->m_op = M_DISCONNECT;
-	sm->m_arg = (long)pr;
-	sm->m_arg1 = 0;
-	sm->m_nseg = 0;
+	sm.sm_sender = pr;
+	sm.sm_op = M_DISCONNECT;
+	sm.sm_arg = (long)pr;
+	sm.sm_arg1 = 0;
+	sm.sm_nseg = 0;
 
 	/*
 	 * If he's closed on us at the same time, no problem.
 	 */
-	p_lock(&pr->p_lock, SPL0);
+	p_lock_fast(&pr->p_lock, SPL0);
 	if (!(port = pr->p_port)) {
-		v_lock(&pr->p_lock, SPL0);	/* for lock count in percpu */
+		v_lock(&pr->p_lock, SPL0_SAME);	/* for lock count in percpu */
 		free_portref(pr);
-		FREE(sm, MT_SYSMSG);
 		return;
 	}
 
@@ -403,7 +390,7 @@ shut_client(struct portref *pr)
 	 * waiting for his final response.
 	 */
 	pr->p_state = PS_CLOSING;
-	queue_msg(port, sm);
+	queue_msg(port, &sm, SPL0);
 
 	/*
 	 * Wait for acknowledgement.  He will remove our reference
@@ -415,11 +402,6 @@ shut_client(struct portref *pr)
 	 * Free our portref
 	 */
 	free_portref(pr);
-
-	/*
-	 * Free our sysmsg
-	 */
-	FREE(sm, MT_SYSMSG);
 }
 
 /*
@@ -438,10 +420,10 @@ static int
 close_client(struct port *port, struct portref *pr)
 {
 	unmapsegs(&pr->p_segs);
-	p_lock(&pr->p_lock, SPL0);
-	p_lock(&port->p_lock, SPLHI);
+	p_lock_fast(&pr->p_lock, SPL0);
+	p_lock_fast(&port->p_lock, SPLHI);
 	if (port->p_hd) {
-		v_lock(&pr->p_lock, SPLHI);
+		v_lock(&pr->p_lock, SPLHI_SAME);
 		return(1);
 	}
 	pr->p_port = 0;
@@ -450,7 +432,7 @@ close_client(struct port *port, struct portref *pr)
 	}
 	deref_port(port, pr);
 	v_lock(&port->p_lock, SPL0);
-	v_lock(&pr->p_lock, SPL0);
+	v_lock(&pr->p_lock, SPL0_SAME);
 	return(0);
 }
 
@@ -487,10 +469,10 @@ bounce_msgs(struct port *port)
 		/*
 		 * Get pointers, apply sanity check
 		 */
-		pr = sm->m_sender;
-		smn = sm->m_next;
+		pr = sm->sm_sender;
+		smn = sm->sm_next;
 #ifdef DEBUG
-		sm->m_next = 0;
+		sm->sm_next = 0;
 #endif
 
 		/*
@@ -500,7 +482,7 @@ bounce_msgs(struct port *port)
 		 * back.
 		 */
 		if (pr == 0) {
-			ASSERT_DEBUG(sm->m_op == M_ISR,
+			ASSERT_DEBUG(sm->sm_op == M_ISR,
 				"bounce_msgs: !pr !M_ISR");
 			continue;
 		}
@@ -511,13 +493,13 @@ bounce_msgs(struct port *port)
 		/*
 		 * Lock portref, then port
 		 */
-		p_lock(&pr->p_lock, SPL0);
-		p_lock(&port->p_lock, SPLHI);
+		p_lock_fast(&pr->p_lock, SPL0_SAME);
+		p_lock_fast(&port->p_lock, SPLHI);
 
 		/*
 		 * If any segments in the message, discard them
 		 */
-		if (sm->m_nseg > 0) {
+		if (sm->sm_nseg > 0) {
 			freesegs(sm);
 		}
 
@@ -526,7 +508,7 @@ bounce_msgs(struct port *port)
 		 * ignore anything but the abort message itself.
 		 */
 		if ((pr->p_state == PS_ABWAIT) &&
-				(sm->m_op != M_ABORT)) {
+				(sm->sm_op != M_ABORT)) {
 			/* nothing */ ;
 		} else {
 
@@ -536,8 +518,8 @@ bounce_msgs(struct port *port)
 			 * the client awake.  Remove him from our portref
 			 * list.
 			 */
-			sm->m_arg1 = sm->m_arg = -1;
-			strcpy(sm->m_err, EIO);
+			sm->sm_arg1 = sm->sm_arg = -1;
+			strcpy(sm->sm_err, EIO);
 			pr->p_port = 0;
 			v_sema(&pr->p_iowait);
 			deref_port(port, pr);
@@ -547,7 +529,7 @@ bounce_msgs(struct port *port)
 		 * Release locks, and remove the portref from our list
 		 */
 		v_lock(&port->p_lock, SPL0);
-		v_lock(&pr->p_lock, SPL0);
+		v_lock(&pr->p_lock, SPL0_SAME);
 	}
 }
 
@@ -690,7 +672,7 @@ msg_err(long arg_tran, char *arg_why, int arg_len)
 	p_sema(&p->p_sema, PRILO);
 	pr = hash_lookup(p->p_prefs, arg_tran);
 	if (pr) {
-		p_lock(&pr->p_lock, SPL0);
+		p_lock_fast(&pr->p_lock, SPL0);
 		if (pr->p_state == PS_OPENING) {
 			hash_delete(p->p_prefs, arg_tran);
 		}
@@ -723,15 +705,15 @@ msg_err(long arg_tran, char *arg_why, int arg_len)
 		 * Wake him up.
 		 */
 		pr->p_state = PS_IODONE;
-		pr->p_msg->m_arg = -1;
-		strcpy(pr->p_msg->m_err, errmsg);
+		pr->p_msg->sm_arg = -1;
+		strcpy(pr->p_msg->sm_err, errmsg);
 		v_sema(&pr->p_iowait);
 		break;
 	case PS_OPENING:
 		/*
 		 * A failed open needs the portref cleared
 		 */
-		(void)p_lock(&port->p_lock, SPLHI);
+		p_lock_fast(&port->p_lock, SPLHI);
 		deref_port(port, pr);
 		v_lock(&port->p_lock, SPL0);
 
@@ -741,7 +723,7 @@ msg_err(long arg_tran, char *arg_why, int arg_len)
 		 * p_state to anything but PS_IODONE.  Wake him up.
 		 */
 		pr->p_state = PS_ABDONE;
-		strcpy(pr->p_msg->m_err, errmsg);
+		strcpy(pr->p_msg->sm_err, errmsg);
 		v_sema(&pr->p_iowait);
 		break;
 	default:

@@ -23,12 +23,14 @@
 #include <sys/pset.h>
 #include <sys/core.h>
 #include <sys/seg.h>
-#include <sys/mutex.h>
 #include <sys/param.h>
 #include <sys/msg.h>
 #include <sys/fs.h>
 #include <sys/malloc.h>
 #include <sys/assert.h>
+#include "../mach/vm.h"
+#include "../mach/mutex.h"
+#include "pset.h"
 
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
 
@@ -220,11 +222,12 @@ kern_mem(void *vaddr, uint len)
  * specified by the user message.  Returns number of bytes actually
  * copied, or -1 on error.
  */
-copyoutsegs(struct sysmsg *sm, struct msg *m)
+copyoutsegs(struct sysmsg *sm)
 {
 	uint cnt, total = 0;
-	int nsm_segs = sm->m_nseg, nm_segs = m->m_nseg;
-	struct seg **sm_pp = &(sm->m_seg[0]),
+	struct msg *m = &sm->sm_msg;
+	int nsm_segs = sm->sm_nseg, nm_segs = m->m_nseg;
+	struct seg **sm_pp = &(sm->sm_seg[0]),
 		*sm_segs = *sm_pp++;
 	seg_t *m_segs = m->m_seg;
 

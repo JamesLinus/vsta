@@ -11,8 +11,9 @@
 #include <sys/pset.h>
 #include <sys/core.h>
 #include <sys/fs.h>
-#include <sys/mutex.h>
 #include <sys/assert.h>
+#include "../mach/mutex.h"
+#include "pset.h"
 
 /*
  * Description of an outstanding physio
@@ -44,7 +45,6 @@ static void
 unwire_page(uint pfn)
 {
 	struct core *c;
-	extern struct core *core, *coreNCORE;
 
 	c = core+pfn;
 	ASSERT_DEBUG(c < coreNCORE, "unwire_page: bad pfn");
@@ -61,7 +61,6 @@ static void
 wire_page(uint pfn)
 {
 	struct core *c;
-	extern struct core *core, *coreNCORE;
 
 	c = core+pfn;
 	ASSERT_DEBUG(c < coreNCORE, "wire_page: bad pfn");
@@ -96,12 +95,12 @@ page_wire(void *arg_va, void **arg_pa)
 	 * Queue turn for a wired slot, take first free slot
 	 */
 	p_sema(&wired_sema, PRILO);
-	p_lock(&wired_lock, SPL0);
+	p_lock_fast(&wired_lock, SPL0);
 	for (w = wired; w->w_proc; ++w)
 		;
 	ASSERT_DEBUG(w < &wired[MAX_WIRED], "page_wire: bad count");
 	w->w_proc = (struct proc *)1;	/* Placeholder */
-	v_lock(&wired_lock, SPL0);
+	v_lock(&wired_lock, SPL0_SAME);
 
 	/*
 	 * Look up virtual address
@@ -179,7 +178,7 @@ page_release(uint arg_handle)
 	 * Lock and see if this is really our slot
 	 */
 	w = &wired[arg_handle];
-	p_lock(&wired_lock, SPL0);
+	p_lock_fast(&wired_lock, SPL0);
 	if (w->w_proc == curthread->t_proc) {
 		pfn = w->w_pfn;
 		w->w_proc = 0;
@@ -189,7 +188,7 @@ page_release(uint arg_handle)
 		pfn = 0;
 		error = err(EPERM);
 	}
-	v_lock(&wired_lock, SPL0);
+	v_lock(&wired_lock, SPL0_SAME);
 
 	/*
 	 * If we freed a slot, unwire the page now
@@ -222,7 +221,7 @@ pages_release(struct proc *p)
 			/*
 			 * Lock and check again
 			 */
-			p_lock(&wired_lock, SPL0);
+			p_lock_fast(&wired_lock, SPL0);
 			if (w->w_proc == p) {
 				/*
 				 * Record PFN, clear slot
@@ -231,7 +230,7 @@ pages_release(struct proc *p)
 				w->w_proc = 0;
 				v_sema(&wired_sema);
 			}
-			v_lock(&wired_lock, SPL0);
+			v_lock(&wired_lock, SPL0_SAME);
 
 			/*
 			 * With lock released, lock slot and clear

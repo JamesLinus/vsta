@@ -46,11 +46,12 @@
 #include <sys/vas.h>
 #include <sys/pview.h>
 #include <sys/pset.h>
-#include <sys/mutex.h>
 #include <sys/percpu.h>
 #include <sys/thread.h>
 #include <sys/assert.h>
 #include <sys/core.h>
+#include "../mach/mutex.h"
+#include "pset.h"
 
 /*
  * vas_fault()
@@ -65,9 +66,7 @@ vas_fault(void *vas, void *vaddr, int write)
 {
 	struct pview *pv;
 	struct pset *ps;
-	int holding_ps = 0;
 	struct perpage *pp;
-	int holding_pp = 0;
 	uint idx;
 	int error = 0;
 	int wasvalid;
@@ -76,26 +75,24 @@ vas_fault(void *vas, void *vaddr, int write)
 	 * Easiest--no view matches address
 	 */
 	if ((pv = find_pview(vas, vaddr)) == 0) {
-		error = 1;
-		goto out;
+		return(1);
 	}
 	ps = pv->p_set;
-	holding_ps = 1;
 
 	/*
 	 * Next easiest--trying to write to read-only view
 	 */
 	if (write && (pv->p_prot & PROT_RO)) {
-		error = 1;
-		goto out;
+		v_lock(&ps->p_lock, SPL0_SAME);
+		return(1);
 	}
 
 	/*
 	 * User accessing kernel-only view?
 	 */
 	if (!(curthread->t_flags & T_KERN) && (pv->p_prot & PROT_KERN)) {
-		error = 1;
-		goto out;
+		v_lock(&ps->p_lock, SPL0_SAME);
+		return(1);
 	}
 
 	/*
@@ -103,7 +100,7 @@ vas_fault(void *vas, void *vaddr, int write)
 	 */
 	idx = btop(((char *)vaddr - (char *)pv->p_vaddr)) + pv->p_off;
 	pp = find_pp(ps, idx);
-	lock_slot(ps, pp); holding_ps = 0; holding_pp = 1;
+	lock_slot(ps, pp);
 
 	/*
 	 * If the slot is bad, can't fill
@@ -161,11 +158,6 @@ vas_fault(void *vas, void *vaddr, int write)
 	 * Free the various things we hold and return
 	 */
 out:
-	if (holding_ps) {
-		v_lock(&ps->p_lock, SPL0);
-	}
-	if (holding_pp) {
-		unlock_slot(ps, pp);
-	}
+	unlock_slot(ps, pp);
 	return(error);
 }

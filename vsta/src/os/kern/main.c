@@ -2,12 +2,12 @@
  * main.c
  *	Initial C code run during bootup
  */
-#include <sys/mutex.h>
+#include "../mach/mutex.h"
 
 extern void init_machdep(), init_page(), init_qio(), init_sched(),
 	init_proc(), init_swap(), swtch(), init_malloc(), init_msg();
 extern void init_wire(), start_clock(), init_cons();
-#ifdef DEBUG
+#ifdef KDB
 extern void init_debug();
 #endif
 
@@ -21,7 +21,7 @@ main(void)
 	init_page();
 	init_malloc();
 	init_cons();
-#ifdef DEBUG
+#ifdef KDB
 	init_debug();
 #endif
 	init_qio();
@@ -37,6 +37,6 @@ main(void)
 	 * so take it and fall into the scheduler.
 	 */
 	upyet = 1;
-	(void)p_lock(&runq_lock, SPLHI);
+	p_lock_fast(&runq_lock, SPLHI);
 	swtch();	/* Assumes curthread is 0 currently */
 }

@@ -10,16 +10,16 @@
  */
 #include <sys/proc.h>
 #include <sys/thread.h>
-#include <sys/percpu.h>
 #include <sys/sched.h>
 #include <sys/assert.h>
-#include <sys/mutex.h>
 #include <sys/malloc.h>
 #include <sys/fs.h>
+#include <sys/percpu.h>
 #include <alloc.h>
+#include "../mach/mutex.h"
 
 extern ulong random();
-extern void idle(void);
+extern void nudge();
 
 lock_t runq_lock;		/* Mutex for scheduling */
 struct sched
@@ -27,13 +27,13 @@ struct sched
 	sched_cheated,		/* Low-CPU processes given preference */
 	sched_bg,		/* Background (lowest priority) queue */
 	sched_root;		/* "main" queue */
-volatile uint num_run = 0;	/* # SRUN procs waiting */
+uint num_run = 0;		/* # SRUN procs waiting */
 
 /*
  * queue()
  *	Enqueue a node below an internal node
  */
-static void
+inline static void
 queue(struct sched *sup, struct sched *s)
 {
 	struct sched *hd = sup->s_down;
@@ -42,10 +42,12 @@ queue(struct sched *sup, struct sched *s)
 		sup->s_down = s;
 		s->s_hd = s->s_tl = s;
 	} else {
-		s->s_tl = hd->s_tl;
+		struct sched *hd_tl = hd->s_tl;
+	
+		s->s_tl = hd_tl;
 		s->s_hd = hd;
 		hd->s_tl = s;
-		s->s_tl->s_hd = s;
+		hd_tl->s_hd = s;
 	}
 }
 
@@ -53,7 +55,7 @@ queue(struct sched *sup, struct sched *s)
  * dequeue()
  *	Remove element from its queue
  */
-static void
+inline static void
 dequeue(struct sched *up, struct sched *s)
 {
 	if (s->s_hd == s) {
@@ -64,22 +66,28 @@ dequeue(struct sched *up, struct sched *s)
 	} else {
 		/*
 		 * Do doubly-linked deletion
+		 * XXX we do the bit with the temporary structures to
+		 * give the poor old compiler a hint about what to do
 		 */
-		s->s_tl->s_hd = s->s_hd;
-		s->s_hd->s_tl = s->s_tl;
+		struct sched *s_tl = s->s_tl;
+		struct sched *s_hd = s->s_hd;
+
+		s_tl->s_hd = s_hd;
+		s_hd->s_tl = s_tl;
 
 		/*
 		 * Move parent's down pointer if it's pointing to
 		 * us.
 		 */
 		if (up->s_down == s) {
-			up->s_down = s->s_hd;
+			up->s_down = s_hd;
 		}
 	}
 #ifdef DEBUG
 	s->s_tl = s->s_hd = 0;
 #endif
 }
+
 
 /*
  * preempt()
@@ -89,8 +97,7 @@ static void
 preempt(void)
 {
 	struct percpu *c, *lowest;
-	ushort pri = 99;
-	extern void nudge();
+	uint pri = 99;
 
 	c = nextcpu;
 	do {
@@ -114,7 +121,7 @@ preempt(void)
  *
  * runq lock is assumed held by caller.
  */
-static struct sched *
+inline static struct sched *
 pick_run(struct sched *root)
 {
 	struct sched *s = root, *s2;
@@ -132,7 +139,6 @@ pick_run(struct sched *root)
 		 * in the second, we pick out the lucky winner to be
 		 * run.
 		 */
-		pick = 0;
 		nrun = sum = 0;
 		s2 = s;
 		do {
@@ -228,8 +234,10 @@ void
 swtch(void)
 {
 	struct sched *s;
-	ushort pri;
-	struct thread *t = curthread;
+	uint pri;
+	static struct thread *t;
+	
+	t = curthread;
 
 	/*
 	 * Now that we're going to reschedule, clear any pending preempt
@@ -251,26 +259,21 @@ swtch(void)
 			dequeue(&sched_rt, s);
 			pri = PRI_RT;
 			ASSERT_DEBUG(s->s_leaf, "swtch: rt not leaf");
+			break;
 		} else if (sched_cheated.s_down) {
 			s = sched_cheated.s_down;
 			dequeue(&sched_cheated, s);
 			pri = PRI_CHEATED;
+			break;
 		} else if (sched_root.s_nrun > 0) {
 			s = pick_run(&sched_root);
 			pri = PRI_TIMESHARE;
+			break;
 		} else if (sched_bg.s_down) {
 			s = sched_bg.s_down;
 			dequeue(&sched_bg, s);
 			pri = PRI_BG;
 			ASSERT_DEBUG(s->s_leaf, "swtch: bg not leaf");
-		} else {
-			s = 0;
-		}
-
-		/*
-		 * Yup, drop out to run it
-		 */
-		if (s) {
 			break;
 		}
 
@@ -294,7 +297,7 @@ swtch(void)
 		v_lock(&runq_lock, SPL0);
 		t = curthread = 0;
 		idle();
-		p_lock(&runq_lock, SPLHI);
+		p_lock_fast(&runq_lock, SPLHI);
 	}
 
 	/*
@@ -304,7 +307,6 @@ swtch(void)
 		if (pri != PRI_CHEATED) {
 			t->t_runticks = RUN_TICKS;
 		}
-		cpu.pc_pri = pri;
 		curthread->t_state = TS_ONPROC;
 		v_lock(&runq_lock, SPL0);
 		return;
@@ -362,7 +364,7 @@ lsetrun(struct thread *t)
 		 * Similarly for background
 		 */
 		queue(&sched_bg, s);
-	} else if ((t->t_runticks > CHEAT_TICKS) && !t->t_oink) {
+	} else if ((t->t_runticks > CHEAT_TICKS) && (!t->t_oink)) {
 
 		/*
 		 * A timeshare process which used little of its
@@ -419,15 +421,39 @@ setrun(struct thread *t)
  * timeslice()
  *	Called when a process might need to timeslice
  */
-void
+inline static void
 timeslice(void)
 {
-	p_lock(&runq_lock, SPLHI);
+	p_lock_fast(&runq_lock, SPLHI);
 	ATOMIC_DEC(&num_run);
 	lsetrun(curthread);
 	swtch();
 }
 
+/*
+ * check_preempt()
+ *	If appropriate, preempt current thread
+ *
+ * This routine will swtch() itself out as needed; just calling
+ * it does the job.
+ */
+void
+check_preempt(void)
+{
+	/*
+	 * If no preemption needed, holding locks, or not running
+	 * with a process, don't preempt.
+	 */
+	if (do_preempt
+	    && curthread
+	    && (cpu.pc_locks == 0)
+	    && (cpu.pc_nopreempt == 0)) {
+		/*
+		 * Use timeslice() to switch us off
+		 */
+		timeslice();
+	}
+}
 /*
  * init_sched2()
  *	Set up a "struct sched" for use
@@ -475,7 +501,7 @@ sched_thread(struct sched *parent, struct thread *t)
 	struct sched *s;
 
 	s = MALLOC(sizeof(struct sched), MT_SCHED);
-	p_lock(&runq_lock, SPLHI);
+	p_lock_fast(&runq_lock, SPLHI);
 	s->s_up = parent;
 	s->s_thread = t;
 	s->s_prio = PRIO_DEFAULT;
@@ -499,7 +525,7 @@ sched_node(struct sched *parent)
 	struct sched *s;
 
 	s = MALLOC(sizeof(struct sched), MT_SCHED);
-	p_lock(&runq_lock, SPLHI);
+	p_lock_fast(&runq_lock, SPLHI);
 	s->s_up = parent;
 	s->s_down = 0;
 	s->s_prio = PRIO_DEFAULT;
@@ -519,7 +545,7 @@ sched_node(struct sched *parent)
 void
 free_sched_node(struct sched *s)
 {
-	(void)p_lock(&runq_lock, SPLHI);
+	p_lock_fast(&runq_lock, SPLHI);
 
 	/*
 	 * De-ref parent
@@ -547,10 +573,10 @@ free_sched_node(struct sched *s)
  *	Change the scheduling priority of the current thread
  */
 static int
-sched_prichg(int new_pri)
+sched_prichg(uint new_pri)
 {
 	spl_t s;
-	struct thread *t;
+	struct thread *t = curthread;
 	int x;
 
 	if ((new_pri == PRI_RT) && !isroot()) {
@@ -593,19 +619,20 @@ sched_op(int op, int arg)
 	 * Look at what we've been requested to do
 	 */
 	switch(op) {
-	case SCHEDOP_SETPRIO:	/* Set process priority */
+	case SCHEDOP_SETPRIO:
 		/*
+		 * Set thread priority
 		 * Range check the priority specified as the
 		 * argument.  An "idle" priority means just yield
 		 * and retry for the CPU.
 		 */
-		if ((arg < PRI_IDLE) || (arg > PRI_RT)) {
-			break;
-		}
 		if (arg == PRI_IDLE) {
 			timeslice();
 			return(0);
 		}
+		if ((arg < PRI_IDLE) || (arg > PRI_RT)) {
+			break;
+		} 
 		return(sched_prichg(arg));
 
 	case SCHEDOP_GETPRIO:

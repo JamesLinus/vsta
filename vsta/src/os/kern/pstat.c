@@ -9,7 +9,7 @@
 #include <sys/percpu.h>
 #include <sys/assert.h>
 #include <sys/fs.h>
-#include <sys/sched.h>
+#include "../mach/locore.h"
 
 extern sema_t pid_sema;
 extern struct proc *allprocs;
@@ -138,11 +138,7 @@ get_pstat_proc(uint pid, void *pst_info, uint pst_size)
 	/*
 	 * Copy out the process status info
 	 */
-	if (copyout((struct pstat_proc *)pst_info, &psp, pst_size) < 0) {
-		return(-1);
-	}
-
-	return(0);
+	return(copyout((struct pstat_proc *)pst_info, &psp, pst_size));
 }
 
 /*
@@ -173,11 +169,7 @@ get_pstat_kernel(void *pst_info, uint pst_size)
 	/*
 	 * Give the info back to the user
 	 */
-	if (copyout((struct pstat_kernel *)pst_info, &psk, pst_size) < 0) {
-		return(-1);
-	}
-
-	return(0);
+	return(copyout((struct pstat_kernel *)pst_info, &psk, pst_size));
 }
 
 /*

@@ -16,6 +16,7 @@
  */
 #include <sys/percpu.h>
 #include <sys/mutex.h>
+#include <sys/assert.h>
 #include "locore.h"
 
 /*

@@ -11,7 +11,10 @@
 #include <sys/thread.h>
 #include <sys/fs.h>
 #include <sys/port.h>
+#include <sys/misc.h>
 #include <hash.h>
+#include "../mach/mutex.h"
+#include "pset.h"
 
 /* Flag that we're not allowing a map hash to be created */
 #define NO_MAP_HASH ((struct hash *)1)
@@ -129,7 +132,7 @@ mmap(void *addr, ulong len, int prot, int flags,
 		 * as necessary, so just use the open file.
 		 */
 		pr = find_portref(p, port);
-		v_lock(&pr->p_lock, SPL0);
+		v_lock(&pr->p_lock, SPL0_SAME);
 
 		/*
 		 * Try to generate a view.  Return address or error.
@@ -176,11 +179,11 @@ munmap(void *vaddr, ulong len)
 	 * another thread coming into munmap().
 	 */
 	if ((pv->p_prot & PROT_MMAP) == 0) {
-		v_lock(&ps->p_lock, SPL0);
+		v_lock(&ps->p_lock, SPL0_SAME);
 		return(err(EBUSY));
 	}
 	pv->p_prot &= ~(PROT_MMAP);
-	v_lock(&ps->p_lock, SPL0);
+	v_lock(&ps->p_lock, SPL0_SAME);
 
 	/*
 	 * Blow it away
@@ -209,12 +212,12 @@ get_map_pset(struct portref *pr)
 	 * cache of mappings.  This also keeps the port from shutting
 	 * on us.
 	 */
-	p_lock(&pr->p_lock, SPL0);
+	p_lock_fast(&pr->p_lock, SPL0);
 	port = pr->p_port;
 	if (port) {
 		if ((port->p_flags & P_CLOSING) ||
 				(port->p_maps == NO_MAP_HASH)) {
-			v_lock(&pr->p_lock, SPL0);
+			v_lock(&pr->p_lock, SPL0_SAME);
 			port = 0;
 		} else {
 			p_sema_v_lock(&port->p_mapsema, PRIHI,
@@ -435,7 +438,7 @@ unhash(port_t arg_port, long arg_fid)
 		v_sema(&p->p_sema);
 		return(err(EBADF));
 	}
-	p_lock(&port->p_lock, SPLHI);
+	p_lock_fast(&port->p_lock, SPLHI);
 	v_sema(&p->p_sema);
 	p_sema_v_lock(&port->p_mapsema, PRIHI, &port->p_lock);
 

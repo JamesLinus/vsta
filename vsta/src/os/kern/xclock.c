@@ -13,12 +13,14 @@
  */
 #include <sys/percpu.h>
 #include <sys/thread.h>
-#include <sys/mutex.h>
 #include <mach/machreg.h>
 #include <sys/sched.h>
 #include <sys/fs.h>
 #include <sys/malloc.h>
 #include <sys/assert.h>
+#include <sys/xclock.h>
+#include "../mach/mutex.h"
+#include "../mach/timer.h"
 
 /*
  * CVT_TIME()
@@ -27,17 +29,6 @@
 #define CVT_TIME(tim, t) { \
 	(t)->t_sec = (tim)[1]; \
 	(t)->t_usec = (tim)[0] * (1000000/HZ); }
-
-/*
- * List of processes waiting for a certain time to pass
- */
-struct eventq {
-	ulong e_tid;		/* PID of thread */
-	struct time e_time;	/* What time to wake */
-	struct eventq *e_next;	/* List of sleepers */
-	sema_t e_sema;		/* Semaphore to sleep on */
-	int e_onlist;		/* Flag that still in eventq list */
-};
 
 static struct eventq		/* List of sleepers pending */
 	*eventq = 0;
@@ -59,7 +50,7 @@ alarm_wakeup(struct time *t)
 	struct eventq *e, **ep;
 
 	ep = &eventq;
-	p_lock(&time_lock, SPLHI);
+	p_lock_fast(&time_lock, SPLHI);
 	for (e = eventq; e; e = e->e_next) {
 		/*
 		 * Our list is ordered to the second, so we can bail
@@ -88,7 +79,7 @@ alarm_wakeup(struct time *t)
 			ep = &e->e_next;
 		}
 	}
-	v_lock(&time_lock, SPLHI);
+	v_lock(&time_lock, SPLHI_SAME);
 }
 
 /*
@@ -133,7 +124,7 @@ hardclock(struct trapframe *f)
 	/*
 	 * Bill time to current thread
 	 */
-	if (t = c->pc_thread) {
+	if ((t = c->pc_thread)) {
 		if (USERMODE(f)) {
 			t->t_usrcpu += 1L;
 		} else {
@@ -204,26 +195,30 @@ time_set(struct time *arg_time)
 	 * our boot-time really was
 	 */
 	cli();
-		CVT_TIME(cpu.pc_time, &ct);
+	CVT_TIME(cpu.pc_time, &ct);
+	ct.t_usec += get_itime();
 	sti();
 	
 	t.t_sec -= ct.t_sec;
 	t.t_usec -= ct.t_usec;
 	if (t.t_usec < 0) {
-		t.t_sec--;
+		t.t_sec -= 1;
 		t.t_usec += 1000000;
+	} else if (t.t_usec >= 1000000) {
+		t.t_sec += 1;
+		t.t_usec -= 1000000;
 	}
 
 	cli();
-		boot_time.t_usec = t.t_usec;
-		boot_time.t_sec = t.t_sec;
+	boot_time.t_usec = t.t_usec;
+	boot_time.t_sec = t.t_sec;
 	sti();
 	return(0);
 }
 
 /*
  * time_get()
- *	Return time to the second
+ *	Return time to the microsecond (or as close as we can get)
  */
 time_get(struct time *arg_time)
 {
@@ -233,12 +228,13 @@ time_get(struct time *arg_time)
 	 * Get time in desired format, hand to user
 	 */
 	cli();
-		CVT_TIME(cpu.pc_time, &t);
-		t.t_sec += boot_time.t_sec;
-		t.t_usec += boot_time.t_usec;
+	CVT_TIME(cpu.pc_time, &t);
+	t.t_sec += boot_time.t_sec;
+	t.t_usec += boot_time.t_usec;
+	t.t_usec += get_itime();
 	sti();
-	if (t.t_usec > 1000000) {
-		t.t_sec++;
+	while (t.t_usec >= 1000000) {
+		t.t_sec += 1;
 		t.t_usec -= 1000000;
 	}
 
@@ -269,11 +265,11 @@ time_sleep(struct time *arg_time)
 	 * Convert the time to a boot time referenced value
 	 */
 	cli();
-		t.t_sec -= boot_time.t_sec;
-		t.t_usec -= boot_time.t_usec;
+	t.t_sec -= boot_time.t_sec;
+	t.t_usec -= boot_time.t_usec;
 	sti();
 	if (t.t_usec < 0) {
-		t.t_sec--;
+		t.t_sec -= 1;
 		t.t_usec += 1000000;
 	}
 
@@ -295,23 +291,15 @@ time_sleep(struct time *arg_time)
 	 * for the same second.
 	 */
 	ep = &eventq;
-	p_lock(&time_lock, SPLHI);
+	p_lock_fast(&time_lock, SPLHI);
 	for (e = eventq; e; e = e->e_next) {
 		if (l <= e->e_time.t_sec) {
-			ev->e_next = e;
-			*ep = ev;
 			break;
 		}
 		ep = &e->e_next;
 	}
-
-	/*
-	 * If we fell off the end of the list, place us there
-	 */
-	if (e == 0) {
-		ev->e_next = 0;
-		*ep = ev;
-	}
+	ev->e_next = e;
+	*ep = ev;
 
 	/*
 	 * Atomically switch to the semaphore.  We will either return
@@ -321,7 +309,7 @@ time_sleep(struct time *arg_time)
 		/*
 		 * Regain lock, and see if we're still on the list.
 		 */
-		p_lock(&time_lock, SPLHI);
+		p_lock_fast(&time_lock, SPLHI);
 		if (ev->e_onlist) {
 			/*
 			 * Hunt ourselves down and remove from the list
@@ -352,6 +340,11 @@ time_sleep(struct time *arg_time)
 void uptime(struct time *t)
 {
 	cli();
-		CVT_TIME(cpu.pc_time, t);
+	CVT_TIME(cpu.pc_time, t);
+	t->t_usec += get_itime();
 	sti();
+	if (t->t_usec >= 1000000) {
+		t->t_sec += 1;
+		t->t_usec -= 1000000;
+	}
 }

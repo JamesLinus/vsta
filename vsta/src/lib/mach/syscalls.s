@@ -22,6 +22,7 @@
 	.globl	__old_errno
 	.globl	__err_sync
 	.text
+	.align	4
 
 syserr:	movl	$1, __err_sync
 	push	%eax

@@ -28,11 +28,11 @@
 #include <sys/percpu.h>
 #include <sys/proc.h>
 #include <sys/thread.h>
-#include <sys/mutex.h>
 #include <sys/fs.h>
 #include <sys/malloc.h>
 #include <hash.h>
 #include <sys/assert.h>
+#include "../mach/mutex.h"
 
 extern lock_t runq_lock;
 extern struct hash *pid_hash;
@@ -58,7 +58,7 @@ signal_thread(struct thread *t, char *event, int is_sys)
 	/*
 	 * Take lock, place event in appropriate place
 	 */
-retry:	p_lock(&runq_lock, SPLHI);
+retry:	p_lock_fast(&runq_lock, SPLHI);
 	strcpy((is_sys ? t->t_evsys : t->t_evproc), event);
 
 	/*
@@ -249,7 +249,9 @@ selfsig(char *ev)
 
 /*
  * check_events()
- *	If there are events, deliver them
+ *	Handle any events that may be pending.
+ *
+ * We *know* we have a current thread!
  */
 void
 check_events(void)
@@ -259,12 +261,8 @@ check_events(void)
 	char event[EVLEN];
 	extern void sendev();
 
-	/*
-	 * No thread or no events--nothing to do
-	 */
-	if (!t || !EVENT(t)) {
-		return;
-	}
+	ASSERT_DEBUG(t, "check_events: no thread");
+	ASSERT_DEBUG(EVENT(t), "check_events: no events");
 
 	/*
 	 * Take next events, act on them

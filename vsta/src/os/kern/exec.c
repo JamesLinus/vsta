@@ -5,7 +5,6 @@
 #include <sys/proc.h>
 #include <sys/percpu.h>
 #include <sys/thread.h>
-#include <sys/mutex.h>
 #include <sys/fs.h>
 #include <sys/vas.h>
 #include <sys/pview.h>
@@ -14,7 +13,10 @@
 #include <sys/exec.h>
 #include <sys/port.h>
 #include <sys/assert.h>
+#include <sys/misc.h>
 #include <hash.h>
+#include "../mach/mutex.h"
+#include "../mach/locore.h"
 
 extern void set_execarg(), reset_uregs();
 extern struct portref *delete_portref();
@@ -77,8 +79,7 @@ add_minstack(struct vas *vas)
 static void
 add_views(struct vas *vas, struct portref *pr, struct mapfile *fm)
 {
-	struct pview *pv;
-	uint len, x;
+	uint x;
 	struct mapseg *m;
 
 	/*
@@ -116,6 +117,7 @@ add_views(struct vas *vas, struct portref *pr, struct mapfile *fm)
  * We allow the caller to pass a single value, which is pushed onto
  * the new stack of the process.
  */
+int
 exec(uint arg_port, struct mapfile *arg_map, void *arg)
 {
 	struct thread *t = curthread;

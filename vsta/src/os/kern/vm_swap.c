@@ -22,10 +22,10 @@
 #include <sys/proc.h>
 #include <sys/thread.h>
 #include <sys/swap.h>
-#include <sys/mutex.h>
 #include <sys/malloc.h>
 #include <sys/assert.h>
 #include <alloc.h>
+#include "msg.h"
 
 extern struct seg *kern_mem();
 extern void freesegs();
@@ -50,8 +50,8 @@ seg_physcopy(struct sysmsg *sm, uint pfn)
 
 	p = (char *)ptov(ptob(pfn));
 	nbyte = NBPG;
-	for (x = 0; nbyte && (x < sm->m_nseg); ++x) {
-		s = sm->m_seg[x];
+	for (x = 0; nbyte && (x < sm->sm_nseg); ++x) {
+		s = sm->sm_seg[x];
 
 		/*
 		 * Calculate amount to copy next
@@ -100,35 +100,34 @@ seg_physcopy(struct sysmsg *sm, uint pfn)
  */
 pageio(uint pfn, struct portref *pr, uint off, uint cnt, int op)
 {
-	struct sysmsg *sm;
+	struct sysmsg sm;
 	int error = 0;
-	int holding_pr = 0, holding_port = 0;
 
 	ASSERT_DEBUG((op == FS_ABSREAD) || (op == FS_ABSWRITE),
 		"pageio: illegal op");
-
 	ASSERT(pr, "pageio: null portref");
+
 	/*
 	 * Construct a system message
 	 */
-	sm = MALLOC(sizeof(struct sysmsg), MT_SYSMSG);
-	sm->m_sender = pr;
-	sm->m_op = op;
-	sm->m_nseg = 1;
-	sm->m_arg = cnt;
-	sm->m_arg1 = off;
-	sm->m_seg[0] = kern_mem(ptov(ptob(pfn)), cnt);
+	sm.sm_sender = pr;
+	sm.sm_op = op;
+	sm.sm_nseg = 1;
+	sm.sm_arg = cnt;
+	sm.sm_arg1 = off;
+	sm.sm_seg[0] = kern_mem(ptov(ptob(pfn)), cnt);
 
 	/*
 	 * One at a time through the portref
 	 */
 	p_sema(&pr->p_sema, PRIHI);
-	p_lock(&pr->p_lock, SPL0); holding_pr = 1;
+	p_lock_fast(&pr->p_lock, SPL0_SAME);
 
 	/*
 	 * If port gone, I/O error
 	 */
 	if (pr->p_port == 0) {
+		v_lock(&pr->p_lock, SPL0_SAME);
 		error = 1;
 		goto out;
 	}
@@ -138,32 +137,31 @@ pageio(uint pfn, struct portref *pr, uint off, uint cnt, int op)
 	 */
 	ASSERT_DEBUG(sema_count(&pr->p_iowait) == 0, "pageio: p_iowait");
 	pr->p_state = PS_IOWAIT;
-	pr->p_msg = sm;
+	pr->p_msg = &sm;
 
 	/*
 	 * Put message on queue
 	 */
-	queue_msg(pr->p_port, sm);
+	queue_msg(pr->p_port, &sm, SPL0);
 
 	/*
 	 * Now wait for the I/O to finish or be interrupted
 	 */
 	p_sema_v_lock(&pr->p_iowait, PRIHI, &pr->p_lock);
-	holding_pr = 0;
 
 	/*
 	 * If the server indicates error, set it and leave
 	 */
-	if (sm->m_arg == -1) {
+	if (sm.sm_arg == -1) {
 		error = 1;
 	} else {
 		/*
 		 * If we got segments back, copy them out and let
 		 * them go.
 		 */
-		if (sm->m_nseg > 0) {
-			error = seg_physcopy(sm, pfn);
-			freesegs(sm);
+		if (sm.sm_nseg > 0) {
+			error = seg_physcopy(&sm, pfn);
+			freesegs(&sm);
 		}
 	}
 
@@ -171,16 +169,11 @@ pageio(uint pfn, struct portref *pr, uint off, uint cnt, int op)
 	 * Let server go
 	 */
 	v_sema(&pr->p_svwait);
+
 out:
 	/*
 	 * Clean up and return success/failure
 	 */
-	if (holding_pr) {
-		v_lock(&pr->p_lock, SPL0);
-	}
-	if (sm) {
-		FREE(sm, MT_SYSMSG);
-	}
 	v_sema(&pr->p_sema);
 	return(error);
 }
@@ -246,12 +239,12 @@ alloc_swap(uint pages)
 	 */
 	args[0] = 0;
 	if (swap_pending && swapdev) {
-		(void)p_lock(&swap_lock, SPL0);
+		p_lock_fast(&swap_lock, SPL0);
 		if (swap_pending) {
 			args[0] = swap_pending;
 			swap_pending = 0;
 		}
-		v_lock(&swap_lock, SPL0);
+		v_lock(&swap_lock, SPL0_SAME);
 	}
 
 	/*
@@ -268,14 +261,14 @@ alloc_swap(uint pages)
 	 * If no swap manager, run a "pending" tally
 	 */
 	if (!swapdev) {
-		(void)p_lock(&swap_lock, SPL0);
+		p_lock_fast(&swap_lock, SPL0);
 		if (!swapdev) {
 			args[0] = swap_pending+1;
 			swap_pending += pages;
-			v_lock(&swap_lock, SPL0);
+			v_lock(&swap_lock, SPL0_SAME);
 			return(args[0]);
 		}
-		v_lock(&swap_lock, SPL0);
+		v_lock(&swap_lock, SPL0_SAME);
 	}
 
 	/*

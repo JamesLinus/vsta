@@ -5,12 +5,13 @@
 #include <sys/vas.h>
 #include <sys/pview.h>
 #include <sys/pset.h>
-#include <sys/mutex.h>
 #include <sys/vm.h>
 #include <sys/core.h>
 #include <sys/assert.h>
 #include <sys/hat.h>
 #include <sys/malloc.h>
+#include "../mach/mutex.h"
+#include "pset.h"
 
 /*
  * CONTAINS()
@@ -33,15 +34,15 @@ find_pview(struct vas *vas, void *vaddr)
 {
 	struct pview *pv;
 
-	p_lock(&vas->v_lock, SPL0);
+	p_lock_fast(&vas->v_lock, SPL0);
 	for (pv = vas->v_views; pv; pv = pv->p_next) {
 		if (CONTAINS(pv, vaddr)) {
-			p_lock(&pv->p_set->p_lock, SPL0);
-			v_lock(&vas->v_lock, SPL0);
+			p_lock_fast(&pv->p_set->p_lock, SPL0_SAME);
+			v_lock(&vas->v_lock, SPL0_SAME);
 			return(pv);
 		}
 	}
-	v_lock(&vas->v_lock, SPL0);
+	v_lock(&vas->v_lock, SPL0_SAME);
 	return(0);
 }
 
@@ -64,7 +65,7 @@ detach_pview(struct vas *vas, void *vaddr)
 	 * Remove our pview from the vas.  It's singly linked, so we
 	 * have to search from the front.
 	 */
-	p_lock(&vas->v_lock, SPL0);
+	p_lock_fast(&vas->v_lock, SPL0);
 	pv = vas->v_views;
 	pvp = &vas->v_views;
 	for ( ; pv; pv = pv->p_next) {
@@ -75,13 +76,13 @@ detach_pview(struct vas *vas, void *vaddr)
 		pvp = &pv->p_next;
 	}
 	ASSERT(pv, "detach_pview: lost a pview");
-	v_lock(&vas->v_lock, SPL0);
+	v_lock(&vas->v_lock, SPL0_SAME);
 	ps = pv->p_set;
 
 	/*
 	 * Walk each valid slot, and tear down any HAT translation.
 	 */
-	p_lock(&ps->p_lock, SPL0);
+	p_lock_fast(&ps->p_lock, SPL0_SAME);
 	for (x = 0; x < pv->p_len; ++x) {
 		uint pfn, idx;
 
@@ -123,13 +124,13 @@ detach_pview(struct vas *vas, void *vaddr)
 		/*
 		 * Reacquire pset lock
 		 */
-		p_lock(&ps->p_lock, SPL0);
+		p_lock_fast(&ps->p_lock, SPL0_SAME);
 	}
 
 	/*
 	 * Release lock on pset
 	 */
-	v_lock(&ps->p_lock, SPL0);
+	v_lock(&ps->p_lock, SPL0_SAME);
 
 	/*
 	 * Let hat hear about detach
@@ -179,10 +180,10 @@ attach_pview(struct vas *vas, struct pview *pv)
 	/*
 	 * Now that we're committed, link it onto the vas
 	 */
-	p_lock(&vas->v_lock, SPL0);
+	p_lock_fast(&vas->v_lock, SPL0);
 	pv->p_next = vas->v_views;
 	vas->v_views = pv;
-	v_lock(&vas->v_lock, SPL0);
+	v_lock(&vas->v_lock, SPL0_SAME);
 	return(vaddr);
 }
 
@@ -254,7 +255,7 @@ fork_vas(struct thread *t, struct vas *ovas)
 		 * to, but above or equal to, vaddr.
 		 */
 		closest = 0;
-		p_lock(&ovas->v_lock, SPL0);
+		p_lock_fast(&ovas->v_lock, SPL0);
 		for (pv = ovas->v_views; pv; pv = pv->p_next) {
 			if ((char *)pv->p_vaddr <= vaddr) {
 				continue;
@@ -268,7 +269,7 @@ fork_vas(struct thread *t, struct vas *ovas)
 		 * If no more, leave loop
 		 */
 		if (!closest) {
-			v_lock(&ovas->v_lock, SPL0);
+			v_lock(&ovas->v_lock, SPL0_SAME);
 			break;
 		}
 
@@ -282,7 +283,7 @@ fork_vas(struct thread *t, struct vas *ovas)
 		pv2 = *closest;
 		vaddr = pv2.p_vaddr;
 		ref_pset(ps);
-		v_lock(&ovas->v_lock, SPL0);
+		v_lock(&ovas->v_lock, SPL0_SAME);
 
 		/*
 		 * If read-only or shared, dup the view

@@ -9,6 +9,8 @@
 #include <sys/fs.h>
 #include <sys/vm.h>
 #include <sys/assert.h>
+#include "../mach/mutex.h"
+#include "pset.h"
 
 extern struct portref *swapdev;
 extern int pset_writeslot(), pset_deinit();
@@ -59,7 +61,7 @@ cow_fillslot(struct pset *ps, struct perpage *pp, uint idx)
 		 * Lock slot of underlying pset
 		 */
 		idx2 = ps->p_off + idx;
-		p_lock(&cow->p_lock, SPL0);
+		p_lock_fast(&cow->p_lock, SPL0);
 		pp2 = find_pp(cow, idx2);
 		lock_slot(cow, pp2);
 

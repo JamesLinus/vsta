@@ -11,21 +11,11 @@
 #include <sys/vm.h>
 #include <sys/malloc.h>
 #include <alloc.h>
+#include "../mach/mutex.h"
+#include "pset.h"
 
 extern struct portref *swapdev;
 extern struct psetops psop_zfod;
-
-/*
- * find_pp()
- *	Given pset and index, return perpage information
- */
-struct perpage *
-find_pp(struct pset *ps, uint idx)
-{
-	ASSERT_DEBUG(idx < ps->p_len, "find_pp: bad index");
-	ASSERT_DEBUG(ps->p_perpage, "find_pp: no perpage");
-	return(&ps->p_perpage[idx]);
-}
 
 /*
  * free_pset()
@@ -70,7 +60,7 @@ free_pset(struct pset *ps)
 
 				ps2 = ps->p_cow;
 				idx = ps->p_off + x;
-				p_lock(&ps2->p_lock, SPL0);
+				p_lock_fast(&ps2->p_lock, SPL0);
 				pp2 = find_pp(ps2, idx);
 				lock_slot(ps2, pp2);
 				deref_slot(ps2, pp2, idx);
@@ -99,7 +89,7 @@ free_pset(struct pset *ps)
 		/*
 		 * Remove us from his COW list
 		 */
-		p_lock(&ps2->p_lock, SPL0);
+		p_lock_fast(&ps2->p_lock, SPL0);
 		pp = &ps2->p_cowsets;
 		for (p = ps2->p_cowsets; p; p = p->p_cowsets) {
 			if (p == ps) {
@@ -109,7 +99,7 @@ free_pset(struct pset *ps)
 			pp = &p->p_cowsets;
 		}
 		ASSERT(p, "free_pset: lost cow");
-		v_lock(&ps2->p_lock, SPL0);
+		v_lock(&ps2->p_lock, SPL0_SAME);
 
 		/*
 		 * Remove our reference from him
@@ -164,7 +154,7 @@ physmem_pset(uint pfn, int npfn)
 	 */
 	for (x = 0; x < npfn; ++x) {
 		pp = find_pp(ps, x);
-		pp->pp_pfn = pfn+x;
+		pp->pp_pfn = pfn + x;
 		pp->pp_flags = PP_V;
 		pp->pp_refs = 0;
 		pp->pp_lock = 0;
@@ -193,7 +183,7 @@ lock_slot(struct pset *ps, struct perpage *pp)
 		ASSERT(ps->p_locks > 1, "lock_slot: stray lock");
 		pp->pp_lock |= PP_WANT;
 		p_sema_v_lock(&ps->p_lockwait, PRIHI, &ps->p_lock);
-		(void)p_lock(&ps->p_lock, SPL0);
+		p_lock_fast(&ps->p_lock, SPL0);
 	}
 	pp->pp_lock |= PP_LOCK;
 	v_lock(&ps->p_lock, SPL0);
@@ -203,6 +193,7 @@ lock_slot(struct pset *ps, struct perpage *pp)
  * clock_slot()
  *	Like lock_slot(), but don't block if slot busy
  */
+int
 clock_slot(struct pset *ps, struct perpage *pp)
 {
 	if (pp->pp_lock & PP_LOCK) {
@@ -231,14 +222,14 @@ unlock_slot(struct pset *ps, struct perpage *pp)
 	int wanted;
 
 	ASSERT_DEBUG(pp->pp_lock & PP_LOCK, "unlock_slot: not locked");
-	(void)p_lock(&ps->p_lock, SPL0);
-	ps->p_locks -= 1;
+	p_lock_fast(&ps->p_lock, SPL0);
+	ps->p_locks--;
 	wanted = (pp->pp_lock & PP_WANT);
 	pp->pp_lock &= ~(PP_LOCK|PP_WANT);
 	if (wanted && blocked_sema(&ps->p_lockwait)) {
 		vall_sema(&ps->p_lockwait);
 	}
-	v_lock(&ps->p_lock, SPL0);
+	v_lock(&ps->p_lock, SPL0_SAME);
 }
 
 /*
@@ -249,6 +240,7 @@ unlock_slot(struct pset *ps, struct perpage *pp)
  * be released on I/O completion.  Otherwise page is synchronously written
  * and slot is still held on return.
  */
+int
 pset_writeslot(struct pset *ps, struct perpage *pp, uint idx, voidfun iodone)
 {
 	struct qio *q;
@@ -284,16 +276,6 @@ pset_writeslot(struct pset *ps, struct perpage *pp, uint idx, voidfun iodone)
 }
 
 /*
- * ref_pset()
- *	Add a reference to a pset
- */
-void
-ref_pset(struct pset *ps)
-{
-	ATOMIC_INCW(&ps->p_refs);
-}
-
-/*
  * deref_pset()
  *	Reduce reference count on pset
  *
@@ -309,10 +291,10 @@ deref_pset(struct pset *ps)
 	/*
 	 * Lock the page set, reduce its reference count
 	 */
-	p_lock(&ps->p_lock, SPL0);
-	ATOMIC_DECW(&ps->p_refs);
+	p_lock_fast(&ps->p_lock, SPL0);
+	ATOMIC_DECL(&ps->p_refs);
 	refs = ps->p_refs;
-	v_lock(&ps->p_lock, SPL0);
+	v_lock(&ps->p_lock, SPL0_SAME);
 
 	/*
 	 * When it reaches 0, ask for it to be freed
@@ -353,7 +335,8 @@ alloc_pset(uint pages)
 	ps->p_perpage = MALLOC(sizeof(struct perpage) * pages, MT_PERPAGE);
 	bzero(ps->p_perpage, sizeof(struct perpage) * pages);
 	init_lock(&ps->p_lock);
-	init_sema(&ps->p_lockwait); set_sema(&ps->p_lockwait, 0);
+	init_sema(&ps->p_lockwait);
+	set_sema(&ps->p_lockwait, 0);
 	return(ps);
 }
 
@@ -456,7 +439,7 @@ dup_slots(struct pset *ops, struct pset *ps)
 
 	for (x = 0; x < ps->p_len; ++x) {
 		if (!locked) {
-			p_lock(&ops->p_lock, SPL0);
+			p_lock_fast(&ops->p_lock, SPL0);
 			locked = 1;
 		}
 		pp = find_pp(ops, x);
@@ -505,11 +488,11 @@ add_cowset(struct pset *pscow, struct pset *ps)
 	 * Attach to the underlying pset
 	 */
 	ref_pset(pscow);
-	p_lock(&pscow->p_lock, SPL0);
+	p_lock_fast(&pscow->p_lock, SPL0);
 	ps->p_cowsets = pscow->p_cowsets;
 	pscow->p_cowsets = ps;
 	ps->p_cow = pscow;
-	v_lock(&pscow->p_lock, SPL0);
+	v_lock(&pscow->p_lock, SPL0_SAME);
 }
 
 /*
@@ -539,7 +522,8 @@ copy_pset(struct pset *ops)
 	ps->p_flags = ops->p_flags;
 	ps->p_ops = ops->p_ops;
 	init_lock(&ps->p_lock);
-	init_sema(&ps->p_lockwait); set_sema(&ps->p_lockwait, 0);
+	init_sema(&ps->p_lockwait);
+	set_sema(&ps->p_lockwait, 0);
 
 	switch (ps->p_type) {
 	case PT_FILE:
@@ -589,37 +573,12 @@ copy_pset(struct pset *ops)
 }
 
 /*
- * deref_slot()
- *	Decrement reference count on a page slot, free page on last ref
- *
- * This routine assumes that it is being called under a locked slot.
- */
-void
-deref_slot(struct pset *ps, struct perpage *pp, uint idx)
-{
-	ASSERT_DEBUG(pp->pp_refs > 0, "deref_slot: zero");
-	pp->pp_refs -= 1;
-}
-
-/*
- * ref_slot()
- *	Add a reference to a page slot
- *
- * Assumes caller holds the page slot locked.
- */
-void
-ref_slot(struct pset *ps, struct perpage *pp, uint idx)
-{
-	pp->pp_refs += 1;
-	ASSERT_DEBUG(pp->pp_refs > 0, "ref_slot: overflow");
-}
-
-/*
  * pset_deinit()
  *	Common code to de-init a pset
  *
  * Currently does nothing.
  */
+int
 pset_deinit(struct pset *ps)
 {
 	return(0);
