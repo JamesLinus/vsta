@@ -1,19 +1,31 @@
-CC=gcc
-AS=as
-CPP=cpp
-LD=ld
-STRIP=strip
-INCS=-I../../include -I.
-
-target: vsta
-
+# First get the object list, including the machine specific ones
+target: all
 include ../mach/makefile.inc
+INCS=-I.
+OBJS=$(MACHOBJS) \
+	main.o vm_fault.o vm_steal.o vm_page.o malloc.o misc.o \
+	vas.o pset.o msg.o msgcon.o msgkern.o seg.o \
+	port.o atl.o qio.o pset_fod.o pset_zfod.o \
+	pset_mem.o pset_cow.o vm_swap.o sched.o rand.o \
+	proc.o pview.o xclock.o event.o mmap.o phys.o \
+	exec.o exitgrp.o ptrace.o pstat.o dbgmain.o \
+	dump.o expr.o lex.o names.o dbgproc.o
 
-DEFS= -DKERNEL -DKDB -DDEBUG
-CFLAGS= $(DEFS) $(INCS) -O2
+# Our output target
+OUT=vsta
+
+# Other stuff to clean up on "make clean"
+EXTRA_CLEAN=genassym assym.h locore.s dbsym
+
+# Build options for kernel, also use .h from this dir
+COPTS=-DKERNEL -DKDB -DDEBUG $(INCS)
+
+# Now pull in the generic system makefile
+# TBD: tell it to do -O2 instead of just -O
+include ../../makefile.all
+
 LIBS= ../../lib/libusr.a
 LDFLAGS=-Ttext 0x100020 -Tvsta.lnk
-
 
 config: config.c
 	$(CC) -o config config.c
@@ -140,15 +152,6 @@ names.o: ../dbg/names.c
 dbgproc.o: ../dbg/dbgproc.c
 	$(CC) $(CFLAGS) -c ../dbg/dbgproc.c
 
-OBJS=$(MACHOBJS) \
-	main.o vm_fault.o vm_steal.o vm_page.o malloc.o misc.o \
-	vas.o pset.o msg.o msgcon.o msgkern.o seg.o \
-	port.o atl.o qio.o pset_fod.o pset_zfod.o \
-	pset_mem.o pset_cow.o vm_swap.o sched.o rand.o \
-	proc.o pview.o xclock.o event.o mmap.o phys.o \
-	exec.o exitgrp.o ptrace.o pstat.o dbgmain.o \
-	dump.o expr.o lex.o names.o dbgproc.o
-
 vsta: nostrip dbsym
 	./dbsym vsta
 	$(STRIP) vsta
@@ -158,12 +161,6 @@ nostrip: $(OBJS)
 
 dbsym: ../dbg/dbsym.c
 	$(CC) $(DEFS) -o dbsym ../dbg/dbsym.c
-
-clean:
-	rm -f genassym assym.h locore.s *.o dbsym config
-
-clobber: clean
-	rm -f vsta
 
 install: vsta
 	cp vsta ../../../boot
