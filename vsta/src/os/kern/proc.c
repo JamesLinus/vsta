@@ -11,10 +11,10 @@
 #include <sys/boot.h>
 #include <sys/vm.h>
 #include <sys/sched.h>
-#include <alloc.h>
 #include <sys/param.h>
 #include <hash.h>
 #include <sys/fs.h>
+#include <sys/malloc.h>
 #include <sys/assert.h>
 
 extern void setrun(), dup_stack();
@@ -42,7 +42,7 @@ mkview(uint pfn, void *vaddr, uint pages, struct vas *vas)
 	extern struct pset *physmem_pset();
 
 	ps = physmem_pset(pfn, pages);
-	pv = malloc(sizeof(struct pview));
+	pv = MALLOC(sizeof(struct pview), MT_PVIEW);
 	pv->p_set = ps;
 	ref_pset(ps);
 	pv->p_vaddr = vaddr;
@@ -73,7 +73,7 @@ bootproc(struct boot_task *b)
 	 * Get a proc, make him sys/sys with the usual values for
 	 * the various fields.
 	 */
-	p = malloc(sizeof(struct proc));
+	p = MALLOC(sizeof(struct proc), MT_PROC);
 	bzero(p, sizeof(struct proc));
 	zero_ids(p->p_ids, PROCPERMS);
 	p->p_ids[0].perm_len = 2;
@@ -109,9 +109,9 @@ bootproc(struct boot_task *b)
 	/*
 	 * Set up the single thread for the proc
 	 */
-	t = malloc(sizeof(struct thread));
+	t = MALLOC(sizeof(struct thread), MT_THREAD);
 	bzero(t, sizeof(struct thread));
-	t->t_kstack = malloc(KSTACK_SIZE);
+	t->t_kstack = MALLOC(KSTACK_SIZE, MT_KSTACK);
 	t->t_ustack = (void *)USTACKADDR;
 	p->p_threads = t;
 	boot_regs(t, b);
@@ -124,7 +124,7 @@ bootproc(struct boot_task *b)
 	/*
 	 * The vas for the proc
 	 */
-	vas = malloc(sizeof(struct vas));
+	vas = MALLOC(sizeof(struct vas), MT_VAS);
 	vas->v_views = 0;
 	vas->v_flags = VF_MEMLOCK;
 	init_lock(&vas->v_lock);
@@ -303,7 +303,7 @@ fork_thread(voidfun f)
 	/*
 	 * Allocate thread structure, set up its fields
 	 */
-	t = malloc(sizeof(struct thread));
+	t = MALLOC(sizeof(struct thread), MT_THREAD);
 
 	/*
 	 * Most stuff we can just copy from the current thread
@@ -320,7 +320,7 @@ fork_thread(voidfun f)
 	/*
 	 * He needs his own kernel stack; user stack was attached above
 	 */
-	t->t_kstack = malloc(KSTACK_SIZE);
+	t->t_kstack = MALLOC(KSTACK_SIZE, MT_KSTACK);
 	t->t_ustack = ustack;
 	dup_stack(curthread, t, f);
 
@@ -387,13 +387,13 @@ fork(void)
 	/*
 	 * Allocate new structures
 	 */
-	tnew = malloc(sizeof(struct thread));
-	pnew = malloc(sizeof(struct proc));
+	tnew = MALLOC(sizeof(struct thread), MT_THREAD);
+	pnew = MALLOC(sizeof(struct proc), MT_PROC);
 
 	/*
 	 * Get new thread
 	 */
-	tnew->t_kstack = malloc(KSTACK_SIZE);
+	tnew->t_kstack = MALLOC(KSTACK_SIZE, MT_KSTACK);
 	tnew->t_flags = told->t_flags;
 	tnew->t_hd = tnew->t_tl = tnew->t_next = 0;
 	tnew->t_wchan = 0;
@@ -525,7 +525,7 @@ free_proc(struct proc *p)
 	/*
 	 * Release proc storage
 	 */
-	free(p);
+	FREE(p, MT_PROC);
 }
 
 /*
@@ -608,8 +608,8 @@ do_exit(int code)
 	 */
 	ATOMIC_INC(&cpu.pc_locks);	/* To avoid preemption */
 	idle_stack();
-	free(curthread->t_kstack);
-	free(curthread);
+	FREE(curthread->t_kstack, MT_KSTACK);
+	FREE(curthread, MT_THREAD);
 	curthread = 0;
 
 	/*
@@ -681,6 +681,6 @@ waits(struct exitst *w, int block)
 	 * Record PID, free memory, return PID as value of syscall
 	 */
 	x = e->e_code;
-	free(e);
+	FREE(e, MT_EXITST);
 	return(x);
 }

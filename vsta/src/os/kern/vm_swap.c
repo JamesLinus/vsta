@@ -23,6 +23,7 @@
 #include <sys/thread.h>
 #include <sys/swap.h>
 #include <sys/mutex.h>
+#include <sys/malloc.h>
 #include <sys/assert.h>
 #include <alloc.h>
 
@@ -110,7 +111,7 @@ pageio(uint pfn, struct portref *pr, uint off, uint cnt, int op)
 	/*
 	 * Construct a system message
 	 */
-	sm = malloc(sizeof(struct sysmsg));
+	sm = MALLOC(sizeof(struct sysmsg), MT_SYSMSG);
 	sm->m_sender = pr;
 	sm->m_op = op;
 	sm->m_nseg = 1;
@@ -178,7 +179,7 @@ out:
 		v_lock(&pr->p_lock, SPL0);
 	}
 	if (sm) {
-		free(sm);
+		FREE(sm, MT_SYSMSG);
 	}
 	v_sema(&pr->p_sema);
 	return(error);

@@ -13,8 +13,8 @@
 #include <mach/machreg.h>
 #include <sys/sched.h>
 #include <sys/fs.h>
+#include <sys/malloc.h>
 #include <sys/assert.h>
-#include <alloc.h>
 
 /*
  * CVT_TIME()
@@ -239,7 +239,7 @@ time_sleep(struct time *arg_time)
 	/*
 	 * Get an event element, fill it in
 	 */
-	ev = malloc(sizeof(struct eventq));
+	ev = MALLOC(sizeof(struct eventq), MT_EVENTQ);
 	ev->e_time = t;
 	ev->e_tid = curthread->t_pid;
 	init_sema(&ev->e_sema);
@@ -295,10 +295,10 @@ time_sleep(struct time *arg_time)
 			ASSERT(e, "alarm_set: lost event");
 		}
 		v_lock(&time_lock, SPL0);
-		free(ev);
+		FREE(ev, MT_EVENTQ);
 		return(err(EINTR));
 	}
 	ASSERT(ev->e_onlist == 0, "alarm_set: spurious wakeup");
-	free(ev);
+	FREE(ev, MT_EVENTQ);
 	return(0);
 }

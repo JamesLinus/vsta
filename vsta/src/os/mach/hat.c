@@ -31,7 +31,7 @@
 #include <sys/pset.h>
 #include <sys/thread.h>
 #include <sys/percpu.h>
-#include <alloc.h>
+#include <sys/malloc.h>
 
 #define NRMAPSLOT (20)		/* # slots for our vaddr map */
 
@@ -55,7 +55,7 @@ hat_initvas(struct vas *vas)
 	 * This one has all the usual slots fille in for kernel
 	 * address space, and all zeroes for user.
 	 */
-	c = vas->v_hat.h_vcr3 = malloc(NBPG);
+	c = vas->v_hat.h_vcr3 = MALLOC(NBPG, MT_L1PT);
 	vas->v_hat.h_cr3 = (ulong)vtop(c);
 	bzero(c, NBPG);
 	bcopy(cr3, c, freel1pt * sizeof(pte_t));
@@ -65,7 +65,8 @@ hat_initvas(struct vas *vas)
 	 * Get an address map for doing on-demand virtual address
 	 * allocations.
 	 */
-	vas->v_hat.h_map = malloc(NRMAPSLOT*sizeof(struct rmap));
+	vas->v_hat.h_map = MALLOC(NRMAPSLOT*sizeof(struct rmap),
+		MT_RMAP);
 	rmap_init(vas->v_hat.h_map, NRMAPSLOT);
 	rmap_free(vas->v_hat.h_map, btop(VMAP_BASE), btop(VMAP_SIZE));
 }
@@ -124,8 +125,8 @@ hat_freevas(struct vas *vas)
 	/*
 	 * Free root and map
 	 */
-	free(vas->v_hat.h_vcr3);
-	free(vas->v_hat.h_map);
+	FREE(vas->v_hat.h_vcr3, MT_L1PT);
+	FREE(vas->v_hat.h_map, MT_RMAP);
 }
 
 /*

@@ -8,44 +8,44 @@
 #include <sys/assert.h>
 #include <sys/mutex.h>
 #include <sys/vm.h>
+#define MALLOC_INTERNAL
 #include <sys/malloc.h>
 
 extern struct core *core;
 extern void *alloc_pages();
 extern uint alloc_page();
 
+#ifdef DEBUG
 /*
- * per-page information.  We overlay this on the existing "struct core"
- * storage already available per-page.
+ * Value to name mapping, to help the kernel debugger print
+ * things out nicely
  */
-struct page {
-	ushort p_bucket;	/* Bucket # */
-	ushort p_out;		/* # elems not free in this page */
+char *n_allocname[MALLOCTYPES] = {
+	"MT_RMAP",
+	"MT_EVENT",
+	"MT_EXITGRP",
+	"MT_EXITST",
+	"MT_MSG",
+	"MT_SYSMSG",
+	"MT_PORT",
+	"MT_PORTREF",
+	"MT_PVIEW",
+	"MT_PSET",
+	"MT_PROC",
+	"MT_THREAD",
+	"MT_KSTACK",
+	"MT_VAS",
+	"MT_PERPAGE",
+	"MT_QIO",
+	"MT_SCHED",
+	"MT_SEG",
+	"MT_EVENTQ",
+	"MT_L1PT",
+	"MT_L2PT",
+	"MT_PGRP",
+	"MT_ATL",
 };
-
-/*
- * Structure of a chunk of storage while on the free list
- * in a bucket
- */
-struct freehead {
-	struct freehead
-		*f_forw,	/* A doubly-linked list */
-		*f_back;
-};
-#define EMPTY(bucket) ((bucket)->b_mem.f_forw == &(bucket)->b_mem)
-
-/*
- * Our per-storage-size information
- */
-struct bucket {
-	struct freehead		/* List of chunks of memory */
-		b_mem;
-	uint b_elems;		/* # chunks available in this bucket */
-	uint b_pages;		/* # pages used for this bucket size */
-	uint b_size;		/* Size of this kind of chunk */
-	lock_t b_lock;		/* Lock for manipulating this bucket */
-} buckets[PGSHIFT];
-#define MIN_BUCKET 4		/* At least 16 bytes allocated */
+#endif /* DEBUG */
 
 /*
  * malloc()
@@ -207,6 +207,37 @@ malloc(uint size)
 	 */
 	return(f);
 }
+
+#ifdef DEBUG
+/*
+ * Tally of use of types
+ */
+ulong n_alloc[MALLOCTYPES];
+
+/*
+ * _malloc()
+ *	Allocate with type attribute
+ */
+void *
+_malloc(uint size, uint type)
+{
+	ASSERT(type < MALLOCTYPES, "_malloc: bad type");
+	ATOMIC_INC(&n_alloc[type]);
+	return(malloc(size));
+}
+
+/*
+ * _free()
+ *	Free with type attribute
+ */
+void
+_free(void *ptr, uint type)
+{
+	ASSERT(type < MALLOCTYPES, "_free: bad type");
+	ATOMIC_DEC(&n_alloc[type]);
+	return(free(ptr));
+}
+#endif /* DEBUG */
 
 /*
  * free()

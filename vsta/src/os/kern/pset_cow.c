@@ -10,7 +10,6 @@
 #include <sys/vm.h>
 #include <sys/assert.h>
 
-extern void *malloc();
 extern struct portref *swapdev;
 extern int pset_writeslot(), pset_deinit();
 

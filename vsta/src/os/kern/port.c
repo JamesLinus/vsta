@@ -9,7 +9,7 @@
 #include <sys/msg.h>
 #include <sys/mutex.h>
 #include <sys/fs.h>
-#include <alloc.h>
+#include <sys/malloc.h>
 #include <sys/assert.h>
 
 /*
@@ -250,7 +250,7 @@ alloc_portref(void)
 {
 	struct portref *pr;
 
-	pr = malloc(sizeof(struct portref));
+	pr = MALLOC(sizeof(struct portref), MT_PORTREF);
 	bzero(pr, sizeof(struct portref));
 	init_sema(&pr->p_sema);
 	init_lock(&pr->p_lock);
@@ -288,7 +288,7 @@ dup_port(struct portref *opr)
 	args[0] = (long)pr;
 	args[1] = 0;
 	if (kernmsg_send(opr, M_DUP, args) || (args[0] == -1)) {
-		free(pr);
+		FREE(pr, MT_PORTREF);
 		return(0);
 	}
 	return(pr);
@@ -454,7 +454,7 @@ void
 free_portref(struct portref *pr)
 {
 	unmapsegs(&pr->p_segs);
-	free(pr);
+	FREE(pr, MT_PORTREF);
 }
 
 /*
@@ -466,7 +466,7 @@ alloc_port(void)
 {
 	struct port *port;
 
-	port = malloc(sizeof(struct port));
+	port = MALLOC(sizeof(struct port), MT_PORT);
 	init_lock(&port->p_lock);
 	init_sema(&port->p_wait);
 	set_sema(&port->p_wait, 0);

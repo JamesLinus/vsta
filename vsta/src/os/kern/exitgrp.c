@@ -4,6 +4,7 @@
  */
 #include <sys/proc.h>
 #include <sys/assert.h>
+#include <sys/malloc.h>
 #include <alloc.h>
 
 /*
@@ -34,7 +35,7 @@ alloc_exitgrp(struct proc *parent)
 {
 	struct exitgrp *e;
 
-	e = malloc(sizeof(struct exitgrp));
+	e = MALLOC(sizeof(struct exitgrp), MT_EXITGRP);
 	e->e_parent = parent;
 	e->e_stat = 0;
 	e->e_refs = (parent ? 1 : 0);
@@ -76,7 +77,7 @@ deref_exitgrp(struct exitgrp *e)
 	ASSERT_DEBUG(e->e_parent == 0, "deref_exitgrp: !ref parent");
 	ASSERT_DEBUG(e->e_stat == 0, "deref_exitgrp: stat");
 	v_lock(&e->e_lock, SPL0);	/* for per-CPU lock counting */
-	free(e);
+	FREE(e, MT_EXITGRP);
 }
 
 /*
@@ -114,7 +115,7 @@ noparent_exitgrp(struct exitgrp *e)
 	 */
 	while (es) {
 		esn = es->e_next;
-		free(es);
+		FREE(es, MT_EXITST);
 		es = esn;
 	}
 }
@@ -140,7 +141,7 @@ post_exitgrp(struct exitgrp *e, struct proc *p, int code)
 	/*
 	 * Get a status message, fill it in
 	 */
-	es = malloc(sizeof(struct exitst));
+	es = MALLOC(sizeof(struct exitst), MT_EXITST);
 	es->e_pid = p->p_pid;
 	es->e_code = code;
 	es->e_usr = p->p_usr;
@@ -164,7 +165,7 @@ post_exitgrp(struct exitgrp *e, struct proc *p, int code)
 	 * If we raced, free the (unqueued) message
 	 */
 	if (es) {
-		free(es);
+		FREE(es, MT_EXITST);
 	}
 }
 

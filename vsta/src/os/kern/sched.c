@@ -14,6 +14,7 @@
 #include <sys/sched.h>
 #include <sys/assert.h>
 #include <sys/mutex.h>
+#include <sys/malloc.h>
 #include <alloc.h>
 
 extern ulong random();
@@ -477,7 +478,7 @@ sched_thread(struct sched *parent, struct thread *t)
 {
 	struct sched *s;
 
-	s = malloc(sizeof(struct sched));
+	s = MALLOC(sizeof(struct sched), MT_SCHED);
 	p_lock(&runq_lock, SPLHI);
 	s->s_up = parent;
 	s->s_thread = t;
@@ -501,7 +502,7 @@ sched_node(struct sched *parent)
 {
 	struct sched *s;
 
-	s = malloc(sizeof(struct sched));
+	s = MALLOC(sizeof(struct sched), MT_SCHED);
 	p_lock(&runq_lock, SPLHI);
 	s->s_up = parent;
 	s->s_down = 0;

@@ -9,6 +9,7 @@
 #include <sys/fs.h>
 #include <sys/port.h>
 #include <sys/vm.h>
+#include <sys/malloc.h>
 #include <alloc.h>
 
 extern struct portref *swapdev;
@@ -123,8 +124,8 @@ free_pset(struct pset *ps)
 	/*
 	 * Release our pset itself
 	 */
-	free(ps->p_perpage);
-	free(ps);
+	FREE(ps->p_perpage, MT_PERPAGE);
+	FREE(ps, MT_PSET);
 }
 
 /*
@@ -142,8 +143,8 @@ physmem_pset(uint pfn, int npfn)
 	/*
 	 * Initialize the basic fields of the pset
 	 */
-	ps = malloc(sizeof(struct pset));
-	ps->p_perpage = malloc(npfn * sizeof(struct perpage));
+	ps = MALLOC(sizeof(struct pset), MT_PSET);
+	ps->p_perpage = MALLOC(npfn * sizeof(struct perpage), MT_PERPAGE);
 	ps->p_len = npfn;
 	ps->p_off = 0;
 	ps->p_type = PT_MEM;
@@ -361,10 +362,10 @@ alloc_pset(uint pages)
 {
 	struct pset *ps;
 
-	ps = malloc(sizeof(struct pset));
+	ps = MALLOC(sizeof(struct pset), MT_PSET);
 	bzero(ps, sizeof(struct pset));
 	ps->p_len = pages;
-	ps->p_perpage = malloc(sizeof(struct perpage) * pages);
+	ps->p_perpage = MALLOC(sizeof(struct perpage) * pages, MT_PERPAGE);
 	bzero(ps->p_perpage, sizeof(struct perpage) * pages);
 	init_lock(&ps->p_lock);
 	init_sema(&ps->p_lockwait); set_sema(&ps->p_lockwait, 0);
@@ -549,7 +550,7 @@ copy_pset(struct pset *ops)
 	/*
 	 * Allocate the new pset, set up its basic fields
 	 */
-	ps = malloc(sizeof(struct pset));
+	ps = MALLOC(sizeof(struct pset), MT_PSET);
 	ps->p_len = ops->p_len;
 	ps->p_off = ops->p_off;
 	ps->p_type = ops->p_type;
@@ -589,7 +590,8 @@ copy_pset(struct pset *ops)
 	/*
 	 * We need our own perpage storage
 	 */
-	ps->p_perpage = malloc(ops->p_len * sizeof(struct perpage));
+	ps->p_perpage = MALLOC(ops->p_len * sizeof(struct perpage),
+		MT_PERPAGE);
 	bzero(ps->p_perpage, ps->p_len * sizeof(struct perpage));
 
 	/*

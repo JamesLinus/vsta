@@ -27,9 +27,10 @@
 #include <sys/param.h>
 #include <sys/msg.h>
 #include <sys/fs.h>
+#include <sys/malloc.h>
 #include <sys/assert.h>
 
-extern void *malloc(), page_lock(), page_unlock();
+extern void page_lock(), page_unlock();
 
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
 
@@ -53,7 +54,7 @@ free_seg(struct seg *s)
 	/*
 	 * Free this segment storage
 	 */
-	free(s);
+	FREE(s, MT_SEG);
 }
 
 /*
@@ -79,14 +80,14 @@ make_seg(struct vas *vas, void *buf, uint buflen)
 	/*
 	 * Get new segment
 	 */
-	s = malloc(sizeof(struct seg));
+	s = MALLOC(sizeof(struct seg), MT_SEG);
 
 	/*
 	 * Find pview holding the starting address
 	 */
 	pv = find_pview(vas, buf);
 	if (!pv) {
-		free(s);
+		FREE(s, MT_SEG);
 		return(0);
 	}
 
@@ -95,7 +96,7 @@ make_seg(struct vas *vas, void *buf, uint buflen)
 	 */
 	if (((char *)buf + buflen) > ((char *)pv->p_vaddr+ptob(pv->p_len))) {
 		v_lock(&pv->p_set->p_lock, SPL0);
-		free(s);
+		FREE(s, MT_SEG);
 		return(0);
 	}
 
@@ -188,7 +189,7 @@ kern_mem(void *vaddr, uint len)
 	 * pset layer to create a physmem-type page set on which
 	 * we build our view.
 	 */
-	s = malloc(sizeof(struct seg));
+	s = MALLOC(sizeof(struct seg), MT_SEG);
 	s->s_off = (ulong)vaddr & (NBPG-1);
 	s->s_len = len;
 	pv = &s->s_pview;

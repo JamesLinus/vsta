@@ -13,6 +13,7 @@
 #include <sys/port.h>
 #include <sys/proc.h>
 #include <sys/thread.h>
+#include <sys/malloc.h>
 #include <alloc.h>
 
 #define START_ROTOR (1024)	/* Where we start searching for an open # */
@@ -115,7 +116,7 @@ msg_port(port_name arg_port, port_name *arg_portp)
 	}
 	if (slot >= PROCPORTS) {
 		v_sema(&p->p_sema);
-		free(port);
+		FREE(port, MT_PORT);
 		return(err(ENOSPC));
 	}
 
@@ -147,7 +148,7 @@ msg_port(port_name arg_port, port_name *arg_portp)
 		if (hash_lookup(portnames, arg_port)) {
 			v_sema(&name_sema);
 			v_sema(&p->p_sema);
-			free(port);
+			FREE(port, MT_PORT);
 			return(err(EBUSY));
 		}
 	}
@@ -202,7 +203,7 @@ msg_connect(port_name arg_port, int arg_mode)
 	/*
 	 * Allocate a system message, fill it in.
 	 */
-	sm = malloc(sizeof(struct sysmsg));
+	sm = MALLOC(sizeof(struct sysmsg), MT_SYSMSG);
 	sm->m_op = M_CONNECT;
 	sm->m_sender = pr;
 	sm->m_seg[0] = (void *)(p->p_ids);
@@ -296,10 +297,10 @@ out:
 		free_open(p, slot);
 	}
 	if (pr) {
-		free(pr);
+		FREE(pr, MT_PORTREF);
 	}
 	if (sm)	{
-		free(sm);
+		FREE(sm, MT_SYSMSG);
 	}
 	return(error);
 }
@@ -374,7 +375,7 @@ shut_client(struct portref *pr)
 	/*
 	 * Get a system message
 	 */
-	sm = malloc(sizeof(struct sysmsg));
+	sm = MALLOC(sizeof(struct sysmsg), MT_SYSMSG);
 	sm->m_sender = pr;
 	sm->m_op = M_DISCONNECT;
 	sm->m_arg = (long)pr;
@@ -388,7 +389,7 @@ shut_client(struct portref *pr)
 	if (!(port = pr->p_port)) {
 		v_lock(&pr->p_lock, SPL0);	/* for lock count in percpu */
 		free_portref(pr);
-		free(sm);
+		FREE(sm, MT_SYSMSG);
 		return;
 	}
 
@@ -569,7 +570,7 @@ shut_server(struct port *port)
 	p_sema(&port->p_mapsema, PRIHI);
 	ASSERT(port->p_maps == 0, "shut_server: maps");
 
-	free(port);
+	FREE(port, MT_PORT);
 	return(0);
 }
 

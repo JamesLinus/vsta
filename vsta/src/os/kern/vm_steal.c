@@ -95,7 +95,7 @@ unvirt(struct perpage *pp)
 			flags |= hat_getbits(pv,
 				(char *)pv->p_vaddr + ptob(a->a_idx));
 			*ap = an;
-			free(a);
+			FREE(a, MT_ATL);
 			pp->pp_refs -= 1;
 		}
 	}

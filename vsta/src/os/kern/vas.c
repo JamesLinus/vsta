@@ -10,6 +10,7 @@
 #include <sys/core.h>
 #include <sys/assert.h>
 #include <sys/hat.h>
+#include <sys/malloc.h>
 #include <alloc.h>
 
 /*
@@ -233,7 +234,7 @@ fork_vas(struct thread *t, struct vas *ovas)
 	/*
 	 * Set initial fields.
 	 */
-	vas = malloc(sizeof(struct vas));
+	vas = MALLOC(sizeof(struct vas), MT_VAS);
 	vas->v_views = 0;
 	vas->v_flags = 0;
 	init_lock(&vas->v_lock);

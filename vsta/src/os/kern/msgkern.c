@@ -5,7 +5,7 @@
 #include <sys/msg.h>
 #include <sys/port.h>
 #include <sys/mutex.h>
-#include <alloc.h>
+#include <sys/malloc.h>
 #include <sys/assert.h>
 
 /*
@@ -26,7 +26,7 @@ kernmsg_send(struct portref *pr, int op, long *args)
 	/*
 	 * Construct a system message
 	 */
-	sm = malloc(sizeof(struct sysmsg));
+	sm = MALLOC(sizeof(struct sysmsg), MT_SYSMSG);
 	sm->m_sender = pr;
 	sm->m_op = op;
 	sm->m_nseg = 0;
@@ -89,7 +89,7 @@ out:
 		v_lock(&pr->p_lock, SPL0);
 	}
 	if (sm) {
-		free(sm);
+		FREE(sm, MT_SYSMSG);
 	}
 	return(error);
 }

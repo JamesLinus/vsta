@@ -5,8 +5,8 @@
 #include <sys/vas.h>
 #include <sys/pview.h>
 #include <sys/pset.h>
+#include <sys/malloc.h>
 #include <sys/assert.h>
-#include <alloc.h>
 #include <std.h>
 
 /*
@@ -18,7 +18,7 @@ alloc_pview(struct pset *ps)
 {
 	struct pview *pv;
 
-	pv = malloc(sizeof(struct pview));
+	pv = MALLOC(sizeof(struct pview), MT_PVIEW);
 	bzero(pv, sizeof(struct pview));
 	pv->p_set = ps;
 	ref_pset(ps);
@@ -34,7 +34,7 @@ void
 free_pview(struct pview *pv)
 {
 	deref_pset(pv->p_set);
-	free(pv);
+	FREE(pv, MT_PVIEW);
 }
 
 /*
@@ -46,7 +46,7 @@ dup_pview(struct pview *opv)
 {
 	struct pview *pv;
 
-	pv = malloc(sizeof(struct pview));
+	pv = MALLOC(sizeof(struct pview), MT_PVIEW);
 	bcopy(opv, pv, sizeof(*pv));
 	ref_pset(pv->p_set);
 	pv->p_next = 0;
@@ -86,5 +86,5 @@ remove_pview(struct vas *vas, void *vaddr)
 
 	pv = detach_pview(vas, vaddr);
 	deref_pset(pv->p_set);
-	free(pv);
+	FREE(pv, MT_PVIEW);
 }

@@ -59,7 +59,7 @@ qio_msg_send(struct qio *q)
 	 */
 	ASSERT_DEBUG(q->q_cnt == NBPG, "qio: not a page");
 	s = kern_mem(ptov(ptob(q->q_pp->pp_pfn)), NBPG);
-	sm = malloc(sizeof(struct sysmsg));
+	sm = MALLOC(sizeof(struct sysmsg), MT_SYSMSG);
 
 	/*
 	 * Become sole I/O through port
@@ -109,7 +109,7 @@ out:
 	v_sema(&pr->p_svwait);
 	v_sema(&pr->p_sema);
 	if (sm) {
-		free(sm);
+		FREE(sm, MT_SYSMSG);
 	}
 
 	/*
@@ -142,7 +142,7 @@ run_qio(void)
 	/*
 	 * Get a new qio structure, add to the pool
 	 */
-	q = malloc(sizeof(struct qio));
+	q = MALLOC(sizeof(struct qio), MT_QIO);
 	p_lock(&qio_lock, SPL0);
 	q->q_next = qios;
 	qios = q;

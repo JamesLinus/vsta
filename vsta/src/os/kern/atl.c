@@ -17,7 +17,7 @@
 #include <sys/types.h>
 #include <sys/pset.h>
 #include <sys/assert.h>
-#include <alloc.h>
+#include <sys/malloc.h>
 
 /*
  * add_atl()
@@ -30,7 +30,7 @@ add_atl(struct perpage *pp, struct pview *pv, uint off)
 {
 	struct atl *a;
 
-	a = malloc(sizeof(struct atl));
+	a = MALLOC(sizeof(struct atl), MT_ATL);
 	a->a_pview = pv;
 	a->a_idx = off;
 	a->a_next = pp->pp_atl;
@@ -70,6 +70,6 @@ delete_atl(struct perpage *pp, struct pview *pv, uint off)
 	/*
 	 * Otherwise free the memory and return success.
 	 */
-	free(a);
+	FREE(a, MT_ATL);
 	return(0);
 }

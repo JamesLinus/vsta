@@ -30,8 +30,8 @@
 #include <sys/thread.h>
 #include <sys/mutex.h>
 #include <sys/fs.h>
+#include <sys/malloc.h>
 #include <hash.h>
-#include <alloc.h>
 #include <sys/assert.h>
 
 extern sema_t pid_sema;
@@ -106,7 +106,7 @@ notifypg(struct proc *p, char *event)
 	 * group's semaphore.
 	 */
 	nelem = pg->pg_nmember;
-	l = malloc(pg->pg_nmember * sizeof(ulong));
+	l = MALLOC(pg->pg_nmember * sizeof(ulong), MT_PGRP);
 	lp = pg->pg_members;
 	for (x = 0; x < nelem; ++x) {
 		while (*lp == 0)
@@ -123,7 +123,7 @@ notifypg(struct proc *p, char *event)
 	for (x = 0; x < nelem; ++x) {
 		notify2(l[x], 0L, event);
 	}
-	free(l);
+	FREE(l, MT_PGRP);
 	return(0);
 }
 
@@ -304,9 +304,10 @@ join_pgrp(struct pgrp *pg, pid_t pid)
 	 * If there's no more room now for members, grow the list
 	 */
 	if (pg->pg_nmember >= pg->pg_nelem) {
-		e = malloc((pg->pg_nelem + PG_GROWTH) * sizeof(ulong));
+		e = MALLOC((pg->pg_nelem + PG_GROWTH) * sizeof(ulong),
+			MT_PGRP);
 		bcopy(pg->pg_members, e, pg->pg_nelem * sizeof(ulong));
-		free(pg->pg_members);
+		FREE(pg->pg_members, MT_PGRP);
 		pg->pg_members = e;
 		bzero(pg->pg_members + pg->pg_nelem,
 			PG_GROWTH*sizeof(ulong));
@@ -341,8 +342,8 @@ leave_pgrp(struct pgrp *pg, pid_t pid)
 	 * If we're the last, throw it out
 	 */
 	if (pg->pg_nmember == 1) {
-		free(pg->pg_members);
-		free(pg);
+		FREE(pg->pg_members, MT_PGRP);
+		FREE(pg, MT_PGRP);
 		return;
 	}
 
@@ -369,10 +370,10 @@ alloc_pgrp(void)
 	struct pgrp *pg;
 	uint len;
 
-	pg = malloc(sizeof(struct pgrp));
+	pg = MALLOC(sizeof(struct pgrp), MT_PGRP);
 	pg->pg_nmember = 0;
 	len = PG_GROWTH * sizeof(ulong);
-	pg->pg_members = malloc(len);
+	pg->pg_members = MALLOC(len, MT_PGRP);
 	bzero(pg->pg_members, len);
 	pg->pg_nelem = PG_GROWTH;
 	init_sema(&pg->pg_sema);
