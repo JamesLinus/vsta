@@ -5,6 +5,7 @@ OUT=rs232
 include ../../../makefile.all
 
 rs232: $(OBJS)
+	rm -f rs232
 	$(LD) $(LDFLAGS) -o rs232 $(CRT0) $(OBJS) -lusr -lc
 
 install: rs232
