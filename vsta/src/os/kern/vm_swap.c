@@ -14,12 +14,17 @@
 #include <sys/msg.h>
 #include <sys/vm.h>
 #include <sys/perm.h>
+#include <sys/seg.h>
+#include <sys/percpu.h>
+#include <sys/proc.h>
+#include <sys/thread.h>
 #include <swap/swap.h>
 #include <sys/mutex.h>
 #include <sys/assert.h>
+#include <lib/alloc.h>
 
 extern struct seg *kern_mem();
-extern void *malloc();
+extern void freesegs();
 
 struct portref *swapdev = 0;
 sema_t swap_wait;
@@ -30,6 +35,63 @@ static ulong swap_pending = 0L;	/* Pages consumed before swapper up */
  * The most privileged protection
  */
 static struct perm kern_perm = {0};
+
+/*
+ * seg_physcopy()
+ *	Copy out returned segments to a physical page
+ */
+static
+seg_physcopy(struct sysmsg *sm, uint pfn)
+{
+	uint x, y, nbyte, cnt;
+	char *p;
+	struct seg *s;
+	struct vas *vas = curthread->t_proc->p_vas;
+
+	printf("Copy %d segs to pfn 0x%x\n", sm->m_nseg, pfn);
+	p = (char *)ptov(ptob(pfn));
+	nbyte = NBPG;
+	for (x = 0; nbyte && (x < sm->m_nseg); ++x) {
+		s = sm->m_seg[x];
+
+		/*
+		 * Calculate amount to copy next
+		 */
+		if (s->s_len > nbyte) {
+			cnt = nbyte;
+		} else {
+			cnt = s->s_len;
+		}
+
+		/*
+		 * Attach the memory
+		 */
+		if (attach_seg(vas, s)) {
+			return(1);
+		}
+
+		/*
+		 * Copy the indicated amount
+		 */
+		y = copyin((char *)(s->s_pview.p_vaddr)+s->s_off, p, cnt);
+
+		/*
+		 * Detach and return error if copyin() failed
+		 */
+		detach_seg(s);
+		if (y) {
+			return(1);
+		}
+
+		/*
+		 * Advance counters
+		 */
+		p += cnt;
+		nbyte -= cnt;
+	}
+	printf(" ...copied\n"); dbg_enter();
+	return(0);
+}
 
 /*
  * pageio()
@@ -47,7 +109,9 @@ pageio(uint pfn, struct portref *pr, uint off, uint cnt, int op)
 	ASSERT_DEBUG((op == FS_ABSREAD) || (op == FS_ABSWRITE),
 		"pageio: illegal op");
 
-	ASSERT(pr, "pageio: swap but no swapdev");
+	printf("pageio pfn 0x%x portref 0x%x off 0x%x cnt 0x%x op %d\n",
+		pfn, pr, off, cnt, op);
+	ASSERT(pr, "pageio: null portref");
 	/*
 	 * Construct a system message
 	 */
@@ -55,7 +119,8 @@ pageio(uint pfn, struct portref *pr, uint off, uint cnt, int op)
 	sm->m_sender = pr;
 	sm->m_op = op;
 	sm->m_nseg = 1;
-	sm->m_arg = off;
+	sm->m_arg = cnt;
+	sm->m_arg1 = off;
 	sm->m_seg[0] = kern_mem(ptov(ptob(pfn)), cnt);
 
 	/*
@@ -68,6 +133,7 @@ pageio(uint pfn, struct portref *pr, uint off, uint cnt, int op)
 	 * If port gone, I/O error
 	 */
 	if (pr->p_port == 0) {
+		printf(" port gone\n");
 		error = 1;
 		goto out;
 	}
@@ -77,6 +143,7 @@ pageio(uint pfn, struct portref *pr, uint off, uint cnt, int op)
 	 */
 	set_sema(&pr->p_iowait, 0);
 	pr->p_state = PS_IOWAIT;
+	pr->p_msg = sm;
 
 	/*
 	 * Put message on queue
@@ -93,12 +160,28 @@ pageio(uint pfn, struct portref *pr, uint off, uint cnt, int op)
 	 * If the server indicates error, set it and leave
 	 */
 	if (sm->m_arg == -1) {
+		printf(" error returned\n");
 		error = 1;
-		goto out;
+	} else {
+		printf(" got back sm nseg %d arg %d\n",
+			sm->m_nseg, sm->m_arg);
+		/*
+		 * If we got segments back, copy them out and let
+		 * them go.
+		 */
+		if (sm->m_nseg > 0) {
+			printf(" seg copy\n");
+			error = seg_physcopy(sm, pfn);
+			freesegs(sm);
+		}
 	}
-	ASSERT(sm->m_nseg == 0, "pageio: got segs back");
 
+	/*
+	 * Let server go
+	 */
+	v_sema(&pr->p_svwait);
 out:
+	printf(" done\n");
 	/*
 	 * Clean up and return success/failure
 	 */
@@ -230,7 +313,17 @@ free_swap(ulong block, uint pages)
 {
 	long args[2];
 
+#ifdef DEBUG
+	/*
+	 * During debugging it can be convenient to not bother running
+	 * a swap manager, and just leak the swap space instead.
+	 */
+	if (swapdev == 0) {
+		return;
+	}
+#else
 	ASSERT(swapdev, "free_swap: manager dead");
+#endif
 	args[0] = block;
 	args[1] = pages;
 	p_sema(&swapdev->p_sema, PRIHI);
