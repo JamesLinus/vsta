@@ -50,9 +50,12 @@ void nvram_stat(struct msg *m, struct file *f)
      * using 12 or 24 hour clocks and whether or not we're using daylight
      * saving mode.
      */
-    sprintf(&buf[strlen(buf)], "count_mode=%d\n", nvram_get_count_mode());
-    sprintf(&buf[strlen(buf)], "clock_mode=%d\n", nvram_get_clock_mode());
-    sprintf(&buf[strlen(buf)], "daysave_mode=%d\n", nvram_get_daysave_mode());
+    sprintf(&buf[strlen(buf)], "count_mode=%s\n",
+	    nvram_get_count_mode() ? "binary" : "bcd");
+    sprintf(&buf[strlen(buf)], "clock_mode=%s\n",
+	    nvram_get_clock_mode() ? "24hr" : "12hr" );
+    sprintf(&buf[strlen(buf)], "daysave_mode=%s\n",
+	    nvram_get_daysave_mode() ? "enabled" : "disabled");
   }
   m->m_buf = buf;
   m->m_arg = m->m_buflen = strlen(buf);

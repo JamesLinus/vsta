@@ -29,6 +29,7 @@ static struct hash *filehash;	/* Map session->context structure */
 port_t nvram_port;		/* Port we receive contacts through */
 port_name nvram_name;		/* And it's name */
 uint nvram_accgen = 0;		/* Generation counter for access */
+char nvram_sysmsg[] = "nvram (srv/nvram):";
 
 struct prot nvram_prot = {	/* Protection for the nvram starts */
   1,				/* as access for all.  Sys can change */
@@ -174,7 +175,7 @@ loop:
    */
   x = msg_receive(nvram_port, &msg);
   if (x < 0) {
-    syslog(LOG_ERR, "nvram: msg_receive");
+    syslog(LOG_ERR, "%s msg_receive", nvram_sysmsg);
     goto loop;
   }
 
@@ -259,7 +260,6 @@ loop:
 
   case FS_OPEN:			/* Move from dir down into drive */
     if (!valid_fname(msg.m_buf, x)) {
-syslog(LOG_ERR, "fs open\n");
       msg_err(msg.m_sender, EINVAL);
       break;
     }
@@ -286,7 +286,7 @@ void main(void)
    */
   filehash = hash_alloc(16);
   if (filehash == 0) {
-    syslog(LOG_ERR, "nvram: unable to allocate file hash");
+    syslog(LOG_ERR, "%s unable to allocate file hash", nvram_sysmsg);
     exit(1);
   }
 
@@ -294,7 +294,7 @@ void main(void)
    * Enable I/O for the NVRAM index and data ports
    */
   if (enable_io(RTCSEL, RTCDATA) < 0) {
-    syslog(LOG_ERR, "nvram: unable to get I/O permissions");
+    syslog(LOG_ERR, "%s unable to get I/O permissions", nvram_sysmsg);
     exit(1);
   }
 
@@ -313,7 +313,7 @@ void main(void)
    * Register the device name with the namer
    */
   if (namer_register("srv/nvram", nvram_name) < 0) {
-    syslog(LOG_ERR, "nvram: can't register name");
+    syslog(LOG_ERR, "%s can't register name", nvram_sysmsg);
     exit(1);
   }
 

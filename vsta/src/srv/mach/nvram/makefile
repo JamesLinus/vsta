@@ -2,8 +2,8 @@ CC	= gcc
 LD	= ld
 RM	= rm -f
 INCS	= -I../../../include
-CFLAGS	= -Wall $(INCS) -O2
-LDFLAGS	= -L../../../libc -L../../../lib
+CFLAGS	= -Wall $(INCS)
+LDFLAGS	= -L../../../libc
 OBJS	= main.o rw.o dir.o stat.o
 CLIB	= ../../../libc/libc.a
 LIBS	= -lusr -lc
@@ -20,5 +20,5 @@ nvram: $(OBJS)
 clean:
 	$(RM) *.o
 
-realclean: clean
+clobber: clean
 	$(RM) nvram
