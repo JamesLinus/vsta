@@ -7,6 +7,7 @@
 #include <sys/pset.h>
 #include <sys/assert.h>
 #include <alloc.h>
+#include <std.h>
 
 /*
  * alloc_pview()

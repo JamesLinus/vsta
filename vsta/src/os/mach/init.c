@@ -14,6 +14,8 @@
 #include <mach/pte.h>
 #include <sys/vm.h>
 #include <mach/kbd.h>
+#include <mach/io.h>
+#include <std.h>
 
 #define K (1024)
 
@@ -78,6 +80,7 @@ init_machdep(void)
 	struct boot_task *b;
 	int x, y, pgs;
 	extern uint free_pfn, size_base, size_ext, boot_pfn;
+	extern void set_cr3(pte_t *);
 
 	/*
 	 * Initialize our single "per CPU" data structure

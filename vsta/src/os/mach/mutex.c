@@ -133,6 +133,7 @@ dq_sema(struct sema *s, struct thread *t)
  * p_sema()
  *	Take semaphore, sleep if can't
  */
+int
 p_sema(sema_t *s, pri_t p)
 {
 	struct thread *t;
@@ -187,6 +188,7 @@ p_sema(sema_t *s, pri_t p)
  * cp_sema()
  *	Conditional p_sema()
  */
+int
 cp_sema(sema_t *s)
 {
 	spl_t spl;
@@ -247,6 +249,7 @@ vall_sema(sema_t *s)
  * blocked_sema()
  *	Tell if anyone's sleeping on the semaphore
  */
+int
 blocked_sema(sema_t *s)
 {
 	return (s->s_count < 0);
@@ -283,6 +286,7 @@ set_sema(sema_t *s, int cnt)
  * p_sema_v_lock()
  *	Atomically transfer from a spinlock to a semaphore
  */
+int
 p_sema_v_lock(sema_t *s, pri_t p, lock_t *l)
 {
 	struct thread *t;
@@ -343,6 +347,7 @@ p_sema_v_lock(sema_t *s, pri_t p, lock_t *l)
  *
  * Returns 1 on busy mutex; 0 for success
  */
+int
 cunsleep(struct thread *t)
 {
 	spl_t s;
