@@ -308,6 +308,15 @@ pipe_read(struct msg *m, struct file *f)
 	}
 
 	/*
+	 * If all writers have gone, continue to return EOF
+	 */
+	if (o->p_nwrite == 0) {
+		m->m_arg = m->m_arg1 = m->m_nseg = 0;
+		msg_reply(m->m_sender, m);
+		return;
+	}
+
+	/*
 	 * Queue as a reader
 	 */
 	ASSERT_DEBUG(f->f_q == 0, "pipe_read: busy");

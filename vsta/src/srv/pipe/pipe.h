@@ -26,6 +26,7 @@ struct pipe {
 	uint p_owner;		/* Owner UID */
 	struct llist p_readers,	/* List of read requests pending */
 		p_writers;	/*  ...writers */
+	uint p_nwrite;		/* # clients open for writing */
 };
 
 /*

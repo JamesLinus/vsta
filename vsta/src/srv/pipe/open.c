@@ -72,6 +72,7 @@ dir_newfile(struct file *f, char *name)
 	bzero(o, sizeof(struct pipe));
 	ll_init(&o->p_readers);
 	ll_init(&o->p_writers);
+	o->p_nwrite = 1;
 
 	/*
 	 * Insert in dir chain
@@ -191,10 +192,40 @@ pipe_close(struct file *f)
 {
 	struct pipe *o;
 
-	if (o = f->f_file) {
-		o->p_refs -= 1;
-		if (o->p_refs == 0) {
-			freeup(o);
-		}
+	/*
+	 * No ref count on dir
+	 */
+	o = f->f_file;
+	if (o == 0) {
+		return;
+	}
+
+	/*
+	 * Free a ref.  No more clients--free node.
+	 */
+	o->p_refs -= 1;
+	if (o->p_refs == 0) {
+		freeup(o);
+		return;
+	}
+
+	/*
+	 * Close of last writer--bomb all pending readers
+	 */
+	o->p_nwrite -= 1;
+	if (o->p_nwrite > 0) {
+		return;
+	}
+	while (!LL_EMPTY(&o->p_readers)) {
+		struct msg *m;
+		struct file *f2;
+
+		f2 = LL_NEXT(&o->p_readers)->l_data;
+		ASSERT_DEBUG(f2->f_q, "pipe_close: !busy");
+		ll_delete(f2->f_q);
+		f2->f_q = 0;
+		m = &f2->f_msg;
+		m->m_arg = m->m_arg1 = m->m_nseg = 0;
+		msg_reply(m->m_sender, m);
 	}
 }
