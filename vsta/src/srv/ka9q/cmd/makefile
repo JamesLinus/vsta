@@ -1,6 +1,6 @@
 CC=gcc
-CFLAGS=-DDEBUG
-PROGS=inetdb telnetd
+CFLAGS=-Wall -DDEBUG
+PROGS=proxyd inetdb telnetd
 
 all: $(PROGS)
 
@@ -9,3 +9,12 @@ inetdb: inetdb.o
 
 telnetd: telnetd.o
 	$(CC) $(CFLAGS) -o telnetd telnetd.o -lusr
+
+proxyd: proxyd.o
+	$(CC) $(CFLAGS) -o proxyd proxyd.o -lusr
+
+clean:
+	rm -f *.o
+
+clobber: clean
+	rm -f $(PROGS)
