@@ -98,6 +98,7 @@ extern int __usleep(uint);
 extern int __msleep(uint);
 extern time_t time(time_t *);
 extern int utimes(const char *, struct timeval *);
+extern int gettimeofday(struct timeval *, const char *);
 extern size_t strftime(char *, size_t, const char *, const struct tm *);
 extern void tzset(void);
 extern void tzsetwall(void);
