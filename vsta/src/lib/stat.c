@@ -5,7 +5,7 @@
 #include <sys/param.h>
 #include <sys/fs.h>
 #include <stat.h>
-#include <std.h>
+#include <stdlib.h>
 #include <fcntl.h>
 
 /*
@@ -128,13 +128,13 @@ field(char *str, int idx)
 	 */
 	p = str;
 	eos = strchr(p, '\n');		/* Don't walk into next field */
-	if (eos == 0) {	/* Corrupt */
-		return(0);
+	if (eos == 0) {			/* Corrupt */
+		return(-1);
 	}
 	for (x = 0; x < idx; ++x) {
 		p = strchr(p, '/');
 		if (!p || (p >= eos)) {
-			return(0);
+			return(-1);
 		}
 		++p;
 	}
@@ -168,7 +168,7 @@ int
 fstat(int fd, struct stat *s)
 {
 	char *sbuf, *p;
-	int mode;
+	int mode, aend;
 	port_t port;
 	dev_t dev;
 
@@ -212,7 +212,13 @@ fstat(int fd, struct stat *s)
 	p = fieldval(sbuf, "owner");
 	if (p) {
 		s->st_uid = field(p, 0);
+		if (s->st_uid == -1) {
+			s->st_uid = 0;
+		}
 		s->st_gid = field(p, 1);
+		if (s->st_gid == -1) {
+			s->st_gid = 0;
+		}
 	} else {
 		s->st_gid = s->st_uid = 0;
 	}
@@ -236,13 +242,28 @@ fstat(int fd, struct stat *s)
 	}
 
 	/*
-	 * Map the default access fields into "other"
+	 * Map the default access fields into "other" - we have a bit of a
+	 * problem with the "group" and "user" so we assume that the user
+	 * permission is that granted to someone who's ID dominates and
+	 * arbitrarily decide that the group corresponds to someone who's
+	 * ID matches to the penultimate position.
 	 */
 	p = fieldval(sbuf, "acc");
 	if (p) {
-		mode |= modes(field(p, 0) >> 6);
-		mode |= (modes(field(p, 1)) >> 3) | ((mode & 0007) << 3);
-		mode |= modes(field(p, 2)) | ((mode & 0070) << 3);
+		/*
+		 * We need to determine how long the access rights info
+		 * really is
+		 */
+		aend = PERMLEN - 1;
+		while((field(p, aend) == -1) && (aend > 0)) {
+			aend--;
+		}
+
+		mode |= (modes(field(p, 0)) >> 6);
+		mode |= ((aend >= 1) ? ((modes(field(p, aend - 1))) >> 3) : 0)
+			| ((mode & 0007) << 3);
+		mode |= ((aend >= 0) ? modes(field(p, aend)) : 0)
+			| ((mode & 0070) << 3);
 	} else {
 		mode |= ((S_IREAD|S_IWRITE));
 	}
