@@ -60,6 +60,8 @@ extern uint freemem, totalmem;		/* Free and total pages in system */
 sema_t pageout_sema;
 uint pageout_secs = 0;		/* Set to PAGEOUT_SECS when ready */
 uint desfree, minfree;		/* Initial values calculated on boot */
+extern struct portref
+	*swapdev;		/* To tell when it's been enabled */
 
 /*
  * unvirt()
@@ -270,7 +272,7 @@ do_hand(struct core *c, int trouble, intfun steal)
 		 */
 		free_page(pp->pp_pfn);
 		pp->pp_flags &= ~(PP_V|PP_R);
-	} else if (trouble && (pp->pp_flags & PP_M)) {
+	} else if (trouble && (pp->pp_flags & PP_M) && swapdev) {
 		/*
 		 * It's dirty, and we're interested in getting
 		 * some memory soon.  Start cleaning pages.
@@ -394,8 +396,16 @@ pageout(void)
 		if (npg > troub_cnt[trouble]) {
 			npg = 0;
 #ifdef WATCHMEM
+			{ ulong ofree, odes, omin, otroub;
+			if ((freemem != ofree) || (desfree != odes) ||
+					(minfree != omin) ||
+					(trouble != otroub)) {
 			printf("pageout free %d des %d min %d trouble %d\n",
 				freemem, desfree, minfree, trouble);
+			ofree = freemem; odes = desfree; omin = minfree;
+			otroub = trouble;
+			}
+			}
 #endif
 			p_sema(&pageout_sema, PRIHI);
 
