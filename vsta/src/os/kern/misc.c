@@ -270,3 +270,70 @@ strerror(char *ustr)
 	}
 	return(0);
 }
+
+/*
+ * perm_ctl()
+ *	Set a slot to given permission value, or read slot
+ */
+perm_ctl(uint arg_idx, struct perm *arg_perm, struct perm *arg_ret)
+{
+	uint x;
+	struct perm perm;
+	struct proc *p = curthread->t_proc;
+
+	/*
+	 * Legal slot?
+	 */
+	if (arg_idx >= PROCPERMS) {
+		return(err(EINVAL));
+	}
+
+	/*
+	 * Trying to set?
+	 */
+	if (arg_perm) {
+		/*
+		 * Argument OK?
+		 */
+		if (copyin(arg_perm, &perm, sizeof(struct perm))) {
+			return(err(EFAULT));
+		}
+
+		/*
+		 * See if any of our current permissions dominates it
+		 */
+		p_sema(&p->p_sema, PRILO);
+		for (x = 0; x < PROCPERMS; ++x) {
+			if (perm_dominates(&p->p_ids[x], &perm)) {
+				break;
+			}
+		}
+
+		/*
+		 * If we found one, then we can overwrite the label
+		 */
+		if (x < PROCPERMS) {
+			p->p_ids[arg_idx] = perm;
+		}
+		v_sema(&p->p_sema);
+
+		/*
+		 * Return result
+		 */
+		if (x >= PROCPERMS) {
+			return(err(EPERM));
+		}
+	}
+
+	/*
+	 * Want a copy of the slot?
+	 * XXX worth locking again to avoid race?
+	 */
+	if (arg_ret) {
+		if (copyout(arg_ret, &p->p_ids[arg_idx],
+				sizeof(struct perm))) {
+			return(err(EFAULT));
+		}
+	}
+	return(0);
+}
