@@ -44,8 +44,9 @@ extern void free(void *);
 #define MT_ATL (22)		/* Attach lists */
 #define MT_FPU (23)		/* FPU save state */
 #define MT_OPENPORT (24)	/* FOD pset data structure */
+#define MT_PVIEW_VALID (25)	/* pview valid page map */
 
-#define MALLOCTYPES (25)	/* UPDATE when you add values above */
+#define MALLOCTYPES (26)	/* UPDATE when you add values above */
 				/* ALSO check n_allocname[] */
 
 /*

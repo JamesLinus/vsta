@@ -19,6 +19,8 @@ struct pview {
 		*p_next;
 	uchar p_prot;		/* Protections on view */
 	struct hatpview p_hat;	/* HAT contribution */
+	uchar *p_valid;		/* If attached to a VAS, flags which */
+				/*  virtual slots have mappings */
 };
 
 /*
