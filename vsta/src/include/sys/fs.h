@@ -48,6 +48,7 @@
 #define EBUSY "busy"
 #define ENOSPC "no space"
 #define ENOTDIR "not dir"
+#define EEXIST "exists"
 #define EIO "io err"
 #define ENXIO "no io"
 #define EFAULT "fault"
