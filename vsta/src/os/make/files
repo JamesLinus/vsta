@@ -44,6 +44,7 @@ event.c
 mmap.c
 phys.c
 exec.c
+exitgrp.c
 
 dbg:
 dbgmain.c
