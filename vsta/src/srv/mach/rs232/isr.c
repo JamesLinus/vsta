@@ -180,7 +180,7 @@ rs232_isr(void)
 			 * Queue in ISR data buffer
 			 */
 			x = rxhd;
-			if (++x > BUFLEN) {
+			if (++x >= BUFLEN) {
 				x = 0;
 			}
 			if (x != rxtl) {
