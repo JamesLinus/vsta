@@ -134,7 +134,7 @@ bmap(struct buf *b_fs, struct fs_file *fs, ulong pos,
 	/*
 	 * Grow file if needed
 	 */
-	if ((pos + cnt) > fs->fs_len) {
+	if (pos >= fs->fs_len) {
 		/*
 		 * Calculate growth.  If more blocks are needed, get
 		 * them now.  Otherwise just fiddle the file length.
@@ -173,10 +173,10 @@ bmap(struct buf *b_fs, struct fs_file *fs, ulong pos,
 	 * Find the appropriate EXTSIZ part of the extent to use, since
 	 * our buffer pool operates on chunks of EXTSIZ in length.
 	 * nsize holds the absolute sector index of the desired position.
-	 * extoff holds the absolute sector for the start of the
-	 *  current extent.
+	 * extoff holds the number of sectors into the current extent
+	 * where the requested data starts.
 	 */
-	extstart = ((nsize - extoff) & ~(EXTSIZ-1));
+	extstart = (extoff & ~(EXTSIZ-1));
 	start = a->a_start + extstart;
 	len = a->a_len - extstart;
 	if (len > EXTSIZ) {
@@ -468,18 +468,18 @@ vfs_read(struct msg *m, struct file *f)
 	}
 
 	/*
-	 * Directory--only one is the root
-	 */
-	if (fs->fs_type == FT_DIR) {
-		vfs_readdir(m, f);
-		return;
-	}
-
-	/*
 	 * Access?
 	 */
 	if (!(f->f_perm & ACC_READ)) {
 		msg_err(m->m_sender, EPERM);
+		return;
+	}
+
+	/*
+	 * Directory--only one is the root
+	 */
+	if (fs->fs_type == FT_DIR) {
+		vfs_readdir(m, f);
 		return;
 	}
 
