@@ -33,6 +33,14 @@ dos_open(struct msg *m, struct file *f)
 	int newfile = 0;
 
 	/*
+	 * Need a buffer
+	 */
+	if (m->m_nseg != 1) {
+		msg_err(m->m_sender, EINVAL);
+		return;
+	}
+
+	/*
 	 * Have to be in dir to open down into a file
 	 */
 	if (f->f_node->n_type != T_DIR) {
@@ -129,6 +137,14 @@ dos_remove(struct msg *m, struct file *f)
 	struct node *n;
 	void *handle;
 	struct directory *d;
+
+	/*
+	 * Need a buffer
+	 */
+	if (m->m_nseg != 1) {
+		msg_err(m->m_sender, EINVAL);
+		return;
+	}
 
 	/*
 	 * Have to have write permission
