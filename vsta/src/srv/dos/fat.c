@@ -135,7 +135,7 @@ fat_init(void)
 	/*
 	 * Get map of dirty sectors in FAT
 	 */
-	dirtymapsize = roundup(nclust, SECSZ) / SECSZ;
+	dirtymapsize = roundup(nclust*sizeof(ushort), SECSZ) / SECSZ;
 	dirtymap = malloc(dirtymapsize);
 	ASSERT(dirtymap, "fat_init: dirtymap");
 	bzero(dirtymap, dirtymapsize);
