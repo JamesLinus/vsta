@@ -100,7 +100,8 @@ ACCOUNT=root guest
 
 # Default: make a distribution
 dist: bindist srcdist make txt sh ed fun bc gzip sc small gcc \
-	mgrdist lang net python diff account graphics sim misc
+	mgrdist lang net python diff account graphics sim misc \
+	srccvs
 
 bindist:
 	tar -cvf - $(BIN) | gzip -9 > $(DEST)/vsta.tz
@@ -164,3 +165,7 @@ sim:
 
 misc:
 	tar -cvf - $(MISC) | gzip -9 > $(DEST)/misc.tz
+
+# The CVS source control tree behind main VSTa development
+srccvs:
+	cd /cvs ; tar -cvf - . | gzip -9 > $(DEST)/vsta_cvs.tz
