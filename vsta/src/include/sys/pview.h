@@ -25,6 +25,7 @@ struct pview {
 #define PROT_RO (1)		/* Read only */
 #define PROT_KERN (2)		/* Kernel only */
 #define PROT_MMAP (4)		/* Created by mmap() */
+#define PROT_FORK (8)		/* View is in process of fork() */
 
 #ifdef KERNEL
 /*
