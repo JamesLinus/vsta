@@ -844,6 +844,9 @@ vfs_open(struct msg *m, struct file *f)
 	lock_buf(b);
 	want = m->m_arg & (ACC_READ|ACC_WRITE|ACC_CHMOD);
 	x = perm_calc(f->f_perms, f->f_nperm, &fs->fs_prot);
+	if (f->f_perms[0].perm_uid == fs->fs_owner) {
+		x |= ACC_CHMOD;
+	}
 	if ((want & x) != want) {
 		deref_node(o);
 		msg_err(m->m_sender, EPERM);
