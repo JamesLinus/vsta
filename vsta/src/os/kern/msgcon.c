@@ -434,7 +434,7 @@ shut_client(struct portref *pr)
  * For efficiency, when returning 1 the routines leaves the
  * port locked; this is simply for efficiency.
  */
-static
+static int
 close_client(struct port *port, struct portref *pr)
 {
 	unmapsegs(&pr->p_segs);
@@ -555,6 +555,7 @@ bounce_msgs(struct port *port)
  * shut_server()
  *	Shut down a server side
  */
+int
 shut_server(struct port *port)
 {
 	/*
@@ -612,6 +613,7 @@ shut_server(struct port *port)
  * Works for both server and client sides, with somewhat different
  * effects.
  */
+int
 msg_disconnect(port_t arg_port)
 {
 	struct proc *p = curthread->t_proc;
@@ -655,6 +657,7 @@ msg_disconnect(port_t arg_port)
  * well as connection requests.  A connection is accepted with
  * msg_accept(), but rejected here.
  */
+int
 msg_err(long arg_tran, char *arg_why, int arg_len)
 {
 	struct portref *pr;
