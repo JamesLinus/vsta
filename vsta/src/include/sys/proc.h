@@ -34,7 +34,7 @@ struct pgrp {
  * The actual per-process state
  */
 struct proc {
-	ulong p_pid;		/* Our process ID */
+	pid_t p_pid;		/* Our process ID */
 	struct perm		/* Permissions granted process */
 		p_ids[PROCPERMS];
 	sema_t p_sema;		/* Semaphore on proc structure */
@@ -60,22 +60,23 @@ struct proc {
 		*p_children,	/*  ...the one our children use */
 		*p_parent;	/*  ...the one we're a child of */
 	char p_cmd[8];		/* Command name (untrusted) */
+	char p_event[ERRLEN];	/* Event which killed us */
 };
 
 #ifdef KERNEL
-extern ulong allocpid(void);
+extern pid_t allocpid(void);
 extern int alloc_open(struct proc *);
 extern void free_open(struct proc *, int);
-extern void join_pgrp(struct pgrp *, ulong),
-	leave_pgrp(struct pgrp *, ulong);
+extern void join_pgrp(struct pgrp *, pid_t),
+	leave_pgrp(struct pgrp *, pid_t);
 extern struct pgrp *alloc_pgrp(void);
 
 /*
  * notify() syscall and special value for thread ID to signal whole
  * process group instead.
  */
-extern notify(ulong, ulong, char *, int);
-#define NOTIFY_PG ((ulong)-1)
+extern notify(pid_t, pid_t, char *, int);
+#define NOTIFY_PG ((pid_t)-1)
 
 #endif /* KERNEL */
 
