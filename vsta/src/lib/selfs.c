@@ -91,10 +91,12 @@ sc_event(struct selclient *scp, uint event)
 	struct msg m;
 
 	/*
-	 * If we're seeing new data since the client last did
-	 * I/O, send a select event.
+	 * If we're seeing new interesting data since the client last did
+	 * I/O, send a select event.  Inhibit if they already have
+	 * received an appropriate select event, or if the event is not
+	 * of interest to this client.
 	 */
-	if (!scp->sc_needsel) {
+	if ((!scp->sc_needsel) || !(event & scp->sc_mask)) {
 		return;
 	}
 
