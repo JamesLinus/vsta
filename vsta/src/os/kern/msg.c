@@ -722,15 +722,11 @@ msg_reply(long arg_who, struct msg *arg_msg)
 			v_sema(&pr->p_iowait);
 			new_client(newpr);
 		} else {
-			struct sysmsg smtmp;
-
 			/*
-			 * Take his segments (if any) and give him
-			 * ours.  We'll clean his up below.
+			 * Give him the sysmsg.
 			 */
-			smtmp = *(pr->p_msg);
 			*(pr->p_msg) = *sm;	
-			*sm = smtmp;
+			sm->m_nseg = 0;		/* He has them */
 
 			/*
 			 * Let him run
