@@ -390,7 +390,7 @@ main(int argc, char *argv[])
 	port_t port;
 	port_name fsname;
 	int x, retries, nuser;
-	char *namer_name = 0;
+	char *namer_name = 0, *blk_name = 0;
 
 	/*
 	 * Initialize syslog
@@ -408,25 +408,7 @@ main(int argc, char *argv[])
 			break;
 
 		case 'd':	/* Block device holding filesystem */
-			/*
-			 * Sleep and retry a bit if necessary.
-			 */
-			for (retries = 10; retries > 0; retries -= 1) {
-				blkdev = open(optarg, O_RDWR);
-				if (blkdev >= 0) {
-					break;
-				}
-				sleep(1);
-			}
-
-			/*
-			 * Nope, couldn't find it.
-			 */
-			if (blkdev < 0) {
-				syslog(LOG_ERR, "unable to open '%s'",
-					optarg);
-				exit(1);
-			}
+			blk_name = optarg;
 			break;
 
 		case 'B':	/* Set size of cache in sectors */
@@ -445,6 +427,32 @@ main(int argc, char *argv[])
 		default:
 			usage();
 		}
+	}
+
+	/*
+	 * Have our required parameters?
+	 */
+	if (!blk_name || !namer_name) {
+		usage();
+	}
+
+	/*
+	 * Open our block device.  Sleep and retry a bit if necessary.
+	 */
+	for (retries = 10; retries > 0; retries -= 1) {
+		blkdev = open(blk_name, rofs ? O_RDONLY : O_RDWR);
+		if (blkdev >= 0) {
+			break;
+		}
+		sleep(1);
+	}
+
+	/*
+	 * Nope, couldn't find it.
+	 */
+	if (blkdev < 0) {
+		syslog(LOG_ERR, "unable to open '%s'", blk_name);
+		exit(1);
 	}
 
 	/*
