@@ -22,6 +22,7 @@
 #define NPROC 64	/* Number of threads on system */
 #define KSTACK_SIZE \
 	(NBPG)		/* Size of kernel stack */
+#define MAX_WIRED (4)	/* Max # pages wired for DMA at once */
 
 /*
  * Each thread starts with a stack of size UMINSTACK.  For the special
