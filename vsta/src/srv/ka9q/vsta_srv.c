@@ -96,7 +96,8 @@ struct tcp_port {
 		t_fsock;	/*  ...proposed remote, for active connect */
 	struct tcp_conn
 		**t_conns;	/* Connected remote clients */
-	uint t_maxconn;		/* # of slots in t_conns */
+	ushort t_maxconn,	/* # of slots in t_conns */
+		t_proxy;	/* Proxy on remote side? */
 	struct llist t_any;	/* Readers for "any" connection */
 };
 
@@ -908,6 +909,9 @@ inetfs_wstat(struct msg *m, struct client *cl)
 		} else if (!strcmp(field, "destsock")) {
 			t->t_fsock.port = atoi(val);
 			break;
+		} else if (!strcmp(field, "proxy")) {
+			t->t_proxy = atoi(val);
+			break;
 		}
 
 		/* VVV fall into error case VVV */
@@ -1170,19 +1174,81 @@ inetfs_write(struct msg *m, struct client *cl)
 	}
 
 	/*
-	 * Get a a linked list entry, queue us
+	 * Get a linked list entry, queue us
 	 */
 	cl->c_entry = ll_insert(&c->t_writers, cl);
 	if (cl->c_entry == 0) {
 		msg_err(m->m_sender, ENOMEM);
 		return;
 	}
-	cl->c_msg = *m;
+	bcopy(m, &cl->c_msg, sizeof(*m));
 
 	/*
 	 * Let TCP pull as much into his window as possible
 	 */
 	fill_sendq(c);
+}
+
+/*
+ * do_proxy()
+ *	Initiate a request to our remote proxy
+ */
+static void
+do_proxy(struct msg *mp, struct client *cl)
+{
+	struct msg m;
+	uint x, wait_reply;
+
+	/*
+	 * Handle a couple special cases
+	 */
+	switch (mp->m_op) {
+	case M_DISCONNECT:
+		dead_client(mp, cl);
+		wait_reply = 0;
+		break;
+	case M_DUP:
+		dup_client(mp, cl);
+		wait_reply = 0;
+		break;
+	default:
+		wait_reply = 1;
+		break;
+	}
+
+	/*
+	 * XXX
+	 * Hmmm, to handle this otherwise would require teaching
+	 * vsta_srv how to have more than one message pending to
+	 * complete a user action.
+	 */
+	if (mp->m_nseg == MSGSEGS) {
+		if (wait_reply) {
+			msg_err(mp->m_sender, E2BIG);
+		}
+		return;
+	}
+
+	/*
+	 * Send on the actual payload
+	 */
+	m.m_op = FS_WRITE;
+	m.m_nseg = mp->m_nseg + 1;
+	m.m_buf = mp;
+	m.m_buflen = sizeof(*mp);
+	bcopy(mp->m_seg, m.m_seg + 1, (MSGSEGS-1) * sizeof(seg_t));
+	m.m_arg1 = m.m_arg = 0;
+	for (x = 0; x < m.m_nseg; ++x) {
+		m.m_arg += m.m_seg[x].s_buflen;
+	}
+	inetfs_write(&m, cl);
+
+	/*
+	 * If a replying message is needed, queue as a reader
+	 */
+	if (wait_reply) {
+		inetfs_read(mp, cl);
+	}
 }
 
 /*
@@ -1200,6 +1266,16 @@ proc_msg(struct msg *m)
 	cl = hash_lookup(clients, m->m_sender);
 	if (cl == 0) {
 		msg_err(m->m_sender, EIO);
+		return;
+	}
+
+	/*
+	 * If there's a proxy server on the far side of the
+	 * connection, forward data rather than handling the
+	 * request locally.
+	 */
+	if (cl->c_port && cl->c_port->t_proxy) {
+		do_proxy(m, cl);
 		return;
 	}
 
