@@ -31,6 +31,9 @@ disassemble consecutive locations.
 $r		- Display registers
 $b		- List breakpoints
 $c		- Show C stack backtrace
+$s <a.out>	- Load symbols from <a.out>; "$s /vsta/lib/libc.shl"
+		  would load symbols for the attached shared library
+$S		- Show symbol table
 <addr>:b	- Set breakpoint at address
 <addr>:d	- Delete breakpoint at address
 :c		- Continue execution
