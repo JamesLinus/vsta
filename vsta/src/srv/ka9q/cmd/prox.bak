@@ -66,7 +66,10 @@ static void
 cleanup(void)
 {
 	msg_disconnect(txport);
-	wstat(rxport, "conn=disconnect");
+	if (wstat(rxport, "conn=disconnect\n") < 0) {
+		syslog(LOG_DEBUG, "disconnect failed: %s", strerror());
+	}
+	sleep(2);
 	msg_disconnect(rxport);
 }
 
@@ -606,7 +609,7 @@ main(int argc, char **argv)
 	/*
 	 * Access our server port
 	 */
-	p = path_open(tcp_buf, ACC_READ | ACC_WRITE);
+	p = path_open(tcp_buf, ACC_READ | ACC_WRITE | ACC_CHMOD);
 	if (p < 0) {
 		perror(tcp_buf);
 		exit(1);
