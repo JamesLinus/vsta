@@ -33,7 +33,6 @@ atl.c
 qio.c
 pset_fod.c
 pset_zfo.c
-pset_nof.c
 pset_mem.c
 pset_cow.c
 vm_swap.c
