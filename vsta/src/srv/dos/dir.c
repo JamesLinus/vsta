@@ -872,13 +872,17 @@ dir_remove(struct node *n)
 {
 	void *handle;
 	struct directory *d;
+	uint slot = n->n_slot;
 
 	ASSERT_DEBUG(n != rootdir, "dir_remove: root");
 
 	/*
 	 * Get the directory entry and its handle
 	 */
-	d = get_dirent(n->n_dir, n->n_slot, &handle);
+	d = get_dirent(n->n_dir, slot, &handle);
+	if (d == NULL) {
+		syslog(LOG_ERR, "dir_remove: can't get directory");
+	}
 
 	/*
 	 * Flag name as being deleted, mark the directory block
@@ -895,6 +899,32 @@ dir_remove(struct node *n)
 		hash_delete(dirhash, n->n_clust->c_clust[0]);
 	} else {
 		hash_delete(n->n_dir->n_files, n->n_slot);
+	}
+
+	/*
+	 * Null out any leading VSE's
+	 */
+	while (slot > 0) {
+		/*
+		 * Get next slot.  Leave when we can't get the slot,
+		 * or when it stops being leading VSE's.
+		 */
+		slot -= 1;
+		d = get_dirent(n->n_dir, slot, &handle);
+		if (d == NULL) {
+			break;
+		}
+		if (d->attr != DA_VFAT) {
+			dfree(handle);
+			break;
+		}
+
+		/*
+		 * Mark the slot deleted, and continue walking backwards
+		 */
+		d->name[0] = DN_DEL;
+		ddirty(handle);
+		dfree(handle);
 	}
 }
 
