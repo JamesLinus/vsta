@@ -214,7 +214,6 @@ msg_connect(port_name arg_port, int arg_mode)
 	sm.sm_nseg = 0;
 	sm.sm_arg = arg_mode;
 	sm.sm_arg1 = sizeof(p->p_ids);
-	pr->p_msg = &sm;
 
 	/*
 	 * Get an open slot
@@ -699,12 +698,17 @@ msg_err(long arg_tran, char *arg_why, int arg_len)
 
 	/*
 	 * If the server port's on its way down, never mind
-	 * this.
+	 * this.  If there's not a request outstanding from
+	 * this client, error that as well.
 	 */
 	port = pr->p_port;
 	if (!port) {
 		v_lock(&pr->p_lock, SPL0);
 		return(err(EIO));
+	}
+	if (pr->p_msg == 0) {
+		v_lock(&pr->p_lock, SPL0);
+		return(err(EINVAL));
 	}
 
 	/*

@@ -136,7 +136,6 @@ pageio(uint pfn, struct portref *pr, uint off, uint cnt, int op)
 	 */
 	ASSERT_DEBUG(sema_count(&pr->p_iowait) == 0, "pageio: p_iowait");
 	pr->p_state = PS_IOWAIT;
-	pr->p_msg = &sm;
 
 	/*
 	 * Put message on queue

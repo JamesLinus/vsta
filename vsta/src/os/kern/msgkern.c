@@ -29,7 +29,6 @@ kernmsg_send(struct portref *pr, int op, long *args)
 	sm.sm_nseg = 0;
 	sm.sm_arg = args[0];
 	sm.sm_arg1 = args[1];
-	pr->p_msg = &sm;
 
 	/*
 	 * Interlock with server

@@ -261,7 +261,6 @@ msg_send(port_t arg_port, struct msg *arg_msg)
 		goto out2;
 	}
 	sm.sm_sender = pr;
-	pr->p_msg = &sm;
 
 	/*
 	 * Set up our message transfer state
@@ -573,9 +572,10 @@ msg_receive(port_t arg_port, struct msg *arg_msg)
 	}
 
 	/*
-	 * Have our message, release port.
+	 * Have our message, flag that we're running with it.
 	 */
 	pr = sm->sm_sender;
+	pr->p_msg = sm;
 
 	/*
 	 * Connect messages are special; the buffer is the array
@@ -656,7 +656,7 @@ msg_reply(long arg_who, struct msg *arg_msg)
 {
 	struct proc *p = curthread->t_proc;
 	struct portref *pr;
-	struct sysmsg sm;
+	struct sysmsg sm, *om;
 	int error = 0;
 
 	/*
@@ -707,10 +707,21 @@ msg_reply(long arg_who, struct msg *arg_msg)
 	 * the message, and let us free.
 	 */
 	case PS_IOWAIT:
-		if ((pr->p_msg->sm_op == M_DUP) && (sm.sm_arg != -1)) {
+		/*
+		 * Make sure we're replying to the right client;
+		 * a buggy server could specify the wrong one, which
+		 * we detect by p_msg still being NULL.
+		 */
+		om = pr->p_msg;
+		if (!om) {
+			error = err(EINVAL);
+			v_lock(&pr->p_lock, SPL0_SAME);
+			break;
+		}
+		if ((om->sm_op == M_DUP) && (sm.sm_arg != -1)) {
 			struct port *port = pr->p_port;
 			struct portref *newpr = (struct portref *)
-				(pr->p_msg->sm_arg);
+				(om->sm_arg);
 
 			ASSERT_DEBUG(newpr->p_port == port,
 				"msg_reply: newpr != port");
@@ -725,8 +736,6 @@ msg_reply(long arg_who, struct msg *arg_msg)
 			 * Give him the parts of the sysmsg
 			 * that he needs from us
 			 */
-			struct sysmsg *om = pr->p_msg;
-			
 			om->sm_op = sm.sm_op;
 			om->sm_arg = sm.sm_arg;
 			om->sm_arg1 = sm.sm_arg1;
@@ -736,6 +745,7 @@ msg_reply(long arg_who, struct msg *arg_msg)
 			om->sm_errs = sm.sm_errs;
 			
 			sm.sm_nseg = 0;		/* He has them */
+			pr->p_msg = 0;
 
 			/*
 			 * Let him run

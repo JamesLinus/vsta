@@ -83,7 +83,6 @@ qio_msg_send(struct qio *q)
 	sm.sm_nseg = 1;
 	sm.sm_seg[0] = s;
 	sm.sm_sender = pr;
-	pr->p_msg = &sm;
 	pr->p_state = PS_IOWAIT;
 	ASSERT_DEBUG(sema_count(&pr->p_iowait) == 0, "qio_msg_send: p_iowait");
 	queue_msg(pr->p_port, &sm, SPL0);
