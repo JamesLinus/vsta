@@ -60,7 +60,7 @@ signal_thread(struct thread *t, char *event, int is_sys)
 	 * Take lock, place event in appropriate place
 	 */
 retry:	p_lock(&runq_lock, SPLHI);
-	strcpy(is_sys ? t->t_evsys : t->t_evproc, event);
+	strcpy((is_sys ? t->t_evsys : t->t_evproc), event);
 
 	/*
 	 * As appropriate, kick him awake
@@ -271,14 +271,14 @@ check_events(void)
 		strcpy(event, t->t_evsys);
 		t->t_evsys[0] = '\0';
 		v_lock(&runq_lock, s);
-		sendev(t, t->t_evsys);
+		sendev(t, event);
 		return;
 	}
 	if (t->t_evproc[0]) {
-		strcpy(event, t->t_evsys);
+		strcpy(event, t->t_evproc);
 		t->t_evproc[0] = '\0';
 		v_lock(&runq_lock, s);
-		sendev(t, t->t_evproc);
+		sendev(t, event);
 		v_sema(&t->t_evq);
 		return;
 	}
