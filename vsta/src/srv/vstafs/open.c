@@ -148,7 +148,7 @@ getfs(struct openfile *o, struct buf **bp)
 	struct fs_file *fs;
 	struct buf *b;
 
-	b = find_buf(o->o_file, o->o_len);
+	b = find_buf(o->o_file, MIN(o->o_len, EXTSIZ));
 	if (!b) {
 		return(0);
 	}
