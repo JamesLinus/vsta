@@ -111,14 +111,14 @@ gets(char *p)
 void
 dbg_enter(void)
 {
-	int was_on;
+	spl_t was_on;
 	extern void dbg_main(void);
 
 	was_on = geti();
 	cli();
-	printf("[Kernel debugger]\n");
+	printf("[Kernel debugger @ spl %x]\n", was_on);
 	dbg_main();
-	if (was_on) {
+	if (was_on == SPL0) {
 		sti();
 	}
 }
