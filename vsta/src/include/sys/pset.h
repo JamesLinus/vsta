@@ -57,7 +57,8 @@ struct psetops {
 	intfun psop_fillslot,		/* Fill slot with contents */
 		psop_writeslot,		/* Write slot to destination */
 		psop_init;		/* Called once on setup */
-	voidfun psop_free;		/*  ...on close, to clean up */
+	voidfun	psop_dup,		/* Duplicate set (fork()) */
+		psop_free;		/* Clean up on teardown */
 };
 
 /*
@@ -71,13 +72,8 @@ struct pset {
 	uint p_off;		/*  ...offset into source */
 	ushort p_type;		/* Type of pages */
 	ushort p_locks;		/* # pages with PP_LOCK */
-	union {
-		struct pset *_p_cow;	/* Set we COW from if PT_COW */
-		struct portref *_p_pr;	/* Do FS ops here if PT_FILE */
-	} p_u;
+	void *p_data;		/* Type-specific data */
 	ulong p_swapblk;	/* Block # on swapdev */
-#define p_cow p_u._p_cow
-#define p_pr p_u._p_pr
 	lock_t p_lock;		/* Mutex */
 	uint p_refs;		/* # views using this set */
 	struct perpage		/* Our array of per-page-slot data */
