@@ -1,4 +1,7 @@
 copyin/copyout--put in locore.s, use user's segment
+	-- Worse than I thought.  Bug in i386 allows ring 0 code to write
+	to a read-only mapping.  So COW is a bust when one would expect
+	it to work for a copyout.  Walk translations manually?  Bleh.
 
 X TLB staleness--how split HAT/portable?  Assume TLB shootdown is
 X relatively cheap and if not assume HAT will do the gyrations
@@ -8,7 +11,8 @@ X necessary?
 X Should HAT update ref/mod bits in c_flags?
 	-- Moved this to pp_flags.  It's done above the HAT.
 
-Make sure users can't send M_RESVD messages
+X Make sure users can't send M_RESVD messages
+	-- Done.  Allow M_TIME as I don't feel like renumbering it now.
 
 X How hand msg_err() answers around?
 	-- In the m_err field in a sysmsg, which is copied into
@@ -47,18 +51,25 @@ X for many things, including swap I/O's.
 X Add the second argument to msg.c and msgcon.c handling.
 	-- Done.
 
-Add optimization to add the cache translation *each time* someone faults
-a slot translation in.  Currently we only add when going from !PP_V->PP_V;
-this works, but will guarantee that the page must be brought in from
-its server if the cache view is ever paged out.  Should be done by keeping
-a flag with the perpage, and clearing it when these cache translations
-are deleted.
+X Add optimization to add the cache translation *each time* someone faults
+X a slot translation in.  Currently we only add when going from !PP_V->PP_V;
+X this works, but will guarantee that the page must be brought in from
+X its server if the cache view is ever paged out.  Should be done by keeping
+X a flag with the perpage, and clearing it when these cache translations
+X are deleted.
+	-- Bogus concept.  We allow caching by letting pages reside under
+	a pset with a ref count of 0.  The pageout daemon is reponsible
+	for reaping these as memory situations demand.
 
-Add machinery to page stealer to raid cache pviews who are the last
-reference to the pset.  We need them as we don't tag the page otherwise,
-but we should clear them out over time.  Note that the pages can be
-stolen just fine; it's the pview itself that we need to reclaim at
-some point.
+X Add machinery to page stealer to raid cache pviews who are the last
+X reference to the pset.  We need them as we don't tag the page otherwise,
+X but we should clear them out over time.  Note that the pages can be
+X stolen just fine; it's the pview itself that we need to reclaim at
+X some point.
+	-- There is no such thing, though I still need to add something
+	to lazily keep psets around, even though they're not currently
+	mapped.  Trick is that this has to be unified with a mechanism
+	for mapping a pset to a given server and inode number.
 
 Add code to manage T_KERN bit of thread flags
 
@@ -81,7 +92,8 @@ Once up, should invalidate all vaddr's above heap
 
 Clean up scheduling node on exit
 
-Implement mmap()
+X Implement mmap()
+	-- Done.
 
 In fork() the portref array is mutexed across the entire dup_port()
 	using p_sema from the proc structure.  This is at least overkill,
@@ -90,16 +102,21 @@ In fork() the portref array is mutexed across the entire dup_port()
 	usual interface.  This shares more code, and considerably narrows
 	the time for which the proc sema must be held.
 
-Add a flag for pviews to tell if they should be copied/inherited on
-	a fork().  Make sure transient pviews from msg_receive()'s
-	are *not* inherited.
+XAdd a flag for pviews to tell if they should be copied/inherited on
+X	a fork().  Make sure transient pviews from msg_receive()'s
+X	are *not* inherited.
+	-- I think the SHARED flag (in the pset?) does the job.
 
-Rethink struct core's c_long vs. c_atl fields.  They are mutually
-	exclusive in use except for cases of M_CONNECT messages,
-	where the user temporarily maps the permissions of the
-	connecting process.  Perhaps it would be worth adding some
-	code to handle this differently... would it be worth it
-	to regain 4 bytes per 4K (0.1%) overhead?
+XRethink struct core's c_long vs. c_atl fields.  They are mutually
+X	exclusive in use except for cases of M_CONNECT messages,
+X	where the user temporarily maps the permissions of the
+X	connecting process.  Perhaps it would be worth adding some
+X	code to handle this differently... would it be worth it
+X	to regain 4 bytes per 4K (0.1%) overhead?
+	-- Revamped.  The attach lists of pviews have moved up to
+	the perpage struct--c_atl only indicates the primary pset.
+	This keeps the temporary user mapping of a memory pset from
+	trashing our malloc state.
 
 Add check to enable_dma() for conflict in DMA channels
 
@@ -108,3 +125,9 @@ Check abort in wd/rw.c to see if we do the right thing when we're
 
 Check whether the right nodes get flagged dirty when we create
 	a node within a dir.  Does the dir node need to be flagged?
+	(DOSFS)
+
+rmdir seems hosed.  We need to throw away the clusters under the file,
+	but we hash off this cluster number for the case of directories.
+	I also don't seem to be updating the node's length field before
+	letting deref_node() clear it.  (DOSFS)
