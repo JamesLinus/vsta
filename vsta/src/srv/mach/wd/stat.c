@@ -42,8 +42,9 @@ wd_stat(struct msg *m, struct file *f)
 	uint size, pextoffs, node;
 	char type;
 	struct prot *p;
+	int isdir = (f->f_node == ROOTDIR);
 
-	if (f->f_node == ROOTDIR) {
+	if (isdir) {
 		int x;
 
 		size = 0;
@@ -80,8 +81,9 @@ wd_stat(struct msg *m, struct file *f)
 	p = find_prot(f->f_node);
 	sprintf(buf,
 		"size=%d\ntype=%c\nowner=1/1\ninode=%d\ndev=%d\n" \
-		"pextoffs=%d\nirq=%d\nbaseio=0x%x\n",
-		size, type, node, wdname, pextoffs, wd_irq, wd_baseio);
+		"pextoffs=%d\nirq=%d\nbaseio=0x%x\ndma=%d\n",
+		size, type, node, wdname, pextoffs, wd_irq, wd_baseio,
+		isdir ? 0 : 1);
 	strcat(buf, perm_print(p));
 	m->m_buf = buf;
 	m->m_buflen = strlen(buf);
