@@ -290,7 +290,7 @@ printf("File %s block range %ld..%ld invalid.\n",
 		 */
 		if (getbit(allocmap, a->a_start, a->a_len)) {
 printf("File %s blocks %ld..%ld doubly allocated.\n",
-	a->a_start, a->a_start + a->a_len - 1);
+	name, a->a_start, a->a_start + a->a_len - 1);
 			return(1);
 		}
 
@@ -299,7 +299,7 @@ printf("File %s blocks %ld..%ld doubly allocated.\n",
 		 */
 		if (getbit(freemap, a->a_start, a->a_len)) {
 printf("File %s blocks %ld..%ld conflict with freelist.\n",
-	a->a_start, a->a_start + a->a_len - 1);
+	name, a->a_start, a->a_start + a->a_len - 1);
 			return(1);
 		}
 
@@ -397,7 +397,7 @@ concat(char *name, char *suffix)
 {
 	char *p;
 
-	p = malloc(strlen(name)+ strlen(suffix)+2);
+	p = malloc(strlen(name) + strlen(suffix) + 2);
 	sprintf(p, "%s%s%s", name, name[1] ? "/" : "", suffix);
 	return(p);
 }
@@ -533,6 +533,10 @@ printf("Unknown file node for %s at %ld\n", name, sec);
 	 */
 	if (fs->fs_nblk == 0) {
 printf("No blocks allocated for %s at %ld\n", name, sec);
+		return(1);
+	}
+	if (fs->fs_nblk > MAXEXT) {
+printf("Too many extents in file %s: %U\n", name, fs->fs_nblk);
 		return(1);
 	}
 	if (fs->fs_len < sizeof(struct fs_file)) {
