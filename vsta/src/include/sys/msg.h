@@ -149,7 +149,6 @@ int msg_portname(port_t);		/* Get port_name for port */
 #define M_DUP 3			/* Dup of file for fork() */
 #define M_ABORT 4		/* Aborted operation (signals, etc.) */
 #define M_ISR 5			/* Interrupt happened (IRQ in m_arg) */
-#define M_TIME 6		/* Low-level time mark for timer task */
 #define M_RESVD 99		/* This and below reserved */
 
 #define M_READ 0x80000000	/* Buffer is destination, not source */
