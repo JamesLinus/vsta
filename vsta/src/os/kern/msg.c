@@ -464,16 +464,16 @@ new_client(struct portref *pr)
  * del_client()
  *	Delete an existing client from our hash
  */
-static inline void
-del_client(struct portref *pr)
+inline static void
+del_client(struct proc *p, struct portref *pr)
 {
-	struct proc *p = curthread->t_proc;
-
 	p_sema(&p->p_sema, PRIHI);
 	ASSERT_DEBUG(hash_lookup(p->p_prefs, (long)pr),
 		"del_client: can't find");
 	hash_delete(p->p_prefs, (long)pr);
 	v_sema(&p->p_sema);
+	unmapsegs(&pr->p_segs);
+	free_portref(pr);
 }
 
 /*
@@ -604,9 +604,8 @@ msg_receive(port_t arg_port, struct msg *arg_msg)
 			"msg_receive: DISC pr mismatch");
 		deref_port(port, pr);
 		v_lock(&port->p_lock, SPL0);
-		del_client(pr);
-		unmapsegs(&pr->p_segs);
-		v_sema(&pr->p_iowait);
+		del_client(p, pr);
+		FREE(sm, MT_SYSMSG);
 	} else {
 		v_lock(&port->p_lock, SPL0);
 	}

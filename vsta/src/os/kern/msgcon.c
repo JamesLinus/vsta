@@ -362,45 +362,36 @@ msg_accept(long arg_tran)
 void
 shut_client(struct portref *pr)
 {
-	struct sysmsg sm;
+	struct sysmsg *sm;
 	struct port *port;
 
 	/*
 	 * Get a system message
 	 */
-	sm.sm_sender = pr;
-	sm.sm_op = M_DISCONNECT;
-	sm.sm_arg = (long)pr;
-	sm.sm_arg1 = 0;
-	sm.sm_nseg = 0;
+	sm = MALLOC(sizeof(struct sysmsg), MT_SYSMSG);
+	sm->sm_sender = pr;
+	sm->sm_op = M_DISCONNECT;
+	sm->sm_arg = (long)pr;
+	sm->sm_arg1 = sm->sm_nseg = 0;
 
 	/*
 	 * If he's closed on us at the same time, no problem.
 	 */
 	p_lock_void(&pr->p_lock, SPL0);
 	if (!(port = pr->p_port)) {
-		v_lock(&pr->p_lock, SPL0_SAME);	/* for lock count in percpu */
+		v_lock(&pr->p_lock, SPL0_SAME);
 		free_portref(pr);
+		FREE(sm, MT_SYSMSG);
 		return;
 	}
 
 	/*
-	 * Put disconnect message on port's queue.  Flag that we're
-	 * waiting for his final response.
+	 * Put disconnect message on port's queue.  Flag that we've
+	 * sent our final message.  He will clean up from here.
 	 */
 	pr->p_state = PS_CLOSING;
-	queue_msg(port, &sm, SPL0);
-
-	/*
-	 * Wait for acknowledgement.  He will remove our reference
-	 * to the port.
-	 */
-	p_sema_v_lock(&pr->p_iowait, PRIHI, &pr->p_lock);
-
-	/*
-	 * Free our portref
-	 */
-	free_portref(pr);
+	queue_msg(port, sm, SPL0);
+	v_lock(&pr->p_lock, SPL0_SAME);
 }
 
 /*
