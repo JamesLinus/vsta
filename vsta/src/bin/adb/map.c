@@ -56,7 +56,7 @@ do_map(const struct map *m, const void *vaddr, ulong *off)
 	for (x = 0; x < m->m_nmap; ++x) {
 		struct mslot *ms;
 
-		ms = &m->m_map[x];
+		ms = (struct mslot *)&m->m_map[x];
 		if (vaddr < ms->m_addr) {
 			continue;
 		}
