@@ -1018,26 +1018,29 @@ char *argv[];
 	}
 	if(strcmp("to",argv[1]) == 0){
 		if(argc >= 3){
-			if(trfp != stdout)
+			if (trfp != stdout) {
 				fclose(trfp);
-			if(strncmp(argv[2],"con",3) == 0)
+			}
+			if (strncmp(argv[2],"con",3) == 0) {
 				trfp = stdout;
-			else {
-				if((trfp = fopen(argv[2],"a")) == NULLFILE){
-					printf("%s: cannot open\n",argv[2]);
+			} else {
+				trfp = fopen(argv[2],"w");
+				if (!trfp) {
+					perror(argv[2]);
 					trfp = stdout;
-					return 1;
+					return(1);
 				}
 			}
-			strcpy(trname,argv[2]);
+			strcpy(trname, argv[2]);
 		} else {
-			printf("trace to %s\n",trfp == stdout? "console" : trname);
+			printf("trace to %s\n",
+				(trfp == stdout) ? "console" : trname);
 		}
-		return 0;
+		return(0);
 	}
-	if(strcmp("loopback",argv[1]) == 0)
+	if (strcmp("loopback",argv[1]) == 0) {
 		ifp = &loopback;
- 	else if (strcmp("cmdmode", argv[1]) == 0) {
+ 	} else if (strcmp("cmdmode", argv[1]) == 0) {
  		notraceall = 1;
  		return 0;
  	} else if (strcmp("allmode", argv[1]) == 0) {
@@ -1053,21 +1056,26 @@ char *argv[];
 		printf("telnet option trace is %s\n", 
 		       debug_options ? "on" : "off");
 		return 0;
- 	} else
-		for(ifp = ifaces; ifp != NULLIF; ifp = ifp->next)
-			if(strcmp(ifp->name,argv[1]) == 0)
+ 	} else {
+		for (ifp = ifaces; ifp != NULLIF; ifp = ifp->next) {
+			if (strcmp(ifp->name,argv[1]) == 0) {
 				break;
-
-	if(ifp == NULLIF){
-		printf("Interface %s unknown\n",argv[1]);
-		return 1;
+			}
+		}
 	}
-	if(argc >= 3)
+
+	if (ifp == NULLIF){
+		printf("Interface %s unknown\n", argv[1]);
+		return(1);
+	}
+	if (argc >= 3) {
 		ifp->trace = htoi(argv[2]);
+	}
 
 	showtrace(ifp);
-	return 0;
+	return(0);
 }
+
 /* Display the trace flags for a particular interface */
 static
 showtrace(ifp)
