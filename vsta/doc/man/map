@@ -1,4 +1,5 @@
 /2
+exit: exit.2
 msg_accept: msg_acce.2
 msg_disconnect: msg_disc.2
 msg_port: msg_port.2
@@ -8,3 +9,4 @@ msg_connect: msg_conn.2
 msg_err: msg_err.2
 msg_receive: msg_rece.2
 msg_send: msg_send.2
+waits: waits.2
