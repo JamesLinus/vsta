@@ -53,5 +53,6 @@ extern int umask(int);
 extern int chmod(const char *, int), fchmod(int, int);
 extern int access(const char *, int);
 extern int chown(const char *, uid_t, gid_t);
+extern int gethostname(char *, int);
 
 #endif /* _UNISTD_H */
