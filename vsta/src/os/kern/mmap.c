@@ -34,6 +34,15 @@ mmap(caddr_t addr, ulong len, int prot, int flags,
 	struct pview *pv;
 	struct pset *ps;
 	void *vaddr;
+	uint plen = btorp(len);
+
+	/*
+	 * Don't stomp on an existing mapping
+	 */
+	if (addr && overlapping_pview(vas, addr, plen)) {
+		err(EEXIST);
+		return(0);
+	}
 
 	/*
 	 * Anonymous memory
@@ -51,7 +60,7 @@ mmap(caddr_t addr, ulong len, int prot, int flags,
 		/*
 		 * Get view/set
 		 */
-		ps = alloc_pset_zfod(btorp(len));
+		ps = alloc_pset_zfod(plen);
 		pv = alloc_pview(ps);
 
 		/*
@@ -101,7 +110,7 @@ mmap(caddr_t addr, ulong len, int prot, int flags,
 		/*
 		 * Get a physical pset, create a view, map it in.
 		 */
-		ps = physmem_pset(btop(addr), btorp(len));
+		ps = physmem_pset(btop(addr), plen);
 		ps->p_flags |= PF_SHARED;
 		pv = alloc_pview(ps);
 		pv->p_prot = PROT_MMAP;
@@ -311,17 +320,6 @@ add_map(struct vas *vas, struct portref *pr, caddr_t vaddr, ulong len,
 	struct pset *ps;
 	struct pview *pv;
 	int result;
-
-	/*
-	 * See if we're coming down on top of an existing mapping.
-	 * This would be Not Acceptable.
-	 */
-	if (vaddr) {
-		if (overlapping_pview(vas, vaddr, len)) {
-			err(EEXIST);
-			return(0);
-		}
-	}
 
 	/*
 	 * Get underlying pset; might be cached
