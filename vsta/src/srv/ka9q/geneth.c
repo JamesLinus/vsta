@@ -20,7 +20,6 @@
 extern struct interface *ifaces;
 extern int pether(), gaether(), enet_send(), enet_output();
 static struct mbuf *rxqueue;
-static int ethfd;
 static port_t ethport, ethport_rx;
 
 #define MTU (1524)		/* MTU off ether */
@@ -228,7 +227,7 @@ eth_recv_daemon(void)
 		if (len < 0) {
 			p_lock(&ka9q_lock);
 			perror("eth_recv_daemon");
-			close(ethfd);
+			msg_disconnect(ethport);
 			v_lock(&ka9q_lock);
 			msg_disconnect(ethport_rx);
 			ethport = ethport_rx = 0;
@@ -313,18 +312,13 @@ eth_attach(int argc, char **argv)
 	if_eth->raw = eth_raw;
 	if_eth->recv = eth_recv;
 	if_eth->stop = eth_stop;
-	ethfd = if_eth->dev = open("/dev/eth/0", O_RDWR);
-	if (if_eth->dev < 0) {
-		perror ("/dev/eth");
-		free(if_eth->name); free(if_eth);
+	ethport = path_open("net/ne:0", ACC_READ | ACC_WRITE);
+	if (ethport < 0) {
+		perror ("net/ne:0");
+		free(if_eth->name);
+		free(if_eth);
 		return(-1);
 	}
-
-	/*
-	 * Access underlying VSTa port.  clone() a copy so we can
-	 * concurrently send and receive.
-	 */
-	ethport = __fd_port(if_eth->dev);
 
 	/*
 	 * Extract MAC address from driver
@@ -332,8 +326,7 @@ eth_attach(int argc, char **argv)
 	macaddr = rstat(ethport, "macaddr");
 	if (!macaddr) {
 		printf("eth_attach: can't get MAC address\n");
-		close(if_eth->dev);
-		if_eth->dev = -1;
+		msg_disconnect(ethport);
 		free(if_eth->name); free(if_eth);
 		return(-1);
 	}
