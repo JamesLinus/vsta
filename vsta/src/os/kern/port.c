@@ -459,3 +459,25 @@ free_portref(struct portref *pr)
 	unmapsegs(&pr->p_segs);
 	free(pr);
 }
+
+/*
+ * alloc_port()
+ *	Allocate a new port, fill in its members
+ */
+struct port *
+alloc_port(void)
+{
+	struct port *port;
+
+	port = malloc(sizeof(struct port));
+	init_lock(&port->p_lock);
+	init_sema(&port->p_wait);
+	set_sema(&port->p_wait, 0);
+	init_sema(&port->p_sema);
+	init_sema(&port->p_mapsema);
+	port->p_hd = port->p_tl = 0;
+	port->p_flags = 0;
+	port->p_refs = 0;
+	port->p_maps = 0;
+	return(port);
+}
