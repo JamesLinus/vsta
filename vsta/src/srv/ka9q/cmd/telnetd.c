@@ -3,11 +3,13 @@
  *	Handle incoming telnet sessions via /inet
  */
 #include <sys/fs.h>
+#include <sys/syscall.h>
 #include <stdio.h>
 #include <syslog.h>
 #include <llist.h>
 #include <std.h>
 #include <paths.h>
+#include <time.h>
 #include "../telnet.h"
 
 /*
@@ -629,8 +631,6 @@ launch_client(port_t tn_read)
 	 * Child--run login
 	 */
 	if (pid == 0) {
-		port_t p;
-		int x;
 		char buf[16];
 
 		/*
@@ -703,6 +703,7 @@ serve(port_t p)
 	}
 }
 
+int
 main(int argc, char **argv)
 {
 	int x;
@@ -762,4 +763,5 @@ main(int argc, char **argv)
 	 * Start serving telnet
 	 */
 	serve(p);
+	return(0);
 }
