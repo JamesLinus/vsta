@@ -16,6 +16,7 @@
 #include <hash.h>
 #include <lock.h>
 #include <time.h>
+#include <stdio.h>
 #include "abc.h"
 
 /*
@@ -29,13 +30,13 @@
  * Description of a particular buffer of data
  */
 struct buf {
-	lock_t b_lock;		/* Mutex for FG/BG data structures */
+	volatile lock_t b_lock;	/* Mutex for FG/BG data structures */
 	struct llist *b_list;	/* Linked under bufhead */
 	void *b_data;		/* Actual data */
 	daddr_t b_start;	/* Starting sector # */
 	uint b_nsec;		/*  ...# SECSZ units contained */
-	uint b_flags;		/* Flags */
-	uint b_locks;		/* Count of locks on buf */
+	volatile uint b_flags;	/* Flags */
+	volatile uint b_locks;	/* Count of locks on buf */
 	void **b_handles;	/* Tags associated with B_DIRTY */
 	uint b_nhandle;		/*  ...# pointed to */
 };
@@ -59,13 +60,13 @@ struct buf {
  * B_BUSY will be cleared at completion of the operation, as will
  * q_op.
  */
-#define NQIO (16)
+#define NQIO (32)
 struct qio {
 	struct buf *q_buf;	/* Buf to be used */
-	uint q_op;		/* Operation */
+	volatile uint q_op;	/* Operation */
 };
 static struct qio qios[NQIO];	/* Ring of operations */
-static uint qnext;		/* Next position in ring */
+static volatile uint qnext;	/* Next position in ring */
 
 /*
  * Operations
@@ -85,6 +86,8 @@ static int can_dma;		/*  ...supports DMA? */
 static uint coresec;		/* # sectors allowed in core at once */
 static pid_t fg_pid, bg_pid;	/* Thread ID's for FG/BG */
 
+static void _sync_buf(struct buf *b, int from_qio);
+
 /*
  * get()
  *	Access buffer, interlocking with BG
@@ -103,7 +106,7 @@ get(struct buf *b)
 	b->b_flags |= B_WANT;
 	v_lock(&b->b_lock);
 	mutex_thread(0);
-	ASSERT_DEBUG((b->b_flags & B_BUSY) == 0, "get: still busy");
+	ASSERT_DEBUG(!(b->b_flags & (B_WANT|B_BUSY)), "get: still busy/wanted");
 }
 
 /*
@@ -181,6 +184,7 @@ free_buf(struct buf *b)
 static void
 exec_qio(struct buf *b, int op)
 {
+	ASSERT_DEBUG(BUSY(b), "exec_qio: !busy");
 	switch (op) {
 	case Q_FILLBUF:
 		if (b->b_flags & B_SEC0) {
@@ -195,13 +199,14 @@ exec_qio(struct buf *b, int op)
 		break;
 
 	case Q_FLUSHBUF:
-		sync_buf(b);
+		_sync_buf(b, 1);
 		break;
 
 	default:
 		ASSERT_DEBUG(0, "bg_thread: qio");
 		break;
 	}
+	ASSERT_DEBUG(BUSY(b), "exec_qio: went !busy");
 }
 
 /*
@@ -224,6 +229,7 @@ static void
 qio(struct buf *b, uint op)
 {
 	struct qio *q;
+	uint next;
 
 	/*
 	 * This buffer is busy until op complete
@@ -234,10 +240,12 @@ qio(struct buf *b, uint op)
 	/*
 	 * Get next ring element
 	 */
-	q = &qios[qnext++];
-	if (qnext >= NQIO) {
-		qnext = 0;
+	next = qnext;
+	q = &qios[next];
+	if (++next >= NQIO) {
+		next = 0;
 	}
+	qnext = next;
 
 	/*
 	 * Wait for it to be ready
@@ -281,6 +289,7 @@ age_buf(void)
 			continue;
 		}
 
+		ASSERT_DEBUG(b->b_lock == 0, "age_buf: lock");
 		if (!(b->b_flags & B_DIRTY)) {
 			/*
 			 * Remove from list, update data structures
@@ -440,6 +449,8 @@ resize_buf(daddr_t d, uint newsize, int fill)
 	 * If needed, fill from disk
 	 */
 	if (fill && (b->b_flags & B_SECS)) {
+		ASSERT_DEBUG(newsize > b->b_nsec,
+			"resize_buf: fill when shrinking");
 		read_secs(b->b_start + b->b_nsec, p + stob(b->b_nsec),
 			newsize - b->b_nsec);
 	}
@@ -664,13 +675,13 @@ unlock_buf(struct buf *b)
 }
 
 /*
- * sync_buf()
+ * _sync_buf()
  *	Sync back buffer if dirty
  *
  * Write back the 1st sector, or the whole buffer, as appropriate
  */
-void
-sync_buf(struct buf *b)
+static void
+_sync_buf(struct buf *b, int from_qio)
 {
 	ASSERT_DEBUG(b->b_flags & (B_SEC0 | B_SECS), "sync_buf: not ref'ed");
 
@@ -685,12 +696,17 @@ sync_buf(struct buf *b)
 	 * Do the I/O--whole buffer, or just 1st sector if that was
 	 * the only sector referenced.
 	 */
+	if (!from_qio) {
+		get(b);
+	}
 	if (b->b_flags & B_SECS) {
 		write_secs(b->b_start, b->b_data, b->b_nsec);
 	} else {
 		write_secs(b->b_start, b->b_data, 1);
 	}
+	p_lock(&b->b_lock);
 	b->b_flags &= ~B_DIRTY;
+	v_lock(&b->b_lock);
 
 	/*
 	 * If there are possible handles, clear them too
@@ -698,6 +714,16 @@ sync_buf(struct buf *b)
 	if (b->b_handles) {
 		bzero(b->b_handles, b->b_nhandle * sizeof(void *));
 	}
+}
+
+/*
+ * sync_buf()
+ *	User-called wrapper to _sync_buf()
+ */
+void
+sync_buf(struct buf *b)
+{
+	_sync_buf(b, 0);
 }
 
 /*
