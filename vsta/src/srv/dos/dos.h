@@ -15,7 +15,6 @@
 #include <sys/types.h>
 #include <sys/msg.h>
 #include <time.h>
-#include <abc.h>
 
 #define SECSZ (512)		/* Bytes in a sector */
 
@@ -106,27 +105,69 @@ struct directory {
 #define DA_VFAT (0x0f)		/* Illegal combe == vFAT */
 
 /*
+ * Shape of bytes at offset 36 in boot block for FAT 12/16
+ * (unused, included here for completeness only)
+ */
+struct oldboot {
+	uchar physdrive;	/* 36 physical drive ? */
+	uchar reserved;		/* 37 reserved */
+	uchar dos4;		/* 38 dos > 4.0 diskette */
+	uint serial;       	/* 39 serial number */
+	char label[11];		/* 43 disk label */
+	char fat_type[8];	/* 54 FAT type */
+
+	uchar res_2m;		/* 62 reserved by 2M */
+	uchar CheckSum;		/* 63 2M checksum (not used) */
+	uchar fmt_2mf;		/* 64 2MF format version */
+	uchar wt;		/* 65 1 if write track after format */
+	uchar rate_0;		/* 66 data transfer rate on track 0 */
+	uchar rate_any;		/* 67 data transfer rate on track<>0 */
+	ushort BootP;		/* 68 offset to boot program */
+	ushort Infp0;		/* 70 T1: information for track 0 */
+	ushort InfpX;		/* 72 T2: information for track<>0 */
+	ushort InfTm;		/* 74 T3: track sectors size table */
+	ushort DateF;		/* 76 Format date */
+	ushort TimeF;		/* 78 Format time */
+};
+
+/*
+ * Shape of bytes at offset 36 in boot block for FAT-32
+ */
+struct fat32 {
+	uint bigFat;		/* 36 nb of sectors per FAT */
+	ushort extFlags;     	/* 40 extension flags */
+	ushort fsVersion;	/* 42 ? */
+	uint rootCluster;	/* 44 start cluster of root dir */
+	ushort infoSector;	/* 48 changeable global info */
+	ushort backupBoot;	/* 50 back up boot sector */
+};
+
+/*
  * Format of sector 0 in filesystem
  */
 struct boot {
-	uint jump1:16;		/* Jump to boot code 0 */
+	uint jump1:16;		/*  0 Jump to boot code */
 	uint jump2:8;
-	char banner[8];		/* OEM name & version  3 */
-	uint secsize0:8;	/* Bytes per sector hopefully 512  11 */
+	char banner[8];		/*  3 OEM name & version */
+	uint secsize0:8;	/* 11 Bytes per sector hopefully 512 */
 	uint secsize1:8;
-	uint clsize:8;		/* Cluster size in sectors 13 */
-	uint nrsvsect:16;	/* Number of reserved (boot) sectors 14 */
-	uint nfat:8;		/* Number of FAT tables hopefully 2 16 */
-	uint dirents0:8;	/* Number of directory slots 17 */
+	uint clsize:8;		/* 13 Cluster size in sectors */
+	uint nrsvsect:16;	/* 14 Number of reserved (boot) sectors */
+	uint nfat:8;		/* 16 Number of FAT tables hopefully 2 */
+	uint dirents0:8;	/* 17 Number of directory slots */
 	uint dirents1:8;
-	uint psect0:8;		/* Total sectors on disk 19 */
+	uint psect0:8;		/* 19 Total sectors on disk */
 	uint psect1:8;
-	uint descr:8;		/* Media descriptor=first byte of FAT 21 */
-	uint fatlen:16;		/* Sectors in FAT 22 */
-	uint nsect:16;		/* Sectors/track 24 */
-	uint nheads:16;		/* Heads 26 */
-	uint nhs:32;		/* number of hidden sectors 28 */
-	uint bigsect:32;	/* big total sectors 32 */
+	uint descr:8;		/* 21 Media descriptor=first byte of FAT */
+	uint fatlen:16;		/* 22 Sectors in FAT */
+	uint nsect:16;		/* 24 Sectors/track */
+	uint nheads:16;		/* 26 Heads */
+	uint nhs:32;		/* 28 number of hidden sectors */
+	uint bigsect:32;	/* 32 big total sectors */
+	union {
+		struct fat32 fat32;
+		struct oldboot oldboot;
+	} u;
 };
 
 /*
