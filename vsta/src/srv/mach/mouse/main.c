@@ -225,16 +225,6 @@ loop:
 int
 main(int argc, char **argv)
 {
-#ifdef DEBUG
-   int scrn, kbd;
-
-   kbd = msg_connect(PORT_KBD, ACC_READ);
-   (void) __fd_alloc(kbd);
-   scrn = msg_connect(PORT_CONS, ACC_WRITE);
-   (void) __fd_alloc(scrn);
-   (void) __fd_alloc(scrn);
-#endif
-
    /*
     *  Allocate handle->file hash table.
     */

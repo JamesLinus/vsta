@@ -8,7 +8,6 @@
 #include <sys/namer.h>
 #include <hash.h>
 #include <stdio.h>
-#include <sys/ports.h>
 #include <sys/assert.h>
 #include "fd.h"
 
@@ -260,16 +259,6 @@ loop:
  */
 main()
 {
-#ifdef DEBUG
-	int scrn, kbd;
-
-	kbd = msg_connect(PORT_KBD, ACC_READ);
-	(void)__fd_alloc(kbd);
-	scrn = msg_connect(PORT_CONS, ACC_WRITE);
-	(void)__fd_alloc(scrn);
-	(void)__fd_alloc(scrn);
-#endif
-
 	/*
 	 * Allocate handle->file hash table.  8 is just a guess
 	 * as to what we'll have to handle.

@@ -304,8 +304,6 @@ loop:
  */
 main()
 {
-	port_t port;
-
 	/*
 	 * Allocate data structures we'll need
 	 */
@@ -334,17 +332,6 @@ main()
 		fprintf(stderr, "env: can't register name\n");
 		exit(1);
 	}
-
-#ifdef DEBUG
-	/*
-	 * XXX hack so printf will show up on console
-	 */
-	port = msg_connect(PORT_KBD, ACC_READ);
-	__fd_alloc(port);
-	port = msg_connect(PORT_CONS, ACC_WRITE);
-	__fd_alloc(port);
-	__fd_alloc(port);
-#endif
 
 	/*
 	 * Start serving requests for the filesystem
