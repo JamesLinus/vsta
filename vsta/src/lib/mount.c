@@ -7,9 +7,26 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <sys/fs.h>
+#include <sys/ports.h>
 
 struct mnttab *__mnttab;
 int __nmnttab = 0;
+
+/*
+ * For mapping well-known-addresses into their port names
+ */
+static struct map {
+	char *m_name;
+	port_name m_addr;
+} names[] = {
+	{"NAMER", PORT_NAMER},
+	{"TIMER", PORT_TIMER},
+	{"ENV", PORT_ENV},
+	{"CONS", PORT_CONS},
+	{"KBD", PORT_KBD},
+	{"SWAP", PORT_SWAP},
+	{(char *)0, 0}
+};
 
 /*
  * mountport()
@@ -25,17 +42,13 @@ mountport(char *point, port_t port)
 	 * Scan mount table for this point
 	 */
 	for (x = 0; x < __nmnttab; ++x) {
-		int y;
-
 		/*
 		 * Compare to entry
 		 */
-		y = strcmp(point, __mnttab[x].m_name);
-
-		/*
-		 * On exact match, end loop
-		 */
-		if (!y) {
+		if (!strcmp(point, __mnttab[x].m_name)) {
+			/*
+			 * On exact match, end loop
+			 */
 			break;
 		}
 	}
@@ -85,6 +98,8 @@ mountport(char *point, port_t port)
 		}
 		mt->m_len = strlen(mt->m_name);
 		mt->m_entries = 0;
+	} else {
+		mt = &__mnttab[x];
 	}
 
 	/*
@@ -129,12 +144,11 @@ mount(char *point, char *what)
  * only the mount with the given port (fd) will be removed.  XXX we
  * need to hunt down the FDL entry as well.
  */
-umount(char *point, int fd)
+umount(char *point, port_t port)
 {
 	int x;
 	struct mnttab *mt;
 	struct mntent *me, *men;
-	port_t port;
 
 	/*
 	 * Scan mount table for this string
@@ -154,12 +168,11 @@ umount(char *point, int fd)
 	}
 
 	/*
-	 * If "fd" given, look for particular slot
+	 * If "port" given, look for particular slot
 	 */
-	if (fd >= 0) {
+	if (port >= 0) {
 		struct mntent **mp;
 
-		port = __fd_port(fd);
 		mp = &mt->m_entries;
 		for (me = mt->m_entries; me; me = me->m_next) {
 			/*
@@ -178,7 +191,17 @@ umount(char *point, int fd)
 				}
 				return(0);
 			}
+
+			/*
+			 * Otherwise advance our back-patch pointer
+			 */
+			mp = &me->m_next;
 		}
+
+		/*
+		 * Never found it
+		 */
+		return(-1);
 	}
 
 	/*
@@ -365,24 +388,22 @@ __mount_restore(char *p)
 }
 
 /*
- * init_mount()
- *	Read mntrc, add any mount entries described within
+ * mount_init()
+ *	Read initial mounts from table, put in our mount table
  */
-void
-init_mount(char *mntrc)
+mount_init(char *fstab)
 {
 	FILE *fp;
-	char *p, buf[80];
-	char *sympath, *point;
-	port_name name;
-	port_t port;
+	char *r, buf[80], *point, *path;
+	port_t p;
+	port_name pn;
 
-	if ((fp = fopen(mntrc, "r")) == 0) {
-		return;
+	if ((fp = fopen(fstab, "r")) == NULL) {
+		return(-1);
 	}
-	while (fgets(buf, sizeof(buf), fp)) {
+	while (fgets(buf, sizeof(buf)-1, fp)) {
 		/*
-		 * Ignore comment lines
+		 * Get null-terminated string
 		 */
 		buf[strlen(buf)-1] = '\0';
 		if ((buf[0] == '\0') || (buf[0] == '#')) {
@@ -390,41 +411,118 @@ init_mount(char *mntrc)
 		}
 
 		/*
-		 * Carve out first field--path to name in namer
-		 * database.
+		 * Break into two parts
 		 */
-		sympath = buf;
-		p = strchr(buf, ':');
-		if (p == 0) {
+		point = strchr(buf, ' ');
+		if (point == NULL) {
+			printf("mount: mangled line '%s'\n", buf);
 			continue;
 		}
+		*point++ = '\0';
 
 		/*
-		 * Second field is where to mount
+		 * See if we want to walk down into the port
+		 * before mounting.
 		 */
-		*p++ = '\0';
-		point = p;
-
-		/*
-		 * Look up port #
-		 */
-		name = namer_find(sympath);
-		if (name < 0) {
-			printf("Unknown resource: %s\n", sympath);
-			continue;
+		path = strchr(buf, ':');
+		if (path) {
+			*path++ = '\0';
 		}
 
 		/*
-		 * Connect to server
+		 * Numeric are used as-is
 		 */
-		port = msg_connect(name, ACC_READ);
-		if (port < 0) {
-			printf("Can't connect to: %s\n", sympath);
+		if (isdigit(buf[0])) {
+			pn = atoi(buf);
+
+		/*
+		 * Upper are well-known only
+		 */
+		} else if (isupper(buf[0])) {
+			int x;
+
+			for (x = 0; names[x].m_name; ++x) {
+				if (!strcmp(names[x].m_name, buf)) {
+					break;
+				}
+			}
+			if (names[x].m_name == 0) {
+				printf("mount: unknown port %s\n", buf);
+				continue;
+			}
+			pn = names[x].m_addr;
+		} else {
+			/*
+			 * Look up via namer for others
+			 */
+			pn = namer_find(buf);
+			if (pn < 0) {
+				printf("mount: can't find: %s\n", buf);
+				continue;
+			}
+		}
+		printf("Name %s -> name %d\n", buf, pn);
+
+		/*
+		 * Connect to named port
+		 */
+		p = msg_connect(pn, ACC_READ);
+		if (p < 0) {
+			printf("mount: can't connect to: %s\n", buf);
 		}
 
 		/*
-		 * Mount it
+		 * If there's a path within, walk it now
 		 */
-		mountport(point, port);
+		if (path) {
+			struct msg m;
+			char *q;
+
+			do {
+				q = strchr(path, '/');
+				if (q) {
+					*q++ = '\0';
+				}
+				m.m_op = FS_OPEN;
+				m.m_nseg = 1;
+				m.m_buf = path;
+				m.m_buflen = strlen(path)+1;
+				m.m_arg = ACC_READ;
+				m.m_arg1 = 0;
+				if (msg_send(p, &m) < 0) {
+					perror(path);
+					msg_disconnect(p);
+					continue;
+				}
+				path = q;
+			} while (path);
+		}
+
+		/*
+		 * Mount port in its place
+		 */
+		printf(" ...mounted to %s port %d\n", point, p);
+		mountport(point, p);
 	}
+	fclose(fp);
+	return(0);
+}
+
+/*
+ * mount_port()
+ *	Return port for first mntent in given slot
+ */
+port_t
+mount_port(char *point)
+{
+	int x;
+	struct mnttab *mt;
+
+	for (x = 0; x < __nmnttab; ++x) {
+		mt = &__mnttab[x];
+		if (!strcmp(point, mt->m_name)) {
+			return(mt->m_entries->m_port);
+		}
+	}
+	return(-1);
 }
