@@ -518,13 +518,10 @@ dir_addspace(struct buf *b, struct fs_file *fs, ulong off)
 	a += 1;
 	x += 1;
 	newlen = MIN(1 << (DIREXTSIZ + x), EXTSIZ);
-	printf("newlen %d DIREXTSIZE %d ext %d EXTSIZ %d\n",
-		newlen, DIREXTSIZ, x, EXTSIZ);
 	a->a_start = alloc_block(newlen);
 	if (a->a_start == 0) {
 		return(1);
 	}
-	printf(" got 0x%x\n", a->a_start);
 
 	/*
 	 * Add the space on, and initialize it
@@ -832,17 +829,75 @@ do_unhash(ulong unhash_fid)
 }
 
 /*
+ * dir_empty()
+ *	Return 1 if dir is empty, 0 otherwise
+ *
+ * Assumes "b" is locked
+ */
+static int
+dir_empty(struct buf *b, struct fs_file *fs)
+{
+	ulong off;
+
+	/*
+	 * Walk across each dir entry
+	 */
+	off = sizeof(struct fs_file);
+	while (off < fs->fs_len) {
+		struct buf *b2;
+		struct fs_dirent *de;
+		uint dummy;
+
+		/*
+		 * Get pointer to next entry
+		 */
+		b2 = bmap(b, fs, off, sizeof(struct fs_dirent),
+			(void *)&de, &dummy);
+
+		/*
+		 * If no more non-empty dir entries, we know the whole
+		 * dir is empty as well
+		 */
+		if (de->fs_name[0] == 0) {
+			return(1);
+		}
+
+		/*
+		 * There's a file entry.  Unless it's deleted, we
+		 * know it's not empty
+		 */
+		if ((de->fs_name[0] & 0x80) == 0) {
+			return(0);
+		}
+		off += sizeof(struct fs_dirent);
+	}
+
+	/*
+	 * Reached the bottom--empty
+	 */
+	return(1);
+}
+
+/*
  * vfs_remove()
  *	Remove an entry in the current directory
  */
 void
 vfs_remove(struct msg *m, struct file *f)
 {
-	struct buf *b, *b2;
-	struct fs_file *fs;
+	struct buf *b, *b2, *b3;
+	struct fs_file *fs, *fs3;
 	struct openfile *o;
 	uint x;
 	struct fs_dirent *de;
+	char *err;
+
+	/*
+	 * Initialize the pointers which flag various active
+	 * data structures
+	 */
+	b = b2 = b3 = 0;
+	err = 0;
 
 	/*
 	 * Look at file structure
@@ -852,33 +907,49 @@ vfs_remove(struct msg *m, struct file *f)
 		msg_err(m->m_sender, strerror());
 		return;
 	}
+	lock_buf(b);
 
 	/*
 	 * Have to be in a dir
 	 */
 	if (fs->fs_type != FT_DIR) {
-		msg_err(m->m_sender, ENOTDIR);
-		return;
+		err = ENOTDIR;
+		goto out;
 	}
 
 	/*
 	 * Look up entry.  Bail if no such file.
 	 */
-	lock_buf(b);
 	o = dir_lookup(b, fs, m->m_buf, &de, &b2);
-	unlock_buf(b);
 	if (o == 0) {
-		msg_err(m->m_sender, ESRCH);
-		return;
+		err = ESRCH;
+		goto out;
 	}
+	lock_buf(b2);
 
 	/*
 	 * Check permission
 	 */
 	x = perm_calc(f->f_perms, f->f_nperm, &fs->fs_prot);
 	if ((x & (ACC_WRITE|ACC_CHMOD)) == 0) {
-		msg_err(m->m_sender, EPERM);
-		return;
+		err = EPERM;
+		goto out;
+	}
+
+	/*
+	 * If directory, make sure it's empty
+	 */
+	fs3 = getfs(o, &b3);
+	if (fs3 == 0) {
+		err = strerror();
+		goto out;
+	}
+	lock_buf(b3);
+	if (fs3->fs_type == FT_DIR) {
+		if (!dir_empty(b3, fs3)) {
+			err = EBUSY;
+			goto out;
+		}
 	}
 
 	/*
@@ -896,29 +967,43 @@ vfs_remove(struct msg *m, struct file *f)
 		 * Release our ref and tell the requestor he
 		 * might want to try again.
 		 */
-		msg_err(m->m_sender, EAGAIN);
-		return;
+		err = EAGAIN;
+		goto out;
 	}
 
 	/*
 	 * Can't be any other users
 	 */
 	if (o->o_refs > 1) {
-		msg_err(m->m_sender, EBUSY);
-		return;
+		err = EBUSY;
+		goto out;
 	}
 
 	/*
-	 * Zap the dir entry, then blocks
+	 * Zap the dir entry, then blocks.  The file's going away,
+	 * so release our lock on the buffer for its file header.
 	 */
 	de->fs_name[0] |= 0x80; dirty_buf(b2); sync_buf(b2);
+	unlock_buf(b3); b3 = 0;
 	uncreate_file(o);
 
 	/*
-	 * Return success
+	 * Clean up
 	 */
-	m->m_buflen = m->m_arg = m->m_arg1 = m->m_nseg = 0;
-	msg_reply(m->m_sender, m);
+out:
+	if (b3) { unlock_buf(b3); }
+	if (b2) { unlock_buf(b2); }
+	if (b) { unlock_buf(b); }
+
+	/*
+	 * Return success/error
+	 */
+	if (err) {
+		msg_err(m->m_sender, err);
+	} else {
+		m->m_buflen = m->m_arg = m->m_arg1 = m->m_nseg = 0;
+		msg_reply(m->m_sender, m);
+	}
 }
 
 /*
