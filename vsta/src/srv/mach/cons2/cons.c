@@ -324,6 +324,22 @@ scroll_region(int x, int y)
 }
 
 /*
+ * backspace()
+ *	Back up a character position
+ */
+static void
+backspace(struct screen *s)
+{
+	if (cur > top) {
+		if (s->s_onlast) {
+			s->s_onlast = 0;
+		} else {
+			cur -= CELLSZ;
+		}
+	}
+}
+
+/*
  * Bound "col" to 1..COLS, and "row" to 1..ROWS.  Note 1-based!
  */
 #define BOUND(col, row) \
@@ -342,6 +358,7 @@ static void
 sequence(int x, int y, char c)
 {
 	char *p;
+	struct screen *s = active_screen;
 
 	/*
 	 * Cap/sanity
@@ -387,11 +404,7 @@ sequence(int x, int y, char c)
 
 	case 'D':	/* Cursor left */
 		while (x-- > 0) {
-			cur -= CELLSZ;
-			if (cur < top) {
-				cur += CELLSZ;
-				break;
-			}
+			backspace(s);
 		}
 		break;
 
@@ -412,6 +425,7 @@ sequence(int x, int y, char c)
 		break;
 
 	case '@':		/* Insert character */
+		s->s_onlast = 0;
 		while (x-- > 0) {
 			y = cur-top;
 			y = LINESZ - (y % LINESZ);
@@ -448,6 +462,7 @@ sequence(int x, int y, char c)
 		/*
 		 * Bound position
 		 */
+		s->s_onlast = 0;
 		BOUND(y, x);
 		jump_cur(phystop + (x-1)*LINESZ + (y-1)*CELLSZ);
 		break;
@@ -529,6 +544,7 @@ static int
 do_multichar(int state, char c)
 {
 	static int x, y;
+	struct screen *s = active_screen;
 
 	switch (state) {
 	case 1:		/* Escape has arrived */
@@ -542,10 +558,7 @@ do_multichar(int state, char c)
 			return(0);
 
 		case 'K':	/* Cursor left */
-			cur -= CELLSZ;
-			if (cur < top) {
-				cur = top;
-			}
+			backspace(s);
 			return(0);
 
 		case 'H':	/* Cursor up */
@@ -566,6 +579,7 @@ do_multichar(int state, char c)
 			return(0);
 
 		case 'G':	/* Cursor home */
+			s->s_onlast = 0;
 			jump_cur(phystop);
 			return(0);
 
@@ -733,13 +747,7 @@ write_string(char *p, uint cnt)
 		 * \b--back up a space
 		 */
 		if (c == '\b') {
-			if (cur > top) {
-				if (s->s_onlast) {
-					s->s_onlast = 0;
-				} else {
-					cur -= CELLSZ;
-				}
-			}
+			backspace(s);
 			continue;
 		}
 
