@@ -1,5 +1,5 @@
 locore.o: ../mach/locore.s
-	$(CPP) $(INCS) $(DEFS) ../mach/locore.s locore.s
+	$(CPP) -D__ASM__ $(INCS) $(DEFS) ../mach/locore.s locore.s
 	$(AS) -o locore.o locore.s
 
 init.o: ../mach/init.c
