@@ -299,7 +299,7 @@ main(argc, argv)
 	 * Enable I/O for the needed range
 	 */
 	if (enable_io(WD_LOW, WD_HIGH) < 0) {
-		perror("Floppy I/O");
+		perror("wd I/O");
 		exit(1);
 	}
 

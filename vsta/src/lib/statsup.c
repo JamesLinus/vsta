@@ -10,7 +10,7 @@ extern char *strchr();
 extern int perm_set();
 
 /*
- * cons_wstat()
+ * do_wstat()
  *	Allow writing of supported stat messages
  *
  * Our return value is 0 if we handled the message, or 1 if the caller

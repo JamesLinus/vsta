@@ -163,7 +163,7 @@ loop:
 	 */
 	x = msg_receive(consport, &msg);
 	if (x < 0) {
-		perror("bfs: msg_receive");
+		perror("cons: msg_receive");
 		goto loop;
 	}
 
