@@ -23,7 +23,6 @@ typedef unsigned long daddr_t;
 extern struct buf *find_buf(daddr_t, uint, int);
 extern int resize_buf(daddr_t, uint, int);
 extern void *index_buf(struct buf *, uint, uint),
-	free_buf(struct buf *),
 	init_buf(port_t, int),
 	dirty_buf(struct buf *, void *),
 	lock_buf(struct buf *),
