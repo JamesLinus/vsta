@@ -74,6 +74,8 @@ cow_fillslot(struct pset *ps, struct perpage *pp, uint idx)
 				unlock_slot(cow, pp2);
 				return(1);
 			}
+			ASSERT_DEBUG(pp2->pp_flags & PP_V,
+				"cow_fillslot: cow fill !v");
 		} else {
 			pp2->pp_refs += 1;
 		}
@@ -83,6 +85,7 @@ cow_fillslot(struct pset *ps, struct perpage *pp, uint idx)
 		 * break the sharing and copy soon, if needed.
 		 */
 		pg = pp2->pp_pfn;
+		pp->pp_flags |= PP_COW;
 		unlock_slot(cow, pp2);
 	}
 
