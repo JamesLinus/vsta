@@ -7,6 +7,9 @@
 #include <std.h>
 #include <ctype.h>
 
+static int dashc,	/* Flag -c command line */
+	status;		/* Return status from command */
+
 /*
  * getline()
  *	Get a line of arbitrary length
@@ -134,15 +137,19 @@ run(char **argv, int bg)
 	long l;
 	int x;
 
-	pid = fork();
-	if (pid < 0) {
-		perror("sh");
-		return;
+	if (!dashc) {
+		pid = fork();
+		if (pid < 0) {
+			perror("sh");
+			return;
+		}
+	} else {
+		pid = 0;
 	}
 	if (pid == 0) {
 		execvp(argv[0], argv);
 		perror(argv[0]);
-		_exit(1);
+		exit(1);
 	}
 	if (!bg) {
 		x = wait((long *)&l);
@@ -167,6 +174,7 @@ builtin(char **argv)
 	if (!strcmp(cmd, "path")) {
 		if (narg != 2) {
 			printf("Usage is: path <list>\n");
+			status = 1;
 			return(1);
 		}
 		setenv("PATH", argv[1]);
@@ -174,15 +182,18 @@ builtin(char **argv)
 	} else if (!strcmp(cmd, "cd")) {
 		if (narg != 2) {
 			printf("Usage is: cd <path>\n");
+			status = 1;
 			return(1);
 		}
 		if (chdir(argv[1]) < 0) {
+			status = 1;
 			perror(argv[1]);
 		}
 		return(1);
 	} else if (!strcmp(cmd, "set")) {
 		if (narg != 3) {
 			printf("Usage is: set <var> <value>\n");
+			status = 1;
 			return(1);
 		}
 		setenv(argv[1], argv[2]);
@@ -199,17 +210,26 @@ builtin(char **argv)
 	}
 }
 
-main()
+main(int argc, char **argv)
 {
-	char *line, **argv;
-	int argc, bg = 0;
+	char *line;
+	int bg = 0;
 
+	if ((argc > 2) && !strcmp(argv[1], "-c")) {
+		dashc = 1;
+	} else {
+		dashc = 0;
+	}
 	for (;;) {
-		printf("$ "); fflush(stdout);
-		line = getline();
-		if (line == 0) {
-			clearerr(stdin);
-			continue;
+		if (!dashc) {
+			printf("$ "); fflush(stdout);
+			line = getline();
+			if (line == 0) {
+				clearerr(stdin);
+				continue;
+			}
+		} else {
+			line = argv[2];
 		}
 		argv = explode(line);
 		for (argc = 0; argv[argc]; ++argc)
@@ -218,10 +238,14 @@ main()
 			bg = 1;
 			argv[argc-1] = 0;
 		}
+		status = 0;
 		if (builtin(argv)) {
 			/* builtin() runs it */ ;
 		} else {
 			run(argv, bg);
+		}
+		if (dashc) {
+			exit(status);
 		}
 		free(argv);
 		free(line);
