@@ -147,8 +147,8 @@ main(int argc, char **argv)
 	my_puts(rflag, get_ver());
 	my_puts(mflag,
 #ifdef i386
-#endif
 		"i386"
+#endif
 #ifdef m68k
 		"m68k"
 #endif
