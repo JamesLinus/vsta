@@ -3,6 +3,7 @@
  *	Time-oriented services
  */
 #include <sys/types.h>
+#include <time.h>
 
 #define HRSECS (60*60)
 #define DAYSECS (24*HRSECS)
