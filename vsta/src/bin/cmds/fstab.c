@@ -89,6 +89,7 @@ main(int argc, char **argv)
 		 * Handle the default condition
 		 */
 		list_by_portname();
+		return(0);
 	}
 
 	if (argv[1][0] != '-') {
