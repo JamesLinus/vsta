@@ -46,6 +46,10 @@ strlen(const char *p)
 {
 	size_t x = 0;
 
+	if (p == 0) {
+		return(0);
+	}
+
 	while (*p++)
 		++x;
 	return(x);
@@ -148,7 +152,7 @@ strrchr(const char *p, int c)
 			q = (char *)p;
 		}
 	} while (c2);
-	return q ? (q-1) : 0;
+	return(q ? (q-1) : 0);
 }
 
 /*
@@ -201,7 +205,6 @@ strncmp(const char *s1, const char *s2, int nbyte)
 		return(0);
 	}
 	return((int)s1[-1] - (int)s2[0]);
-	return(1);
 }
 
 /*
@@ -304,7 +307,6 @@ strtok(char *s, const char *delim)
 	char *tok;
 	static char *last;
 
-
 	if (s == (char *) 0 && (s = last) == (char *) 0) {
 		return(0);
 	}
@@ -342,6 +344,32 @@ cont:
 		} while (sc != 0);
 	}
 	/*NOTREACHED*/
+}
+
+/*
+ * strsep()
+ *	Extract "tokens" from a string
+ */
+char *
+strsep(char **stringp, const char *delim)
+{
+	char *ret, *endd;
+	
+	if (!(ret = *stringp)) {
+		return 0;
+	}
+	if (endd = strpbrk(ret, delim)) {
+		/*
+		 * Set *stringp to the next char after the delimeter, and
+		 * zero terminate the delimeted token
+		 */
+		*stringp = endd + 1;
+		*endd = '\0';
+	} else {
+		*stringp = 0;
+	}
+
+	return(ret);
 }
 
 /*
@@ -413,5 +441,93 @@ strcspn(const char *s1, const char *s2)
 		s1++;
 	}
 
-	return s1 - s;
+	return(s1 - s);
+}
+
+/*
+ * strcoll()
+ *	Locale specific string compare
+ *
+ * VSTa doesn't understand locales so it uses the POSIX definition which
+ * equates strcoll() to strcmp()
+ */
+int
+strcoll(const char *a, const char *b)
+{
+	return strcmp(a, b);
+}
+
+/*
+ * strcasecmp()
+ *	Case insensitive string compare
+ */
+int
+strcasecmp(const char *s1, const char *s2)
+{
+	while (*s1 != '\0' && toupper(*s1) == toupper(*s2)) {
+		s1++;
+		s2++;
+	}
+
+	return(toupper(*(unsigned char *) s1)
+	       - toupper(*(unsigned char *) s2));
+}
+
+/*
+ * strncasecmp()
+ *	Case insensitive string compare up to a maximum number of characters
+ */
+int
+strncasecmp(const char *s1, const char *s2, size_t n)
+{
+	if (n == 0) {
+		return 0;
+	}
+
+	while (n-- != 0 && toupper(*s1) == toupper(*s2)) {
+		if (n == 0 || *s1 == '\0' || *s2 == '\0') {
+			break;
+		}
+		s1++;
+		s2++;
+	}
+
+	return(toupper(*(unsigned char *) s1)
+	       - toupper(*(unsigned char *) s2));
+}
+
+/*
+ * strxfrm()
+ *	Transform string
+ */
+size_t
+strxfrm(char *s1, const char *s2, size_t n)
+{
+	size_t res = 0;
+
+	while (n-- > 0 && *s2) {
+		*s1++ = *s2++;
+		res++;
+	}
+	while (*s2) {
+		s2++;
+		res++;
+	}
+
+	return(res);
+}
+
+/*
+ * swab()
+ *	Swap pairs of bytes in a string
+ */
+void
+swab(const char *src, char *dest, size_t len)
+{
+	for (; len > 1; len -= 2) {
+		dest[1] = src[0];
+		dest[0] = src[1];
+		src += 2;
+		dest += 2;
+	}
 }
