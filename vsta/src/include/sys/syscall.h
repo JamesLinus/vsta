@@ -27,6 +27,8 @@
 #define S_ENABLE_DMA 20
 #define S_TIME_GET 21
 #define S_TIME_SLEEP 22
-#define S_HIGH S_TIME_SLEEP
+#define S_DBG_ENTER 23
+#define S_EXEC 24
+#define S_HIGH S_EXEC
 
 #endif /* _SYSCALL_H */
