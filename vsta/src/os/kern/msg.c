@@ -698,6 +698,7 @@ msg_reply(long arg_who, struct msg *arg_msg)
 	p_sema(&p->p_sema, PRIHI);
 	pr = hash_lookup(p->p_prefs, arg_who);
 	if (pr) {
+		unmapsegs(&pr->p_segs);
 		p_lock(&pr->p_lock, SPL0); holding_pr = 1;
 	}
 	v_sema(&p->p_sema);
