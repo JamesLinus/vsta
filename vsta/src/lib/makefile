@@ -4,7 +4,7 @@ CPP= cpp
 INCS= -I../include
 CFLAGS= $(INCS) -O -DDEBUG
 OBJS= start.o startsrv.o syscalls.o syscall.o \
-	mem.o io.o setjmp.o malloc.o \
+	mem.o misc.o io.o setjmp.o malloc.o \
 	string.o doprnt.o stdio.o printf.o tty.o ctype.o scanf.o seg.o \
 	mount.o open.o stat.o fdl.o hash.o time.o exec.o getopt.o \
 	shell.o gnufuncs.o qsort.o float.o signal.o env.o fdmem.o \
@@ -31,6 +31,8 @@ io.o: mach/io.s
 	$(AS) -o io.o mach/io.s
 mem.o: mach/mem.s
 	$(AS) -o mem.o mach/mem.s
+misc.o: mach/misc.s
+	$(AS) -o misc.o mach/misc.s
 setjmp.o: mach/setjmp.s
 	$(AS) -o setjmp.o mach/setjmp.s
 # crt0, standard version and one with boot server support
@@ -54,7 +56,7 @@ syscalls.o: mach/syscalls.s
 	rm -f tmp.s
 
 USROBJS= llist.o hash.o permsup.o permpr.o statsup.o \
-	files.o rmap.o passwd.o ids.o assert.o
+	files.o rmap.o passwd.o ids.o assert.o mem.o
 
 libusr.a: $(USROBJS)
 	rm -f libusr.a
