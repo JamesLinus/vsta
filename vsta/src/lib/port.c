@@ -18,7 +18,6 @@ static struct map {
 	{"TIMER", PORT_TIMER},
 	{"ENV", PORT_ENV},
 	{"CONS", PORT_CONS},
-	{"KBD", PORT_KBD},
 	{"SWAP", PORT_SWAP},
 	{(char *)0, 0}
 };
