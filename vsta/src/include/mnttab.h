@@ -26,7 +26,7 @@ struct mnttab {
  * One or more of these per mount point
  */
 struct mntent {
-	port_t m_fd;		/* Port to ask */
+	port_t m_port;		/* Port to ask */
 	struct mntent *m_next;	/* Next in list */
 };
 
