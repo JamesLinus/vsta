@@ -110,10 +110,13 @@ noargs:
 	 */
 	a = __cwd_restore(a);
 
+#ifndef SRV
 	/*
 	 * Restore our signal state
+	 * Note: for boot servers, no such state is inherited.
 	 */
 	a = __signal_restore(a);
+#endif
 
 	/*
 	 * Unmap the argument memory
