@@ -40,6 +40,7 @@ new_client(struct msg *m)
 	 * Fill in fields
 	 */
 	bzero(f, sizeof(struct file));
+	sc_init(&f->f_selfs);
 
 	/*
 	 * Hash under the sender's handle
@@ -77,6 +78,7 @@ dup_client(struct msg *m, struct file *fold)
 	 * Fill in fields
 	 */
 	bzero(f, sizeof(struct file));
+	sc_init(&f->f_selfs);
 
 	/*
 	 * Hash under the sender's handle
@@ -102,6 +104,10 @@ static void
 dead_client(struct msg *m, struct file *f)
 {
 	(void)hash_delete(filehash, m->m_sender);
+	sc_done(&f->f_selfs);
+	if (f->f_sentry) {
+		ll_delete(f->f_sentry);
+	}
 	free(f);
 }
 

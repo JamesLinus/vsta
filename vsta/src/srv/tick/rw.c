@@ -10,8 +10,6 @@
 #include <std.h>
 #include <stdio.h>
 #include <time.h>
-#define _SELFS_INTERNAL
-#include <select.h>
 
 /*
  * Sorted queue of sleepers waiting for completion
@@ -31,11 +29,6 @@ empty_queue(void)
 	time_t t;
 
 	/*
-	 * This'll be the returned value
-	 */
-	time(&t);
-
-	/*
 	 * Scan for any select() clients to awake
 	 */
 	for (l = LL_NEXT(&selectors); l != &selectors; l = next) {
@@ -46,36 +39,15 @@ empty_queue(void)
 		 * If we're seeing new data since the client last did
 		 * I/O, send a select event.
 		 */
-		if (f->f_needsel) {
-			struct select_event se;
-			struct msg m;
-
-			/*
-			 * Fill in the event
-			 */
-			se.se_clid = f->f_clid;
-			se.se_key = f->f_key;
-			se.se_index = f->f_fd;
-			se.se_mask = ACC_READ;
-			se.se_iocount = f->f_iocount;
-
-			/*
-			 * Send it to the server
-			 */
-			m.m_op = FS_WRITE;
-			m.m_buf = &se;
-			m.m_arg = m.m_buflen = sizeof(se);
-			m.m_nseg = 1;
-			m.m_arg1 = 0;
-			(void)msg_send(f->f_selfs, &m);
-
-			/*
-			 * Ok, don't need to bother the client until
-			 * they do an I/O for this data.
-			 */
-			f->f_needsel = 0;
+		if (f->f_selfs.sc_needsel) {
+			sc_event(&f->f_selfs, ACC_READ);
 		}
 	}
+
+	/*
+	 * This'll be the returned value
+	 */
+	time(&t);
 
 	/*
 	 * Scan explicit waiters
@@ -94,7 +66,7 @@ empty_queue(void)
 		m.m_nseg = 1;
 		m.m_arg1 = 0;
 		msg_reply(f->f_sender, &m);
-		f->f_needsel = 1;
+		f->f_selfs.sc_needsel = 1;
 	}
 
 }
@@ -110,7 +82,7 @@ tick_read(struct msg *m, struct file *f)
 	 * If they're reading because we select()'ed true, just give
 	 * them the data.
 	 */
-	if (f->f_sentry && !f->f_needsel) {
+	if (f->f_selfs.sc_mask && !f->f_selfs.sc_needsel) {
 		time_t t;
 
 		time(&t);
@@ -119,7 +91,7 @@ tick_read(struct msg *m, struct file *f)
 		m->m_nseg = 1;
 		m->m_arg1 = 0;
 		(void)msg_reply(m->m_sender, m);
-		f->f_needsel = 1;
+		f->f_selfs.sc_needsel = 1;
 
 	} else {
 
@@ -137,14 +109,14 @@ tick_read(struct msg *m, struct file *f)
 		 * select events until after we get this read
 		 * completion.
 		 */
-		f->f_needsel = 0;
+		f->f_selfs.sc_needsel = 0;
 		f->f_sender = m->m_sender;
 	}
 
 	/*
 	 * Update I/O count
 	 */
-	f->f_iocount += 1;
+	f->f_selfs.sc_iocount += 1;
 }
 
 /*
@@ -160,7 +132,7 @@ tick_abort(struct msg *m, struct file *f)
 	}
 	m->m_arg = m->m_arg1 = m->m_nseg = 0;
 	msg_reply(m->m_sender, m);
-	f->f_needsel = 1;
+	f->f_selfs.sc_needsel = 1;
 }
 
 /*

@@ -12,6 +12,7 @@
  * system call implementation.
  */
 #include <sys/fs.h>
+#include <selfs.h>
 #include <llist.h>
 
 /*
@@ -22,13 +23,8 @@ struct file {
 		*f_entry,	/* Where we're queued */
 		*f_sentry;	/* If we're a select() client */
 	long f_sender;		/* Where to reply to after dequeueing */
-	port_t f_selfs;		/* Connection to its select() server */
-	uint f_mask;		/*  ...mask of events */
-	long f_clid;		/*  ...client's ID on that server */
-	ulong f_key;		/*  ...key */
-	int f_fd;		/*  ...file descriptor value */
-	ulong f_iocount;	/* Count of I/O's */
-	int f_needsel;		/* Flag that a select_event is needed */
+	struct selclient
+		f_selfs;	/* State for select() support */
 };
 
 extern void tick_open(struct msg *, struct file *),
