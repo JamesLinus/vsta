@@ -613,7 +613,7 @@ waits(struct exitst *w)
 {
 	struct proc *p = curthread->t_proc;
 	struct exitst *e;
-	ulong pid;
+	int x;
 
 	/*
 	 * Get next event.  We will vector out on interrupted system
@@ -640,7 +640,7 @@ waits(struct exitst *w)
 	/*
 	 * Record PID, free memory, return PID as value of syscall
 	 */
-	pid = e->e_pid;
+	x = e->e_code;
 	free(e);
-	return(pid);
+	return(x);
 }
