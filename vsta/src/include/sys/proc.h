@@ -70,9 +70,11 @@ struct pdbg {
  * Handy macro for checking if we should drop into debug slave
  * mode.
  */
+extern void ptrace_slave(char *, uint);
+
 #define PTRACE_PENDING(p, fl, ev) \
 	if ((p)->p_dbg.pd_flags & ((fl) | PD_ALWAYS)) { \
-		ptrace_slave(ev); \
+		ptrace_slave(ev, (fl) & (p)->p_dbg.pd_flags); \
 	}
 
 #else
