@@ -5,8 +5,6 @@
  *	Defines for the various traps on an i386
  */
 
-#define T_KERNEL (256)		/* OR'ed in when taken from kernel mode */
-
 #define T_DIV 0			/* Basic CPU traps */
 #define T_DEBUG 1
 #define T_NMI 2
