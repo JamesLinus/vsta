@@ -6,11 +6,14 @@ hash_lookup \- look up a node based on its key
 .br
 .B void *hash_lookup(struct hash *h, long key);
 .SH DESCRIPTION
-.I hash_lookup()
+.ul 1
+hash_lookup()
 is used to lookup the value of the h_data pointer of an entry with the key
-.I key 
+.ul 1
+key 
 in the hash
-.I h.
+.ul 1
+h.
 .SH RETURN VALUE
 Returns the value of the h_data pointer on success. If the struct h doesn't exist or the key isn't found 0 is returned.
 .SH SEE ALSO
