@@ -12,6 +12,7 @@ all: ne
 	$(CC) $(CFLAGS) -c $*.c
 
 ne: $(OBJS)
+	rm -f ne
 	$(LD) $(LDFLAGS) -o ne ../../../lib/crt0.o $(OBJS) $(LIBS)
 
 clean:
