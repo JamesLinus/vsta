@@ -78,7 +78,11 @@ main(int argc, char **argv)
 		usage(argv[0]);
 	}
 
-	(void)sscanf(argv[2], "%d", &x);
+	if (!strncmp(argv[2], "0x", 2)) {
+		(void)sscanf(argv[2]+2, "%x", &x);
+	} else {
+		(void)sscanf(argv[2], "%d", &x);
+	}
 	exit_code = print_sect(argv[1], x);
 
 	return(exit_code);
