@@ -68,5 +68,6 @@ ll_movehead(struct llist *head, struct llist *l)
 	head->l_forw->l_back = head->l_back;
 	head->l_forw = l;
 	head->l_back = l->l_back;
+	l->l_back->l_forw = head;
 	l->l_back = head;
 }
