@@ -447,10 +447,16 @@ timewatcher(void)
 			time_get(&tm2);
 			x = (tm2.t_sec - tm.t_sec) * 1000;
 			x = x + ((tm2.t_usec - tm.t_usec) / 1000);
-			target = (x * MSPTICK) / 1000;
-			if (target < 1) {
-				target = 1;
-			}
+		}
+
+		/*
+		 * Set "target" back to actual sleep time.  It can be
+		 * shortened by interruption (a nudge to recalculate),
+		 * or by our simply cap at one second.
+		 */
+		target = (x * MSPTICK) / 1000;
+		if (target < 1) {
+			target = 1;
 		}
 	}
 }
