@@ -212,22 +212,6 @@ accum_ro(struct prot *p)
 }
 
 /*
- * change_mode()
- *	Given before->after chmod, apply to DOS dir entry of node
- */
-static void
-change_mode(struct prot *old, struct prot *new, struct file *f)
-{
-	int old_ro, new_ro;
-
-	old_ro = accum_ro(old);
-	new_ro = accum_ro(new);
-	if (old_ro != new_ro) {
-		dir_readonly(f, new_ro);
-	}
-}
-
-/*
  * dos_wstat()
  *	Write status of DOS file
  *
@@ -239,16 +223,22 @@ dos_wstat(struct msg *m, struct file *f)
 {
 	char *field, *val;
 	struct prot *prot, tmp_prot;
+	struct node *n = f->f_node;
+	int was_ro = 0;
 
 	/*
 	 * Use the root protection node for root dir, a private
 	 * copy otherwise.
 	 */
-	if (f->f_node == rootdir) {
+	if (n == rootdir) {
 		prot = &dos_prot;
 	} else {
+		struct directory d;
+
 		prot = &tmp_prot;
 		tmp_prot = dos_prot;
+		dir_copy(n->n_dir, n->n_slot, &d);
+		was_ro = ((d.attr & DA_READONLY) != 0);
 	}
 
 	/*
@@ -259,9 +249,9 @@ dos_wstat(struct msg *m, struct file *f)
 		 * If he changed the protection, map it back onto
 		 * the DOS dir entry.
 		 */
-		if ((prot == &tmp_prot)  &&
-				bcmp(prot, &dos_prot, sizeof(*prot))) {
-			change_mode(&dos_prot, prot, f);
+		if ((prot == &tmp_prot) &&
+				(was_ro != accum_ro(prot))) {
+			dir_readonly(f, !was_ro);
 		}
 		return;
 	}
@@ -272,7 +262,7 @@ dos_wstat(struct msg *m, struct file *f)
 		 * Convert to number, write to dir entry
 		 */
 		t = atoi(val);
-		dir_timestamp(f->f_node, t);
+		dir_timestamp(n, t);
 	} else if (!strcmp(field, "type")) {
 		if (dir_set_type(f, val)) {
 			msg_err(m->m_sender, EINVAL);
