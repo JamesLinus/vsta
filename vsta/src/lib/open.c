@@ -35,7 +35,7 @@ mapmode(int mode)
 }
 
 /*
- * dotdot()
+ * __dotdot()
  *	Remove ".."'s from path
  *
  * Done here because our file servers don't have our context
@@ -44,8 +44,7 @@ mapmode(int mode)
  *
  * Also takes care of "."'s.
  */
-static
-dotdot(char *path)
+__dotdot(char *path)
 {
 	int nelem = 0, x, had_dot = 0;
 	char **elems = 0, *p = path;
@@ -118,7 +117,7 @@ dotdot(char *path)
 
 	/*
 	 * Rebuild path.  path[0] is already '\0' because of the requirement
-	 * that all paths to dotdot() be absolute and thus the first '/' was
+	 * that all paths to __dotdot() be absolute and thus the first '/' was
 	 * written to \0 by the first loop of this routine.
 	 */
 	for (x = 0; x < nelem; ++x) {
@@ -230,7 +229,7 @@ open(char *file, int mode, ...)
 
 	/*
 	 * See where to start.  We always have to copy the string
-	 * because "dotdot" is going to write it, and the supplied
+	 * because "__dotdot" is going to write it, and the supplied
 	 * string might be const, and thus perhaps not writable.
 	 */
 	if (file[0] == '/') {
@@ -243,7 +242,7 @@ open(char *file, int mode, ...)
 	/*
 	 * Remove ".."s
 	 */
-	if (dotdot(p)) {
+	if (__dotdot(p)) {
 		return(-1);
 	}
 
@@ -352,7 +351,7 @@ chdir(char *newdir)
 	} else {
 		sprintf(buf, "%s/%s", __cwd, newdir);
 	}
-	dotdot(buf);
+	__dotdot(buf);
 
 #ifdef XXX
 	/*
@@ -479,7 +478,7 @@ unlink(char *path)
 	 * parse into a directory and filename.
 	 */
 	strcpy(buf, path);
-	dotdot(buf);
+	__dotdot(buf);
 	file = strrchr(buf, '/');
 	if (file) {
 		dir = buf;
