@@ -15,43 +15,22 @@ extern double atof();
 
 /*
  * atoi()
- *	Given numeric string, return value
+ *	Given numeric string, return int value
  */
+int
 atoi(const char *p)
 {
-	int val = 0, neg = 0;
-	char c;
-
-	/*
-	 * If leading '-', flag negative
-	 */
-	c = *p++;
-	if (c == '-') {
-		neg = 1;
-		c = *p++;
-	}
-
-	/*
-	 * While is numeric, assemble value
-	 */
-	while (isdigit(c)) {
-		val = val*10 + (c - '0');
-		c = *p++;
-	}
-
-	return neg ? (0 - val) : val;
+	return((int)strtol(p, (char **)NULL, 10));
 }
 
 /*
  * atol()
- *	Convert ascii to long
- *
- * We cheat; fix when sizeof(int) != sizeof(long) again
+ *	Given numeric string, return long value
  */
 long
 atol(const char *p)
 {
-	return(atoi(p));
+	return(strtol(p, (char **)NULL, 10));
 }
 
 #define	SPC	01
@@ -74,7 +53,7 @@ static char _sctab[256] = {
 	0,0,0,0,0,0,0,0,
 };
 
-static
+static int
 instr(char *ptr, int type, int len, FILE *fp, int *eofptr)
 {
 	int ch;
@@ -124,7 +103,7 @@ instr(char *ptr, int type, int len, FILE *fp, int *eofptr)
 	return(0);
 }
 
-static
+static int
 innum(int **ptr, int type, int len, int size, FILE *fp, int *eofptr)
 {
 	char *np;
@@ -282,6 +261,7 @@ getccl(unsigned char *s)
 	return((char *)s);
 }
 
+int
 _doscan(FILE *fp, const char *fmt, void *argp2)
 {
 	int ch;
@@ -359,6 +339,7 @@ _doscan(FILE *fp, const char *fmt, void *argp2)
  * scanf()
  *	stdin input scan conversion
  */
+int
 scanf(const char *fmt, ...)
 {
 	va_list ap;
@@ -371,6 +352,7 @@ scanf(const char *fmt, ...)
  * fscanf()
  *	file input scan conversion
  */
+int
 fscanf(FILE *fp, const char *fmt, ...)
 {
 	va_list ap;
@@ -383,6 +365,7 @@ fscanf(FILE *fp, const char *fmt, ...)
  * sscanf()
  *	string input scan conversion
  */
+int
 sscanf(char *str, const char *fmt, ...)
 {
 	FILE *fp;
@@ -408,6 +391,7 @@ sscanf(char *str, const char *fmt, ...)
  * vscanf()
  *	stdin input scan conversion
  */
+int
 vscanf(const char *fmt, va_list ap)
 {
 	return(_doscan(stdin, fmt, ap));
@@ -417,6 +401,7 @@ vscanf(const char *fmt, va_list ap)
  * vfscanf()
  *	file input scan conversion
  */
+int
 vfscanf(FILE *fp, const char *fmt, va_list ap)
 {
 	return(_doscan(fp, fmt, ap));
@@ -426,6 +411,7 @@ vfscanf(FILE *fp, const char *fmt, va_list ap)
  * vsscanf()
  *	string input scan conversion
  */
+int
 vsscanf(char *str, const char *fmt, va_list ap)
 {
 	FILE *fp;
