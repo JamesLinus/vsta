@@ -26,7 +26,7 @@ run_one(struct openfile *o)
 	 * Take the requester, let him through
 	 */
 	ll_delete(f->f_entry); f->f_entry = 0;
-	o->o_count -= 1;
+	o->o_count += 1;
 	m.m_arg = m.m_arg1 = m.m_nseg = 0;
 	msg_reply(f->f_sender, &m);
 }
@@ -75,7 +75,6 @@ sema_seek(struct msg *m, struct file *f)
 	/*
 	 * Release a reference
 	 */
-	o->o_count += 1;
 	m->m_arg = m->m_arg1 = m->m_nseg = 0;
 	msg_reply(m->m_sender, m);
 	if (!LL_EMPTY(&o->o_queue)) {
