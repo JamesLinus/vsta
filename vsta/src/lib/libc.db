@@ -396,3 +396,5 @@ _fork_env hidden
 _clone_mount hidden
 _killpg
 _fd_rstat
+___tty_readcount hidden
+___fd_readcount hidden

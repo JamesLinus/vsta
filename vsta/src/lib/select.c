@@ -291,10 +291,22 @@ select(uint nfd, fd_set *rfds, fd_set *wfds, fd_set *efds, struct timeval *t)
 		 * true (without having done I/O in between), then
 		 * arrange to return the same answer as last time.
 		 */
-		} else if (c->c_event.sc_mask &&
+		} else if ((c->c_event.sc_mask) &&
 				(c->c_event.sc_iocount == __fd_iocount(x))) {
 			bcopy(&c->c_event, &events[count++],
 				sizeof(struct select_complete));
+		} else if (c->c_mask & ACC_READ) {
+			/*
+			 * If the data is buffered at the FDL layer,
+			 * make the descriptor select readable.  This
+			 * will most likely only occur for TTY's.
+			 */
+			if (__fd_readcount(x)) {
+				events[count].sc_index = x;
+				events[count].sc_mask = ACC_READ;
+				events[count].sc_iocount = __fd_iocount(x);
+				count += 1;
+			}
 		}
 	}
 
@@ -330,12 +342,10 @@ select(uint nfd, fd_set *rfds, fd_set *wfds, fd_set *efds, struct timeval *t)
 	if (count > 0) {
 		x = count * sizeof(struct select_complete);
 	} else {
-
 		/*
 		 * We're finally ready to rumble.
 		 * Post a read for wakeup events.
 		 */
-		count = 0;
 retry:		m.m_op = FS_READ | M_READ;
 		m.m_buf = events;
 		m.m_arg = m.m_buflen = sizeof(events);
@@ -382,7 +392,7 @@ retry:		m.m_op = FS_READ | M_READ;
 	/*
 	 * Walk the result, tallying results
 	 */
-	for (sc = events; x >= sizeof(struct select_complete);
+	for (count = 0, sc = events; x >= sizeof(struct select_complete);
 			x -= sizeof(struct select_complete)) {
 		int fd, event;
 

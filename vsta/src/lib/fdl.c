@@ -425,6 +425,18 @@ do_close(struct port *port)
 }
 
 /*
+ * do_readcount()
+ *	Always return 0
+ *
+ * The default FDL handler does not buffer data.
+ */
+static int
+do_readcount(struct port *ignore)
+{
+	return(0);
+}
+
+/*
  * __do_open()
  *	Called after a successful FS_OPEN
  *
@@ -454,7 +466,7 @@ __do_open(struct port *port)
 	 * "character"-type; use a POSIXish TTY interface
 	 */
 	if ((port->p_port != (port_t)-1) && p && !strcmp(p, "c")) {
-		extern int __tty_read(), __tty_write();
+		extern int __tty_read(), __tty_write(), __tty_readcount();
 
 		/*
 		 * XXX this should just be another FDL in its
@@ -462,10 +474,12 @@ __do_open(struct port *port)
 		 */
 		port->p_read = __tty_read;
 		port->p_write = __tty_write;
+		port->p_readcount = __tty_readcount;
 	} else {
 #endif
 		port->p_read = do_read;
 		port->p_write = do_write;
+		port->p_readcount = do_readcount;
 #ifndef SRV
 	}
 #endif
@@ -987,4 +1001,18 @@ fd_rstat(int fd, char *field)
 	}
 	port->p_iocount += 1;
 	return(rstat(port->p_port, field));
+}
+
+/*
+ * fd_readcount()
+ *	Return available data from the FDL layer
+ */
+int
+__fd_readcount(int fd)
+{
+	struct port *port = __port(fd);
+	if (port == NULL) {
+		return(__seterr(EBADF));
+	}
+	return (port->p_readcount(port));
 }

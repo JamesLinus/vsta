@@ -501,3 +501,19 @@ tcgetsize(int fd, int *rowsp, int *colsp)
 	}
 	return(0);
 }
+
+/*
+ * __tty_readcount()
+ *	Return how much data buffered in ttybuf
+ */
+int
+__tty_readcount(struct port *port)
+{
+	struct ttybuf *fp;
+
+	fp = port->p_data;
+	if (fp == NULL) {
+		return(0);
+	}
+	return(fp->f_cnt);
+}
