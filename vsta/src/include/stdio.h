@@ -5,6 +5,7 @@
  *	My poor little stdio emulation
  */
 #include <sys/types.h>
+#include <stdarg.h>
 
 /*
  * A open, buffered file
@@ -111,23 +112,18 @@ extern void clearerr(FILE *), setbuf(FILE *, char *),
 	setbuffer(FILE *, char *, uint);
 extern void rewind(FILE *);
 extern int fflush(FILE *);
-
-#ifndef __PRINTF_INTERNAL
-/*
- * These prototypes are guarded by an #ifdef so that our actual
- * implementation can add an extra parameter, so that it can take
- * the address of the first arg from the stack.
- *
- * We *should* use varargs/stdargs, but these interfaces are
- * unpleasant.
- */
 extern int printf(const char *, ...),
 	fprintf(FILE *, const char *, ...),
 	sprintf(char *, const char *, ...);
-extern int scanf(char *, ...),
-	fscanf(FILE *, char *, ...),
-	sscanf(char *, char *, ...);
-#endif
+extern int vprintf(const char *, va_list),
+	vfprintf(FILE *, const char *, va_list),
+	vsprintf(char *, const char *, va_list);
+extern int scanf(const char *, ...),
+	fscanf(FILE *, const char *, ...),
+	sscanf(char *, const char *, ...);
+extern int vscanf(const char *, va_list),
+	vfscanf(FILE *, const char *, va_list),
+	vsscanf(char *, const char *, va_list);
 
 /*
  * Miscellany

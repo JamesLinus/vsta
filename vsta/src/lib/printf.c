@@ -4,7 +4,6 @@
  *
  * Use the underlying __doprnt() routine for their dirty work
  */
-#define __PRINTF_INTERNAL
 #include <stdio.h>
 #include <std.h>
 #include <sys/param.h>
@@ -16,11 +15,11 @@ extern void __doprnt();
  *	Formatted output to a FILE, with args in array form
  */
 static
-__fprintf(FILE *fp, char *fmt, int *argptr)
+__fprintf(FILE *fp, const char *fmt, va_list argptr)
 {
 	char buf[BUFSIZ], *p, c;
 
-	__doprnt(buf, fmt, argptr);
+	__doprnt(buf, fmt, (int *)argptr);
 	p = buf;
 	while (c = *p++) {
 		putc(c, fp);
@@ -32,9 +31,12 @@ __fprintf(FILE *fp, char *fmt, int *argptr)
  * fprintf()
  *	Formatted output to a FILE
  */
-fprintf(FILE *fp, char *fmt, int arg0, ...)
+fprintf(FILE *fp, const char *fmt, ...)
 {
-	return(__fprintf(fp, fmt, &arg0));
+	va_list ap;
+	
+	va_start(ap, fmt);	
+	return(__fprintf(fp, fmt, ap));
 }
 
 /*
@@ -43,18 +45,54 @@ fprintf(FILE *fp, char *fmt, int arg0, ...)
  *
  * This one is only used when you run printf() without using stdio.h.
  */
-printf(char *fmt, int arg0, ...)
+printf(const char *fmt, ...)
 {
-	return(__fprintf(stdout, fmt, &arg0));
+	va_list ap;
+
+	va_start(ap, fmt);
+	return(__fprintf(stdout, fmt, ap));
 }
 
 /*
  * sprintf()
  *	Formatted output to a buffer
  */
-sprintf(char *buf, char *fmt, int arg0, ...)
+sprintf(char *buf, const char *fmt, ...)
 {
-	__doprnt(buf, fmt, &arg0);
+	va_list ap;
+
+	va_start(ap, fmt);
+	__doprnt(buf, fmt, (int *)ap);
+	return(0);
+}
+
+/*
+ * vfprintf()
+ *	Formatted output to a FILE
+ */
+vfprintf(FILE *fp, const char *fmt, va_list ap)
+{
+	return(__fprintf(fp, fmt, ap));
+}
+
+/*
+ * vprintf()
+ *	Output to stdout
+ *
+ * This one is only used when you run printf() without using stdio.h.
+ */
+vprintf(const char *fmt, va_list ap)
+{
+	return(__fprintf(stdout, fmt, ap));
+}
+
+/*
+ * vsprintf()
+ *	Formatted output to a buffer
+ */
+vsprintf(char *buf, const char *fmt, va_list ap)
+{
+	__doprnt(buf, fmt, (int *)ap);
 	return(0);
 }
 

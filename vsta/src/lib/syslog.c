@@ -4,11 +4,7 @@
  */
 #include <sys/fs.h>
 #include <syslog.h>
-
-/*
- * Our bane of existence, varargs, and our way to avoid it
- */
-#define ARG(start, idx) (*((void **)&(start) + (idx)))
+#include <stdio.h>
 
 /*
  * levelmsg()
@@ -37,21 +33,21 @@ levelmsg(int level)
  * We just dump them to the console
  */
 void
-syslog(int level, char *msg, ...)
+syslog(int level, const char *msg, ...)
 {
 	port_t p;
 	int fd;
 	char buf[256];
+	va_args ap;
 
 	p = path_open("CONS:0", ACC_WRITE);
 	if (p < 0) {
 		return;
 	}
 	fd = __fd_alloc(p);
+	va_start(ap, msg);
 	sprintf(buf, "syslog: %s: ", levelmsg(level));
-	sprintf(buf + strlen(buf), msg,
-		ARG(msg, 1), ARG(msg, 2), ARG(msg, 3),
-		ARG(msg, 4), ARG(msg, 5), ARG(msg, 6));
+	sprintf(buf + strlen(buf), msg, ap);
 	if (buf[strlen(buf)-1] != '\n') {
 		strcat(buf, "\n");
 	}

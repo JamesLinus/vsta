@@ -270,7 +270,7 @@ getccl(unsigned char *s)
 	return((char *)s);
 }
 
-_doscan(FILE *fp, char *fmt, void *argp2)
+_doscan(FILE *fp, const char *fmt, void *argp2)
 {
 	int ch;
 	int nmatch, len, ch1;
@@ -343,17 +343,78 @@ _doscan(FILE *fp, char *fmt, void *argp2)
 	}
 }
 
-scanf(char *fmt, ...)
+/*
+ * scanf()
+ *	stdin input scan conversion
+ */
+scanf(const char *fmt, ...)
 {
-	return(_doscan(stdin, fmt, (&fmt)+1));
+	va_list ap;
+
+	va_start(ap, fmt);
+	return(_doscan(stdin, fmt, ap));
 }
 
-fscanf(FILE *fp, char *fmt, ...)
+/*
+ * fscanf()
+ *	file input scan conversion
+ */
+fscanf(FILE *fp, const char *fmt, ...)
 {
-	return(_doscan(fp, fmt, (&fmt)+1));
+	va_list ap;
+
+	va_start(ap, fmt);
+	return(_doscan(fp, fmt, ap));
 }
 
-sscanf(char *str, char *fmt, ...)
+/*
+ * sscanf()
+ *	string input scan conversion
+ */
+sscanf(char *str, const char *fmt, ...)
+{
+	FILE *fp;
+	int fd, x;
+	va_list ap;
+
+	fd = fdmem(str, strlen(str));
+	if (fd < 0) {
+		return(EOF);
+	}
+	fp = fdopen(fd, "r");
+	if (fp == 0) {
+		close(fd);
+		return(EOF);
+	}
+	va_start(ap, fmt);
+	x = _doscan(fp, fmt, ap);
+	fclose(fp);
+	return(x);
+}
+
+/*
+ * vscanf()
+ *	stdin input scan conversion
+ */
+vscanf(const char *fmt, va_list ap)
+{
+	return(_doscan(stdin, fmt, ap));
+}
+
+/*
+ * vfscanf()
+ *	file input scan conversion
+ */
+vfscanf(FILE *fp, const char *fmt, va_list ap)
+{
+	return(_doscan(fp, fmt, ap));
+}
+
+/*
+ * vsscanf()
+ *	string input scan conversion
+ */
+vsscanf(char *str, const char *fmt, va_list ap)
 {
 	FILE *fp;
 	int fd, x;
@@ -367,7 +428,7 @@ sscanf(char *str, char *fmt, ...)
 		close(fd);
 		return(EOF);
 	}
-	x = _doscan(fp, fmt, (&fmt)+1);
+	x = _doscan(fp, fmt, ap);
 	fclose(fp);
 	return(x);
 }
