@@ -26,7 +26,7 @@ SRCSRV=src/srv/bfs src/srv/cdfs src/srv/devnull src/srv/dos \
 
 # Core source distribution
 SRC=$(LAW) mkdist.mk rcs \
-	src/bin/adb src/bin/init src/bin/login src/bin/roff \
+	src/bin/adb src/bin/init src/bin/login \
 	src/bin/cmds src/bin/time src/include src/lib src/os \
 	$(SRCSRV) src/boot.386
 
@@ -42,7 +42,7 @@ TXT=src/bin/ports/less src/bin/ports/grep src/bin/ports/rh \
 	src/bin/ports/fileutl src/bin/ports/textutil \
 	src/bin/ports/find src/bin/ports/patch \
 	src/bin/ports/ctags src/bin/ports/rcs5.11 \
-	src/bin/ports/m4
+	src/bin/ports/m4 src/bin/ports/roff
 
 # Text formatting utilities
 ROFF=src/bin/roff src/bin/ports/nroff lib/troff
