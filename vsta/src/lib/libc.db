@@ -347,3 +347,4 @@ _putenv
 ___get_nerr
 ___get_errlist
 _getpgrp
+___get_environ
