@@ -184,10 +184,15 @@ asm_handler:
 	pushf
 	movl	%esp,__faultframe	/* Mark frame for debugging ease */
 	lea	0x24(%esp),%eax		/* Point to event string */
-	push	%eax			/* Leave as arg to routine */
+	movl	0xC(%esp),%ebx		/* Get old EBP value */
+	movl	(EVLEN+0x24)(%esp),%ecx	/* Get old EIP value */
+	pushl	%ecx			/* Create a call-like frame: EIP */
+	pushl	%ebx			/*   ...EBP */
+	movl	%esp,%ebp		/*   ...point EBP to new "frame" */
+	push	%eax			/* Event string is arg to routine */
 	movl	c_handler,%eax
 	call	%eax
-	lea	4(%esp),%esp		/* Drop arg */
+	lea	0xC(%esp),%esp		/* Drop args on stack */
 	popf				/* Restore state */
 	popa
 	lea	EVLEN(%esp),%esp	/* Drop event string */
