@@ -93,7 +93,7 @@ the file os/mach/dbg_ibm.c and then rebuild your kernel.
 
 7. Does it network?
 
-A port of KA9Q has been done.  It uses the ne2000 driver and can be
+A port of KA9Q has been done.  It uses ne2000 or 3c509 cards and can be
 used to telnet and FTP.  KA9Q provides a /inet filesystem interface,
 which processes can open and use to receive and initiate TCP connections.
 A telnetd has been implemented, permitting network logins to VSTa.
@@ -113,12 +113,12 @@ was added recently.
 
 We run a VSTa mailing list.  Send a subscription request to:
 
-    vsta-request@vsta.org
+    vsta-request@zendo.com
 
 There's no list server, so feel free to use English.  Once you're on the
 list, send to:
 
-    vsta@vsta.org
+    vsta@zendo.com
 
 and the message will be distributed to all members.  There is a spam
 filter, so be sure to send from your subscribed address.  Where this is
