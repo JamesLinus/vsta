@@ -1030,6 +1030,9 @@ do_rename(struct file *fsrc, char *src, struct file *fdest, char *dest)
 		 * which should not change.  Fix up ".." for its
 		 * new parent dir.
 		 */
+		hash_delete(nddest->n_files, ndest->n_slot);
+		ASSERT(hash_insert(ndsrc->n_files, nsrc->n_slot, ndest) == 0,
+			"do_rename: hash1 failed");
 		fix_dotdot(nsrc, nddest);
 	}
 
