@@ -162,6 +162,16 @@ clear_cache(void)
 }
 
 /*
+ * zero()
+ *	Clear out the indicated range of an fd_set
+ */
+static void
+zero(fd_set *s, uint nfd)
+{
+	bzero(s, roundup(nfd, 8*sizeof(uint)) / 8);
+}
+
+/*
  * select()
  *	Block on zero or more pending I/O events, or timeout
  */
@@ -323,13 +333,13 @@ retry:	m.m_op = FS_READ | M_READ;
 		 */
 		if (count++ == 0) {
 			if (rfds) {
-				bzero(rfds, nfd/8);
+				zero(rfds, nfd);
 			}
 			if (wfds) {
-				bzero(wfds, nfd/8);
+				zero(wfds, nfd);
 			}
 			if (efds) {
-				bzero(efds, nfd/8);
+				zero(efds, nfd);
 			}
 		}
 
