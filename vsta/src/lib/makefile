@@ -10,7 +10,7 @@ OBJS= start.o startsrv.o syscalls.o syscall.o \
 	shell.o gnufuncs.o qsort.o float.o signal.o env.o fdmem.o \
 	perm.o random.o namer.o dir.o wait.o mktemp.o grp.o pwd.o \
 	pipe.o fdnull.o errno.o port.o syslog.o rename.o strsep.o \
-	bsearch.o strtol.o strtoul.o swab.o
+	bsearch.o strtol.o strtoul.o swab.o utime.o
 
 .c.o:
 	$(CC) $(CFLAGS) -c $*.c
