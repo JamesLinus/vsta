@@ -1,9 +1,9 @@
 CC= gcc
 LD= ld
-CFLAGS= -O -I../../include -I../..
+CFLAGS= -g -I../../include -I../..
 LDFLAGS= -L../../libc
 LIBS= -lc
-OBJS= testsh.o dump.o
+OBJS= testsh.o dump.o run.o
 
 .c.o:
 	$(CC) $(CFLAGS) -c $*.c
