@@ -17,6 +17,7 @@
 #include <std.h>
 #include <sys/namer.h>
 #include <ctype.h>
+#include <syslog.h>
 
 #define INITTAB "/vsta/etc/inittab"	/* Table of stuff to run */
 #define FSTAB "/vsta/etc/fstab"		/* Filesystems at boot */
@@ -66,7 +67,7 @@ read_inittab(void)
 	 * Open inittab.  Bail to standalone shell if missing.
 	 */
 	if ((fp = fopen(INITTAB, "r")) == NULL) {
-		perror(INITTAB);
+		syslog(LOG_ERR, "init: %s: can't open inittab", INITTAB);
 		execl("/vsta/bin/testsh", "testsh", (char *)0);
 		exit(1);
 	}
@@ -198,7 +199,8 @@ retry:
 	 */
 	if (pid == 0) {
 		execv(i->i_args[0], i->i_args);
-		perror(i->i_args[0]);
+		syslog(LOG_ERR, "init: %s: %s", i->i_args[0], strerror());
+		sleep(60);
 		_exit(1);
 	}
 
