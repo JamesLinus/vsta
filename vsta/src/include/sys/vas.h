@@ -21,6 +21,7 @@ struct vas {
  * Bits in v_flags
  */
 #define VF_DMA 1		/* VAS used by DMA server */
+#define VF_MEMLOCK 2		/* Don't page from this VAS */
 
 #ifdef KERNEL
 extern struct pview *detach_pview(struct vas *, void *),
