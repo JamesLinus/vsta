@@ -118,8 +118,12 @@ extern int fclose(FILE *),
 extern off_t fseek(FILE *, off_t, int), ftell(FILE *);
 extern char *gets(char *), *fgets(char *, int, FILE *);
 extern int puts(const char *), fputs(const char *, FILE *);
-extern void clearerr(FILE *), setbuf(FILE *, char *),
-	setbuffer(FILE *, char *, uint);
+extern int getw(FILE *), putw(int, FILE *);
+extern void clearerr(FILE *);
+extern int setvbuf(FILE *, char *, int, size_t);
+extern void setbuf(FILE *, char *),
+	setbuffer(FILE *, char *, size_t),
+	setlinebuf(FILE *);
 extern void rewind(FILE *);
 extern int fflush(FILE *);
 extern int printf(const char *, ...),
@@ -135,6 +139,13 @@ extern int vscanf(const char *, va_list),
 	vfscanf(FILE *, const char *, va_list),
 	vsscanf(char *, const char *, va_list);
 extern FILE *tmpfile(void);
+
+/*
+ * Buffer strategy constants
+ */
+#define _IOFBF 0		/* Fully buffered */
+#define _IOLBF 1		/* Line buffered */
+#define _IONBF 2		/* Not buffered */
 
 /*
  * Miscellany
