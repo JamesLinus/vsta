@@ -35,7 +35,7 @@ extern void check_events(), nudge();
 
 struct syscall {
 	intfun s_fun;
-	int s_narg;
+	uint s_narg;
 } syscalls[] = {
 	{msg_port, 2},				/*  0 */
 	{msg_connect, 2},			/*  1 */
@@ -121,7 +121,7 @@ void
 syscall(ulong place_holder)
 {
 	struct trapframe *f = (struct trapframe *)&place_holder;
-	int callnum;
+	uint callnum, narg;
 	struct syscall *s;
 	struct thread *t = curthread;
 	ulong parms[MAXARGS];
@@ -129,26 +129,24 @@ syscall(ulong place_holder)
 	/*
 	 * Sanity check system call number
 	 */
-	callnum = f->eax;
-	if ((callnum < 0) || (callnum >= NSYSCALL)) {
+	t->t_uregs = f;
+	callnum = f->eax & 0x7F;
+	if (callnum >= NSYSCALL) {
 #ifdef DEBUG
 		printf("Bad syscall # %d\n", callnum);
 		dbg_enter();
 #endif
 		f->eax = err(EINVAL);
-		return;
+		goto out;
 	}
-	t->t_uregs = f;
-
 	s = &syscalls[callnum];
-	ASSERT_DEBUG(s->s_narg <= MAXARGS, "syscall: too many args");
 
 	/*
 	 * Interrupted system calls vector here
 	 */
 	if (setjmp(t->t_qsav)) {
-		err(EINTR);
-		return;
+		f->eax = err(EINTR);
+		goto out;
 	}
 
 	/*
@@ -157,44 +155,60 @@ syscall(ulong place_holder)
 	f->eflags &= ~F_CF;
 
 	/*
-	 * Get args off stack, don't assume that some luser hasn't
-	 * hosed his stack pointer.
+	 * Call function with needed number of arguments and
+	 * appropriate method for extracting them.  If 0..3
+	 * are needed, they are passed in EBX..EDX.  Otherwise
+	 * they're all on the stack.
 	 */
-	if (s->s_narg && copyin((void *)(f->esp + sizeof(ulong)), parms,
-			s->s_narg * sizeof(ulong))) {
-		f->eax = err(EFAULT);
-	/*
-	 * Call function with needed number of arguments
-	 */
-	} else
-	switch (s->s_narg) {
-	case 0:
+	narg = s->s_narg;
+	if (!narg) {
 		f->eax = (*(s->s_fun))();
-		break;
-	case 1:
-		f->eax = (*(s->s_fun))(parms[0]);
-		break;
-	case 2:
-		f->eax = (*(s->s_fun))(parms[0], parms[1]);
-		break;
-	case 3:
-		f->eax = (*(s->s_fun))(parms[0], parms[1], parms[2]);
-		break;
-	case 4:
-		f->eax = (*(s->s_fun))(parms[0], parms[1], parms[2],
-			parms[3]);
-		break;
-	case 5:
-		f->eax = (*(s->s_fun))(parms[0], parms[1], parms[2],
-			parms[3], parms[4]);
-		break;
-	case 6:
-		f->eax = (*(s->s_fun))(parms[0], parms[1], parms[2],
-			parms[3], parms[4], parms[5]);
-		break;
-	default:
-		ASSERT(0, "syscall: bad s_narg");
-		return;
+	} else if ((f->eax & 0x80) && (narg < 4)) {
+		switch (narg) {
+		case 1:
+			f->eax = (*(s->s_fun))(f->ebx);
+			break;
+		case 2:
+			f->eax = (*(s->s_fun))(f->ebx, f->ecx);
+			break;
+		case 3:
+			f->eax = (*(s->s_fun))(f->ebx, f->ecx, f->edx);
+			break;
+		}
+	} else {
+		if (copyin((void *)(f->esp + sizeof(ulong)),
+				parms, narg * sizeof(ulong))) {
+			f->eax = err(EFAULT);
+			goto out;
+		}
+		switch (narg) {
+		case 1:
+			f->eax = (*(s->s_fun))(parms[0]);
+			break;
+		case 2:
+			f->eax = (*(s->s_fun))(parms[0], parms[1]);
+			break;
+		case 3:
+			f->eax = (*(s->s_fun))(parms[0], parms[1], parms[2]);
+			break;
+		case 4:
+			f->eax = (*(s->s_fun))(parms[0],
+				parms[1], parms[2], parms[3]);
+			break;
+		case 5:
+			f->eax = (*(s->s_fun))(parms[0],
+				parms[1], parms[2], parms[3],
+				parms[4]);
+			break;
+		case 6:
+			f->eax = (*(s->s_fun))(parms[0],
+				parms[1], parms[2], parms[3],
+				parms[4], parms[5]);
+			break;
+		default:
+			ASSERT(0, "syscall: bad s_narg");
+			break;
+		}
 	}
 
 	ASSERT_DEBUG(cpu.pc_locks == 0, "syscall: locks held");
@@ -202,7 +216,7 @@ syscall(ulong place_holder)
 	/*
 	 * See if we should get off the CPU
 	 */
-	check_preempt();
+out:	check_preempt();
 
 	/*
 	 * See if we should handle any events
@@ -212,8 +226,12 @@ syscall(ulong place_holder)
 	}
 
 	/*
-	 * Clear uregs if nesting back to user
+	 * Offer to drop into the debugger
 	 */
 	PTRACE_PENDING(t->t_proc, PD_ALWAYS, 0);
+
+	/*
+	 * Clear uregs
+	 */
 	t->t_uregs = 0;
 }
