@@ -5,6 +5,8 @@
  */
 #include <sys/types.h>
 #include <sys/param.h>
+#include <sys/proc.h>
+#include <sys/thread.h>
 #include <mach/trap.h>
 #include <mach/machreg.h>
 #include <mach/setjmp.h>
@@ -12,6 +14,7 @@
 
 extern char etext[];
 extern jmp_buf dbg_errjmp;
+extern struct proc *allprocs;
 
 /*
  * Shape of stack after procedure entry
@@ -23,25 +26,67 @@ struct stkframe {
 };
 
 /*
+ * dbgtfind()
+ *	Given tid, hunt down struct thread
+ */
+static struct thread *
+dbgtfind(pid_t tid)
+{
+	struct proc *p, *pstart;
+
+	p = pstart = allprocs;
+	do {
+		struct thread *t;
+
+		for (t = p->p_threads; t; t = t->t_next) {
+			if (t->t_pid == tid) {
+				return(t);
+			}
+		}
+		p = p->p_allnext;
+	} while (p != pstart);
+	return(0);
+}
+
+/*
  * trace()
- *	Given proc slot #, provide stack backtrace
+ *	Given thread ID, provide stack backtrace
  *
  * We use the fact that all stacks have their own address; we can
- * thus directly address each stack frame.
- *
- * XXX for now, just do the current stack.
+ * thus directly address each stack frame.  For user mode, prefix
+ * thread ID with 'u'; we handle V->P and interrogate the physical
+ * version.
  */
 void
-trace(int dummy)
+trace(char *args)
 {
 	ulong ebp, eip;
+	char buf[16];
+
+	/*
+	 * If no args, trace this stack
+	 */
+	if (!args || !args[0]) {
+		ebp = (ulong)(&args - 2);
+		eip = (ulong)trace;
+	} else {
+		pid_t tid;
+		struct thread *t;
+
+		tid = atoi(args);
+		t = dbgtfind(tid);
+		if (t == 0) {
+			printf("No such thread: %d\n", tid);
+			return;
+		}
+		ebp = t->t_kregs[0].ebp;
+		eip = t->t_kregs[0].eip;
+	}
 
  	/*
  	 * Loop, reading pairs of frame pointers and return addresses
  	 */
 #define INSTACK(v) (((char *)v >= etext) && ((ulong)v < 0x40000000))
-	ebp = (ulong)(&dummy - 2);
-	eip = (ulong)trace;
 	while (INSTACK(ebp)) {
 		int narg, x;
 		char *p, *loc;
@@ -52,9 +97,9 @@ trace(int dummy)
  		 * Read next stack frame, output called procedure name
  		 */
 		s = (void *)ebp;
- 		loc = symloc(eip);
- 		if (p = strchr(loc, '+')) {
- 			*p = '\0';
+		loc = symloc(eip);
+		if (p = strchr(loc, '+')) {
+			*p = '\0';
 		}
  		printf("%s(", loc);
 
