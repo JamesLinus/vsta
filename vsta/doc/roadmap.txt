@@ -1,0 +1,97 @@
+This is a quick roadmap of where things are and how to get things done.
+
+0. Requirements
+	I have drivers for the ST-506 "classic AT" hard disk interface.
+I only have a single drive, so don't know if two drives will work.  The
+display server is compiled for the CGA location of display memory, and
+expects just 80x25 mode.  The keyboard driver expects the AT scan codes.
+The floppy driver only supports 1.2M and 1.44M (not 360K, nor 360K in
+a 1.2M drive.)  I don't have 1.44M, so again don't know if it works.
+My system has 4M of RAM, and that seems to be plenty.  I load a lot more
+things than necessary as boot tasks, just because it's so easy.
+	You will need the DJ Delorie GNU C compiler port.  I use version
+1.39, but am not aware of any particular sensitivity to version.  Probably
+something will break when I first use a 2.X vintage, but feel free to try
+and tell me how it goes!  I also assume you have a fairly decent "make"
+program.  Mine is "nmake" from masm 6.0, but I only use very vanilla
+make features in my makefiles.
+	If you want to recompile the boot loader in boot/, you will
+need a DOS C compiler.  It only uses small model, and doesn't do much of
+anything fancy.  I happen to use Borland C and the turbo assembler
+provided with it.  The program doesn't do much that needs changing,
+so you should consider just using my .exe.  But the source is there,
+if you want to change something.
+
+1. Source organization
+	All files are stored under RCS.  The RCS storage resides
+inside the RCS/ subdir in each source directory.
+
+For reference, here is the top-level VSTa source directory:
+
+bfs/	      env/	    libc/	  msgfake/	sys/
+bin/	      fd/	    license	  namer/	tmpfs/
+boot/	      include/	    mach/	  pipe/		wd/
+cons/	      kbd/	    make/	  rcs/
+dbg/	      kern/	    mkall.bat*	  readme
+dos/	      lib/	    mkclean.bat*  swap/
+
+	The kernel directories (mach, kern, sys) reside at the same
+level as the servers (bfs, cons, dos, env, fd, kbd, namer, pipe, swap,
+tmpfs, and wd).  Kernel and user mode share the library in lib.  The
+C library is in libc.  User commands are in the bin subdirectory.
+
+2. Building the kernel
+	Go into the make subdir.  Do a "make clean".  If this fails
+because there's no makefile, don't worry.
+	Run the kernel config program:  "go32 config".  Now you should
+have a makefile.
+	Run the make: "make"
+	Now you have a kernel.
+
+3. Building the world
+	Go to the root, and invoke the "mkclean" batch file.
+	Now invoke the "mkall" batch file.  It will move around through
+the source and build things in the right order.
+
+4. Putting a boot filesystem in place
+	Initial binaries are in the root directory in root.t, which
+is a tar file.  You need to extract this in the root dir of your first
+ST-506 DOS partition.  Sorry about using the bin/ dir, but VSTa
+executables don't have an extension so it shouldn't interfere even if
+you already have DOS executables there.
+	Passwords are in /etc/passwd, and are in the clear.  Feel free
+to edit this file using a DOS editor; VSTa tries to accomodate both
+DOS \r\n and UNIX \n conventions for line-oriented data.  The format
+is described in lib/passwd.c.  The group you belong to in the passwd
+file causes you to get more abilities; see /etc/group.  Finally,
+numeric format IDs are mapped to symbolic courtesy of /etc/ids.  You
+can see how in lib/ids.c.
+
+3. Booting the kernel
+	Move to the "boot" subdir.
+	Invoke the batch file "go".
+	This will load the kernel in ..\make, and also load the
+boot servers listed in boot.lst.  All the servers should have been
+built by the "mkall", so there should be no problems.
+
+4. Kernel debugger
+	Debugging comes out of COM1 at 9600 baud 8N1.  Use the "pr"
+command to see the proc table, the "bt" command to see a stack back-
+trace of the current process.  "dv" will dump virtual addresses,
+and "dp" will dump physical.  You can look at the current user process'
+address space by OR'ing in 0x80000000 to the user address.  "dv" will
+complain if you try to look at a non-existent address.  "di" will dis-
+assemble at an address; symbols were put in during the kernel build,
+so the output should be fairly comprehensible (if you know i386 assembly!)
+The "=" will take expressions and print them in hex, decimal, and
+symbolically.
+	"pr <num>" will dump out a particular process with more detail.
+"vas <addr>" will dump out a virtual address space struct; similarly for
+"pset", "pview", "port", "ref" (portref).  "tf" will dump out the current
+trapframe (from the last trip through trap()), or "tf <addr>" will
+assume there's a trap frame at the given address, and dump it out
+instead.
+
+5. More?
+	No doubt, but I can't think of what might help the most.
+Stay in touch!
