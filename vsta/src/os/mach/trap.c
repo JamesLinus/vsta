@@ -87,6 +87,7 @@ check_preempt(void)
  * Of course, pretty simple on uP.  Just set flag; it will be seen on
  * way back from kernel mode.
  */
+void
 nudge(struct percpu *c)
 {
 	do_preempt = 1;
@@ -160,6 +161,7 @@ page_fault(struct trapframe *f)
  * trap()
  *	Central handling for traps
  */
+void
 trap(ulong place_holder)
 {
 	struct trapframe *f = (struct trapframe *)&place_holder;
@@ -168,6 +170,7 @@ trap(ulong place_holder)
 #ifdef KDB
 	dbg_trap_frame = f;
 #endif
+
 	/*
 	 * If this is first entry (from user mode), mark the place
 	 * on the stack.  XXX but it's invariant, is this a waste
@@ -341,10 +344,9 @@ setup_gdt(void)
 {
 	struct tss *t;
 	struct segment *g, *s;
-	struct gate *i;
 	struct linmem l;
 	extern pte_t *cr3;
-	extern void xsyscall(), panic();
+	extern void panic();
 	extern char id_stack[];
 
 	/*
