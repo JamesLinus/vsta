@@ -339,7 +339,6 @@ tran_find(long arg_tran)
  */
 msg_accept(long arg_tran)
 {
-	struct proc *p = curthread->t_proc;
 	struct portref *pr;
 	int error;
 
@@ -365,7 +364,6 @@ msg_accept(long arg_tran)
 		error = 0;
 	}
 	v_lock(&pr->p_lock, SPL0);
-	v_sema(&p->p_sema);
 	return(error);
 }
 
