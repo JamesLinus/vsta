@@ -15,15 +15,15 @@ selfs: $(OBJS)
 	rm -f selfs
 	$(LD) $(LDFLAGS) -o selfs $(CRT0) $(OBJS) $(LIBS)
 
-test: test.o
-	rm -f test
-	$(LD) $(LDFLAGS) -o test $(CRT0) test.o $(LIBS)
+tst: tst.o
+	rm -f tst
+	$(LD) $(LDFLAGS) -o tst $(CRT0) tst.o $(LIBS)
 
 clean:
 	rm -f *.o
 
 clobber: clean
-	rm -f selfs test
+	rm -f selfs tst
 
 install: all
 	strip selfs
