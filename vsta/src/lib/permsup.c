@@ -30,7 +30,7 @@ perm_step(struct perm *perm, struct prot *prot)
 		 */
 		if (x >= PERM_LEN(perm)) {
 			for (y = x; y < prot->prot_len; ++y) {
-				granted |= prot->prot_bits[x];
+				granted |= prot->prot_bits[y];
 			}
 			return(granted);
 		}
