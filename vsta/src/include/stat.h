@@ -2,10 +2,10 @@
 #define _STAT_H
 /*
  * stat.h
- *	The "stat" structure
+ *	The "stat" structure and stat function prototypes
  *
- * No such thing exists in VSTa; this structure is mocked up for
- * programs requiring such an interface.  Down with large binary
+ * The "stat" structure doesn't exist in VSTa; this structure is mocked up
+ * for programs requiring such an interface.  Down with large binary
  * structures!
  */
 #include <sys/types.h>
@@ -28,5 +28,18 @@ struct	stat {
 #define S_IREAD		0x0004	/* owner may read */
 #define S_IWRITE 	0x0002	/* owner may write */
 #define S_IEXEC		0x0001	/* owner may execute */
+
+/*
+ * Function prototypes for the VSTa stat mechanism
+ */
+extern char *rstat(port_t fd, char *field);
+extern int wstat(port_t fd, char *field);
+
+/*
+ * Function prototypes for POSIX that use the VSTa stat mechanism
+ */
+extern int fstat(int fd, struct stat *s);
+extern int stat(char *f, struct stat *s);
+extern int isatty(int fd);
 
 #endif /* _STAT_H */
