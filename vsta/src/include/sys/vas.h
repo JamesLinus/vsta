@@ -12,9 +12,15 @@ struct vas {
 	struct pview		/* List of views in address space */
 		*v_views;
 	lock_t v_lock;		/* Mutex */
+	uint v_flags;		/* Flags */
 	struct hatvas
 		v_hat;		/* Hardware-dependent stuff */
 };
+
+/*
+ * Bits in v_flags
+ */
+#define VF_DMA 1		/* VAS used by DMA server */
 
 #ifdef KERNEL
 extern struct pview *detach_pview(struct vas *, void *),
