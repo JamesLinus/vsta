@@ -33,6 +33,6 @@
 #define UMAXSTACK (512*NBPG)
 
 #define roundup(val, units) \
-	((((unsigned long)(val) + ((units) - 1)) / (units)) * (units));
+	((((unsigned long)(val) + ((units) - 1)) / (units)) * (units))
 
 #endif /* _PARAM_H */
