@@ -17,7 +17,7 @@
 #include <sys/fs.h>
 #include <sys/assert.h>
 
-extern void setrun();
+extern void setrun(), dup_stack();
 extern struct sched sched_root;
 extern lock_t runq_lock;
 
@@ -87,6 +87,7 @@ bootproc(struct boot_task *b)
 	p->p_prot.prot_bits[0] = 0;
 	p->p_prot.prot_bits[1] = P_PRIO|P_SIG|P_KILL|P_STAT|P_DEBUG;
 	p->p_runq = sched_node(&sched_root);
+	p->p_pgrp = alloc_pgrp();
 
 	/*
 	 * Set up the single thread for the proc
@@ -128,6 +129,7 @@ bootproc(struct boot_task *b)
 	 */
 	p->p_pid = allocpid();
 	t->t_pid = allocpid();
+	join_pgrp(p->p_pgrp, p->p_pid);
 
 	/*
 	 * Add process to list of all processes
@@ -255,7 +257,6 @@ fork_thread(voidfun f)
 	void *ustack;
 	uint npid;
 	extern void *alloc_zfod();
-	extern void dup_stack();
 
 	/*
 	 * Get a user stack first
@@ -357,9 +358,14 @@ fork(void)
 	extern struct vas *fork_vas();
 
 	/*
-	 * Get new thread
+	 * Allocate new structures
 	 */
 	tnew = malloc(sizeof(struct thread));
+	pnew = malloc(sizeof(struct proc));
+
+	/*
+	 * Get new thread
+	 */
 	tnew->t_kstack = malloc(KSTACK_SIZE);
 	tnew->t_flags = told->t_flags;
 	tnew->t_hd = tnew->t_tl = tnew;
@@ -372,11 +378,21 @@ fork(void)
 	tnew->t_evsys[0] = tnew->t_evproc[0] = '\0';
 	init_sema(&tnew->t_evq);
 	tnew->t_state = TS_RUN;
+	tnew->t_ustack = (void *)USTACKADDR;
+
+	/*
+	 * Get new PIDs for process and initial thread.  Insert
+	 * PID into hash.
+	 */
+	p_sema(&pid_sema, PRIHI);
+	pnew->p_pid = allocpid();
+	tnew->t_pid = allocpid();
+	v_sema(&pid_sema);
+
 
 	/*
 	 * Get new proc, copy over fields as appropriate
 	 */
-	pnew = malloc(sizeof(struct proc));
 	tnew->t_proc = pnew;
 	p_sema(&pold->p_sema, PRIHI);
 	bcopy(pold->p_ids, pnew->p_ids, sizeof(pold->p_ids));
@@ -390,6 +406,7 @@ fork(void)
 	fork_ports(pold->p_open, pnew->p_open, PROCOPENS);
 	pnew->p_prefs = 0;
 	pnew->p_nopen = pold->p_nopen;
+	join_pgrp(pold->p_pgrp, pnew->p_pid);
 	v_sema(&pold->p_sema);
 
 	/*
@@ -399,19 +416,24 @@ fork(void)
 	dup_stack(told, tnew, 0);
 
 	/*
-	 * Get new PIDs for process and initial thread.  Insert
-	 * PID into hash.
+	 * Now that we're ready, make PID known globally
 	 */
 	p_sema(&pid_sema, PRIHI);
-	pnew->p_pid = allocpid();
-	tnew->t_pid = allocpid();
 	hash_insert(pid_hash, pnew->p_pid, pnew);
 	v_sema(&pid_sema);
 
 	/*
+	 * Add to "all procs" list
+	 */
+	p_lock(&runq_lock, SPLHI);
+	pnew->p_allnext = allprocs;
+	allprocs = pnew;
+
+	/*
 	 * Leave him runnable
 	 */
-	setrun(tnew);
+	lsetrun(tnew);
+	v_lock(&runq_lock, SPL0);
 }
 
 /*
@@ -432,6 +454,9 @@ free_proc(struct proc *p)
 	/*
 	 * Clean our our vas
 	 */
+	if (p->p_vas->v_flags & VF_DMA) {
+		pages_release(p);
+	}
 	free_vas(p->p_vas);
 
 	/*
@@ -453,6 +478,11 @@ free_proc(struct proc *p)
 	 */
 	hash_delete(pid_hash, p->p_pid);
 	v_sema(&pid_sema);
+
+	/*
+	 * Depart process group
+	 */
+	leave_pgrp(p->p_pgrp, p->p_pid);
 
 	/*
 	 * Release proc storage
