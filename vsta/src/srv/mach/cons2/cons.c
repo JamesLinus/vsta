@@ -243,7 +243,7 @@ sequence(int x, int y, char c)
 			y = cur-top;
 			y = COLS*CELLSZ - (y % (COLS*CELLSZ));
 			p = cur+y;
-			bcopy(cur, cur+1, (p-cur)-1);
+			bcopy(cur, cur+CELLSZ, (p-cur)-CELLSZ);
 			*(ushort *)cur = BLANKW;
 		}
 		return;
@@ -253,7 +253,7 @@ sequence(int x, int y, char c)
 			y = cur-top;
 			y = COLS*CELLSZ - (y % (COLS*CELLSZ));
 			p = cur+y;
-			bcopy(cur+1, cur, (p-cur)-1);
+			bcopy(cur+CELLSZ, cur, (p-cur)-CELLSZ);
 			p -= CELLSZ;
 			*(ushort *)p = BLANKW;
 		}
