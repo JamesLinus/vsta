@@ -124,11 +124,12 @@ strchr(const char *p, int c)
 {
 	int c2;
 
-	while (c2 = *p++) {
+	do {
+		c2 = *p++;
 		if (c2 == c) {
 			return((char *)(p-1));
 		}
-	}
+	} while (c2);
 	return(0);
 }
 
@@ -141,11 +142,12 @@ strrchr(const char *p, int c)
 {
 	char *q = 0, c2;
 
-	while (c2 = *p++) {
+	do {
+		c2 = *p++;
 		if (c == c2) {
 			q = (char *)p;
 		}
-	}
+	} while (c2);
 	return q ? (q-1) : 0;
 }
 
