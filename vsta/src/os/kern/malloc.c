@@ -138,14 +138,19 @@ malloc(uint size)
 	if (EMPTY(b)) {
 		char *p;
 		int x;
+		struct core *c;
 
 		ASSERT_DEBUG(pg, "malloc: no pg, no mem");
 
 		/*
-		 * Fill in per-page information
+		 * Fill in per-page information, flag page as
+		 * consumed for kernel memory.
 		 */
 		p = ptov(ptob(pg));
-		page = (struct page *)&core[pg].c_long;
+		c = &core[pg];
+		pg = 0;
+		c->c_flags |= C_SYS;
+		page = (struct page *)&(c->c_long);
 		page->p_bucket = b-buckets;
 		page->p_out = 0;
 
@@ -172,7 +177,6 @@ malloc(uint size)
 		 * Update count of pages consumed by this bucket
 		 */
 		b->b_pages += 1;
-		pg = 0;
 	}
 
 	/*
