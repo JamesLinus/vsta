@@ -4,6 +4,7 @@
  */
 #include <sys/wait.h>
 #include <std.h>
+#include <paths.h>
 
 /*
  * system()
@@ -25,7 +26,7 @@ system(const char *cmd)
 		return(-1);
 	}
 	if (pid == 0) {
-		execv("/vsta/bin/sh", argv);
+		execv(_PATH_DEFAULT_SHELL, argv);
 		_exit(-1);
 	}
 	waits(&w, 1);
