@@ -56,6 +56,24 @@ mkview(uint pfn, void *vaddr, uint pages, struct vas *vas)
 }
 
 /*
+ * add_proclist()
+ *	Add process to list of all processes
+ */
+static void
+add_proclist(struct proc *p)
+{
+	if (allprocs == 0) {
+		p->p_allnext = p->p_allprev = p;
+	} else {
+		p->p_allnext = allprocs;
+		p->p_allprev = allprocs->p_allprev;
+		allprocs->p_allprev->p_allnext = p;
+		allprocs->p_allprev = p;
+	}
+	allprocs = p;
+}
+
+/*
  * bootproc()
  *	Given a boot process image, throw together a proc for it
  */
@@ -154,8 +172,7 @@ bootproc(struct boot_task *b)
 	/*
 	 * Add process to list of all processes and hash
 	 */
-	p->p_allnext = allprocs;
-	allprocs = p;
+	add_proclist(p);
 	hash_insert(pid_hash, p->p_pid, p);
 
 	/*
@@ -175,12 +192,13 @@ refill_pids(void)
 {
 	static pid_t rotor = 0L;
 	pid_t pnext, pid;
-	struct proc *p;
+	struct proc *p, *pstart;
 	struct thread *t = 0;
 
 retry:
 	pnext = -1;
-	for (p = allprocs; p; p = p->p_allnext) {
+	p = pstart = allprocs;
+	do {
 		if (rotor <= 0) {
 			rotor = 200L;	/* Where to scan from */
 		}
@@ -230,7 +248,8 @@ retry:
 				pid = t->t_pid;
 			}
 		} while (t);
-	}
+		p = p->p_allnext;
+	} while (p != pstart);
 
 	/*
 	 * Update our pool range; set the rotor to one above the
@@ -462,8 +481,7 @@ fork(void)
 	 * Add to "all procs" list
 	 */
 	p_lock(&runq_lock, SPLHI);
-	pnew->p_allnext = allprocs;
-	allprocs = pnew;
+	add_proclist(pnew);
 	npid = pnew->p_pid;
 
 	/*
@@ -481,8 +499,6 @@ fork(void)
 static void
 free_proc(struct proc *p)
 {
-	struct proc *p2, **pp;
-
 	/*
 	 * Close both server and client open ports
 	 */
@@ -501,15 +517,12 @@ free_proc(struct proc *p)
 	 * Delete us from the "allproc" list
 	 */
 	p_sema(&pid_sema, PRIHI);
-	pp = &allprocs;
-	for (p2 = allprocs; p2; p2 = p2->p_allnext) {
-		if (p2 == p) {
-			*pp = p->p_allnext;
-			break;
-		}
-		pp = &p2->p_allnext;
+	p->p_allnext->p_allprev = p->p_allprev;
+	p->p_allprev->p_allnext = p->p_allnext;
+	if (allprocs == p) {
+		ASSERT_DEBUG(p->p_allnext != p, "free_proc: empty");
+		allprocs = p->p_allnext;
 	}
-	ASSERT(p2, "free_proc: lost proc");
 
 	/*
 	 * Unhash our PID

@@ -131,9 +131,9 @@ dump_proc(struct proc *p, int brief)
 	}
 	printf(" vas %x threads %x runq %x sys/usr %d/%d\n",
 		p->p_vas, p->p_threads, p->p_runq, p->p_sys, p->p_usr);
-	printf(" sema %x prefs %x nopen %d all %x handler %x\n",
-		&p->p_sema, p->p_prefs, p->p_nopen, p->p_allnext,
-		p->p_handler);
+	printf(" sema %x prefs %x nopen %d all %x/%x handler %x\n",
+		&p->p_sema, p->p_prefs, p->p_nopen, p->p_allprev,
+		p->p_allnext, p->p_handler);
 	printf(" children %x parent %x\n", p->p_children, p->p_parent);
 	printf(" pgrp 0x%x\n", p->p_pgrp);
 	printf(" ports:");
@@ -165,13 +165,15 @@ dump_proc(struct proc *p, int brief)
 static struct proc *
 dbgpfind(ulong pid)
 {
-	struct proc *p;
+	struct proc *p, *pstart;
 
-	for (p = allprocs; p; p = p->p_allnext) {
+	p = pstart = allprocs;
+	do {
 		if (p->p_pid == pid) {
 			return(p);
 		}
-	}
+		p = p->p_allnext;
+	} while (p != pstart);
 	return(0);
 }
 
@@ -191,12 +193,16 @@ dump_procs(arg)
 	 * Dump all in brief format
 	 */
 	if (!arg || !arg[0]) {
-		for (p = allprocs; p; p = p->p_allnext) {
+		struct proc *pstart;
+
+		p = pstart = allprocs;
+		do {
 			dump_proc(p, 1);
 			for (t = p->p_threads; t; t = t->t_next) {
 				dump_thread2(t, 1);
 			}
-		}
+			p = p->p_allnext;
+		} while (p != pstart);
 		return;
 	}
 

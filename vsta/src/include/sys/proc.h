@@ -108,7 +108,7 @@ struct proc {
 		*p_prefs;
 	ushort p_nopen;		/*  ...# currently open */
 	struct proc		/* Linked list of all processes */
-		*p_allnext;
+		*p_allnext, *p_allprev;
 	ulong p_sys, p_usr;	/* Cumulative time for all prev threads */
 	voidfun p_handler;	/* Handler for events */
 	struct pgrp		/* Process group for proc */
