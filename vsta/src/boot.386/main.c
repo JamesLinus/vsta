@@ -169,7 +169,7 @@ main(int argc, char **argv)
 	 * Get list of process images we will append
 	 */
 	if (argc > 2) {
-		bootname = argv[1];
+		bootname = argv[2];
 	} else {
 		bootname = "boot.lst";
 	}
