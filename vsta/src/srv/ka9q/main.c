@@ -250,12 +250,13 @@ static struct cmds stopcmds[] = {
 };
 #endif /* SERVERS */
 
-void
-keep_things_going()
+int
+keep_things_going(void)
 {
 	void ip_recv();
 	struct interface *ifp;
 	struct mbuf *bp;
+	int16 didstuff = 0;
 
 	/* Service the loopback queue */
 	if((bp = dequeue(&loopq)) != NULLBUF){
@@ -266,29 +267,35 @@ keep_things_going()
 		/* Extract IP header */
 		ntohip(&ip,&bp);
 		ip_recv(&ip,bp,0);
+		didstuff = 1;
 	}
 	/* Service the interfaces */
 	for(ifp = ifaces; ifp != NULLIF; ifp = ifp->next){
-		if(ifp->recv != NULLVFP)
+		if (ifp->recv != NULLVFP) {
 			(*ifp->recv)(ifp);
+			didstuff = 1;
+		}
 	}
 
 #ifdef	XOBBS
 	/* service the W2XO PBBS code */
-	axchk();
+	didstuff |= axchk();
 #endif
+	return(didstuff);
 }
 
 /*
  * mainloop()
  *	Read commands, run interfaces, and so forth
+ *
+ * Returns non-zero if work was done, zero if no work was found.
  */
-void
+int
 mainloop(void)
 {
 	int c;
 	char *ttybuf, *p;
-	int16 cnt;
+	int16 cnt, didstuff = 0;
 
 	/* Process any keyboard input */
 	while((c = kbread()) != -1) {
@@ -302,6 +309,7 @@ mainloop(void)
 		if (cnt == 0)
 			continue;
 #endif	/* FLOW */
+		didstuff = 1;
 		switch(mode){
 		case CMD_MODE:
 			(void)cmdparse(cmds, ttybuf);
@@ -333,7 +341,9 @@ mainloop(void)
 			fflush(stdout);
 		}
 	}
-	keep_things_going();
+	didstuff |= keep_things_going();
+
+	return(didstuff);
 }
 
 main(argc,argv)

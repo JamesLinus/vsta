@@ -267,7 +267,8 @@ eth_recv_daemon(void)
 			head = 0;
 			count = 0;
 			p_lock(&ka9q_lock);
-			do_mainloop();
+			while (do_mainloop())
+				;
 			v_lock(&ka9q_lock);
 		}
 	}

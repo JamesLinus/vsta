@@ -126,14 +126,14 @@ freembox(mbp)
     }
 }
 	
-	        
+int
 axchk()		/* service any ax25 connections w2xo 9-1-88*/
 {
     int rdcnt;
     struct mbuf *bp;
     struct mboxsess * mbp;
     char *cp;
-    int testsize,size;
+    int testsize, size, didstuff = 0;
     void axinit();
     
 /* initialization code removed.  call to axinit() direct from main now. */
@@ -141,25 +141,35 @@ axchk()		/* service any ax25 connections w2xo 9-1-88*/
     if(base == NULLMBS)                       /*no mailboxes?..then leave*/
         goto fcontchk;
     mbp = base;					/*point to the session base*/
-    while(mbp != NULLMBS){			/*and climb the session links*/
+    while(mbp != NULLMBS) {			/*and climb the session links*/
         if(mbp->gotbytes < 1)			/*if we need input*/
             if((mbp->gotbytes=msgrcv(smsgqid,&mbp->rmsgbuf,1024,(long)mbp->pid,
                IPC_NOWAIT|0600)) < 1)		/*and there is none, ..punt*/
                  goto contchk;
-            else				/*got input!*/
-                mbp->mtxtptr = mbp->rmsgbuf.mtext; /*new message buffer, set to start*/
+            /* Got input! */
+	    didstuff = 1;
 
-            testsize = min(mbp->bytes,mbp->cbadr.axbbscb->paclen+1);      /* get the minimum of the # */
-            size = min(testsize, mbp->gotbytes) + 1;       /* of bytes avail and paclen*/
-            bp = alloc_mbuf((int16)size);                  /* then min of avail and have*/
+	    /* new message buffer, set to start */
+	    mbp->mtxtptr = mbp->rmsgbuf.mtext;
+
+	    /*
+	     * Get the minimum of the #
+	     * of bytes avail and paclen
+	     * then min of avail and have
+	     */
+            testsize = min(mbp->bytes,mbp->cbadr.axbbscb->paclen+1);
+            size = min(testsize, mbp->gotbytes) + 1;
+
+            bp = alloc_mbuf((int16)size);
             cp = bp->data;
-	    if(mbp->proto == AX25){
+	    if (mbp->proto == AX25) {
                 *cp++ = PID_FIRST | PID_LAST | PID_NO_L3;
                 bp->cnt =1;
-            }
-            else  bp->cnt = 0;
-            
-            while(bp->cnt < size && mbp->gotbytes){
+            } else {
+		bp->cnt = 0;
+	    }
+
+            while (bp->cnt < size && mbp->gotbytes) {
                 *cp++ = *mbp->mtxtptr++;
                 bp->cnt++;
                 mbp->gotbytes--;
@@ -195,9 +205,12 @@ contchk:    rdcnt=msgrcv(scmsgqid,&msg,1024,(long)mbp->pid,IPC_NOWAIT|0600);
                             }/* if K */
             }/* switch */
         mbp = mbp->next;
-    }/*while loop*/
+    } /*while loop*/
 
-fcontchk:    chkfwd();			/*check the forwarder*/
+fcontchk:
+   didstuff |= chkfwd();	/* check the forwarder */
+
+   return(didstuff);
 }
 
 dombox(argc, argv)
@@ -582,16 +595,17 @@ char s[],t[];
 	return(-1);
 }
 
-
+int
 chkfwd()				/* check forwarding and take appropriate*/
 {					/* actions*/
-    int gotbytes;
+    int gotbytes, didstuff = 0;
 
     if(fwdbbsstate==WAIT)
-        return;
-    switch(fwdflag){
+        return(0);
+    switch (fwdflag) {
         case NOFWD:     /* check for forward request */
 		  if(msgrcv(scmsgqid,&msg,1024,1L,IPC_NOWAIT|0600) > 0) {
+		      didstuff = 1;
 		      switch(msg.mtext[0]){
 			  case 'F': fwdflag = SPAWNBBS;  /* forwarding request */
 				    break;
@@ -603,16 +617,21 @@ chkfwd()				/* check forwarding and take appropriate*/
 		  break;
         case SPAWNBBS:  spawnfwd();
                         nsend = false;
+			didstuff = 1;
                         break;
         case DOCONNECT: fwdcon();
+			didstuff = 1;
                         break;
         case READXMIT : fwdsend();
+			didstuff = 1;
                         break;
         case GETCON:    getcon();
+			didstuff = 1;
                         break;
         case CLEARCON:  clearcon(nsend);
         		if(!(nsend))	/* only do clearcon without N once*/
         		    nsend = true;
+			didstuff = 1;
                         break;
         case WAITING:   break;
         default: break;
@@ -624,17 +643,17 @@ chkfwd()				/* check forwarding and take appropriate*/
             case -1:    /*perror("axchk003");*/
                         break;
             default:    if(msg.mtext[0] == 'K'){
-            	        kill(fwdstruct.pid,9);
-            	        wait(NULLCHAR);
+			    kill(fwdstruct.pid,9);
+			    wait(NULLCHAR);
 #ifdef DEBUG
-			printf("clearing ques\n");
+			    printf("clearing ques\n");
 #endif
-                        clearque(fwdstruct.pid);
-			fwdflag = NOFWD;
-			disc_ax25(fwdstruct.cbadr.axbbscb);
-                	fwdstruct.cbadr.axbbscb = NULLFWD;
-                        }
-                        else if(msg.mtext[0] == 'N'){
+			    clearque(fwdstruct.pid);
+			    fwdflag = NOFWD;
+			    disc_ax25(fwdstruct.cbadr.axbbscb);
+			    fwdstruct.cbadr.axbbscb = NULLFWD;
+			    didstuff = 1;
+                        } else if(msg.mtext[0] == 'N') {
 #ifdef DEBUG
                             printf("net:N received from BBS\n");
 #endif
@@ -642,17 +661,19 @@ chkfwd()				/* check forwarding and take appropriate*/
                                 fwdbbsstate=WAIT;  /*wait until disconnect before next*/
                                 disc_ax25(fwdstruct.cbadr.axbbscb); /*do the disconnect */
 #ifdef DEBUG
-                            printf("net:disconnect issued\n");
+				printf("net:disconnect issued\n");
 #endif
-                            }
+			    }
+			    didstuff = 1;
 #ifdef DEBUG
-                            printf("net:setting flag to CLEARCON\n");
+			    printf("net:setting flag to CLEARCON\n");
 #endif
-                            fwdflag=CLEARCON;  /*set up for next connect*/
+			    fwdflag=CLEARCON;  /*set up for next connect*/
                         }
                         break;
         } /*switch*/
     } /* if forwarder active */
+    return(didstuff);
 }
 
 spawnfwd()

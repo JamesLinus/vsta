@@ -336,17 +336,17 @@ sysreset()
  * do_mainloop()
  *	Call mainloop(), handle yield()'ed threads on return
  */
-void
+int
 do_mainloop(void)
 {
 	pid_t mytid = gettid();
-	extern void mainloop(void);
+	int didstuff = 0;
 
 	/*
 	 * Record our thread as holding the lock, and run the loop
 	 */
 	curtid = mytid;
-	mainloop();
+	didstuff = mainloop();
 
 	/*
 	 * We yield()'ed under mainloop() somewhere, and thus are
@@ -358,6 +358,8 @@ do_mainloop(void)
 		_exit(0);
 	}
 	curtid = 0;
+
+	return(didstuff);
 }
 
 /*
@@ -416,18 +418,12 @@ timewatcher(void)
 		}
 
 		/*
-		 * Run the scheduler until things look idle.
-		 * Idleness is defined as having an empty loopback,
-		 * as well as no expired timed events.
+		 * Run the scheduler until it tells us things look idle.
 		 */
 		do {
-			extern struct mbuf *loopq;
-
-			do {
-				do_mainloop();
-			} while (loopq);
+			x = do_mainloop();
 			target = next_tick();
-		} while (target == 0);
+		} while (x || (target == 0));
 
 		v_lock(&ka9q_lock);
 
@@ -500,7 +496,8 @@ conswatcher(void)
 				}
 				nkbchar += 1;
 			}
-			do_mainloop();
+			while (do_mainloop())
+				;
 			v_lock(&ka9q_lock);
 		} else {
 			sleep(1);

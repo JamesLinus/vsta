@@ -108,6 +108,7 @@ extern int Sixteen;
 char *ctime(),*tmpnam();
 
 #if	ATARI_ST && MICRORTX
+
 /* the 68000 processor won't let you disable interrupts in user mode
  * therefore, a trap handler has been defined to do this, and it's
  * installed as trap #5. The Mark Williams compiler generates a trap #5
@@ -123,15 +124,7 @@ char *ctime(),*tmpnam();
 #ifdef QFREE
 #define free(p)		((char *) (p))[-1] |= 1;
 #endif
-#endif
 
+#endif /* ATARI_ST && MICRORTS */
 
-
-
-
-
-
-
-
-
-
+extern int mainloop(void);

@@ -1306,7 +1306,8 @@ port_daemon(void)
 		/*
 		 * Spin the main loop
 		 */
-		do_mainloop();
+		while (do_mainloop())
+			;
 
 		/*
 		 * Release lock and loop
