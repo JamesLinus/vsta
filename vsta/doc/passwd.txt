@@ -77,7 +77,7 @@ usr:3
 
 So if you're "usr.vandys", numerically you're actually "3.1".  How are
 these used?  See the section "How do capabilities work?" in the file
-/vsta/doc/faq.
+/vsta/doc/faq.txt.
 
 /vsta/etc/group
 
@@ -91,4 +91,6 @@ which should be granted to any member of this group.  In this
 case, the single capability "sys.sys" is granted.  So for account
 "vandys", any file which could be accessed by either "usr.vandys"
 *or* by "sys.sys" will be accessible.  There can be zero or more
-capabilities (separated by further colons).
+capabilities (separated by further colons).  Note that "sys.sys"
+is looked up in the /vsta/etc/ids file, and converted to actual
+numbers.
