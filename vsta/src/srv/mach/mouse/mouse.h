@@ -17,6 +17,14 @@
 #include "ms_bus.h"
 #include "logi_bus.h"
 #include "ibmrs232.h"
+#include "ps2aux.h"
+
+/*
+ * Mouse button definitions
+ */
+#define MOUSE_LEFT_BUTTON    (1 << 0)
+#define MOUSE_RIGHT_BUTTON   (1 << 1)
+#define MOUSE_MIDDLE_BUTTON  (1 << 2)
 
 /*
  * An open file
@@ -64,6 +72,7 @@ extern struct prot mouse_prot;
 extern port_t      mouse_port;  /* Port we receive contacts through */
 extern port_name   mouse_name;  /* Name for out port */
 extern uint        mouse_accgen;
+extern char	   mouse_sysmsg[];
 
 /* mouse.c */
 extern mouse_data_t  mouse_data;

@@ -7,7 +7,8 @@ LDFLAGS   = -L../../../libc
 LIBS      = -lpio -lusr -lc
 CRT0	  = ../../../libc/crt0.o
 
-OBJS      = main.o ibmrs232.o nec_bus.o ms_bus.o logi_bus.o mouse.o stat.o
+OBJS      = main.o ibmrs232.o nec_bus.o ms_bus.o logi_bus.o ps2aux.o \
+	mouse.o stat.o
 TOBJS     = test.o libmouse.o
 
 .c.o:

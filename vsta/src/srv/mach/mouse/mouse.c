@@ -7,6 +7,7 @@
 
 #include <stdio.h>
 #include <std.h>
+#include <syslog.h>
 #include <string.h>
 #include <pio.h>
 #include "mouse.h"
@@ -25,6 +26,7 @@ struct {
    { "microsoft_bus",    ms_bus_initialise,       },
    { "logitech_bus",     logitech_bus_initialise, },
    { "serial",		 ibm_serial_initialise,	  },
+   { "ps2aux",		 ps2aux_initialise,	  },
    { NULL,               NULL,                    },  /* last entry */
 };
 
@@ -140,7 +142,7 @@ mouse_write(struct msg * m, struct file * f)
 	 }
 	 break;
       default:
-	 fprintf(stderr,"Mouse: bad operation specified.\n");
+	 syslog(LOG_ERR,"%s bad operation specified", mouse_sysmsg);
 	 msg_err(m->m_sender, EINVAL);
 	 return;
       };
@@ -148,7 +150,7 @@ mouse_write(struct msg * m, struct file * f)
       m->m_arg = temp.buffer_size;
       msg_reply(m->m_sender, m);
    } else {
-      fprintf(stderr,"Mouse: got a bad data set.\n");
+      syslog(LOG_ERR, "%s got a bad data set", mouse_sysmsg);
       msg_err(m->m_sender, EINVAL);
    }
 }
@@ -170,7 +172,7 @@ mouse_initialise(int argc, char **argv) {
       }
    }
    if (param == -1) {
-      fprintf(stderr, "Mouse: No mouse type specified. Exiting...\n");
+      syslog(LOG_ERR, "%s no mouse type specified - exiting", mouse_sysmsg);
       exit(1);
    }
    /*
@@ -181,16 +183,16 @@ mouse_initialise(int argc, char **argv) {
          break;
    }
    if (mouse_drivers[loop].driver_initialise == NULL) {
-      fprintf(stderr, "Mouse: No driver for \"%s\" type mouse. Exiting...\n",
-              argv[param]);
+      syslog(LOG_ERR, "%s no driver for \"%s\" type mouse - exiting",
+             mouse_sysmsg, argv[param]);
       exit(1);
    }
    mouse_data.type_id = loop;
 
    /* Initialise the driver */
    if ((*mouse_drivers[loop].driver_initialise) (argc, argv) == -1) {
-     fprintf(stderr, "Mouse: Unable to initialise \"%s\" driver. Exiting...\n",
-              argv[param]);
+      syslog(LOG_ERR, "%s unable to initialise \"%s\" driver - exiting\n",
+             mouse_sysmsg, argv[param]);
       exit(1);
    }
 }

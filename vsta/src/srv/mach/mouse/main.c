@@ -11,9 +11,11 @@
 #include <sys/types.h>
 #include <sys/fs.h>
 #include <sys/assert.h>
+#include <sys/namer.h>
+#include <sys/syscall.h>
 #include <hash.h>
 #include <std.h>
-
+#include <syslog.h>
 #include <stdio.h>
 
 #include "mouse.h"
@@ -22,6 +24,8 @@ struct hash *mouse_hash;                 /* Map session->context structure   */
 port_t       mouse_port;                 /* Port we receive contacts through */
 port_name    mouse_name;                 /* Name for out port                */
 uint         mouse_accgen;               /* generation access count          */
+char	     mouse_sysmsg[]              /* Syslog message prefix            */
+   = "mouse (srv/mouse)";
 struct prot  mouse_prot = {              /* mouse protection                 */
    1,
    ACC_READ | ACC_WRITE,
@@ -135,7 +139,6 @@ static int
 mouse_check_gen(struct msg * m, struct file * f)
 {
    if (f->f_gen != mouse_accgen) {
-      printf("bad accgen\n");
       msg_err(m->m_sender, EIO);
       return (1);
    }
@@ -162,7 +165,7 @@ loop:
     */
    x = msg_receive(mouse_port, &msg);
    if (x < 0) {
-      perror("mouse: msg_receive");
+      syslog(LOG_ERR, "%s msg_receive", mouse_sysmsg);
       goto loop;
    }
    /*
@@ -231,34 +234,37 @@ main(int argc, char **argv)
    mouse_hash = hash_alloc(16);
 
    /*
+    *  Initialise the mouse driver.
+    */
+   mouse_initialise(argc, argv);
+
+   /*
     *  Get a port and name
     */
    mouse_port = msg_port((port_name) 0, &mouse_name);
    if (namer_register("srv/mouse", mouse_name) < 0) {
-      printf("mouse: can't register name\n");
+      syslog(LOG_ERR, "%s can't register name", mouse_sysmsg);
       exit(1);
    }
-   /*
-    *  Initialise the mouse driver.
-    */
-   mouse_initialise(argc, argv);
 
    /*
     *  Enable either polling or interrupts for updating the mouse data.
     */
    if (mouse_data.enable_interrupts) {
       if (enable_isr(mouse_port, mouse_data.irq_number)) {
-         fprintf(stderr, "Mouse: Unable to get IRQ line\n");
+         syslog(LOG_ERR, "%s unable to get IRQ line", mouse_sysmsg);
          exit(1);
       }
    } else {
       if (mouse_data.functions.mouse_poller_entry_point != NULL) {
          if (tfork(mouse_data.functions.mouse_poller_entry_point) == -1) {
-           fprintf(stderr, "Mouse: Unable to for poller thread. Exiting...\n");
+           syslog(LOG_ERR, "%s unable to fork poller thread - exiting",
+                  mouse_sysmsg);
            exit(1);
          }
       } else {
-         fprintf(stderr, "Mouse: No interrupt or polling installed.\n");
+         syslog(LOG_INFO, "%s no interrupt or polling installed",
+                mouse_sysmsg);
       }
    }
 

@@ -13,9 +13,9 @@
 /*
  * Masks for the mouse buttons
  */
-#define MOUSE_LEFT_BUTTON    (1 << 1)
+#define MOUSE_LEFT_BUTTON    (1 << 0)
+#define MOUSE_RIGHT_BUTTON   (1 << 1)
 #define MOUSE_MIDDLE_BUTTON  (1 << 2)
-#define MOUSE_RIGHT_BUTTON   (1 << 3)
 
 /*
  * Open/close the mouse device

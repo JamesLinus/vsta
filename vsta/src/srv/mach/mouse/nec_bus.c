@@ -9,7 +9,11 @@
 
 #include <stdio.h>
 #include <std.h>
+#include <syslog.h>
+#include <time.h>
+#include <mach/io.h>
 #include <sys/mman.h>
+#include <sys/syscall.h>
 #include "machine.h"
 #include "mouse.h"
 
@@ -99,16 +103,16 @@ pc98_bus_check_status(void)
    mask = (inportb(PC98_MOUSE_RPORT_A) >> 5) & 0x5;
    switch (mask) {                       /* simulate a 3 button mouse here */
    case 4:
-      mouse_data.pointer_data.buttons = (1 << 3);       /* left   */
+      mouse_data.pointer_data.buttons = MOUSE_LEFT_BUTTON;      /* left   */
       break;
    case 1:
-      mouse_data.pointer_data.buttons = (1 << 1);       /* right  */
+      mouse_data.pointer_data.buttons = MOUSE_RIGHT_BUTTON;     /* right  */
       break;
    case 0:
-      mouse_data.pointer_data.buttons = (1 << 2);       /* middle */
+      mouse_data.pointer_data.buttons = MOUSE_MIDDLE_BUTTON;    /* middle */
       break;
    default:
-      mouse_data.pointer_data.buttons = 0;              /* none   */
+      mouse_data.pointer_data.buttons = 0;                      /* none   */
    };
    set_semaphore(&pc98_update_allowed, TRUE);
 }
@@ -264,19 +268,21 @@ pc98_bus_initialise(int argc, char **argv)
     * when it's there or not, but it is often insuccessful....
     */
    if (enable_io(PC98_MOUSE_LOW_PORT, PC98_MOUSE_HIGH_PORT) < 0) {
-      fprintf(stderr, "Mouse: Unable to enable I/O ports for mouse.\n");
+      syslog(LOG_ERR, "%s unable to enable I/O ports for mouse", mouse_sysmsg);
       return (-1);
    }
    outportb(PC98_MOUSE_MODE_PORT, 0x93); /* initialise */
    outportb(PC98_MOUSE_MODE_PORT, 0x9);  /* disable interrupts */
    outportb(PC98_MOUSE_WPORT_C, 0x10);   /* HC = 0 */
    if (inportb(PC98_MOUSE_RPORT_C) & 0x80 != 0) {
-      fprintf(stderr, "pc98_bus: mouse not connected\n");
+      syslog(LOG_ERR, "%s pc98_bus_initialise - mouse not connected",
+             mouse_sysmsg);
       return (-1);
    }
    outportb(PC98_MOUSE_WPORT_C, 0x90);   /* HC = 1 */
    if (inportb(PC98_MOUSE_RPORT_C) & 0x80 == 0) {
-      fprintf(stderr, "pc98_bus: mouse not connected\n");
+      syslog(LOG_ERR, "%s pc98_bus_initialise - mouse not connected",
+             mouse_sysmsg);
       return (-1);
    }
    outportb(PC98_MOUSE_WPORT_C, 0x10);

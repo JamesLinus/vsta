@@ -9,8 +9,11 @@
 
 #include <stdio.h>
 #include <std.h>
+#include <syslog.h>
+#include <time.h>
+#include <mach/io.h>
 #include <sys/mman.h>
-#include "machine.h"
+#include <sys/syscall.h>
 #include "mouse.h"
 
 /*
@@ -82,16 +85,16 @@ ms_bus_interrupt(void)
     */
    switch (buttons) {                 /* simulate a 3 button mouse here */
    case 4:
-      mouse_data.pointer_data.buttons = (1 << 1);       /* left   */
+      mouse_data.pointer_data.buttons = MOUSE_LEFT_BUTTON;      /* left   */
       break;
    case 1:
-      mouse_data.pointer_data.buttons = (1 << 3);       /* right  */
+      mouse_data.pointer_data.buttons = MOUSE_RIGHT_BUTTON;     /* right  */
       break;
    case 0:
-      mouse_data.pointer_data.buttons = (1 << 2);       /* middle */
+      mouse_data.pointer_data.buttons = MOUSE_MIDDLE_BUTTON;    /* middle */
       break;
    default:
-      mouse_data.pointer_data.buttons = 0;              /* none   */
+      mouse_data.pointer_data.buttons = 0;                      /* none   */
    };
 }
 
@@ -150,7 +153,7 @@ ms_bus_initialise(int argc, char **argv)
    for(loop=1; loop<argc; loop++){
       if(strcmp(argv[loop],"-x_size") == 0){
 	 if(++loop == argc){
-	    fprintf(stderr,"Mouse: bad -x_size parameter.\n");
+	    syslog(LOG_ERR, "%s bad -x_size parameter", mouse_sysmsg);
 	    break;
 	 }
 	 mouse_data.pointer_data.x   = atoi(argv[loop])/2;
@@ -158,7 +161,7 @@ ms_bus_initialise(int argc, char **argv)
       }
       if(strcmp(argv[loop],"-y_size") == 0){
 	 if(++loop == argc){
-	    fprintf(stderr,"Mouse: bad -y_size parameter.\n");
+	    syslog(LOG_ERR, "%s bad -y_size parameter", mouse_sysmsg);
 	    break;
 	 }
 	 mouse_data.pointer_data.y   = atoi(argv[loop])/2;
@@ -170,7 +173,7 @@ ms_bus_initialise(int argc, char **argv)
     * Get our hardware ports.
     */
    if (enable_io(MICROSOFT_LOW_PORT, MICROSOFT_HIGH_PORT) < 0) {
-      fprintf(stderr, "Mouse: Unable to enable I/O ports for mouse.\n");
+      syslog(LOG_ERR, "%s unable to enable I/O ports for mouse", mouse_sysmsg);
       return (-1);
    }
 
@@ -207,6 +210,7 @@ ms_bus_initialise(int argc, char **argv)
    outportb(MS_BUS_CONTROL_PORT, MS_BUS_START);
    MS_BUS_INT_ON();
 
-   printf("Microsoft Bus mouse detected and installed.\n");
+   syslog(LOG_INFO, "%s Microsoft bus mouse detected and installed",
+          mouse_sysmsg);
    return (0);
 }
