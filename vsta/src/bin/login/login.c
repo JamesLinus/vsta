@@ -129,6 +129,7 @@ login(struct uinfo *u)
 	int x;
 	port_t port;
 	struct perm perm;
+	char buf[128];
 
 	/*
 	 * Activate root abilities
@@ -145,7 +146,7 @@ login(struct uinfo *u)
 	 * by setting 1--after this, we only hold the abilities of
 	 * the user logging on.
 	 */
-	for (x = 1; x < PROCPERMS; ++x) {
+	for (x = 0; x < PROCPERMS; ++x) {
 		if (x == 1) {
 			continue;
 		}
@@ -161,7 +162,7 @@ login(struct uinfo *u)
 	/*
 	 * Give up our powers
 	 */
-	perm_ctl(1, &u->u_perms[0], (void *)0);
+	perm_ctl(1, &u->u_perms[1], (void *)0);
 
 	/*
 	 * Re-initialize.  The /env server otherwise still believes
@@ -182,8 +183,10 @@ login(struct uinfo *u)
 	 * common part of our environment so all processes under this
 	 * login will share it.
 	 */
-	setenv("../USER", u->u_acct);
-	setenv("../HOME", u->u_home);
+	sprintf(buf, "/%s/USER", u->u_env);
+	setenv(buf, u->u_acct);
+	sprintf(buf, "/%s/HOME", u->u_env);
+	setenv(buf, u->u_home);
 
 	/*
 	 * If we can chdir to their home, set up their mount
