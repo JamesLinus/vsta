@@ -4,7 +4,6 @@
  */
 #include <sys/perm.h>
 #include <sys/fs.h>
-#include <namer/namer.h>
 #include <lib/hash.h>
 #include <stdio.h>
 #include <kbd/kbd.h>
