@@ -64,3 +64,15 @@ isprint(int c) {
 isascii(int c) {
 	return (((int)(c) >= 0) && ((int)(c) <= 0x7F));
 }
+tolower(int c) {
+	if (isupper(c)) {
+		return(c - 'A' + 'a');
+	}
+	return(c);
+}
+toupper(int c) {
+	if (islower(c)) {
+		return(c - 'a' + 'A');
+	}
+	return(c);
+}

@@ -40,6 +40,8 @@ extern unsigned char __ctab[];
 #define ispunct(c) (!iscntrl(c) && !isalnum(c))
 #define isprint(c) (!iscntrl(c))
 #define isascii(c) (((int)(c) >= 0) && ((int)(c) <= 0x7F))
+#define tolower(c) (isupper(c) ? ((c) - 'A' + 'a') : c)
+#define toupper(c) (islower(c) ? ((c) - 'a' + 'A') : c)
 #endif /* !_CT_NOMACS */
 
 #endif /* _CTYPE_H */
