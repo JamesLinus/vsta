@@ -60,6 +60,7 @@ file_grow(struct buf *b_fs, struct fs_file *fs, ulong newsize)
 			return(1);
 		}
 		fs = index_buf(b_fs, 0, 1);
+		a = &fs->fs_blks[fs->fs_nblk-1];
 
 		/*
 		 * Update extent information
@@ -234,6 +235,7 @@ do_write(struct openfile *o, ulong pos, char *buf, uint cnt)
 		 * Find appropriate extent
 		 */
 		b2 = bmap(b, fs, pos, cnt, &blkp, &step);
+		fs = index_buf(b, 0, 1);
 		if (!b2) {
 			result = 1;
 			break;
