@@ -66,6 +66,7 @@ static struct {
 	{ EBALIGN, "blk align" },
 	{ ESYMLINK, "symlink" },
 	{ ELOOP, "symlink loop" },
+	{ ENOSYS, "no sys" },
 	{ 0, 0 }
 };
 

@@ -94,6 +94,7 @@
 #define ELOOP "symlink loop"
 #define ENOTSUP "!supported"
 #define EOPNOTSUPP ENOTSUP
+#define ENOSYS "no sys"
 
 /*
  * A stat of an entry returns a set of strings with newlines
