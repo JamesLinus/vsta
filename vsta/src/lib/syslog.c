@@ -71,19 +71,17 @@ pidstr(void)
  * We just dump them to the console
  */
 void
-syslog(int level, const char *msg, ...)
+vsyslog(int level, const char *msg, va_list ap)
 {
 	port_t p;
 	int fd;
 	char buf[256];
-	va_list ap;
 
 	p = path_open("CONS:0", ACC_WRITE);
 	if (p < 0) {
 		return;
 	}
 	fd = __fd_alloc(p);
-	va_start(ap, msg);
 	sprintf(buf, "syslog: %s %s%s: ",
 		id ? id : "", pidstr(), levelmsg(level));
 	vsprintf(buf + strlen(buf), msg, ap);
@@ -92,4 +90,17 @@ syslog(int level, const char *msg, ...)
 	}
 	write(fd, buf, strlen(buf));
 	close(fd);
+}
+
+/*
+ * syslog()
+ *	Report error conditions
+ */
+void
+syslog(int level, const char *msg, ...)
+{
+	va_list ap;
+
+	va_start(ap, msg);
+	vsyslog(level, msg, ap);
 }
