@@ -10,19 +10,9 @@
  * Pentium class processors won't notice so that's alright too!
  */
 #include "assym.h"
-
-/* Current thread executing */
-	.globl	_cpu
-#define CURTHREAD (_cpu+PC_THREAD)
+#include <sys/multiboot.h>
 
 	.data
-	.globl	_free_pfn,_size_ext,_size_base,_boot_pfn
-
-_free_pfn: .space	4	/* PFN of first free page beyond data */
-_size_base: .space	4	/* # pages of base (< 640K) memory */
-_size_ext:  .space	4	/*  ... extended (> 1M) memory */
-_boot_pfn:  .space	4	/* PFN of first boot task */
-
 	.align	4
 	.space	0x1000
 
@@ -32,6 +22,14 @@ _id_top:
 	.globl	_id_stack,_id_top
 
 /*
+ * Multiboot memory config pointer
+ */
+_cfg_base:
+	.space	4
+
+	.globl	_cfg_base
+
+/*
  * Entered through 32-bit task gate constructed in 16-bit mode
  *
  * Our parameters are passed on the stack, which is located
@@ -39,17 +37,37 @@ _id_top:
  * we must switch it down to a proper stack.
  */
 	.text
-	.globl	_start,_main,_panic
+	.globl	_start,__start,_main,_panic
 	.align	4
 
-#define GETP(var) popl %eax ; movl %eax,_##var
+__start:
+_start:	jmp	1f
 
-_start:
-	GETP(free_pfn)
-	GETP(size_ext)
-	GETP(size_base)
-	GETP(boot_pfn);
-#undef GETP
+	.align	2
+_header:
+
+/* Align on 4k, give mem info, mem parameters supplied */
+#define MULTIBOOT_OPTS (MULTIBOOT_PAGE_ALIGN+MULTIBOOT_MEMORY_INFO+\
+		MULTIBOOT_AOUT_KLUDGE)
+
+	/*
+	 * Multiboot header
+	 */
+	.long	MULTIBOOT_MAGIC		/* Magic */
+	.long	MULTIBOOT_OPTS		/* Options */
+	.long	(~0-(MULTIBOOT_MAGIC+MULTIBOOT_OPTS))+1
+					/* Checksum */
+	.long	_header			/* Addr of this header */
+	.long	_start			/*  ...start of text */
+	.long	__edata			/*  ...end of data */
+	.long	__end			/*  ...end of program */
+	.long	_start			/*  ...entry point */
+
+1:
+	/*
+	 * EBX has a multiboot_info, which our C code will peruse
+	 */
+	movl	%ebx,_cfg_base
 
 	/*
 	 * Call our first C code on the idle stack
@@ -322,6 +340,32 @@ _retuser:
 	 * Back to whence we came...
 	 */
 	iret
+
+/*
+ * refresh_segregs()
+ *	Load all segment registers with values to match our GDT
+ */
+	.globl	_refresh_segregs
+_refresh_segregs:
+	/* es/ds/ss get our data segment */
+	movw $(GDT_KDATA),%ax
+	mov	%ax,%ds
+	mov	%ax,%es
+	mov	%ax,%ss
+
+	/* Trap stray references */
+	xorl	%eax,%eax
+	mov	%ax,%fs
+	mov	%ax,%gs
+
+	/* Refresh CS */
+	pushl	$(GDT_KTEXT)
+	pushl	$1f
+	lret
+1:
+
+	/* All done */
+	ret
 
 /*
  * Templates for entry handling.  IDTERR() is for entries which

@@ -12,6 +12,7 @@ include ../mach/makefile.inc
 DEFS= -DKERNEL -DKDB -DDEBUG
 CFLAGS= $(DEFS) $(INCS) -O2
 LIBS= ../../lib/libusr.a
+LDFLAGS=-Ttext 0x100020 -Tvsta.lnk
 
 
 config: config.c
@@ -148,13 +149,12 @@ OBJS=$(MACHOBJS) \
 	exec.o exitgrp.o ptrace.o pstat.o dbgmain.o \
 	dump.o expr.o lex.o names.o dbgproc.o
 
-vsta: $(OBJS) dbsym
-	$(LD) -e _start -o vsta $(OBJS) $(LIBS)
+vsta: nostrip dbsym
 	./dbsym vsta
 	$(STRIP) vsta
 
 nostrip: $(OBJS)
-	$(LD) -e _start -o vsta $(OBJS) $(LIBS)
+	$(LD) $(LDFLAGS) -o vsta $(OBJS) $(LIBS)
 
 dbsym: ../dbg/dbsym.c
 	$(CC) $(DEFS) -o dbsym ../dbg/dbsym.c

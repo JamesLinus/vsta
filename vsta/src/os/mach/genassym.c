@@ -49,6 +49,7 @@ main(int argc, char **argv)
 	 * Simple constants
 	 */
 	CONST(GDT_KDATA);
+	CONST(GDT_KTEXT);
 	CONST(CR0_EM);
 	CONST(CR0_TS);
 

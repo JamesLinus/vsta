@@ -17,29 +17,32 @@
 #include <mach/machreg.h>
 #include <std.h>
 #include <sys/pstat.h>
+#include <sys/multiboot.h>
 #include "../mach/locore.h"
 
 #define K (1024)
 
-/* a.out header is part of first page of text */
-#define KERN_AOUT_HDR ((struct aout *)0x1000)
-
 extern void init_trap();
 
 char *mem_map_base;	/* Base of P->V mapping area */
-char *heap,		/* Physical heap used during bootup */
-	*heapstart;	/* Where it starts */
+char *heap;		/* Physical heap used during bootup */
 
 struct percpu cpu;	/* Only one for i386 uP */
 uint ncpu = 1;
 struct percpu *nextcpu = &cpu;
 
 struct boot_task *boot_tasks;
-uint nboot_task = 0;
+uint nboot_task;
 
 struct rmap *vmap;	/* Map for virtual memory */
 
 uint freel1pt;		/* First free slot after bootup */
+
+/*
+ * Values extracted from Multiboot header(s)
+ */
+uint size_base, size_ext;
+static struct multiboot_module *mod_ptr;
 
 /*
  * The two memory ranges supported under i386/ISA.  The size of
@@ -52,22 +55,116 @@ pte_t *cr3;
 int bootpgs;		/* Pages of memory available at boot */
 
 /*
- * init_mem()
- *	Set up to use all of memory
+ * interp_multiboot()
+ *	Take multiboot mem config, extract what we need
  */
 static void
-init_mem(void)
+interp_multiboot(struct multiboot_info *mi)
 {
+	ASSERT(mi->flags & MULTIBOOT_MEMORY, "interp_multiboot: no mem");
+	size_base = mi->mem_lower * K;
+	size_ext = mi->mem_upper * K;
+	mod_ptr = (void *)mi->mods_addr;
+	nboot_task = mi->mods_count;
+}
+
+/*
+ * patch_args()
+ *	Take the argument string, and patch it into a VSTa boot server
+ *
+ * This is a very basic argument line being passed; we don't honor
+ * quotes or any such nonsense.
+ *
+ * The layout of the memory area is:
+ *	32 bytes a.out header
+ *	8 bytes of a jump around the argument patch area to L1
+ *	argc
+ *	0xDEADBEEF (argv[0])
+ *	MAXARG << 16 | ARGSIZE (argv[1])
+ *	argv[2]
+ *	...
+ *	arg string area (ARGSIZE bytes)
+ * L1:	<rest of text segment>
+ */
+static void
+patch_args(struct aout *a, char *args)
+{
+	char *p;
+	int maxnarg, maxarg, argoff, len;
+	ulong *lp;
+	uint headsz = sizeof(struct aout) + 2*sizeof(ulong);
+
 	/*
-	 * Enable the high address stuff.  It hangs off the
-	 * keyboard controller.  Brilliant.
+	 * Trim absolute path off first arg
 	 */
-	while (inportb(KEYBD_STATUS) & KEYBD_BUSY)
-		;
-	outportb(KEYBD_STATUS, KEYBD_WRITE);
-	while (inportb(KEYBD_STATUS) & KEYBD_BUSY)
-		;
-	outportb(KEYBD_DATA, KEYBD_ENAB20);
+	if (*args == '/') {
+		while (*args && (*args != ' ')) {
+			++args;
+		}
+		while (*--args != '/')
+			;
+		++args;
+	}
+	p = args;
+	len = strlen(p)+1;
+
+	/*
+	 * Skip a.out header and initial jmp instruction.  Keep a pointer
+	 * to the memory.
+	 */
+	lp = (ulong *)((char *)a + headsz);
+
+	/*
+	 * Verify that the dummy area exists; otherwise we're trying
+	 * to pass boot arguments to a process not linked for it.
+	 */
+	if (lp[1] != 0xDEADBEEFL) {
+		printf("Error: %s\n", args);
+		ASSERT(0, "Not linked for boot arguments");
+	}
+
+	/*
+	 * Extract maxnarg and maxarg.  Calculate offset to base
+	 * of string area.
+	 */
+	maxnarg = lp[2] & 0xFFFF;
+	maxarg = (lp[2] >> 16) & 0xFFFF;
+	argoff = sizeof(ulong) + maxnarg*sizeof(ulong);
+
+	/*
+	 * Make sure it'll fit
+	 */
+	if (len > maxarg) {
+		printf("Error: %s\n", args);
+		ASSERT(0, "Arguments too long");
+	}
+
+	/*
+	 * Fill in argv while advancing argc.  In the process,
+	 * convert our argument strings to null-termination.
+	 */
+	while (p) {
+		if (lp[0] >= maxnarg) {
+			printf("Error: %s\n", args);
+			ASSERT(0, "Too many arguments");
+		}
+		lp[lp[0]+1] =		/* argv */
+			(p-args)+argoff+NBPG+headsz;
+		while (*p && (*p != ' ')) {
+			++p;
+		}
+		if (!*p) {
+			p = 0;
+		} else {
+			*p++ = '\0';
+		}
+		lp[0] += 1;		/* argc */
+	}
+
+	/*
+	 * Blast the buffer down into place, just beyond argc+argv
+	 */
+	bcopy(args, &lp[maxnarg+1], len);
 }
 
 /*
@@ -82,7 +179,8 @@ init_machdep(void)
 	struct boot_task *b;
 	int have_fpu, x, y, pgs;
 	ulong cr0;
-	extern uint free_pfn, size_base, size_ext, boot_pfn;
+	extern struct multiboot_info *cfg_base;
+	extern char _end[];
 
 	/*
 	 * Probe FPU
@@ -110,70 +208,110 @@ init_machdep(void)
 	set_cr0(cr0);
 
 	/*
-	 * Set up memory control
+	 * Get memory configuration from multiboot
 	 */
-	init_mem();
+	interp_multiboot(cfg_base);
 
 	/*
 	 * Apply sanity checks to values our boot loader provided.
 	 */
-	ASSERT(size_base == 640*K, "need 640K base mem");
+	ASSERT(size_base > 630*K, "need 640K base mem");
 	ASSERT(size_ext >= K*K, "need 1M extended mem");
 	memsegs[0].m_base = 0;
-	memsegs[0].m_len = 640*K;
+	memsegs[0].m_len = size_base;
 	memsegs[1].m_base = (void *)(K*K);
 	memsegs[1].m_len = size_ext;
+
+	/*
+	 * Cap at 15 megs until we get a bounce buffer set up for
+	 * our ISA bus DMA devices (sigh).
+	 */
 	if (size_ext > 15*K*K) {
 		memsegs[1].m_len = 15*K*K;
 	}
 
 	/*
-	 * Set up our heap.  Amusingly, because data starts at 4 Mb
-	 * but text is 1:1, our heap lies between text and data.
-	 * Because only the first 640K is contiguous, "heap" can't be
-	 * used for any really large data structures.  This *IS* a
-	 * microkernel....
-	 *
-	 * N.B., this is the bootup heap.  Once we're up the malloc()
-	 * interface can use any memory on the system.
+	 * Point heap at first byte beyond _end; it will almost
+	 * certainly be advanced past boot tasks next, but this
+	 * makes it possible to test the kernel by itself.
 	 */
-	heapstart = heap = (char *)ptob(free_pfn);
+	if (nboot_task == 0) {
+		heap = (void *)_end;
+	}
 
 	/*
-	 * Starting at "end" we have one or more task images.  We
+	 * Multiboot will have deposited zero or more (likely more)
+	 * modules.  We
 	 * must manually construct processes for them so that they
 	 * will be scheduled when we start running processes.  This
-	 * technique is used to avoid having to imbed boot drivers/
+	 * technique is used to avoid having to embed boot drivers/
 	 * filesystems/etc. into the microkernel.  We're not ready
 	 * to do full task creation, but now is a good time to
 	 * tabulate them.
+	 *
+	 * We do this in two passes; the first time, to find the first
+	 * free page beyond the boot tasks (to start the heap), and then
+	 * a second to tabulate the boot images using data structures
+	 * carved from the heap.
 	 */
-	a = (struct aout *)ptob(boot_pfn);
-	b = boot_tasks = (struct boot_task *)heap;
-	while ((char *)a < heapstart) {
-		/*
-		 * Convert from a.out-ese into a more generic
-		 * representation.
-		 */
-		b->b_pc = a->a_entry;
-		b->b_textaddr = (char *)NBPG;
-		b->b_text = btorp(a->a_text + sizeof(struct aout));
-		b->b_dataaddr = (void *)(NBPG*K);
-		b->b_data = btorp(a->a_data + a->a_bss);
-		b->b_pfn = btop(a);
+	else for (x = 0; x < 2; ++x) {
+		struct multiboot_module *m;
 
 		/*
-		 * Advance and iterate until we run into the first
-		 * free page (and thus, the last boot task)
+		 * When we have the heap, get our boot_tasks table
 		 */
-		nboot_task += 1;
-		++b;
-		a = (struct aout *)((char *)a +
-			(sizeof(struct aout) +
-			 a->a_text + a->a_data + a->a_bss));
-		a = (struct aout *)roundup(a, NBPG);
+		if (x) {
+			b = boot_tasks = (void *)heap;
+			heap += sizeof(struct boot_task) * nboot_task;
+		}
+
+		/*
+		 * Walk the multiboot modules
+		 */
+		for (y = 0, m = mod_ptr; y < nboot_task; ++y, ++m, ++b) {
+			/*
+			 * Convert from a.out-ese into a more generic
+			 * representation.
+			 */
+			if (x) {
+				a = (struct aout *)m->mod_start;
+#ifdef DEBUG
+				printf("%d: %x/%x/%x @ %x mod %x\n",
+					y,
+					a->a_text, a->a_data, a->a_bss,
+					a, m);
+#endif
+				/*
+				 * Record next entry
+				 */
+				b->b_pc = a->a_entry;
+				b->b_textaddr = (char *)NBPG;
+				b->b_text = btorp(a->a_text +
+					sizeof(struct aout));
+				b->b_dataaddr = (void *)(NBPG*K);
+				b->b_data = btorp(a->a_data);
+				b->b_bss = btorp(a->a_bss);
+				b->b_pfn = btop(a);
+
+				/*
+				 * Patch in the arguments.  I claim
+				 * that there should be a way to make
+				 * the Multiboot loader do this, but
+				 * for now there isn't, so here we go.
+				 */
+				patch_args(a, (char *)m->string);
+			} else {
+				/*
+				 * First pass, just record first
+				 * address beyond end of modules
+				 * so we have heap start.
+				 */
+				if (m->mod_end > (ulong)heap) {
+					heap = (void *)m->mod_end;
+				}
+			}
+		}
 	}
-	heap = (char *)b;
 
 	/*
 	 * Get a resource map for our utility virtual pool.  The PTEs
@@ -199,35 +337,20 @@ init_machdep(void)
 	bzero(cr3, NBPG);
 
 	/*
-	 * Build entry 0--1:1 map for text.  Note we start at index 1
+	 * Build entry 0--1:1 map for text+data.  Note we start at index 1
 	 * to leave an invalid page at vaddr 0--this catches null
-	 * pointer accesses, usually.  We still map low memory 1:1,
-	 * since we continue to use the heap until the page pool can
-	 * be initialized.
+	 * pointer accesses, usually.
 	 */
 	pt = (pte_t *)heap; heap += NBPG;
 	cr3[L1PT_TEXT] = (ulong)pt | PT_V|PT_W;
-	bzero(pt, NBPG);
+	pt[0] = 0;
 	for (x = 1; x < NPTPG; ++x) {
 		pt[x] = (x << PT_PFNSHIFT) | PT_V|PT_W;
 	}
 
 	/*
-	 * Build entry 1--map of data.  Data always starts at 4 Mb
-	 * virtual, but its actual contents is merely the next physical
-	 * page after the end of text.  This is calculated as one
-	 * page for the invalid NULL page, the size of the a.out header
-	 * (which resides just before text), and the size of text
-	 * itself.
+	 * Entry 1--unused
 	 */
-	pt = (pte_t *)heap; heap += NBPG;
-	cr3[L1PT_DATA] = (ulong)pt | PT_V|PT_W;
-	bzero(pt, NBPG);
-	x = btorp(NBPG + sizeof(struct aout) + KERN_AOUT_HDR->a_text);
-	pgs = btorp(KERN_AOUT_HDR->a_data + KERN_AOUT_HDR->a_bss);
-	for (y = 0; y < pgs; ++x,++y) {
-		pt[y] = (x << PT_PFNSHIFT) | PT_V|PT_W;
-	}
 
 	/*
 	 * Entry 2--recursive map of page tables
@@ -266,6 +389,12 @@ init_machdep(void)
 	 * Switch to our own PTEs
 	 */
 	set_cr3((ulong)cr3);
+
+	/*
+	 * Turn on paging mode
+	 */
+	cr0 |=  CR0_PG;
+	set_cr0(cr0);
 
 	/*
 	 * Leave index of next free slot in kernel part of L1PTEs.
