@@ -150,6 +150,10 @@ dump_proc(struct proc *p, int brief)
 	}
 	printf("\n prot: "); dump_prot(&p->p_prot);
 	printf(" ids:"); dump_ids(p->p_ids);
+#ifdef PROC_DEBUG
+	printf(" debug port/name: 0x%x/0x%x flags 0x%x\n",
+		p->p_dbg.pd_port, p->p_dbg.pd_name, p->p_dbg.pd_flags);
+#endif
 }
 
 /*
