@@ -132,6 +132,9 @@ mmap(void *addr, ulong len, int prot, int flags,
 		 * as necessary, so just use the open file.
 		 */
 		pr = find_portref(p, port);
+		if (pr == 0) {
+			return(0);
+		}
 		v_lock(&pr->p_lock, SPL0_SAME);
 
 		/*
