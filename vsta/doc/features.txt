@@ -254,3 +254,54 @@ Fix some more long-filename compilation errors.
 Have DLL loader ld.shl try the truncated 8.3 filename in addition to
 	the full DLL name.  This helps when the VSTa distribution was
 	loaded via a utility which only supports 8.3 filenames.
+
+1.6.5
+Added FS_BLK{READ,WRITE} operations to support true sector-oriented
+	I/O.  Offsets and counts are in units of 512-byte sectors, and
+	thus the 4 gigabyte offset limit of byte-oriented I/O is
+	avoided.  vsta/src/lib/abc.c uses this, and falls back to
+	the old I/O primitives if it finds these not supported.
+	For now, IDE supports it.
+Filename completion is available in the shell.  TBD... right now it's
+	a separate plug-in from libusr.a; should it be made a part of
+	getline()?  When should it be active versus the regular tab
+	expansion function?
+TTY state (vsta/src/lib/tty.c) is now per-TTY.
+Added "dev" FS_STAT parameter to the console server, also fixed a bug
+	where interrupts didn't clear typeahead.
+Fixed shift key rollover--if you hold one shift, then the other,
+	then release the first, you'll still be shifted until you
+	release the final key.
+Converted current regexp package to use libregexp.a (note the new 'p').
+	This is made possible by long filenames in VFAT, and makes
+	room for...
+Ported POSIX libregex.a package.
+Ported BSD's expr.
+Added lots more details on how to implement select() in a server.
+	See /vsta/doc/select.txt
+RS-232 server now supports select().
+Fix output positioning so things like "make > make.log" now give you
+	usable output.  Fixed some latent race conditions in port
+	duplication messaging.
+Made the shell use wait.h macros; non-zero exits don't get listed
+	as signal terminations now.
+Shell doesn't hang on pipe when doing some types of here documents.
+Add some options to kill, and convert to getopt().
+Create aliases for awk (=gawk), egrep/fgrep (=grep), [ (=test).
+	We still have cc (=gcc).
+hostname emulated in shell script using uname.
+Fix long-standing latent bug in "fstab" with no arguments.
+Ported vim-5.7... multiple edit buffers, filename completion,
+	lotsa good stuff.  The new one is more than 3x the size
+	of the old one, though, so I'm going to keep the old
+	one available for now as "ovim".
+access for W_OK doesn't change the file's mtime any more.
+Since the output positioning fix spares us needing to do clone()
+	operations on each fork(), I've decided to live it up and
+	have /vsta/bin mounted as /bin as a standard configuration.
+	This means standard shell scripts which start with #!/bin/sh
+	will now work, too.
+Ported file utility.
+Fixed up libgcc.a so it holds all the functions needed for floats,
+	doubles, and long longs.
+Port of dosfsck... native filesystem checking of DOS filesystems

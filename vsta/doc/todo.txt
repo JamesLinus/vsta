@@ -355,3 +355,8 @@ I've been trying to get a handle on a bug which hoses the first text
 	reproduce.
 
 In a release or so, /bin/ovim should go away.
+
+The pipe server should be made to buffer data rather than always
+	lock a writer until there's a reader for his data.  It should
+	still, of course, do a direct writer->reader I/O op for
+	cases where the reader is present at the time of the write.
