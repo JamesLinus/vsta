@@ -27,11 +27,11 @@ there (bounce buffers and such) but it is not completely implemented.
 VSTa has driver support for ST-506, IDE, and Adaptec 1542[bc] disk
 interfaces.  It supports floppy drives, MGA and CGA monitors, RS-232
 interfaces, parallel interfaces, NE2000 LAN cards, and bus or serial mice.
-Under SCSI, it also supports CDROM.
+Under SCSI, it also supports CDROM and tape.
 
-VSTa has a port to the Amiga with 68030 in progress.  At last status report
-the kernel would boot and run simple tasks, and interrupt handling was being
-brought up next.
+VSTa has a port to the Amiga with 68030.  It supports the display,
+keyboard, and SCSI disk.  While operational, it is not being actively
+maintained.
 
 VSTa has people looking at ports to R3000's and SPARC's.  No bootable code
 has been reported yet.
@@ -78,13 +78,7 @@ kernel interfaces.  More will be added (time permitting :->).
 
 Finally, the code itself has relatively consistent and numerous comments.
 
-6. I created a root user, but nothing works for me!
-
-The protection system uses your ID for the default protection on object
-creation.  You should specify a non-zero length ID, and add a root ID as one
-of the "extra" ones.  See the file /vsta/etc/group.
-
-7. I boot up, and see the disk blink, but my screen doesn't show anything
+6. I boot up, and see the disk blink, but my screen doesn't show anything
 
 The default in boot/boot.lst is for a CGA system.  MGA cards place text at a
 different address; add the -mga flag to the "cons" server.
@@ -92,21 +86,21 @@ different address; add the -mga flag to the "cons" server.
 The kernel debugger also needs to be flagged this way; you need to edit
 the file os/mach/dbg_ibm.c and then rebuild your kernel.
 
-8. Does it network?
+7. Does it network?
 
-An initial port of KA9Q has been done.  It uses the ne2000 driver and can be
-used to telnet and FTP.  Some code has been written to provide a /tcp server
-so that, for instance, a telnetd can be run to allow logins via the net.
+A port of KA9Q has been done.  It uses the ne2000 driver and can be
+used to telnet and FTP.  KA9Q provides a /inet filesystem interface,
+which processes can open and use to receive and initiate TCP connections.
+A telnetd has been implemented, permitting network logins to VSTa.
 
-9. What's being developed for VSTa?
+8. What's being developed for VSTa?
 
 Ports are in various states of progress for the m68k, R3000, and SPARC.
 People are working on a windowing system, a Linux filesystem, a BSD
-filesystem, a /proc filesystem, more networking.  For SCSI, tape support is
-in progress.  A list, maintained by Gavin Nicol (gtn@ebt.com) is posted to
-the mailing list periodically.
+filesystem, and more networking.  A list, maintained by Gavin Nicol
+(gtn@ebt.com) is posted to the mailing list periodically.
 
-10. What list is that?
+9. What list is that?
 
 We run a VSTa mailing list.  Send a subscription request to:
 
@@ -123,7 +117,7 @@ A digest format is available; specify this in your subscription request
 if you prefer it.  Our digest algorithm is to wait up to three days to
 collect three messages.
 
-11. That's a lot of text to search!  Is there an archive?
+10. That's a lot of text to search!  Is there an archive?
 
 Here's a collection of technical information culled form the list.  Thanks
 to David Johnson for doing this!
