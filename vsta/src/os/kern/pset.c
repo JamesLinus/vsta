@@ -597,6 +597,7 @@ copy_pset(struct pset *ops)
 void
 deref_slot(struct pset *ps, struct perpage *pp, uint idx)
 {
+	ASSERT_DEBUG(pp->pp_refs > 0, "deref_slot: zero");
 	pp->pp_refs -= 1;
 }
 
@@ -610,6 +611,7 @@ void
 ref_slot(struct pset *ps, struct perpage *pp, uint idx)
 {
 	pp->pp_refs += 1;
+	ASSERT_DEBUG(pp->pp_refs > 0, "ref_slot: overflow");
 }
 
 /*
