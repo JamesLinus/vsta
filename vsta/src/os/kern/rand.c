@@ -9,7 +9,7 @@ static ulong state = 0L;
 ulong
 random(void)
 {
-	return((state * 1103515245L + 12345L) & 0x7fffffffL);
+	return((state = (state * 1103515245L + 12345L)) & 0x7fffffffL);
 }
 
 void
