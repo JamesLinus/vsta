@@ -656,7 +656,7 @@ inetfs_stat(struct msg *m, struct client *cl)
  *	Clean up pending I/O on the given llist queue
  */
 static void
-cleario(struct llist *l, char *err)
+cleario(struct llist *l, char *err, struct tcp_conn *c)
 {
 	struct client *cl;
 
@@ -671,9 +671,13 @@ cleario(struct llist *l, char *err)
 		} else {
 			m->m_nseg = m->m_arg = m->m_arg1 = 0;
 			msg_reply(m->m_sender, m);
+			if (c) {
+				cl->c_pos = c->t_conn;
+			}
 		}
 	}
 }
+
 /*
  * inetfs_state()
  *	Callback for connection state change
@@ -697,8 +701,10 @@ inetfs_state(struct tcb *tcb, char old, char new)
 			c2 = create_conn(c->t_port);
 			c2->t_tcb = tcb;
 			tcb->user = c2;
+		} else {
+			c2 = 0;
 		}
-		cleario(&c->t_writers, 0);
+		cleario(&c->t_writers, 0, c2);
 		break;
 
 	case FINWAIT1:
@@ -707,8 +713,8 @@ inetfs_state(struct tcb *tcb, char old, char new)
 	case LAST_ACK:
 	case TIME_WAIT:
 		if (c) {
-			cleario(&c->t_readers, EIO);
-			cleario(&c->t_writers, EIO);
+			cleario(&c->t_readers, EIO, 0);
+			cleario(&c->t_writers, EIO, 0);
 		}
 		break;
 
