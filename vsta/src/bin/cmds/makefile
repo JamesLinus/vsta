@@ -6,7 +6,8 @@ OBJS= args.o basename.o cat.o changed.o chmod.o cp.o du.o dumpsect.o \
 	echo.o fmt.o fstab.o id.o kill.o ls.o man.o mkdir.o \
 	mv.o printf.o ps.o purge.o pwd.o rcsdo.o rm.o rmdir.o \
 	sleep.o stat.o strings.o swapd.o test.o touch.o tput.o \
-	uname.o wc.o which.o xargs.o
+	uname.o wc.o which.o xargs.o dump.o operator.o
+
 include ../../makefile.all
 
 rcsdo: rcsdo.o
