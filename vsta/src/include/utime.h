@@ -13,4 +13,7 @@ struct utimbuf {
 	time_t actime;		/* Access time */
 	time_t modtime;		/* Modification time */
 };
+
+extern int utime(const char *, struct utimbuf *);
+
 #endif /* _UTIME_H */

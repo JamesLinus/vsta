@@ -37,5 +37,6 @@ extern struct tm *gmtime(time_t *), *localtime(time_t *);
 extern int __usleep(int);
 extern int __msleep(int);
 extern time_t time(time_t *);
+extern int utimes(const char *, struct timeval *);
 
 #endif /* _TIME_H */
