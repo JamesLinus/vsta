@@ -20,10 +20,10 @@ lookup(struct file *f, char *name, int searchup)
 	struct llist *l;
 
 	n = f->f_node;
-	ASSERT_DEBUG(n->n_internal, "env lookup: not a dir");
+	ASSERT_DEBUG(DIR(n), "env lookup: not a dir");
 	for (; n; n = n->n_up) {
-		for (l = n->n_elems.l_forw;
-				l != &n->n_elems; l = l->l_forw) {
+		for (l = LL_NEXT(&n->n_elems);
+				l != &n->n_elems; l = LL_NEXT(l)) {
 			n2 = l->l_data;
 			if (!strcmp(n2->n_name, name)) {
 				return(n2);
@@ -48,22 +48,36 @@ lookup(struct file *f, char *name, int searchup)
 void
 env_open(struct msg *m, struct file *f)
 {
-	struct node *n;
-	struct prot *p;
-	int creating = (m->m_arg & ACC_CREATE);
+	struct node *n, *nold = f->f_node;
+	int creating = (m->m_arg & ACC_CREATE), home;
+	char *nm;
 
 	/*
-	 * Make sure it's a "directory"
+	 * Make sure it's a "directory", cap length.
 	 */
-	if (!f->f_node->n_internal) {
+	if (!DIR(nold) || (strlen(m->m_buf) >= NAMESZ)) {
 		msg_err(m->m_sender, EINVAL);
 		return;
 	}
 
 	/*
-	 * See if you can find an existing entry
+	 * "#" refers to a "magic" copy-on-write invisible node
 	 */
-	n = lookup(f, m->m_buf, !creating);
+	nm = m->m_buf;
+	if (!strcmp(nm, "#")) {
+		home = 1;
+	} else {
+		home = 0;
+	}
+
+	/*
+	 * See if we can find an existing entry
+	 */
+	if (!home) {
+		n = lookup(f, nm, !creating);
+	} else {
+		n = f->f_home;
+	}
 
 	/*
 	 * If found, verify access and type of use
@@ -77,7 +91,7 @@ env_open(struct msg *m, struct file *f)
 		/*
 		 * If creating on an existing file, truncate
 		 */
-		if (creating) {
+		if ((creating) && !DIR(n)) {
 			deref_val(n->n_val);
 			n->n_val = alloc_val("");
 		}
@@ -85,9 +99,9 @@ env_open(struct msg *m, struct file *f)
 		/*
 		 * Move current reference to new node
 		 */
-		f->f_node->n_refs -= 1;
+		deref_node(nold);
 		f->f_node = n;
-		n->n_refs += 1;
+		ref_node(n);
 		f->f_pos = 0L;
 		m->m_buflen = m->m_nseg = m->m_arg = m->m_arg1 = 0;
 		msg_reply(m->m_sender, m);
@@ -112,44 +126,49 @@ env_open(struct msg *m, struct file *f)
 	}
 
 	/*
-	 * malloc the new node
+	 * Get the new node
 	 */
-	if ((n = malloc(sizeof(struct node))) == 0) {
-		msg_err(m->m_sender, ENOMEM);
-		return;
+	n = alloc_node(f);
+	if (m->m_arg & ACC_DIR) {
+		n->n_flags |= N_INTERNAL;
+	} else {
+		n->n_val = alloc_val("");
 	}
 
 	/*
 	 * Try inserting it under the current node
 	 */
-	if (!(n->n_list = ll_insert(&f->f_node->n_elems, n))) {
-		free(n);
-		msg_err(m->m_sender, ENOMEM);
-		return;
+	if (!home) {
+		strcpy(n->n_name, nm);
+		ref_node(n);
+		if (!(n->n_list = ll_insert(&nold->n_elems, n))) {
+			deref_node(n);
+			deref_node(nold);
+			msg_err(m->m_sender, ENOMEM);
+			return;
+		}
+		/* Reference to nold done in alloc_node (n->n_up) */
+	} else {
+		struct file *f2;
+
+		/*
+		 * Switch home for all in this group
+		 */
+		f2 = f;
+		do {
+			deref_node(f2->f_home);
+			f2->f_home = n;
+			ref_node(n);
+			f2 = f2->f_forw;
+		} while (f2 != f);
 	}
 
 	/*
-	 * Fill in its fields.  Default label is the first user
-	 * label, with all the abilities requiring a full match.
+	 * Move "f" down to new node
 	 */
-	p = &n->n_prot;
-	bzero(p, sizeof(*p));
-	p->prot_len = f->f_perms[0].perm_len;
-	bcopy(f->f_perms[0].perm_id, p->prot_id, PERMLEN);
-	p->prot_bits[p->prot_len-1] =
-		ACC_READ|ACC_WRITE|ACC_CHMOD;
-	strcpy(n->n_name, m->m_buf);
-	n->n_internal = (m->m_arg & ACC_DIR) ? 1 : 0;
-	n->n_val = alloc_val("");
-	n->n_up = f->f_node;
-	ll_init(&n->n_elems);
-	n->n_refs = 2;	/* One from f->f_node, another for this open */
-
-	/*
-	 * Move "f" down to new node.  Note that we leave a reference
-	 * on the parent--it is now the reference of the child node.
-	 */
+	deref_node(nold);
 	f->f_node = n;
+	ref_node(n);
 
 	m->m_buflen = m->m_nseg = m->m_arg = m->m_arg1 = 0;
 	msg_reply(m->m_sender, m);
@@ -163,12 +182,11 @@ void
 env_remove(struct msg *m, struct file *f)
 {
 	struct node *n = f->f_node, *n2;
-	struct prot *p;
 
 	/*
 	 * Make sure we're in a "directory"
 	 */
-	if (!n->n_internal) {
+	if (!DIR(n)) {
 		msg_err(m->m_sender, EINVAL);
 		return;
 	}
@@ -205,16 +223,9 @@ env_remove(struct msg *m, struct file *f)
 		"env_remove: short ref");
 
 	/*
-	 * Trim reference counts, remove node from list, free memory.
+	 * Let the node disappear
 	 */
-	n->n_refs -= 1;
-	ll_delete(n2->n_list);
-
-	/*
-	 * Release reference to string memory, free this node
-	 */
-	deref_val(n2->n_val);
-	free(n2);
+	deref_node(n2);
 
 	m->m_buflen = m->m_nseg = m->m_arg = m->m_arg1 = 0;
 	msg_reply(m->m_sender, m);
