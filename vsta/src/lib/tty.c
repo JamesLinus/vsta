@@ -70,7 +70,7 @@ init_port(struct port *port)
 	 * Get port/device pair to find the appropriate state
 	 */
 	name = msg_portname(port->p_port);
-	p = rstat(port->p_port, "dev");
+	p = rstat(port->p_port, "inode");
 	if (p) {
 		dev = atoi(p);
 	} else {

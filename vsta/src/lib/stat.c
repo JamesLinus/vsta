@@ -217,9 +217,7 @@ fstat(int fd, struct stat *s)
 	/*
 	 * Sort out device/node fields
 	 */
-	s->st_dev = 0;
-	F(st_rdev, "dev", 0);
-	dev = s->st_rdev;
+	dev = s->st_dev = msg_portname(port);
 	s->st_rdev = makedev(dev, s->st_ino);
 
 	/*
