@@ -4,6 +4,7 @@
  */
 #include <vstafs/vstafs.h>
 #include <vstafs/alloc.h>
+#include <vstafs/buf.h>
 #include <std.h>
 
 /*
@@ -73,6 +74,7 @@ dir_lookup(struct buf *b, struct fs_file *fs, char *name)
 		 */
 		for (x = 0; x < a->a_len; x += EXTSIZ) {
 			struct fs_dirent *d;
+			struct openfile *o;
 
 			/*
 			 * Figure out size of next buffer-full
@@ -113,17 +115,34 @@ dir_lookup(struct buf *b, struct fs_file *fs, char *name)
 }
 
 /*
+ * findfree()
+ *	Find the next open directory slot
+ */
+static struct fs_dirent *
+findfree(struct fs_dirent *d, uint nent)
+{
+	while (nent > 0) {
+		if ((d->fs_clstart == 0) || (d->fs_name[0] & 0x80)) {
+			return(d);
+		}
+		nent -= 1;
+		d += 1;
+	}
+	return(0);
+}
+
+/*
  * create_file()
  *	Create the initial "file" contents
- *
- *
+ */
 static struct openfile *
 create_file(struct file *f, uint type)
 {
 	daddr_t da;
 	struct buf *b;
-	struct fs_dirent *d;
+	struct fs_file *d;
 	struct prot *p;
+	struct openfile *o;
 
 	/*
 	 * Get the block, map it
@@ -309,7 +328,7 @@ dir_newfile(struct file *f, char *name, int type)
 	 * more storage.
 	 */
 	b2 = bmap(fs, fs->fs_len, sizeof(struct fs_dirent),
-		&d, &off);
+		(char **)&d, &off);
 	if (b2 == 0) {
 		err = 1;
 		goto out;
@@ -329,10 +348,10 @@ out:
 	/*
 	 * We have a slot, so fill it in & return success
 	 */
-	strcpy(d->d_name, name);
-	d->d_clstart = o->o_file;
+	strcpy(d->fs_name, name);
+	d->fs_clstart = o->o_file;
 	dirty_buf(b2);
-	sync_buf(b2)
+	sync_buf(b2);
 	return(o);
 }
 
@@ -346,6 +365,7 @@ vfs_open(struct msg *m, struct file *f)
 	struct buf *b;
 	struct openfile *o;
 	struct fs_file *fs;
+	uint x;
 
 	/*
 	 * Get file header, but don't wire down
@@ -369,7 +389,7 @@ vfs_open(struct msg *m, struct file *f)
 	 * Look up name, make sure "fs" stays valid
 	 */
 	lock_buf(b);
-	o = dir_lookup(b, fs, m->m_buf, findent);
+	o = dir_lookup(b, fs, m->m_buf);
 	unlock_buf(b);
 
 	/*
@@ -408,7 +428,7 @@ vfs_open(struct msg *m, struct file *f)
 	/*
 	 * Check permission
 	 */
-	x = perm_calc(f->f_perms, f->f_nperm, &o->o_prot);
+	x = perm_calc(f->f_perms, f->f_nperm, &fs->fs_prot);
 	if ((m->m_arg & x) != m->m_arg) {
 		msg_err(m->m_sender, EPERM);
 		return;
@@ -451,11 +471,13 @@ vfs_close(struct file *f)
 void
 vfs_remove(struct msg *m, struct file *f)
 {
+	struct buf *b;
+	struct fs_file *fs;
 	struct openfile *o;
 	uint x;
 
 	/*
-	 * Have to be in root dir
+	 * Have to be in a dir
 	 */
 	if (f->f_file) {
 		msg_err(m->m_sender, ENOTDIR);
@@ -483,7 +505,7 @@ vfs_remove(struct msg *m, struct file *f)
 	/*
 	 * Can't be any other users
 	 */
-	if (o->o_refs > 0) {
+	if (o->o_refs > 1) {
 		msg_err(m->m_sender, EBUSY);
 		return;
 	}
@@ -491,12 +513,7 @@ vfs_remove(struct msg *m, struct file *f)
 	/*
 	 * Zap the blocks
 	 */
-	blk_trunc(o);
-
-	/*
-	 * Free the node memory
-	 */
-	freeup(o);
+	uncreate_file(o);
 
 	/*
 	 * Return success
