@@ -1433,6 +1433,13 @@ inetfs_rcv(struct tcb *tcb, int16 cnt)
 	struct tcp_conn *c = tcb->user;
 
 	/*
+	 * If we're cleaning up, ignore the data
+	 */
+	if (c == 0) {
+		return;
+	}
+
+	/*
 	 * If we consumed all the current data, take a new batch from TCP
 	 */
 	if (c->t_readq == 0) {
