@@ -59,7 +59,7 @@ extern int enable_isr(port_t arg_port, int irq);
 extern int clone(port_t arg_port);
 extern int page_wire(void *arg_va, void **arg_pa);
 extern int page_release(uint arg_handle);
-extern int enable_dma(int);
+extern int enable_dma(void);
 extern int time_get(struct time *arg_time);
 extern int time_sleep(struct time *arg_time);
 extern void dbg_enter(void);
