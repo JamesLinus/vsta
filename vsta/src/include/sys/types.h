@@ -3,6 +3,8 @@
 /*
  * types.h
  *	Central repository for globally known types
+ *
+ * Includes POSIX types - a name for everyone :-(
  */
 typedef unsigned int uint;
 typedef unsigned int uint_t;
@@ -18,6 +20,11 @@ typedef unsigned long ulong_t;
 typedef unsigned long u_long;
 typedef unsigned long off_t;
 typedef unsigned long size_t;
+typedef long time_t;
+typedef ulong_t mode_t;
+typedef ulong_t nlink_t;
+typedef ulong_t dev_t;
+typedef ulong_t ino_t;
 struct time {
 	long t_sec;
 	long t_usec;
