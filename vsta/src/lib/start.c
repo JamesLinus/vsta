@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <std.h>
 #include <fdl.h>
+#include <mnttab.h>
 
 /*
  * __start()
@@ -60,5 +61,10 @@ noargs:
 	/*
 	 * Restore our fdl state
 	 */
-	__fdl_restore(a);
+	a = __fdl_restore(a);
+
+	/*
+	 * Restore mount table
+	 */
+	__mount_restore(a);
 }
