@@ -23,7 +23,7 @@ static struct hash
 	*filehash;	/* Map session->context structure */
 
 port_t consport;	/* Port we receive contacts through */
-uint accgen = 0,	/* Generation counter for access */
+uint
 	curscreen = 0,	/* Current screen # receiving data */
 	hwscreen = 0;	/* Screen # showing on HW */
 
@@ -77,7 +77,7 @@ new_client(struct msg *m)
 	/*
 	 * Fill in fields.
 	 */
-	f->f_gen = accgen;
+	f->f_gen = 0;
 	f->f_flags = uperms;
 	f->f_screen = ROOTDIR;
 	f->f_pos = 0;
@@ -153,7 +153,7 @@ dead_client(struct msg *m, struct file *f)
 static int
 check_gen(struct msg *m, struct file *f)
 {
-	if (f->f_gen != accgen) {
+	if (f->f_gen != screens[f->f_screen].s_gen) {
 		msg_err(m->m_sender, EIO);
 		return(1);
 	}
@@ -404,18 +404,23 @@ loop:
 		break;
 
 	case FS_READ:		/* Read "directory" or keyboard */
-		if (check_gen(&msg, f)) {
-			break;
-		}
 		if (f->f_screen == ROOTDIR) {
 			do_readdir(&msg, f);
 		} else {
+			if (check_gen(&msg, f)) {
+				break;
+			}
 			kbd_read(&msg, f);
 		}
 		break;
 
 	case FS_WRITE:		/* Write file */
-		if (check_gen(&msg, f)) {
+
+		/*
+		 * Can't write dir
+		 */
+		if (f->f_screen == ROOTDIR) {
+			msg_err(msg.m_sender, EINVAL);
 			break;
 		}
 
@@ -426,6 +431,13 @@ loop:
 		 */
 		if (curscreen != f->f_screen) {
 			switch_screen(f->f_screen);
+		}
+
+		/*
+		 * Check access generation
+		 */
+		if (check_gen(&msg, f)) {
+			break;
 		}
 
 		/*
@@ -458,6 +470,10 @@ loop:
 		cons_stat(&msg, f);
 		break;
 	case FS_WSTAT:		/* Write selected stat fields */
+		if (f->f_screen == ROOTDIR) {
+			msg_err(msg.m_sender, EINVAL);
+			break;
+		}
 		if (check_gen(&msg, f)) {
 			break;
 		}
