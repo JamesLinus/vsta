@@ -57,12 +57,12 @@ cow_fillslot(struct pset *ps, struct perpage *pp, uint idx)
 	 */
 	if (pp->pp_flags & PP_SWAPPED) {
 		pg = alloc_page();
-		set_core(pg, ps, idx);
-		if (pageio(pg, swapdev, ps->p_swapblk + idx,
+		if (pageio(pg, swapdev, ptob(ps->p_swapblk + idx),
 				NBPG, FS_ABSREAD)) {
 			free_page(pg);
 			return(1);
 		}
+		set_core(pg, ps, idx);
 	} else {
 		struct pset *cow = ps->p_cow;
 
