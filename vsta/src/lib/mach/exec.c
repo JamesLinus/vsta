@@ -8,6 +8,7 @@
 #include <std.h>
 #include <mach/aout.h>
 #include <sys/param.h>
+#include <fdl.h>
 
 /*
  * execl()
@@ -15,19 +16,19 @@
  */
 execl(char *file, char *arg0, ...)
 {
-	int fd;
-	uint plen;
+	int fd, x;
+	uint plen, fdl_len;
 	ulong narg;
 	struct aout a;
 	struct mapfile mf;
-	char *p, **pp;
+	char *p, **pp, *args;
 
 	/*
 	 * Open the file we're going to run
 	 */
 	fd = open(file, O_READ);
 	if (fd < 0) {
-		return(-9);
+		return(-1);
 	}
 
 	/*
@@ -35,7 +36,7 @@ execl(char *file, char *arg0, ...)
 	 */
 	if (read(fd, &a, sizeof(a)) != sizeof(a)) {
 		close(fd);
-		return(-2);
+		return(-1);
 	}
 
 	/*
@@ -78,25 +79,42 @@ execl(char *file, char *arg0, ...)
 	}
 
 	/*
-	 * Create a shared mmap() area, assemble our arguments
+	 * Add in length for fdl state
 	 */
-	p = mmap(0, plen, PROT_READ|PROT_WRITE,
+	fdl_len = __fdl_size();
+	plen += fdl_len;
+
+	/*
+	 * Create a shared mmap() area
+	 */
+	args = p = mmap(0, plen, PROT_READ|PROT_WRITE,
 		MAP_ANON|MAP_SHARED, 0, 0L);
 	if (p == 0) {
-		return(-3);
+		return(-1);
 	}
+
+	/*
+	 * Pack our arguments into it
+	 */
 	*(ulong *)p = narg;
-	plen = sizeof(ulong);
+	p += sizeof(ulong);
 	for (pp = &arg0; *pp; ++pp) {
 		uint plen2;
 
 		plen2 = strlen(*pp)+1;
-		bcopy(*pp, p+plen, plen2);
-		plen += plen2;
+		bcopy(*pp, p, plen2);
+		p += plen2;
 	}
+
+	/*
+	 * Add in our fdl state
+	 */
+	__fdl_save(p, fdl_len);
+	p += fdl_len;
 
 	/*
 	 * Here we go!
 	 */
-	return(exec(__fd_port(fd), &mf, p));
+	return(exec(__fd_port(fd), &mf, args));
 }
+
