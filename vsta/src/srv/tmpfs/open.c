@@ -147,7 +147,7 @@ void
 tmpfs_open(struct msg *m, struct file *f)
 {
 	struct openfile *o;
-	uint x;
+	uint x, want;
 
 	/*
 	 * Have to be in root dir to open down into a file
@@ -204,7 +204,8 @@ tmpfs_open(struct msg *m, struct file *f)
 	 * Check permission
 	 */
 	x = perm_calc(f->f_perms, f->f_nperm, &o->o_prot);
-	if ((m->m_arg & x) != m->m_arg) {
+	want = m->m_arg & (ACC_READ|ACC_WRITE|ACC_CHMOD);
+	if ((want & x) != want) {
 		msg_err(m->m_sender, EPERM);
 		return;
 	}
@@ -220,7 +221,7 @@ tmpfs_open(struct msg *m, struct file *f)
 	 * Move to this file
 	 */
 	f->f_file = o; o->o_refs += 1;
-	f->f_perm = m->m_arg | (x & ACC_CHMOD);
+	f->f_perm = want | (x & ACC_CHMOD);
 	m->m_nseg = m->m_arg = m->m_arg1 = 0;
 	msg_reply(m->m_sender, m);
 }
