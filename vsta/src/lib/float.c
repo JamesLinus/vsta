@@ -11,6 +11,7 @@
  * where it's due.
  */
 
+#ifdef FLOAT_SUPPORT
 /*
  * strtod()
  *	Convert string to double, advance string pointer
@@ -135,3 +136,12 @@ ldexp(double v, int e)
 	}
 	return(v);
 }
+
+#else /* dummy out--no FLOAT_SUPPORT */
+
+/*
+ * GCC 1.X seems to choke on an entirely empty file... sigh
+ */
+static int x;
+
+#endif /* FLOAT_SUPPORT */

@@ -9,7 +9,9 @@
 #include <stdio.h>
 #include <ctype.h>
 
+#ifdef FLOAT_SUPPORT
 extern double atof();
+#endif
 
 /*
  * atoi()
@@ -204,6 +206,7 @@ innum(int **ptr, int type, int len, int size, FILE *fp, int *eofptr)
 	}
 	*np++ = 0;
 	switch((scale<<4) | size) {
+#ifdef FLOAT_SUPPORT
 	case (FLOAT<<4) | SHORT:
 	case (FLOAT<<4) | REGULAR:
 		**(float **)ptr = atof(numbuf);
@@ -212,7 +215,7 @@ innum(int **ptr, int type, int len, int size, FILE *fp, int *eofptr)
 	case (FLOAT<<4) | LONG:
 		**(double **)ptr = atof(numbuf);
 		break;
-
+#endif
 	case (INT<<4) | SHORT:
 		**(short **)ptr = lcval;
 		break;
