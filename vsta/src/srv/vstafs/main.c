@@ -77,7 +77,6 @@ new_client(struct msg *m)
 	perms = (struct perm *)m->m_buf;
 	nperms = (m->m_buflen)/sizeof(struct perm);
 	f->f_file = rootdir;
-	ref_node(rootdir);
 	f->f_pos = OFF_DATA;
 	bcopy(perms, f->f_perms, nperms * sizeof(struct perm));
 	f->f_nperm = nperms;
@@ -95,6 +94,11 @@ new_client(struct msg *m)
 		msg_err(m->m_sender, ENOMEM);
 		return;
 	}
+
+	/*
+	 * It's a win, so ref the directory node
+	 */
+	ref_node(rootdir);
 
 	/*
 	 * Return acceptance
@@ -153,7 +157,8 @@ dead_client(struct msg *m, struct file *f)
 {
 	extern void vfs_close();
 
-	(void)hash_delete(filehash, m->m_sender);
+	ASSERT(hash_delete(filehash, m->m_sender) == 0,
+		"dead_client: mismatch");
 	vfs_close(f);
 	free(f);
 }
