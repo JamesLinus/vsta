@@ -59,4 +59,5 @@ ENTRY(run_qio, S_RUN_QIO)
 ENTRY(set_cmd, S_SET_CMD)
 ENTRY(pageout, S_PAGEOUT)
 ENTRY(_getid, S_GETID)
+ENTRY(unhash, S_UNHASH)
 

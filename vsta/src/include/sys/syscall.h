@@ -36,6 +36,7 @@
 #define S_SET_CMD 29
 #define S_PAGEOUT 30
 #define S_GETID 31
-#define S_HIGH S_GETID
+#define S_UNHASH 32
+#define S_HIGH S_UNHASH
 
 #endif /* _SYSCALL_H */

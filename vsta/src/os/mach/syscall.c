@@ -23,7 +23,7 @@ extern int exit(), fork(), fork_thread(), enable_io(), enable_isr(),
 	mmap(), munmap(), strerror(), notify(), clone();
 extern int page_wire(), page_release(), enable_dma(), time_get(),
 	time_sleep(), exec(), waits(), perm_ctl(), set_swapdev(),
-	run_qio(), set_cmd(), pageout(), getid();
+	run_qio(), set_cmd(), pageout(), getid(), unhash();
 static int do_dbg_enter();
 
 struct syscall {
@@ -62,6 +62,7 @@ struct syscall {
 	{set_cmd, 1},				/* 29 */
 	{pageout, 0},				/* 30 */
 	{getid, 1},				/* 31 */
+	{unhash, 2},				/* 32 */
 };
 #define NSYSCALL (sizeof(syscalls) / sizeof(struct syscall))
 #define MAXARGS (6)

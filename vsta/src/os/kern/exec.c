@@ -380,3 +380,57 @@ exec_cleanup(struct port *port)
 
 	v_sema(&port->p_mapsema);
 }
+
+/*
+ * unhash()
+ *	Unhash any reference to the indicated hash #
+ */
+unhash(port_t arg_port, long arg_fid)
+{
+	struct port *port;
+	struct proc *p = curthread->t_proc;
+
+	/*
+	 * Verify range
+	 */
+	if (arg_port < PROCOPENS) {
+		return(err(EBADF));
+	}
+	arg_port -= PROCOPENS;
+	if (arg_port >= PROCPORTS) {
+		return(err(EBADF));
+	}
+
+	/*
+	 * Interlock, get access to port, atomically switch
+	 * to mapsema.
+	 */
+	(void)p_sema(&p->p_sema, PRILO);
+	port = p->p_ports[arg_port];
+	if (port == 0) {
+		v_sema(&p->p_sema);
+		return(err(EBADF));
+	}
+	p_lock(&port->p_lock, SPL0);
+	v_sema(&p->p_sema);
+	p_sema_v_lock(&port->p_mapsema, PRIHI, &port->p_lock);
+
+	/*
+	 * If there's a map, delete entry from it
+	 */
+	if (port->p_maps && (port->p_maps != NO_MAP_HASH)) {
+		struct pset *ps;
+
+		ps = hash_lookup(port->p_maps, arg_fid);
+		if (ps) {
+			(void)hash_delete(port->p_maps, arg_fid);
+			deref_pset(ps);
+		}
+	}
+
+	/*
+	 * Release mutex, return success
+	 */
+	v_sema(&port->p_mapsema);
+	return(0);
+}
