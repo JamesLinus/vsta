@@ -6,7 +6,7 @@
 #ifndef _FILE_H
 #define _FILE_H
 
-#include <linux/msdos_fs.h>
+#include "linux.h"
 
 
 typedef enum { fdt_none,fdt_drop,fdt_undelete } FD_TYPE;

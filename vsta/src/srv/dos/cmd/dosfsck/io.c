@@ -16,11 +16,11 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/stat.h>
-#include <sys/ioctl.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <linux/fd.h>
 
+#define OUR_LINUX_IO
+#include "linux.h"
 #include "dosfsck.h"
 #include "common.h"
 #include "io.h"
@@ -39,6 +39,8 @@ static int fd,did_change = 0;
 
 unsigned device_no;
 
+#if !defined(llseek)
+
 /* Use the _llseek system call directly, because there (once?) was a bug in
  * the glibc implementation of it. */
 #include <linux/unistd.h>
@@ -56,6 +58,8 @@ static loff_t llseek( int fd, loff_t offset, int whence )
 	return (loff_t)-1;
     return actual;
 }
+
+#endif /* llseek */
 
 
 void fs_open(char *path,int rw)

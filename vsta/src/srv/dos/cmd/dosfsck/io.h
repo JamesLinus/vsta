@@ -10,6 +10,7 @@
 #define _IO_H
 
 #include <sys/types.h> /* for loff_t */
+#include "linux.h"
 
 void fs_open(char *path,int rw);
 

@@ -8,8 +8,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
-#include <linux/msdos_fs.h>
 
+#include "linux.h"
 #include "common.h"
 #include "dosfsck.h"
 #include "io.h"
@@ -265,8 +265,9 @@ void read_boot(DOS_FS *fs)
     fs->root_start = ((loff_t)CF_LE_W(b.reserved)+b.fats*fat_length)*
       logical_sector_size;
     fs->root_entries = CF_LE_W(*((unsigned short *) &b.dir_entries));
-    fs->data_start = fs->root_start+ROUND_TO_MULTIPLE(fs->root_entries <<
-      MSDOS_DIR_BITS,logical_sector_size);
+    fs->data_start = fs->root_start +
+      ROUND_TO_MULTIPLE(fs->root_entries * sizeof(DIR_ENT),
+       logical_sector_size);
     data_size = (loff_t)total_sectors*logical_sector_size-fs->data_start;
     fs->clusters = data_size/fs->cluster_size;
     fs->root_cluster = 0; /* indicates standard, pre-FAT32 root dir */

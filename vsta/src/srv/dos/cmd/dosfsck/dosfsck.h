@@ -10,8 +10,7 @@
 #define _DOSFSCK_H
 
 #include <sys/types.h>
-#define _LINUX_STAT_H		/* hack to avoid inclusion of <linux/stat.h> */
-#include <linux/msdos_fs.h>
+#include "linux.h"
 
 /* 2.1 kernels use le16_to_cpu() type functions for CF_LE_W & Co., but don't
  * export this macros, only __le16_to_cpu(). */

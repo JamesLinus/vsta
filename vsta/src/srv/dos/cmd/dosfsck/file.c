@@ -12,8 +12,7 @@
 #include <ctype.h>
 #include <unistd.h>
 
-#include <linux/msdos_fs.h>
-
+#include "linux.h"
 #include "common.h"
 #include "file.h"
 
