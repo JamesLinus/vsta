@@ -19,6 +19,7 @@
 #include <fdl.h>
 #include <lib/hash.h>
 #include <std.h>
+#include <unistd.h>
 
 /*
  * For saving state of fdl on exec()
@@ -26,6 +27,7 @@
 struct save_fdl {
 	int s_fd;	/* File descriptor number */
 	port_t s_port;	/* Its port */
+	ulong s_pos;	/* Its position */
 };
 
 #define NFD (32)		/* # FD's directly mapped to ports */
@@ -85,6 +87,7 @@ static
 do_write(struct port *port, void *buf, uint nbyte)
 {
 	struct msg m;
+	int x;
 
 	m.m_op = FS_WRITE;
 	m.m_buf = buf;
@@ -92,7 +95,11 @@ do_write(struct port *port, void *buf, uint nbyte)
 	m.m_arg = nbyte;
 	m.m_arg1 = 0;
 	m.m_nseg = 1;
-	return(msg_send(port->p_port, &m));
+	x = msg_send(port->p_port, &m);
+	if (x > 0) {
+		port->p_pos += x;
+	}
+	return(x);
 }
 
 /*
@@ -103,6 +110,7 @@ static
 do_read(struct port *port, void *buf, uint nbyte)
 {
 	struct msg m;
+	int x;
 
 	m.m_op = FS_READ|M_READ;
 	m.m_buf = buf;
@@ -110,7 +118,11 @@ do_read(struct port *port, void *buf, uint nbyte)
 	m.m_arg = nbyte;
 	m.m_arg1 = 0;
 	m.m_nseg = 1;
-	return(msg_send(port->p_port, &m));
+	x = msg_send(port->p_port, &m);
+	if (x > 0) {
+		port->p_pos += x;
+	}
+	return(x);
 }
 
 /*
@@ -118,16 +130,36 @@ do_read(struct port *port, void *buf, uint nbyte)
  *	Build a seek message
  */
 static
-do_seek(struct port *port, ulong off, int whence)
+do_seek(struct port *port, long off, int whence)
 {
 	struct msg m;
+	ulong l;
+	int x;
 
+	switch (whence) {
+	case SEEK_SET:
+		l = off;
+		break;
+	case SEEK_CUR:
+		l = port->p_pos + off;
+		break;
+	case SEEK_END:
+		l = atoi(rstat(port->p_port, "size"));
+		l += off;
+		break;
+	default:
+		return(-1);
+	}
 	m.m_op = FS_SEEK;
 	m.m_buflen = 0;
-	m.m_arg = off;
-	m.m_arg1 = whence;
+	m.m_arg = l;
+	m.m_arg1 = 0;
 	m.m_nseg = 0;
-	return(msg_send(port->p_port, &m));
+	x = msg_send(port->p_port, &m);
+	if (x > 0) {
+		port->p_pos = l;
+	}
+	return(x);
 }
 
 /*
@@ -164,6 +196,7 @@ __do_open(struct port *port)
 		port->p_read = do_read;
 		port->p_write = do_write;
 	}
+	port->p_pos = 0L;
 	return(0);
 }
 
@@ -382,6 +415,7 @@ __fdl_restore(char *p)
 		port->p_port = s->s_port;
 		port->p_data = 0;
 		port->p_refs = 1;
+		port->p_pos = s->s_pos;
 
 		/*
 		 * Attach to this file descriptor
@@ -419,6 +453,7 @@ addfdl(long l, struct port *port, char **pp)
 
 	s->s_fd = l;
 	s->s_port = port->p_port;
+	s->s_pos = port->p_pos;
 	*pp += sizeof(struct save_fdl);
 	return(0);
 }
@@ -450,6 +485,7 @@ __fdl_save(char *p, ulong len)
 			s = (struct save_fdl *)p;
 			s->s_fd = x;
 			s->s_port = fdmap[x]->p_port;
+			s->s_pos = fdmap[x]->p_pos;
 			p += sizeof(struct save_fdl);
 		}
 	}
