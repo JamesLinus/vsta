@@ -55,6 +55,7 @@ rstat(port_t fd, char *field)
 	struct msg m;
 	static char statbuf[MAXSTAT];
 	char *p, *q;
+	int len;
 
 	/*
 	 * Send a stat request
@@ -64,9 +65,11 @@ rstat(port_t fd, char *field)
 	m.m_arg = m.m_buflen = MAXSTAT;
 	m.m_arg1 = 0;
 	m.m_nseg = 1;
-	if (msg_send(fd, &m) <= 0) {
+	len = msg_send(fd, &m);
+	if (len <= 0) {
 		return(0);
 	}
+	statbuf[len] = '\0';
 
 	/*
 	 * No field--return whole thing
