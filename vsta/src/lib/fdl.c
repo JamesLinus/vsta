@@ -456,20 +456,20 @@ close(int fd)
 	}
 
 	/*
-	 * Decrement refs, return if there are more
-	 */
-	port->p_refs -= 1;
-	if (port->p_refs > 0) {
-		return(0);
-	}
-
-	/*
 	 * Delete from whatever slot it occupies
 	 */
 	if (fd < NFD) {
 		fdmap[fd] = 0;
 	} else {
 		(void)hash_delete(fdhash, (ulong)fd);
+	}
+
+	/*
+	 * Decrement refs, return if there are more
+	 */
+	port->p_refs -= 1;
+	if (port->p_refs > 0) {
+		return(0);
 	}
 
 	/*
