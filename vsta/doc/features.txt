@@ -208,3 +208,4 @@ Ported PD m4 from FreeBSD.
 Ported the 8-bit color driver from mgr-0.69 into the VSTa MGR port.
 	Adapted it to use svgalib.  Got high res working with MGR.
 Added BSD's err/warn API's.
+Added true/false/whoami commands.
