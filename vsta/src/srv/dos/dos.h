@@ -274,6 +274,7 @@ extern ulong inum(struct node *);
 extern void do_unhash(ulong);
 extern int assemble_vfat_name(char *name, struct directory *d,
 	intfun nextd, void *statep);
+extern uchar short_checksum(char *f1, char *f2);
 
 /*
  * Global data

@@ -229,17 +229,17 @@ unicode_copy(struct dirVSE *dv, char *buf)
  * short_checksum()
  *	Calculate the checksum value for a short FAT filename
  */
-static uchar
-short_checksum(struct directory *d)
+uchar
+short_checksum(char *f1, char *f2)
 {
 	int x;
 	uchar sum = 0;
 
 	for (x = 0; x < 8; ++x) {
-		sum = ((sum & 1) ? 0x80 : 0) + (sum >> 1) + d->name[x];
+		sum = ((sum & 1) ? 0x80 : 0) + (sum >> 1) + f1[x];
 	}
 	for (x = 0; x < 3; ++x) {
-		sum = ((sum & 1) ? 0x80 : 0) + (sum >> 1) + d->ext[x];
+		sum = ((sum & 1) ? 0x80 : 0) + (sum >> 1) + f2[x];
 	}
 	return(sum);
 }
@@ -324,7 +324,7 @@ assemble_vfat_name(char *name, struct directory *d, intfun nextd, void *statep)
 	/*
 	 * Checksum of short entry must match
 	 */
-	if (short_checksum(d) != sum) {
+	if (short_checksum(d->name, d->ext) != sum) {
 		return(1);
 	}
 
@@ -405,12 +405,14 @@ dos_readdir(struct msg *m, struct file *f)
 	 */
 	for (x = 0; x < len; ) {
 		uint c;
+		ulong opos;
 
 		/*
 		 * Look at the slot at f_pos.  For reads of directories
 		 * f_pos is simply the struct directory index.  Leave
 		 * loop on failure, presumably from EOF.
 		 */
+		opos = f->f_pos;
 		if (dir_copy(n, f->f_pos++, &d)) {
 			break;
 		}
@@ -432,7 +434,6 @@ dos_readdir(struct msg *m, struct file *f)
 		 */
 		if (d.attr == DA_VFAT) {
 			struct dirstate state;
-			ulong opos = f->f_pos;
 
 			state.ds_node = n;
 			state.ds_posp = &f->f_pos;
@@ -461,7 +462,7 @@ dos_readdir(struct msg *m, struct file *f)
 		 * position and return what we have.
 		 */
 		if ((x + strlen(file) + 1) >= len) {
-			f->f_pos -= 1;
+			f->f_pos = opos;
 			break;
 		}
 
