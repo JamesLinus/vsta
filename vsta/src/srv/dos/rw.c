@@ -119,11 +119,15 @@ pack_name(char *name, char *ext, char *file)
 	for (p = name; (p < name+8) && (*p != ' '); ++p) {
 		*file++ = tolower(*p);
 	}
-	*file++ = '.';
-	for (p = ext; (p < ext+3) && (*p != ' '); ++p) {
-		*file++ = tolower(*p);
+	p = ext;
+	ASSERT_DEBUG(*p, "pack_name: null in filename");
+	if (*p != ' ') {
+		*file++ = '.';
+		for ( ; (p < ext+3) && (*p != ' '); ++p) {
+			*file++ = tolower(*p);
+		}
 	}
-	*file++ = '\0';
+	*file = '\0';
 }
 
 /*
