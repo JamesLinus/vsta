@@ -46,7 +46,6 @@ process_queue(struct openfile *o)
 			/*
 			 * One less writer waiting
 			 */
-			printf("Writer, %d left\n", o->o_nwrite);
 			o->o_nwrite -= 1;
 		} else {
 			/*
@@ -54,7 +53,6 @@ process_queue(struct openfile *o)
 			 * held for write (it's in the loop check), so
 			 * we can have it.
 			 */
-			printf("Reader\n");
 		}
 
 		/*
@@ -65,7 +63,6 @@ process_queue(struct openfile *o)
 		f->f_entry = 0;
 		f->f_hold += 1;
 		o->o_holder += 1;
-		printf("%d holding\n", o->o_holder);
 		m.m_arg = m.m_arg1 = m.m_nseg = 0;
 		msg_reply(f->f_sender, &m);
 	}
@@ -131,7 +128,6 @@ queue(struct msg *m, struct file *f)
 {
 	struct openfile *o = f->f_file;
 
-	printf("Got a %s\n", f->f_writer ? "writer" : "reader");
 	/*
 	 * Try to queue up
 	 */
