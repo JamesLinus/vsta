@@ -36,5 +36,6 @@ extern int *__ptr_errno(void);
 #define EROFS	(14)
 #define EINTR	(15)
 #define ENOSPC	(16)
+#define EXDEV	(17)
 
 #endif /* _ERRNO_H */
