@@ -7,6 +7,7 @@
 #include <sys/thread.h>
 #include <sys/percpu.h>
 #include <mach/trap.h>
+#include <fcntl.h>
 
 static char buf[256];
 static int outfd;
@@ -39,7 +40,7 @@ main(int argc, char **argv)
 		printf("Usage is: genassym <outfile>\n");
 		exit(1);
 	}
-	if ((outfd = creat(argv[1], 0600)) < 0) {
+	if ((outfd = open(argv[1], O_WRITE|O_CREAT, 0600)) < 0) {
 		perror(argv[1]);
 		exit(1);
 	}
