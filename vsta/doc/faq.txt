@@ -1,0 +1,717 @@
+
+v0.3 FAQ for VSTa:
+
+	Frequently Asked Questions About VSTa
+
+1. What is VSTa?
+
+VSTa is a copylefted operating system created by Andy Valencia
+(vandys@cisco.com) and later enhanced by numerous others.  It uses a
+microkernel organization, in which the "kernel" code is very small (~40k)
+and all filesystems and drivers reside in "user" mode processes.  At user
+level it looks substantially like a POSIX-type system.
+
+2. What does "VSTa" stand for
+
+The "Valencia Simple Tasker".  Actually, the 40K in the kernel suports
+kernel preemption, shared memory MIMD multiprocessors, and virtual memory.
+It really isn't all that simple!
+
+3. What does VSTa run on?
+
+VSTa was originally written for the i386 PC.  It has since run on 2 meg
+386sx processors and 16 meg Pentium processors.  The DMA system currently
+does not correctly support > 16 meg ISA bus access.  Most of the code is
+there (bounce buffers and such) but it is not completely implemented.
+
+VSTa has driver support for ST-506, IDE, and Adaptec 1542[bc] disk
+interfaces.  It supports floppy drives, MGA and CGA monitors, RS-232
+interfaces, parallel interfaces, NE2000 LAN cards, and bus or serial mice.
+Under SCSI, it also supports CDROM.
+
+VSTa has a port to the Amiga with 68030 in progress.  At last status report
+the kernel would boot and run simple tasks, and interrupt handling was being
+brought up next.
+
+VSTa has people looking at ports to R3000's and SPARC's.  No bootable code
+has been reported yet.
+
+4. How do I get VSTa?
+
+Cygnus has kindly made some space available at their FTP site:
+
+	ftp.cygnus.com:pub/embedded/vsta
+
+Cisco also has it available, although their FTP daemon makes it more
+of a chore:
+
+	ftp.cisco.com:vandys/vsta
+
+Other mirror sites exist and will be added here as verified.
+
+5. How do I boot it?
+
+You boot DOS, and then run a program which reads in the kernel and boot
+servers.  This program then switches to 32-bit protected mode and starts
+running the VSTa microkernel.  So DOS is your "boot filesystem"; you can
+access many types of filesystems (including DOS) once VSTa is running.
+
+For the nuts and bolts of doing this, see the file vsta_*.readme on the
+FTP site.  This will point you to the files "license" and "readme" in
+the vsta.tz compressed archive.  These provide information on the terms
+and conditions for use of VSTa.  Then it points you to doc/roadmap.txt
+in the same archive, which tells you how to boot up the system.
+
+6. Ok, I booted it, but how do I find out more about its design?
+
+The FTP sites hold an aging introduction paper.  The mailing list archives
+at the FTP sites contain several messages which describe the design of
+various parts (booting, VM, scheduling, ...) of the system.  If you are
+searching for a particular topic, a hypertext index:
+
+	http://ftoomsh.socs.uts.EDU.AU/mlists/vsta
+
+provides a powerful interface for searching all message list traffic.
+
+The doc/ subdirectory holds a skeletal amount of documentation on the basic
+kernel interfaces.  More will be added (time permitting :->).
+
+Finally, the code itself has relatively consistent and numerous comments.
+
+6. I created a root user, but nothing works for me!
+
+The protection system uses your ID for the default protection on object
+creation.  You should specify a non-zero length ID, and add a root ID as one
+of the "extra" ones.  See the file /vsta/etc/group.
+
+7. I boot up, and see the disk blink, but my screen doesn't show anything
+
+The default in boot/boot.lst is for a CGA system.  MGA cards place text at a
+different address; add the -mga flag to the "cons" server.
+
+The kernel debugger also needs to be flagged this way; you need to edit
+the file os/mach/dbg_ibm.c and then rebuild your kernel.
+
+8. Does it network?
+
+An initial port of KA9Q has been done.  It uses the ne2000 driver and can be
+used to telnet and FTP.  Some code has been written to provide a /tcp server
+so that, for instance, a telnetd can be run to allow logins via the net.
+
+9. What's being developed for VSTa?
+
+Ports are in various states of progress for the m68k, R3000, and SPARC.
+People are working on a windowing system, a Linux filesystem, a BSD
+filesystem, a /proc filesystem, more networking.  For SCSI, tape support is
+in progress.  A list, maintained by Gavin Nicol (gtn@ebt.com) is posted to
+the mailing list periodically.
+
+10. What list is that?
+
+We run a VSTa mailing list.  Send a subscription request to:
+
+    vsta-request@cisco.com
+
+There's no list server, so feel free to use English.  Once you're on the
+list, send to:
+
+    vsta@cisco.com
+
+and the message will be distributed to all members.
+
+A digest format is available; specify this in your subscription request
+if you prefer it.  Our digest algorithm is to wait up to three days to
+collect three messages.
+
+11. That's a lot of text to search!  Is there an archive?
+
+Here's a collection of technical information culled form the list.  Thanks
+to David Johnson for doing this!
+
+==============================================================================
+How did VSTa start?
+==============================================================================
+
+Real-time support: I wanted enough RT support to do com port drivers and
+such in user mode.  I never really intended to add the RT support needed
+to allow implementation of "hard" RT systems, that is a Phalanx system or
+other scary thing where you *need* *guarantees* about which parts get
+processed how.  Of course, VSTa has become more than my own interests; I
+opened it up so it can benefit from other people's expertise.  If somebody
+gives me patches to add better RT support, my only objective would be to
+keep the microkernel "micro".
+
+Threads/scheduling: I implemented the kind of thread which my own experience
+indicated I would want.  The hierarchical scheduler lends itself well to
+this organization--threads exist in common below a single node representing
+the process.  POSIX yield() (or whatever they named it this week) would be
+very gratifying to code up!
+
+Distribution: I still don't think I want to put distributed messaging into
+the kernel.  If a client writes a message to a server:
+
+Client -> Server
+
+I really don't see why we can't implement this as:
+
+	SystemA		      |		System B
+Client -> (TCP server -> LAN) -> (LAN -> TCP server) -> Server
+			      |
+
+The much more interesting question is what kind of smoke and mirrors are
+needed to cause such a connection to come into existence without a lot
+of explicit, networking-oriented commands on the part of a client.  My
+current guess is that the namer process becomes a lot more complex, and
+perhaps interacts with the kernel port_name->server mechanism.
+
+VSTa development: I wrote the data structures, and then the messaging
+interface.  I coded a server (BFS, I think), modifying the messaging
+interface as needed to make writing the server reasonable.  I then wrote up
+some messaging emulation routines, and could then run BFS under DOS with
+myself typing in things to make it look like BFS had clients coming in over
+VSTa.  I wrote the console, keyboard, and then I think I started in on the
+kernel.  The first thing the kernel ever ran was a single process which put
+a * out on the COM1 port.  Next was a process writing "Hello, world" to the
+console server, which displayed it on the screen.  After that was a walking
+*'s thing to run the messaging system at full speed.
+
+
+==============================================================================
+What is a port number?
+==============================================================================
+
+A port number (type port_name from <sys/types.h>) is indeed a unique
+identifier for a server port on a machine running VSTa.  In general, a
+server allows the kernel to allocate an identifier dynamically, and then
+the server advertises itself by creating a file in /namer whose contents is
+its port_name.  Thus, the "fd" server (floppy disk) might get the value
+1027, and then he write "1027" onto /namer/disk/fd.  When somebody wants to
+talk to the "fd" server, they open /namer/disk/fd, read the number 1027, and
+then msg_connect() to port_name 1027.
+
+A very few port_name's are "well known".  The /namer server is always 1,
+This allows you to connect to /namer initially, otherwise there's the
+"chicken and egg" problem of how to find the service which helps you find
+services.
+
+
+==============================================================================
+Namer/mounttab/open description
+==============================================================================
+
+The VSTa microkernel does not have any filesystem code.  Not only does this
+mean that the kernel does not know about inodes, directory entries, and so
+forth.  It also means that he does not understand what an "open file" is,
+nor "file position", nor "path name lookup".
+
+Filesystems are an illusion created by cooperation between servers
+and the C library.  By agreeing to certain message types and arguments,
+they can talk about common file operations.  The file include/sys/fs.h
+defines these messages; servers implement them from the main message
+handling loop, and clients generally request them through the C library.
+
+If you go into vsta/libc/open.c, you will see what is, in UNIX-ese, the
+"namei" loop--the loop which maps string pathnames into open files.  It
+does this by finding the longest initial match between the filename you
+want to open, and a path in its mount table.  For example:
+
+	fd = open("/usr/local/lib/table.txt", O_READ);
+
+Mount table:	Path		Connection
+		/		(DOS server)
+		/dev/wd		(WD server)
+		/env		(Environment variable server)
+		/usr/local	(VstaFS server)
+		/namer		(Name server)
+
+The match would be against /usr/local, since this matches to more positions
+than any other entry.  The matched part is stripped, and the path lookup
+now walks through each remaining part.  So the filesystem server which happens
+to be mounted under /usr/local for the current process will see successive
+lookups for "lib", and then "table.txt".
+
+All well and good, but the question occurs: how do you get your mount table
+set up in the first place?  Since you start with your mount table empty,
+you can't very well open a file!  If you happen to know some desirable
+server is at port address 1234, you could:
+
+	port = msg_connect(1234, ACC_READ);
+	mountport("/path", port);
+
+A small set of port addresses--just enough to boot--are at "well known
+addresses".  This includes the keyboard, screen, and namer server.  It
+does NOT include disk drivers or root filesystems.  In fact, there are
+more well-known addresses assigned than are needed.  I should probably
+fix this.
+
+Anyway, the reason that all these vitally needed resources are not
+given fixed addresses is that such a mechanism is too inflexible.
+Instead, the "namer" server is started, and all future queries and
+updates concerning who is using what port number are handled through
+this single server.  Like most servers, namer presents a
+filesystem-like view of the symbols it maps.  The content of each file
+is an ASCII number, which is the port number registered for that
+string.  Given the mount table above, where the namer server is under
+/namer (and assuming we have sufficient privileges--sys.sys is needed),
+we could "register" a number ourselves, simply by:
+
+	cd /namer
+	mkdir andy-devs
+	cd andy-devs
+	cat > dev1
+	12345
+	^D
+
+In fact, this is how all servers register themselves, although a couple
+library routines encapsulate all this tedium.  A server would do something
+like:
+
+	port_name n;
+	port_t p;
+	struct msg m;
+
+	/* Get port, let system choose ID */
+	p = msg_port(0, &n);
+
+	/* Offer to the system as fs/root, the boot/default filesystem */
+	namer_register("fs/root", n);
+	...
+
+	/* Start serving requests as this filesystem */
+	while (msg_receive(p, &m) > 0) {
+		...
+	}
+
+And a client could do:
+
+	port_name n;
+	port_t p;
+	char buf[128];
+
+	/* Look up fs/root, get its port address */
+	n = namer_find("fs/root");
+
+	/* Connect to server, with access for reading */
+	p = msg_connect(n, ACC_READ);
+
+	/* Open foobar on this filesystem connection */
+	m.m_nseg = 1;
+	m.m_buf = "foobar";
+	m.m_buflen = strlen(m.m_buf)+1;	/* Include terminating '\0' in cnt */
+	m.m_arg = ACC_READ;
+	m.m_arg1 = 0;
+	m.m_op = FS_OPEN;
+	x = msg_send(p, &m);
+	if (x > 0) { ... }
+
+Although, frankly, it's much easier to put it in the mount table and
+start using it through a more typical POSIX interfaces:
+
+	mountport("/d", p);
+	fd = open("/d/foobar", O_READ);
+	while (read(fd, buf, sizeof(buf)) > 0) {
+		...
+	}
+
+There was a subtle difference between the last two examples.  The
+former, where we sent FS_OPEN messages ourselves, would walk the actual
+connection down to the file which was to be opened.  Thus, the initial
+connection would be to the root filesystem, and after a successful
+FS_OPEN, the connection would instead correspond to the file "foobar".
+In the latter, the mount table holds the open connection to the
+server's root, and open() requests do a clone() to get a distinct copy of this
+connection, and then walk *it* down to the requested file.  This leaves
+the original connection at the root so further uses of the mount point
+will work.
+
+Setting up mount tables for yourself is tedious work.  That's why bin/login
+will read /vsta/etc/fstab during your login, and put initial entries into
+your mount table.  Hopefully, you can read this file, cd over to /namer,
+look around, and start to get a feel for the links and interactions which
+map names to ports, and organize a "filesystem" view on top of a collection
+of open connections to various servers.
+
+
+==============================================================================
+How do capabilities work?
+==============================================================================
+
+It's very simple in practice, but difficult to describe.  Let me try
+describing it from a POSIX perspective.
+
+Recall that POSIX defines other/group/user, defining your increasingly close
+relationship to an object.  In parallel with this, they also define some
+bits which describe what you can do to an object based on how close your
+relationship is to the object.  For instance, a mode of 0751 on a file owned
+by group 9 user ID 11, means that user ID 11 gets all three bits (Read,
+Write, Execute), group 9 gets Read/Execute, and others get just Execute.
+
+Now, let's restate the exact same protection system in a different way.
+First, the question of "closeness" is simply the question of how far a UID
+matches a protection ID.  So if you are (in POSIX-ese) group 9, user ID 11,
+then your ID would be:
+
+	9.11
+
+And when you look at a file, it has a protection which might look the same:
+
+	9.11
+
+Finally, in parallel with this file protection you get a matching set of
+bits which tells you what to grant:
+
+      1.5.7
+
+Which, matching from the least specific to most, says "other" gets 1
+(execute), group 9 gets 5 (read+execute), and user ID 11 gets 7
+(read/write/execute).
+
+Now, if you're still in group 9, but your user ID is 12, then your ID:
+
+	9.12
+
+Matches the file's protection ID up to 9, but not through 11 any more.
+Thus, of the 1.5.7 bits, you get 1 (everybody does), and 5 (because you
+matched through 9).  You don't get 7, because 12 doesn't match 11.
+
+Thus, the VSTa protection scheme is a simple generalization of POSIX's
+3-level scheme.  Instead of only allowing group.user, the dotted numbers can
+be longer, describing a hierarchical ID space which can be organized as
+needed.
+
+Also, all the nasty special cases of group lists, saved UIDs, effective
+UIDs, and so forth are mostly subsumed by the generalization that a user
+(rather, his processes) can have an arbitrary number of IDs.  Access to an
+object is the sum of access gained by each ID held.
+
+
+==============================================================================
+How does VSTa boot?
+==============================================================================
+
+This is an overview of the booting process for VSTa.  It covers the booting
+process from boot.exe through the login: prompt.
+
+1. Load kernel and server images
+
+    VSTa is booted from DOS using a large-model DOS program called boot.exe.
+boot.exe takes a single argument which is the kernel image to load.  It
+opens this file using the usual DOS calls, and reads the image into free
+memory just after the end of boot.exe's memory.  It also zeroes out the
+BSS portion.
+
+    boot.exe now opens boot.lst, and reads in a list of files, one per
+line.  For each file, boot.exe opens the file and reads its a.out image
+into successive memory just after the end of the kernel memory image.
+After this process, low memory looks like this:
+
+| DOS | boot.exe | kernel | cons | keybd | wd | dos | ...
++--------------------------------------------------------
+   0 ->
+
+2. Build bootstrap 386 32-bit protected mode data structures
+
+    The i386 defines numerous arcane data structures which need to be
+present to switch from 16-bit real mode to 32-bit protected mode.  These
+data structures must remain intact throughout the gyrations needed to
+get VSTa running, until VSTa is sufficiently "up" to take over with its
+own data structures.  If these structures were tacked onto the end of
+low memory (from our picture, after "dos"), there would be a danger
+that they would be overwritten by VSTa data structures during bootup.
+Therefore, these structures are allocated at the top of low memory,
+from 640K coming down.
+
+... | Copy() | GDT | TSS16 | TSS32 | Data-L2PTEs | Text-L2PTEs | L1PTEs | Stack
+- ------------------------------------------------------------------------------+
+									<- 640K
+
+    "Stack" is a single page of memory used as a stack while switching modes.
+The top couple of words contain parameters which DOS passes to the VSTA kernel.
+These are the size of the kernel plus all boot servers, size of extended
+memory, size of base memory, and the address at which the kernel was loaded.
+L1PTEs is the root of the page tables (CR3), and Text and Data PTEs are the
+the second level PTEs.  Text maps memory 1:1, and Data maps the a.out data
+virtual address (4 Mb) onto the data memory for the kernel image loaded
+in low memory.  GDT, TSS16, and TSS32 are the data structures for describing
+the 32-bit text and data segments, as well as the 32-bit task (used to enter
+32-bit mode).
+
+    Copy() is some position-independent 16-bit code which is the last
+16-bit code executed during bootup of VSTa.  The VSTa kernel image was
+loaded above boot.exe's memory, but the VSTa kernel expects to run from
+a 0 base.  Copy() disables interrupts, copies the VSTa kernel down to
+physical memory starting at 0, switches into protected mode, and jumps
+through the 32-bit TSS to becomes a 32-bit task running in the VSTa
+kernel's locore.s at _start.
+
+3. Initial VSTa instructions
+
+    VSTa first pops the four DOS parameters off its stack.  It switches
+to its own stack, and calls main().  We are now running in C code.  main()
+will call a number of init routines, discussed below.
+
+    init_machdep() handles the grotty intial setup of memory.  It uses the
+DOS-passed parameters, and sets up machine-independent descriptions of
+the memory available.  It also scans the images of the boot servers which
+were concatentated onto the end of the kernel image, and builds a machine-
+independent description of them.  This description will be used soon to
+create the initial processes which allow VSTa to boot.
+
+    Finally, init_machdep() sets up its own level 1 and 2 page tables,
+and switches to them.  At this point, VSTa is now able to manage its
+own virtual memory.  It calls init_trap() to complete machine-dependent
+initialization with the initialization of the interrupt system.
+
+4. Further initialization
+
+    init_trap() creates a GDT (and null LDT, as only the GDT is used).
+It sets the PC interrupt controller to a mode compatible with protected
+mode, and puts together an IDT (interrupt descriptor table).  By default,
+each interrupt slot is hooked to a routine which will push the trap ID,
+and call the common interrupt code.
+
+    init_trap() then uses a table to override this default action with
+calls to more appropriate routines.  For instance, the page fault vector
+is rewired to call the page fault handler.  The system call vector is
+hooked to the system call handler.
+
+    Next, init_page() and init_malloc() are called to set up the
+hardware-independent parts of the VM system.  After these, the general-
+purpose memory routines can be used to allocate, free, and map memory.
+init_qio() and init_sched() set up the queued I/O facility and the
+scheduler.
+
+    init_proc() now takes the list of boot servers found in init_machdep(),
+and creates a new process for each server, with its state set to RUN.
+After this routine, VSTa has a process for each boot server, with each
+server flagged as waiting to run.
+
+    init_msg(), init_swap(), init_wire() all initialize various other
+machine-independent parts of the system.  start_clock() enables
+the PC clock and also enables interrupts.  From here, the clock will
+tick and system time will advance.  main() finishes by calling swtch(),
+which will never return.
+
+5. Running
+
+    swtch() enters the scheduler.  The current "process" (which isn't
+really, but it's close enough for the scheduler) releases the CPU,
+and swtch() hunts for a new process to run.  It finds the first of
+the boot servers, switches to its context, and "returns" to user mode
+(which will be at the first instruction in the a.out).  VSTa is now
+"up", and all further system activity will be handled by VSTa through
+the usual services of memory management, message passing, scheduling,
+and so forth.
+
+
+==============================================================================
+VM System
+==============================================================================
+
+The "root" of the memory system is the "vas" struct, which stands for
+Virtual Address Space.  A vas hangs off the proc struct, as do thread
+structs.  Thus, a proc has a 1:1 connection to a virtual address space, and
+all threads under a proc share the same address space.
+
+A vas is mostly just a place list one or more pviews.  It provides a mutex
+(mutual exclusion mechanism) to coordinate changes made to the address
+space, and it leaves room for the "hatvas", which is any hardware-specific
+state which needs to be kept per address space.
+
+"hat" stands for Hardware Address Translation.  It refers to
+processor-dependent virtual memory system functions.
+
+Each pview exists under a single vas, and one or more pviews are linked
+together in a list.  Each pview describes a virtual address, and a length.
+Thus, its name "Page View".  The sum of all pview's address/length ranges
+describes the virtual addresses which are valid in a particular address
+space.  The pview also describes protection (read-only, read-write, etc.).
+Finally, the pview also points downward to a pset.
+
+A pset is the first level which is not associated with a particular address
+space.  In fact, pviews from many different address spaces can point down to
+a pset.  The pset describes the state of a set of pages, and thus gets its
+name "Page Set".  A pset describes a length but no virtual address; a set of
+pages can be mapped at different addresses in different address spaces.  It
+describes where initial page contents are accessed (from a server,
+zero-filled, copy-on-write) and also maintains an array of per-page
+information.
+
+The "perpage" struct holds state for a particular page slot under a pset.
+If the slot is valid, it names the physical page number.  It also records
+the pviews which currently have a mapping to this page.  The "atl" ("Attach
+List") is a linked list data structure which then enumerates each such
+pview.  The ability to enumerate mappings of a physical page is required by
+the two-handed clock algorithm used to age pages during memory pageout and
+reclaim.
+
+Finally, each physical page has a corresponding "struct core" entry.  This
+entry records information needed to "wire" a page (keep it from being
+reclaimed--needed during DMA access, for instance).  It also provides a back
+pointer to the pset which is currently using this page.
+
+The i386-specific portion of the VM data structures is minimal.  The
+"hatvas" struct keep both the virtual and physical addresses for the root of
+the page tables for a given address space.  It keeps a resource map to
+tabulate what addresses are available for dynamic memory.  Finally, purely
+as an optimization, it keeps a bitmap to indicate which slots in the root
+page table have second level page tables.  This is used to speed cleanup
+during exit().
+
+Some brief notes on the mutex design.  The vas has a spinlock which protects
+changes to the overall address space.  The pview does not; cases where it
+needs to be protected are covered by acquiring the vas's spinlock.  The pset
+has a of two mechanisms.  For simple changes like reference count updates it
+has a straight spinlock "p_lock".  For changes to some particular position
+under the pset, the effect of having a per-slot semaphore (sleeping mutex,
+not spin-oriented) is gained using a combination of the pset's p_lockwait
+semaphore and two bits in the pp_lock field of the perpage information.
+PP_LOCK in this field indicates the the slot is held.  PP_WANT is an
+optimization which indicates that on release of PP_LOCK, if PP_WANT is set
+then sleepers on p_lockwait in the containing pset will be awaken.
+
+Thus, pageins of multiple positions within a pset can be done in parallel.
+Two threads racing to page in a single position will be serialized on the
+PP_LOCK of the slot.  Removing a pview from a vas will be protected by the
+vas's spinlock.  The fact that multiple threads can be changing a vas (and
+structures below) asynchronously adds complications.  For instance, deleting
+a pview from a vas requires great care so that threads already active down
+in the pset are not hosed when a thread starts removing the pview form the
+vas, and tries to tear it down.
+
+
+==============================================================================
+Where is a page transfered on page-out?
+==============================================================================
+
+The kernel queues the I/O to the swap server.  The swap server is
+potentially connected to a number of underlying physical devices, looks up
+the swap block number, finds out which device and which position that block
+lives at, and forwards the request.
+
+This allows the swap server to provide dynamic swap creation and deletion,
+interleaved swap, and so forth without any of this complex code living in
+the kernel.  The kernel just lives in a wonderland of a single swap
+partition starting with block 0 and going up to block n-1 (for current swap
+size available of n).
+
+
+==============================================================================
+VFS Description
+==============================================================================
+
+A file is structured as:
+
+| File header | Extents | Data...
+
+So the stuff UNIX would put in inode is actually just the first N bytes
+of a file.  Each extent is merely <start,len> tuples.  The sizes are
+chosen carefully, so that a 100-byte file occupies a single 512-byte
+sector, including both file data as well as file ownership, protection,
+and allocation information.  A directory is just a special file, so
+smaller directories will also occupy a single sector.
+
+As a file grows, its existing allocation is extended where possible.  So
+if your file is currently {<3,1>} (i.e., sector three, one sector long),
+and you write enough data to push out beyond the initial sector, the
+filesystem will see how many blocks can be had starting at 4.  Up to 64K
+is taken at once, in the hope that taking this much proactively will
+spare you having to "piecemeal" your file together as you write.
+
+Thus, your file could then be {<3,129>}.  The file's length is marked to
+be the entire length of the whole allocation (129*512 = 66048).  If you
+crash, the file thus correctly represents the storage it holds, without
+fsck being required before filesystem operation is resumed.
+
+As you write the file, the filesystem keeps track of the highest offset
+you have written.  On last close, blocks beyond this point are freed, and
+the file is "shrunk" down to the actual size written.  If you wrote
+a K or so, then closed the file, the example file would end up as {<3,3>},
+and 6..129 would return to the free list.
+
+The free list uses a sorted linked list of free ranges, with coalescing.
+Each range is held in a single sector; each sector has a next pointer
+to another sector's worth of free list ranges.  A sector can hold 0 or
+more entries; if it ever overflows, a global rebalance is done, resulting
+in each sector being exactly half full (except the last in the list which
+might hold less).  This allows contiguous ranges of free blocks to be easily
+identified, and is very storage efficient, even with small allocation
+units (such as sectors).  It is also easy to prove that your free list
+can always represent the total of free blocks, because a block on the
+free list can be consumed to provide another sector's worth of storage
+for the free list.  Bitmaps are popular for free block management, but
+their size grows as a function of increasing filesystem size and decreasing
+allocation unit size.  Most implementations either take a larger allocation
+size--say, 8K--and waste disk space for smaller files, or add tremendous
+complexity to special-case sub-allocation-size units (i.e., "frags" in
+the BSD filesystem).  VSTa is primarily an experimental platform, so I
+decided to try something different.
+
+The most complex part of the filesystem is the block cache.  This is
+a misnomer; each entry in the buffering system is variably-sized.
+For an extent of up to 64K, a buffer of the exact size is kept.  For
+larger extents, the extent is buffered in 64K chunks.
+
+Between the contiguous block allocation and the variable-size buffer,
+I hope to provide very efficient filesystem services.  Consider a
+file with allocation {<10,8>} (i.e., a file starting at sector 10 for 8
+sectors--4K).  When this file is opened and read, a 4K buffer is allocated.
+A single disk I/O fills the entire 4K.  Thus, most small files will have
+their entire contents buffered in a single disk I/O.  Larger files will
+have their contents buffered in chunks of 64K.  Once the file contents
+are in the filesystem's buffer, it may be parcelled out to clients without
+further I/O activity.
+
+This scheme should work well for text files, objects, and some executables.
+It will not work well for, say, databases.  They would do better to talk
+directly to a disk partition, or through a similar, but non-buffered
+version of this filesystem.  My initial prototype will also not protect
+itself well against multiple, competing allocation requests.  I hope to
+incrementally improve this as I learn more from actual use.
+
+Further notes on how to manipulate filesystems:
+
+To: vsta@cisco.com
+Cc: vandys@cisco.com
+Subject: vsta fs FAQ entry
+Date: Sat, 24 Dec 1994 22:22:43 -0700
+From: Gary Shea <shea@xmission.com>
+
+I've been trying to get a working vfs fs.
+I spent much of today reading fs & wd code;
+on a whim I mounted wd in the root fs and lo
+and behold, it had entries in it!  And they
+were different than the one in the sample inittab line...
+that simplified things lots.
+
+Here's a possible FAQ entry for the next poor fool
+who tries this:
+
+Q: How do I make a vstafs filesystem?
+
+A: For DOS 6.2, there are two possible partitions on a disk:
+the main one, and a secondary one.  It is possible to create
+logical partitions in the secondary partition to subdivide that
+partition even further.  To see what partitions you have available,
+add a line of the form:
+disk/wd /wd
+to the /vsta/etc/fstab file and reboot, or use the command
+$ mount disk/wd /wd
+to accomplish the same effect temporarily.  Look in the
+/wd directory for the names of available partitions.
+Supposing you wish to use the partition wd0_dos1, use the command
+$ stat /wd/wd0_dos1
+to find the exact size of the partition.  Divide that number by
+512 to get the number of sectors, then the command
+$ mkfs_vfs /wd/wd0_dos1 number_of_sectors
+will initialize a vstafs file system on that partition.
+Now you can run the filesystem server:
+$ /vsta/boot/vstafs /wd/wd0_dos1 fs/vfs
+Finally, you must map the namer pathname fs/vfs into the
+root heirarchy with a mount command:
+$ mount fs/vfs /vfs
+If you want the filesystem mounted at boot time, find the
+vstafs command in the /vsta/etc/inittab and correct it to
+your device name (note the different syntax when portnames
+are used); uncomment or introduce the necessary mount
+line in the /vsta/etc/fstab file.
