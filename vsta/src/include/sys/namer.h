@@ -41,6 +41,7 @@ struct node {
 	struct llist n_elems;	/* Linked list of elements under node */
 	uint n_refs;		/* # references to this node */
 	struct llist *n_list;	/* Our place in our parent's list */
+	uint n_owner;		/* Owner UID */
 };
 
 #endif /* _NAMER_H_INTERNAL */
