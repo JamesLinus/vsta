@@ -83,8 +83,15 @@ cat(char *p)
 {
 	char *name, *val;
 	int fd, x, output = 0;
-	char buf[128];
+	static char *buf = 0;
 
+	if (buf == 0) {
+		buf = malloc(NBPG);
+		if (buf == 0) {
+			perror("cat");
+			return;
+		}
+	}
 	if (!p || !p[0]) {
 		printf("Usage: cat [>] <name>\n");
 		return;
@@ -107,14 +114,14 @@ cat(char *p)
 		return;
 	}
 	if (output) {
-		while ((x = read(0, buf, sizeof(buf))) > 0) {
+		while ((x = read(0, buf, NBPG)) > 0) {
 			if (buf[0] == '\n') {
 				break;
 			}
 			write(fd, buf, x);
 		}
 	} else {
-		while ((x = read(fd, buf, sizeof(buf))) > 0) {
+		while ((x = read(fd, buf, NBPG)) > 0) {
 			write(1, buf, x);
 		}
 	}
