@@ -86,6 +86,7 @@ dos_write(struct msg *m, struct file *f)
 		}
 		n->n_len = newlen;
 	}
+	n->n_flags |= N_DIRTY;
 
 	/*
 	 * Copy out the buffer
