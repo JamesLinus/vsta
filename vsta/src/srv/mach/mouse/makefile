@@ -19,7 +19,7 @@ test: $(TOBJS)
 	$(LD) $(LDFLAGS) -e start -o test $(CRT0) $(TOBJS) $(LIBS)
 
 mouse: $(OBJS)
-	$(LD) $(LDFLAGS) -e start -o mouse $(CRT0) @objs $(LIBS)
+	$(LD) $(LDFLAGS) -e start -o mouse $(CRT0) $(OBJS) $(LIBS)
 
 clean:
 	rm -f mouse test

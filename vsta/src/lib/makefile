@@ -20,7 +20,7 @@ all: $(LIBS) crt0.o crt0srv.o
 
 libc.a: $(OBJS)
 	rm -f libc.a
-	ar rsv libc.a @objs
+	ar rsv libc.a $(OBJS)
 
 # Special version for boot servers
 startsrv.o: start.c
