@@ -157,3 +157,19 @@ strncmp(char *s1, char *s2, int nbyte)
 	return((int)s1[0] - (int)s2[-1]);
 	return(1);
 }
+
+/*
+ * bcmp()
+ *	Compare, binary style
+ */
+bcmp(void *s1, void *s2, unsigned int n)
+{
+	char *p = s1, *q = s2;
+
+	while (n-- > 0) {
+		if (*p++ != *q++) {
+			return(1);
+		}
+	}
+	return(0);
+}
