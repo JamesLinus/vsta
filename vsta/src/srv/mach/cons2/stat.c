@@ -50,7 +50,15 @@ void
 cons_wstat(struct msg *m, struct file *f)
 {
 	char *field, *val;
-	struct screen *s = SCREEN(f->f_screen);
+	struct screen *s;
+
+	/*
+	 * Can't fiddle root dir
+	 */
+	if (f->f_screen == ROOTDIR) {
+		msg_err(m->m_sender, EISDIR);
+		return;
+	}
 
 	/*
 	 * See if common handling code can do it
@@ -61,6 +69,7 @@ cons_wstat(struct msg *m, struct file *f)
 	/*
 	 * Process each kind of field we can write
 	 */
+	s = SCREEN(f->f_screen);
 	if (!strcmp(field, "gen")) {
 		/*
 		 * Set access-generation field
