@@ -42,16 +42,6 @@ extern unsigned long strtoul(const char *s, char **ptr, int base);
 extern int getdtablesize(void);
 
 /*
- * getopt() package.  We use __getopt_ptr() to get a pointer to the
- * "global" data variables.
- */
-extern void *__getopt_ptr(int);
-#define optarg (*(char **)__getopt_ptr(3))
-#define optind (*(int *)__getopt_ptr(1))
-#define opterr (*(int *)__getopt_ptr(0))
-extern int getopt(int, char **, char *);
-
-/*
  * GNU C has managed to change this one the last three times I moved
  * forward compilers, so don't blink your eyes.
  */
