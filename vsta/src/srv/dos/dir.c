@@ -721,10 +721,10 @@ dir_setlen(struct node *n)
 	 */
 	d->size = n->n_len;
 	if (c->c_nclust) {
-		ASSERT_DEBUG(d->size, "dir_setlen: len !clust");
+		ASSERT_DEBUG(d->size, "dir_setlen: !len clust");
 		d->start = c->c_clust[0];
 	} else {
-		ASSERT_DEBUG(d->size == 0, "dir_setlen: !len clust");
+		ASSERT_DEBUG(d->size == 0, "dir_setlen: len !clust");
 		d->start = 0;
 	}
 	if (handle) {
