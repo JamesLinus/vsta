@@ -227,7 +227,7 @@ show_man(struct mapent *m)
 	static char tmpf[] = "/tmp/mantXXXXXX";
 
 	mktemp(tmpf);
-	sprintf(buf, "roff %s/%d/%s > %s",
+	sprintf(buf, "nroff -man %s/%d/%s > %s",
 		MANDIR, m->m_section, m->m_file, tmpf);
 	system(buf);
 	pager = getenv("PAGER");
