@@ -21,7 +21,7 @@
 
 static void unit_spinup(), unit_recal(), unit_seek(), unit_spindown(),
 	unit_io(), unit_iodone(), failed(), state_machine(),
-	unit_reset(), unit_failed();
+	unit_reset(), unit_failed(), unit_settle();
 
 extern port_t fdport;			/* Our server port */
 struct floppy floppies[NFD];		/* Per-floppy state */
@@ -58,8 +58,9 @@ struct state states[] = {
 	{F_RESET,	FEV_TIME,	unit_failed,	F_CLOSED},
 	{F_RECAL,	FEV_INTR,	unit_seek,	F_SEEK},
 	{F_RECAL,	FEV_TIME,	unit_spindown,	F_CLOSED},
-	{F_SEEK,	FEV_INTR,	unit_io,	F_IO},
+	{F_SEEK,	FEV_INTR,	unit_settle,	F_SETTLE},
 	{F_SEEK,	FEV_TIME,	unit_reset,	F_RESET},
+	{F_SETTLE,	FEV_TIME,	unit_io,	F_IO},
 	{F_IO,		FEV_INTR,	unit_iodone,	F_READY},
 	{F_IO,		FEV_TIME,	unit_reset,	F_RESET},
 	{F_READY,	FEV_WORK,	unit_seek,	F_SEEK},
@@ -94,8 +95,9 @@ struct llist waiters;		/* Who's waiting */
 static struct file *
 cur_tran()
 {
-	if (&waiters == waiters.l_forw)
+	if (&waiters == waiters.l_forw) {
 		return(0);
+	}
 	return(waiters.l_forw->l_data);
 }
 
@@ -110,13 +112,18 @@ fdc_in(void)
 
 	for (i = 50000; i > 0; --i) {
 		j = (inportb(FD_STATUS) & (F_MASTER|F_DIR));
-		if (j == (F_MASTER|F_DIR))
+		if (j == (F_MASTER|F_DIR)) {
 			break;
-		if (j == F_MASTER)
+		}
+		if (j == F_MASTER) {
+			printf("fdc_in failed\n");
 			return(-1);
+		}
 	}
-	if (i < 1)
+	if (i < 1) {
+		printf("fdc_in failed2\n");
 		return(-1);
+	}
 	return(inportb(FD_DATA));
 }
 
@@ -131,11 +138,14 @@ fdc_out(uchar c)
 
 	for (i = 50000; i > 0; --i) {
 		j = (inportb(FD_STATUS) & (F_MASTER|F_DIR));
-		if (j == F_MASTER)
+		if (j == F_MASTER) {
 			break;
+		}
 	}
-	if (i < 1)
+	if (i < 1) {
+		printf("fdc_out failed\n");
 		return(-1);
+	}
 	outportb(FD_DATA, c);
 	return(0);
 }
@@ -177,15 +187,29 @@ queue_io(struct floppy *fl, struct msg *m, struct file *f)
 
 	ASSERT_DEBUG(f->f_list == 0, "fd queue_io: busy");
 
+	/*
+	 * If they didn't provide a buffer, generate one for
+	 * ourselves.
+	 */
+	if (m->m_nseg == 0) {
+		f->f_buf = malloc(m->m_arg);
+		if (f->f_buf == 0) {
+			msg_err(m->m_sender, ENOMEM);
+			return;
+		}
+		f->f_local = 1;
+	} else {
+		f->f_buf = m->m_buf;
+		f->f_local = 0;
+	}
+	f->f_count = m->m_arg;
 	f->f_unit = fl->f_unit;
 	f->f_blkno = f->f_pos/SECSZ;
 	calc_cyl(f, fp);
 	f->f_dir = m->m_op;
-	f->f_nseg = m->m_nseg;
-	f->f_buf = m->m_buf;
-	f->f_count = m->m_buflen;
 	f->f_off = 0;
 	if ((f->f_list = ll_insert(&waiters, f)) == 0) {
+		free(f->f_buf);
 		msg_err(m->m_sender, ENOMEM);
 		return(1);
 	}
@@ -196,7 +220,7 @@ queue_io(struct floppy *fl, struct msg *m, struct file *f)
  * childproc()
  *	Code to sleep, then send a message to the parent
  */
-static int child_secs;
+static int child_msecs;
 static void
 childproc(void)
 {
@@ -220,7 +244,11 @@ childproc(void)
 	 * Wait the interval
 	 */
 	time_get(&t);
-	t.t_sec += child_secs;
+	t.t_usec += (child_msecs*1000);
+	while (t.t_usec > 1000000) {
+		t.t_sec += 1;
+		t.t_usec -= 1000000;
+	}
 	time_sleep(&t);
 
 	/*
@@ -234,10 +262,10 @@ childproc(void)
 
 /*
  * timeout()
- *	Ask for M_TIME message in requested # of seconds
+ *	Ask for M_TIME message in requested # of milliseconds
  */
 static void
-timeout(int secs)
+timeout(int msecs)
 {
 	static long child;
 
@@ -246,11 +274,12 @@ timeout(int secs)
 	 */
 	if (child) {
 		notify(0, child, EKILL);
+		child = 0;
 	}
-	if (secs == 0) {
+	if (msecs == 0) {
 		return;
 	}
-	child_secs = secs;
+	child_msecs = msecs;
 
 	/*
 	 * We launch a child thread to send our timeout message
@@ -360,11 +389,32 @@ unit_spindown(int old, int new)
 static void
 unit_recal(int old, int new)
 {
+	uint x;
+
 	ASSERT_DEBUG(busy, "fd recal: not busy");
+
+	/*
+	 * Sense status
+	 */
+	fdc_out(FDC_SENSE);
+	fdc_out(0 | busy->f_unit);	/* Always head 0 after reset */
+	x = fdc_in();
+
+	/*
+	 * Specify some parameters now that reset
+	 */
+	fdc_out(FDC_SPECIFY);
+	fdc_out(FD_SPEC1);
+	fdc_out(FD_SPEC2);
 	busy->f_cyl = -1;
+	outportb(FD_CTL, XFER_500K);
+
+	/*
+	 * Start recalibrate
+	 */
 	fdc_out(FDC_RECAL);
 	fdc_out(busy->f_unit);
-	timeout(4);
+	timeout(4000);
 }
 
 /*
@@ -374,10 +424,18 @@ unit_recal(int old, int new)
 static void
 unit_seek(int old, int new)
 {
-	struct file *f;
+	struct file *f = cur_tran();
+	uint x;
 
-	ASSERT_DEBUG(cur_tran(), "fd seek: no work");
+	ASSERT_DEBUG(f, "fd seek: no work");
 	ASSERT_DEBUG(busy, "fd seek: not busy");
+
+	/*
+	 * Sense result
+	 */
+	fdc_out(FDC_SENSE);
+	fdc_out((f->f_head << 2) | busy->f_unit);
+	x = fdc_in();
 
 	/*
 	 * If the floppy consistently errors, we will keep re-entering
@@ -414,7 +472,7 @@ unit_seek(int old, int new)
 	/*
 	 * Arrange for time notification
 	 */
-	timeout(5);
+	timeout(5000);
 }
 
 /*
@@ -492,27 +550,22 @@ static void
 setup_dma(struct file *f)
 {
 	ulong pa;
-	int dir;
 
 	/*
-	 * Try for straight map-down of user's memory.  Ignore virtual
-	 * address of mapping; we're doing DMA in this driver.
+	 * Try for straight map-down of memory.  Use bounce buffer
+	 * if we can't get the memory directly.
 	 */
 	map_handle = page_wire(f->f_buf + f->f_off, &pa);
 	if (map_handle < 0) {
-		/*
-		 * Nope.  Use bounce buffer
-		 */
 		pa = (ulong)bouncepa;
 	}
-	dir = (f->f_dir == FS_READ) ? DMA_READ : DMA_WRITE;
-	outportb(DMA_STAT1, dir);
-	outportb(DMA_STAT0, dir);
+	outportb(DMA_STAT0, (f->f_dir == FS_READ) ? DMA_READ : DMA_WRITE);
+	outportb(DMA_STAT1, 0);
 	outportb(DMA_ADDR, pa & 0xFF);
 	outportb(DMA_ADDR, (pa >> 8) & 0xFF);
 	outportb(DMA_HIADDR, (pa >> 16) & 0xFF);
-	outportb(DMA_CNT, SECSZ & 0xFF);
-	outportb(DMA_CNT, (SECSZ >> 8) & 0xFF);
+	outportb(DMA_CNT, (SECSZ-1) & 0xFF);
+	outportb(DMA_CNT, ((SECSZ-1) >> 8) & 0xFF);
 	outportb(DMA_INIT, 2);
 }
 
@@ -525,15 +578,27 @@ unit_io(int old, int new)
 {
 	struct file *f = cur_tran();
 
+	ASSERT_DEBUG(f, "fd io: not busy");
+	ASSERT_DEBUG(busy, "fd io: not busy");
+
+	/*
+	 * Sense state after seek
+	 */
+	if (old == F_SETTLE) {
+		uint x;
+
+		fdc_out(FDC_SENSE);
+		fdc_out((f->f_head << 2) | busy->f_unit);
+		x = fdc_in();
+	}
+
 	/*
 	 * Dequeue an operation.  If the DMA can't be set up,
 	 * error the operation and return.
 	 */
-	ASSERT_DEBUG(f, "fd io: not busy");
-	ASSERT_DEBUG(busy, "fd io: not busy");
 	setup_dma(f);
 	setup_fdc(unit(busy->f_unit), f);
-	timeout(2);
+	timeout(2000);
 }
 
 /*
@@ -556,10 +621,17 @@ unit_iodone(int old, int new)
 	 */
 	timeout(0);
 
-	/*
-	 * Release memory lock-down, if any
-	 */
-	(void)page_release(map_handle);
+	if (map_handle >= 0) {
+		/*
+		 * Release memory lock-down, if DMA was to user's memory
+		 */
+		(void)page_release(map_handle);
+	} else {
+		/*
+		 * Need to bounce out to buffer
+		 */
+		bcopy(bounceva, f->f_buf+f->f_off, SECSZ);
+	}
 
 	/*
 	 * Read status
@@ -606,16 +678,36 @@ unit_iodone(int old, int new)
 	ll_delete(f->f_list);
 	f->f_list = 0;
 	run_queue();
-	m.m_buflen = m.m_nseg = m.m_arg1 = 0;
+
+	/*
+	 * Return results.  If we used a local buffer, send it back.
+	 * Otherwise we DMA'ed into his own memory, so no segment
+	 * is returned.
+	 */
+	if (f->f_local) {
+		m.m_buf = f->f_buf;
+		m.m_buflen = f->f_off;
+		m.m_nseg = 1;
+	} else {
+		m.m_nseg = 0;
+	}
 	m.m_arg = f->f_count;
+	m.m_arg1 = 0;
 	msg_reply(f->f_sender, &m);
+
+	/*
+	 * He has it, so free back to our pool
+	 */
+	if (f->f_local) {
+		free(f->f_buf);
+	}
 
 	/*
 	 * Leave a timer behind; if nothing comes up, this will
 	 * cause the floppies to spin down.
 	 */
 	if (!busy) {
-		timeout(3);
+		timeout(3000);
 	}
 }
 
@@ -632,6 +724,15 @@ state_machine(int event)
 {
 	int x;
 	struct state *s;
+
+#ifdef XXX
+	printf("state_machine(%d) cur state ", event);
+	if (busy) {
+		printf("%d\n", busy->f_state);
+	} else {
+		printf("<none>\n");
+	}
+#endif
 
 	/*
 	 * !busy is a special case; we're not driving one of our
@@ -658,15 +759,17 @@ state_machine(int event)
 	/*
 	 * Ignore events which don't have a table entry
 	 */
-	if (!s->s_state)
+	if (!s->s_state) {
 		return;
+	}
 
 	/*
 	 * Call event function
 	 */
 	busy->f_state = s->s_next;
-	if (s->s_fun)
+	if (s->s_fun) {
 		(*(s->s_fun))(s->s_state, s->s_next);
+	}
 }
 
 /*
@@ -689,15 +792,19 @@ fd_rw(struct msg *m, struct file *f)
 			fd_readdir(m, f);
 			return;
 		}
-	} else if (f->f_unit == ROOTDIR) {
-		msg_err(m->m_sender, EINVAL);
-		return;
+	} else {
+		/* FS_WRITE */
+		if ((f->f_unit == ROOTDIR) || (m->m_nseg != 1)) {
+			msg_err(m->m_sender, EINVAL);
+			return;
+		}
 	}
 
 	/*
 	 * Check size
 	 */
 	if ((m->m_arg & (SECSZ-1)) ||
+			(m->m_arg > MAXIO) ||
 			(f->f_pos & (SECSZ-1))) {
 		msg_err(m->m_sender, EINVAL);
 		return;
@@ -761,18 +868,18 @@ fd_init(void)
 			continue;
 		}
 		if ((types & TYMASK) == FD12) {
-			printf("Drive %d 1.2M\n", x);
+			printf("fd%d 1.2M\n", x);
 			fl->f_state = F_CLOSED;
 			fl->f_density = 0;
 			continue;
 		}
 		if ((types & TYMASK) == FD144) {
-			printf("Drive %d 1.44M\n", x);
+			printf("fd%d 1.44M\n", x);
 			fl->f_state = F_CLOSED;
 			fl->f_density = 1;
 			continue;
 		}
-		printf("Unknown floppy type, drive %d\n", x);
+		printf("fd%d unknown type\n", x);
 		fl->f_state = F_NXIO;
 	}
 
@@ -848,7 +955,17 @@ unit_reset(int old, int new)
 {
 	outportb(FD_MOTOR, motor_mask());
 	outportb(FD_MOTOR, motor_mask()|FD_INTR);
-	timeout(2);
+	timeout(2000);
+}
+
+/*
+ * unit_settle()
+ *	Pause to let the heads to settle
+ */
+static void
+unit_settle(int old, int new)
+{
+	timeout(HEAD_SETTLE);
 }
 
 /*

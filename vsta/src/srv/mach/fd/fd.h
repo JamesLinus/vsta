@@ -15,9 +15,18 @@
 #define NFD 2
 
 /*
+ * Max I/O size supported
+ */
+#define MAXIO (65536)
+
+/*
  * # times to retry an I/O before giving up
  */
+#ifndef DEBUG
 #define FD_MAXERR 5
+#else
+#define FD_MAXERR 2
+#endif
 
 /*
  * Special value for f_unit to indicate we're in the root dir
@@ -63,6 +72,7 @@ extern struct fdparms fdparms[];
 #define F_IO 8		/* Head at track, I/O in progress */
 #define F_NXIO 9	/* Unit does not exist */
 #define F_RESET 10	/* Reset in progress */
+#define F_SETTLE 11	/* Head settle time after seek */
 
 /*
  * event values for state machine
@@ -92,6 +102,7 @@ struct state {
 #define FD_MOTOR 0x3F2
 #define FD_STATUS 0x3F4
 #define FD_DATA 0x3F5
+#define FD_CTL 0x3F7
 
 #define FD_HIGH FD_DATA
 
@@ -102,6 +113,17 @@ struct state {
 #define FDC_SEEK 0xF
 #define FDC_READ 0xE6
 #define FDC_WRITE 0xC5
+#define FDC_SENSEI 0x08
+#define FDC_SENSE 0x04
+#define FDC_SPECIFY 0x03
+
+/*
+ * Values for transfer rate (FD_CTL)
+ */
+#define XFER_500K 0
+#define XFER_300K 1
+#define XFER_250K 2
+#define XFER_125K 3
 
 /*
  * Bits for FD_MOTOR
@@ -117,20 +139,28 @@ struct state {
 #define F_DIR 0x40		/* Direction of data */
 
 /*
- * How long to wait for motor spinup
- */
-#define MOT_TIME 3
-
-/*
  * Interrupt, DMA vectors
  */
 #define FD_IRQ 6	/* Hardware IRQ6==interrupt vector 14 */
 #define FD_DRQ 2	/*  ...DMA channel 2 */
 
 /*
+ * Arguments to FDC_SPECIFY command.  They appear to be magic; I got
+ * them from my MINIX book.
+ */
+#define FD_SPEC1 0xdf
+#define FD_SPEC2 0x02
+
+/*
  * Basic unit of transfer
  */
 #define SECSZ (512)
+
+/*
+ * Some time intervals, in milliseconds
+ */
+#define HEAD_SETTLE (100)	/* Head settle time after seek */
+#define MOT_TIME (500)		/* Motor spinup time */
 
 /*
  * Structure for per-connection operations
@@ -147,9 +177,9 @@ struct file {
 	uint f_count;	/* # bytes wanted for current op */
 	uint f_off;	/* Offset within current buffer */
 	ushort f_dir;	/* FS_READ, FS_WRITE */
-	ushort f_nseg;	/* # segments for I/O */
 	void *f_buf;	/* Base of buffer for operation */
 	off_t f_pos;	/* Offset into device */
+	int f_local;	/* f_buf is a local buffer */
 };
 
 /*
