@@ -19,7 +19,7 @@ static ushort *fat,	/* Our in-core FAT */
 static uint fatlen,	/* Length in FAT16 format */
 	fat12len;	/*  ...FAT12, if we're using FAT12 */
 static ushort *fatNFAT;
-static uchar *dirtymap;	/* Map of sectors which dirty FAT entries */
+static uchar *dirtymap;	/* Map of sectors with dirty FAT entries */
 static uint		/*  ...size of map */
 	dirtymapsize;
 uint clsize;		/* Size of cluster, in bytes */
@@ -526,14 +526,15 @@ fat_sync(void)
 }
 
 /*
- * get_clust0()
- *	Get first cluster # of first cluster
+ * get_clust()
+ *	Get cluster # of given cluster slot
  *
- * Used to fill in the "start" field of dir entries like ".."
+ * Used to fill in the "start" field of dir entries like "..",
+ * as well as to support inode number generation.
  */
 uint
-get_clust0(struct clust *c)
+get_clust(struct clust *c, uint idx)
 {
-	ASSERT_DEBUG(c->c_nclust > 0, "get_clust0: no data");
-	return(c->c_clust[0]);
+	ASSERT_DEBUG(c->c_nclust > idx, "get_clust: bad index");
+	return(c->c_clust[idx]);
 }

@@ -24,8 +24,9 @@
  * are the clusters allocated.  It is malloc()'ed, and realloc()'ed
  * as needed to change storage allocation.
  */
+typedef ushort claddr;
 struct clust {
-	ushort *c_clust;	/* Clusters allocated */
+	claddr *c_clust;	/* Clusters allocated */
 	uint c_nclust;		/* # entries in c_clust */
 };
 
@@ -209,7 +210,7 @@ extern struct clust *alloc_clust(uint);
 extern void free_clust(struct clust *);
 extern void fat_sync(void);
 extern int clust_setlen(struct clust *, ulong);
-extern uint get_clust0(struct clust *);
+extern uint get_clust(struct clust *, uint);
 
 /*
  * Other routines

@@ -270,6 +270,39 @@ map_type(int dos_attr)
 }
 
 /*
+ * get_inum()
+ *	Calculate inode value from containing dir and dir entry offset
+ */
+static uint
+get_inum(struct node *dir, int idx)
+{
+	claddr a;
+	static int dirent_per_cl = 0, dirent_shift;
+
+	/*
+	 * Root isn't a "real" cluster, so just use 0 base on entry offset
+	 */
+	if (dir == rootdir) {
+		return (idx);
+	}
+
+	/*
+	 * Calculate this once
+	 */
+	if (dirent_per_cl == 0) {
+		uint x;
+
+		dirent_per_cl = clsize / sizeof(struct directory);
+		for (x = dirent_per_cl; x; x >>= 1) {
+			dirent_shift += 1;
+		}
+	}
+
+	a = get_clust(dir->n_clust, idx / dirent_per_cl);
+	return ((a << dirent_shift) | (idx % dirent_per_cl));
+}
+
+/*
  * dir_look()
  *	Given dir node and filename, look up entry
  */
@@ -354,8 +387,7 @@ dir_look(struct node *n, char *file)
 	 * the allocated cluster of the containing dir (0 for root),
 	 * the lower are the offset of this file's dir entry.
 	 */
-	n2->n_inum = ((n == rootdir) ? x :
-		((get_clust0(n->n_clust) << 16) | x));
+	n2->n_inum = get_inum(n, x);
 
 	if (n2->n_type == T_DIR) {
 		/*
@@ -958,7 +990,7 @@ fix_dotdot(struct node *n, struct node *ndir)
 	/*
 	 * Point to new parent dir
 	 */
-	de->start = get_clust0(ndir->n_clust);
+	de->start = get_clust(ndir->n_clust, 0);
 	ddirty(b);
 }
 
