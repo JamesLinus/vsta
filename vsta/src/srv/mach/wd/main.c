@@ -218,9 +218,25 @@ loop:
 			msg_err(msg.m_sender, EINVAL);
 			break;
 		}
-		f->f_pos = msg.m_arg;
+		if (msg.m_arg & (SECSZ-1)) {
+			msg_err(msg.m_sender, EBALIGN);
+			break;
+		}
+		f->f_pos = ((ulong)msg.m_arg) / SECSZ;
 		msg.m_arg = msg.m_arg1 = msg.m_nseg = 0;
 		msg_reply(msg.m_sender, &msg);
+		break;
+
+	case FS_BLKREAD:	/* Block I/O, read */
+	case FS_BLKWRITE:	/* Block I/O, write */
+		if (!f) {
+			msg_err(msg.m_sender, EINVAL);
+			break;
+		}
+		f->f_pos = msg.m_arg1;
+		f->f_bytes = 0;
+		msg.m_op = ((msg.m_op == FS_BLKREAD) ? FS_READ : FS_WRITE);
+		wd_rwb(&msg, f);
 		break;
 
 	case FS_ABSREAD:	/* Set position, then read */
@@ -229,13 +245,18 @@ loop:
 			msg_err(msg.m_sender, EINVAL);
 			break;
 		}
-		f->f_pos = msg.m_arg1;
+		if (msg.m_arg1 & (SECSZ-1)) {
+			msg_err(msg.m_sender, EBALIGN);
+			break;
+		}
+		f->f_pos = ((ulong)msg.m_arg1) / SECSZ;
 		msg.m_op = ((msg.m_op == FS_ABSREAD) ? FS_READ : FS_WRITE);
 
 		/* VVV fall into VVV */
 
 	case FS_READ:		/* Read the disk */
 	case FS_WRITE:		/* Write the disk */
+		f->f_bytes = 1;
 		wd_rw(&msg, f);
 		break;
 

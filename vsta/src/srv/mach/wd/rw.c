@@ -37,7 +37,7 @@ queue_io(struct msg *m, struct file *f)
 	 * Get a block offset based on partition
 	 */
 	switch (dpart_get_offset(disks[unit].d_parts, NODE_SLOT(f->f_node),
-				 f->f_pos / SECSZ, &part_off, &cnt)) {
+				 f->f_pos, &part_off, &cnt)) {
 	case 0:			/* Everything's OK */
 		break;
 	case 1:			/* At end of partition (EOF) */
@@ -45,6 +45,8 @@ queue_io(struct msg *m, struct file *f)
 		msg_reply(m->m_sender, m);
 		return(1);
 	case 2:			/* Illegal offset */
+		syslog(LOG_DEBUG, "bad offset unit %d slot %d pos %d",
+			unit, NODE_SLOT(f->f_node), f->f_pos);
 		msg_err(m->m_sender, EINVAL);
 		return(1);
 	}
@@ -54,7 +56,7 @@ queue_io(struct msg *m, struct file *f)
 	 * ourselves.
 	 */
 	if (m->m_nseg == 0) {
-		f->f_buf = malloc(m->m_arg);
+		f->f_buf = malloc(m->m_arg * SECSZ);
 		if (f->f_buf == 0) {
 			msg_err(m->m_sender, ENOMEM);
 			return(1);
@@ -64,7 +66,7 @@ queue_io(struct msg *m, struct file *f)
 		f->f_buf = m->m_buf;
 		f->f_local = 0;
 	}
-	f->f_count = m->m_arg / SECSZ;
+	f->f_count = m->m_arg;
 	if (f->f_count > cnt) {
 		f->f_count = cnt;
 	}
@@ -115,44 +117,27 @@ run_queue(void)
 }
 
 /*
- * wd_rw()
- *	Do I/O to the disk
- *
- * m_arg specifies how much they want.  It must be in increments
- * of sector sizes, or we EINVAL'em out of here.
+ * wd_rwb()
+ *	Common code to do a block-oriented I/O operation
  */
 void
-wd_rw(struct msg *m, struct file *f)
+wd_rwb(struct msg *m, struct file *f)
 {
 	/*
-	 * Sanity check operations on directories
+	 * Can't do block I/O to root dir, nor write without
+	 * a single segment.
 	 */
-	if (m->m_op == FS_READ) {
-		if (f->f_node == ROOTDIR) {
-			wd_readdir(m, f);
-			return;
-		}
-	} else {
-		/* FS_WRITE */
-		if ((f->f_node == ROOTDIR) || (m->m_nseg != 1)) {
-			msg_err(m->m_sender, EINVAL);
-			return;
-		}
-	}
-
-	/*
-	 * Check size of I/O request
-	 */
-	if ((m->m_arg > MAXIO) || (m->m_arg <= 0)) {
+	if ((f->f_node == ROOTDIR) ||
+			((m->m_op == FS_WRITE) && (m->m_nseg != 1))) {
 		msg_err(m->m_sender, EINVAL);
 		return;
 	}
 
 	/*
-	 * Check alignment of request (block alignment)
+	 * Check size of I/O request
 	 */
-	if ((m->m_arg & (SECSZ - 1)) || (f->f_pos & (SECSZ-1))) {
-		msg_err(m->m_sender, EBALIGN);
+	if ((m->m_arg > (MAXIO/SECSZ)) || (m->m_arg <= 0)) {
+		msg_err(m->m_sender, EINVAL);
 		return;
 	}
 
@@ -171,6 +156,40 @@ wd_rw(struct msg *m, struct file *f)
 	if (!queue_io(m, f) && !busy) {
 		run_queue();
 	}
+}
+
+/*
+ * wd_rw()
+ *	Do I/O to the disk
+ *
+ * m_arg specifies how much they want.  It must be in increments
+ * of sector sizes, or we EINVAL'em out of here.
+ */
+void
+wd_rw(struct msg *m, struct file *f)
+{
+	/*
+	 * Sanity check operations on directories
+	 */
+	if ((m->m_op == FS_READ) && (f->f_node == ROOTDIR)) {
+		wd_readdir(m, f);
+		return;
+	}
+
+	/*
+	 * Check alignment of request (block alignment)
+	 */
+	if (m->m_arg & (SECSZ - 1)) {
+		msg_err(m->m_sender, EBALIGN);
+		return;
+	}
+	m->m_arg /= SECSZ;
+
+	/*
+	 * Now that we've converted to sector units, use the
+	 * block I/O routine
+	 */
+	wd_rwb(m, f);
 }
 
 /*
@@ -242,13 +261,17 @@ iodone(void *tran, int result)
 		 * buffer if local.  Update the f_pos pointer to show where
 		 * we've reached so far
 		 */
-		m.m_arg = f->f_count * SECSZ;
-		f->f_pos += m.m_arg;
+		if (f->f_bytes) {
+			m.m_arg = f->f_count * SECSZ;
+		} else {
+			m.m_arg = f->f_count;
+		}
+		f->f_pos += f->f_count;
 
 		if (f->f_local) {
 			m.m_nseg = 1;
 			m.m_buf = f->f_buf;
-			m.m_buflen = m.m_arg;
+			m.m_buflen = f->f_count * SECSZ;
 		} else {
 			m.m_nseg = 0;
 		}

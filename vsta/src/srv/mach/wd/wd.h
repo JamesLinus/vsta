@@ -160,18 +160,19 @@ struct wdparms {
  */
 struct file {
 	long f_sender;		/* Sender of current operation */
-	uint f_flags;		/* User access bits */
+	ushort f_flags;		/* User access bits */
+	ushort f_unit;		/* Unit we want */
 	struct llist		/* When operation pending on this file */
 		*f_list;
 	int f_node;		/* Current "directory" */
-	ushort f_unit;		/* Unit we want */
-	ushort f_abort;		/* Abort requested */
-	uint f_blkno;		/* Block # for operation */
-	uint f_count;		/* # bytes wanted for current op */
+	uint f_blkno;		/* Sector # for operation */
+	uint f_count;		/* # sectors wanted for current op */
 	ushort f_op;		/* FS_READ, FS_WRITE */
 	void *f_buf;		/* Base of buffer for operation */
 	off_t f_pos;		/* Offset into device */
-	int f_local;		/* f_buf is a local buffer */
+	uchar f_local,		/* f_buf is a local buffer */
+		f_bytes,	/* Result should be scaled back to bytes */
+		f_abort;	/* Abort requested */
 };
 
 /*
@@ -195,7 +196,8 @@ extern void wd_isr(void);
 /*
  * Function prototypes for rw.c
  */
-extern void wd_rw(struct msg *m, struct file *f);
+extern void wd_rw(struct msg *m, struct file *f),
+	wd_rwb(struct msg *m, struct file *f);
 extern void iodone(void *tran, int result);
 extern void rw_init(void);
 extern void rw_readpartitions(int unit);
