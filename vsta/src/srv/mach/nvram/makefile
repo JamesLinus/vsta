@@ -22,3 +22,7 @@ clean:
 
 clobber: clean
 	$(RM) nvram
+
+install: nvram
+	strip nvram
+	cp nvram ../../../boot
