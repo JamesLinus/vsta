@@ -431,6 +431,7 @@ msg_send(port_t arg_port, struct msg *arg_msg)
 		error = copyoutsegs(&sm);
 		unmapsegs(&segrefs);
 		if (error == -1) {
+			sm.sm_nseg = 0;	/* unmapsegs() got'em */
 			goto out1;
 		}
 
@@ -761,7 +762,6 @@ msg_reply(long arg_who, struct msg *arg_msg)
 			 * Give him the parts of the sysmsg
 			 * that he needs from us
 			 */
-			om->sm_op = sm.sm_op;
 			om->sm_arg = sm.sm_arg;
 			om->sm_arg1 = sm.sm_arg1;
 			om->sm_nseg = sm.sm_nseg;
