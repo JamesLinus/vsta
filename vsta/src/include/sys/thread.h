@@ -38,7 +38,6 @@ struct thread {
 		t_usrcpu;
 	char t_evsys[EVLEN];	/* Event from system */
 	char t_evproc[EVLEN];	/*  ...from user process */
-	sema_t t_evq;		/* Queue when waiting to send */
 	struct percpu		/* CPU running on for TS_ONPROC */
 		*t_eng;
 	struct fpu *t_fpu;	/* Saved FPU state, if any */
