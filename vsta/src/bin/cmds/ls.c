@@ -14,15 +14,69 @@
 #include <fcntl.h>
 #include <termios.h>
 #include <fdl.h>
+#include <getopt.h>
 
 static int ndir;	/* # dirs being displayed */
 static int cols = 80;	/* Columns on display */
 
-static int lflag = 0;	/* -l flag */
-static int Fflag = 0;	/* -F flag */
-static int oneflag = 0; /* -1 flag */
-static int dflag = 0;	/* -d flag */
-static int aflag = 0;	/* -a flag */
+static int lflag = 0,	/* -l flag */
+	Fflag = 0,	/* -F flag */
+	oneflag = 0,	/* -1 flag */
+	dflag = 0,	/* -d flag */
+	aflag = 0;	/* -a flag */
+
+/*
+ * explode()
+ *	Return vector out to fields in stat buffer
+ */
+char **
+explode(char *statbuf)
+{
+	uint nfield = 0;
+	char *p, **args = 0;
+
+	p = statbuf;
+	while (p && *p) {
+		nfield += 1;
+		args = realloc(args, (nfield+1) * sizeof(char *));
+		if (args == 0) {
+			return(0);
+		}
+		args[nfield-1] = p;
+		p = strchr(p, '\n');
+		if (p) {
+			*p++ = '\0';
+		}
+		if ((args[nfield-1] = strdup(args[nfield-1])) == 0) {
+			return(0);
+		}
+	}
+	args[nfield] = 0;
+	return(args);
+}
+
+/*
+ * get_attrs()
+ *	Return attribute->value pairs for named entry
+ *
+ * Returns NULL if it can't get them for any reason
+ */
+static char **
+get_attrs(const char *path)
+{
+	char *s, **sv = NULL;
+	int fd;
+
+	fd = open(path, O_RDONLY);
+	if (fd >= 0) {
+		s = rstat(__fd_port(fd), (char *)0);
+		close(fd);
+		if (s) {
+			sv = explode(s);
+		}
+	}
+	return(sv);
+}
 
 /*
  * sort()
@@ -53,11 +107,6 @@ prcols(char **v)
 			maxlen = x;
 		}
 	}
-
-	/*
-	 * Put entries in order
-	 */
-	qsort((void *)v, nelem, sizeof(char *), sort);
 
 	/*
 	 * Calculate how many columns that makes, and how many
@@ -116,7 +165,7 @@ prcols(char **v)
  *	Print usage
  */
 void
-usage(void)
+usage(int val)
 {
 	fprintf(stderr, "Usage:\n");
 	fprintf(stderr, "\t-a\t\tDo not hide entries starting with .\n");
@@ -125,38 +174,7 @@ usage(void)
 	fprintf(stderr, "\t-l\t\tUse a long listing format\n");
 	fprintf(stderr, "\t-1\t\tList one file per line\n");
 	fprintf(stderr, "\t-h, --help\tDisplay this help and exit\n");
-	exit(1);
-}
-
-/*
- * setopt()
- *	Set option flag
- */
-static void
-setopt(int c)
-{
-	switch (c) {
-	case 'l':
-		lflag = 1;
-		break;
-	case 'F':
-		Fflag = 1;
-		break;
-	case '1':
-		oneflag = 1;
-		break;
-	case 'd':
-		dflag = 1;
-		break;
-	case 'a':
-		aflag = 1;
-		break;
-	case 'h':
-		usage();
-	default:
-		fprintf(stderr, "Unknown option: %c\n", c);
-		usage();
-	}
+	exit(val);
 }
 
 /*
@@ -184,36 +202,6 @@ fld(char **args, char *field, char *deflt)
 		}
 	}
 	return(deflt);
-}
-
-/*
- * explode()
- *	Return vector out to fields in stat buffer
- */
-char **
-explode(char *statbuf)
-{
-	uint nfield = 0;
-	char *p, **args = 0;
-
-	p = statbuf;
-	while (p && *p) {
-		nfield += 1;
-		args = realloc(args, (nfield+1) * sizeof(char *));
-		if (args == 0) {
-			return(0);
-		}
-		args[nfield-1] = p;
-		p = strchr(p, '\n');
-		if (p) {
-			*p++ = '\0';
-		}
-		if ((args[nfield-1] = strdup(args[nfield-1])) == 0) {
-			return(0);
-		}
-	}
-	args[nfield] = 0;
-	return(args);
 }
 
 /*
@@ -279,7 +267,7 @@ prprot(char *perm, char *acc)
 char *
 printname(char *name, char *acc, char *type)
 {
-	static char fname[256];
+	static char fname[_NAMLEN];
 	char *p;
 	uint x;
 
@@ -311,34 +299,24 @@ printname(char *name, char *acc, char *type)
  *	List stuff with full stats
  */
 static void
-ls_l(struct dirent *de)
+ls_l(char *path)
 {
-	char *s, **sv;
-	int fd;
+	char **sv;
 	struct passwd *pwd;
-	extern char *rstat();
 	time_t time;
 	char timestr[32];
 
 	/*
 	 * Inhibit display of '.<name>' unless -a (all)
 	 */
-	if ((aflag == 0) && (de->d_name[0] == '.')) {
+	if ((aflag == 0) && (path[0] == '.')) {
 		return;
 	}
 
 	/*
 	 * Read in the stat string for the entry
 	 */
-	sv = NULL;
-	fd = open(de->d_name, O_RDONLY);
-	if (fd >= 0) {
-		s = rstat(__fd_port(fd), (char *)0);
-		close(fd);
-		if (s) {
-			sv = explode(s);
-		}
-	}
+	sv = get_attrs(path);
 
 	/*
 	 * Print out various fields
@@ -352,7 +330,7 @@ ls_l(struct dirent *de)
 		pwd ? (pwd->pw_name) : ("not set"),
 		atoi(fld(sv, "size", "0")),
 		timestr,
-		printname(de->d_name, fld(sv, "acc", 0), fld(sv, "type", "-")));
+		printname(path, fld(sv, "acc", 0), fld(sv, "type", "-")));
 }
 
 /*
@@ -364,48 +342,55 @@ ls(char *path)
 {
 	DIR *d;
 	struct dirent *de;
-	char **v = NULL;
-	int nelem;
+	char **v = NULL, **sv;
+	int x, nelem;
 	struct stat st;
 	char buf[_NAMLEN];
 
 	if (stat(path, &st)) {
-		perror("stat failed");
+		perror(path);
 		return;
 	}
-	if (!S_ISDIR(st.st_mode) || dflag == 1) {
+
+	/*
+	 * If we've been pointed at a single entry, just list it
+	 */
+	if (!S_ISDIR(st.st_mode) || (dflag == 1)) {
+		char *vp[2];
+
+		/*
+		 * ls -l of a particular node
+		 */
 		if (lflag) {
 			struct dirent de;
 
 			de.d_namlen = strlen(path);
 			strcpy(de.d_name, path);
-			ls_l(&de);
-		} else {
-			char *v[2];
-			char *s, **sv;
-			int fd;
-			extern char *rstat();
+			ls_l(de.d_name);
+			return;
+		}
+
+		/*
+		 * If Fflag, read in the stat string for the entry and
+		 * display it prettily.  If not Fflag, avoid the overhead
+		 * of gathering the rstat() information.
+		 */
+		if (Fflag) {
+			sv = get_attrs(path);
 
 			/*
-			 * Read in the stat string for the entry
+			 * Display it, and return
 			 */
-			sv = NULL;
-			fd = open(path, O_RDONLY);
-			if (fd >= 0) {
-				s = rstat(__fd_port(fd), (char *)0);
-				close(fd);
-				if (s) {
-					sv = explode(s);
-				}
-			}
-
-			sprintf(v[0], "%s",
+			sprintf(buf, "%s",
 				sv ?  printname(path, fld(sv, "acc", 0),
 					fld(sv, "type", "f")) :
 				    path);
-			v[1] = NULL;
-			prcols(v);
+			vp[0] = buf;
+		} else {
+			vp[0] = path;
 		}
+		vp[1] = NULL;
+		prcols(vp);
 		return;
 	}
 
@@ -431,35 +416,11 @@ ls(char *path)
 	 */
 	nelem = 0;
 	while ((de = readdir(d))) {
-		char *s, **sv;
-		int fd;
-
-		/*
-		 * Do ls -l format
-		 */
-		if (lflag) {
-			ls_l(de);
-			continue;
-		}
-
 		/*
 		 * Ignore "hidden" unless -a
 		 */
 		if (!aflag && (de->d_name[0] == '.')) {
 			continue;
-		}
-
-		/*
-		 * Read in the stat string for the entry
-		 */
-		sv = NULL;
-		fd = open(de->d_name, O_RDONLY);
-		if (fd >= 0) {
-			s = rstat(__fd_port(fd), (char *)0);
-			close(fd);
-			if (s) {
-				sv = explode(s);
-			}
 		}
 
 		/*
@@ -472,12 +433,7 @@ ls(char *path)
 			perror("ls");
 			exit(1);
 		}
-
-		sprintf(buf, "%s",
-			sv ?  printname(de->d_name, fld(sv, "acc", 0),
-				fld(sv, "type", "f")) :
-			    de->d_name);
-		v[nelem-1] = strdup(buf);
+		v[nelem-1] = strdup(de->d_name);
 	}
 	closedir(d);
 
@@ -485,13 +441,50 @@ ls(char *path)
 	 * Dump them (if any)
 	 */
 	if (nelem > 0) {
-		int x;
-
 		/*
-		 * Put terminating null, then print
+		 * Put terminating null
 		 */
 		v[nelem] = 0;
-		prcols(v);
+
+		/*
+		 * Put entries in order
+		 */
+		qsort((void *)v, nelem, sizeof(char *), sort);
+
+		/*
+		 * Display them either as a column, or individually
+		 * with ls -l detail.
+		 */
+		if (lflag) {
+			for (x = 0; x < nelem; ++x) {
+				ls_l(v[x]);
+			}
+		} else {
+			if (Fflag) {
+				for (x = 0; x < nelem; ++x) {
+					v[x] = realloc(v[x],
+						strlen(v[x]) + 3);
+
+					/*
+					 * Read in the stat string for
+					 * the entry and modify the name
+					 * with its -F attributes.
+					 */
+					sv = get_attrs(v[x]);
+					if (sv) {
+						strcpy(v[x],
+						 printname(v[x],
+						 fld(sv, "acc", 0),
+						 fld(sv, "type", "f")));
+					}
+				}
+			}
+
+			/*
+			 * Display file names in columns
+			 */
+			prcols(v);
+		}
 
 		/*
 		 * Free memory
@@ -509,22 +502,30 @@ main(argc, argv)
 	char **argv;
 {
 	int x, rows;
-	char currpath[128];
+	char currpath[_NAMLEN];
 
-	/*
-	 * Parse leading args
-	 */
-	for (x = 1; x < argc; ++x) {
-		char *p;
-
-		if (argv[x][0] != '-' || strcmp(argv[x], "--") == 0) {
+	while ((x = getopt(argc, argv, "lF1dah")) > 0) {
+		switch (x) {
+		case 'l':
+			lflag = 1;
 			break;
-		}
-		if (strcmp(argv[x], "--help") == 0) {
-			usage();
-		}
-		for (p = &argv[x][1]; *p; ++p) {
-			setopt(*p);
+		case 'F':
+			Fflag = 1;
+			break;
+		case '1':
+			oneflag = 1;
+			break;
+		case 'd':
+			dflag = 1;
+			break;
+		case 'a':
+			aflag = 1;
+			break;
+		case 'h':
+			usage(0);
+		default:
+			fprintf(stderr, "Unknown option: %c\n", x);
+			usage(1);
 		}
 	}
 
@@ -536,14 +537,14 @@ main(argc, argv)
 	/*
 	 * Do ls on rest of file or dirnames
 	 */
-	ndir = argc-x;
+	ndir = argc-optind;
 	if (ndir == 0) {
 		ls(".");
 	} else {
-		for (; x < argc; ++x) {
-			getcwd (currpath, sizeof (currpath));
+		for (x = optind; x < argc; ++x) {
+			getcwd(currpath, sizeof (currpath));
 			ls(argv[x]);
-			chdir (currpath);
+			chdir(currpath);
 		}
 	}
 
