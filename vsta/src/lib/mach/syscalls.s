@@ -57,4 +57,5 @@ ENTRY(perm_ctl, S_PERM_CTL)
 ENTRY(set_swapdev, S_SET_SWAPDEV)
 ENTRY(run_qio, S_RUN_QIO)
 ENTRY(set_cmd, S_SET_CMD)
+ENTRY(pageout, S_PAGEOUT)
 

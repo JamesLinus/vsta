@@ -34,6 +34,7 @@
 #define S_SET_SWAPDEV 27
 #define S_RUN_QIO 28
 #define S_SET_CMD 29
-#define S_HIGH S_SET_CMD
+#define S_PAGEOUT 30
+#define S_HIGH S_PAGEOUT
 
 #endif /* _SYSCALL_H */
