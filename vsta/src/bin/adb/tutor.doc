@@ -36,6 +36,8 @@ $c		- Show C stack backtrace
 :c		- Continue execution
 :r [<args>]	- Start new process from a.out, break before running
 		  (this is not compatible with the real adb)
+:s		- Step an instruction
+:n		- Set breakpoint one beyond current instr, then run
 $q		- Exit
 
 adb's command line arguments are also not compatible with the true
