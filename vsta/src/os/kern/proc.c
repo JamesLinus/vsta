@@ -523,15 +523,18 @@ free_proc(struct proc *p)
 }
 
 /*
- * exit()
- *	The exit() system call
+ * do_exit()
+ *	The exit() system call, really
  *
  * Tricky once we tear down our kernel stack, because we can no longer
  * use stack variables once this happens.  The trivial way to deal with
  * this is to declare them "register" and hope the declaration is honored.
  * I'm trying to avoid this by using just the percpu "curthread" value.
+ *
+ * GCC tends to *know* what exit() means, so we name it do_exit() and
+ * avoid the issue.
  */
-exit(int code)
+do_exit(int code)
 {
 	struct thread *t = curthread, *t2, **tp;
 	struct proc *p = t->t_proc;
@@ -549,7 +552,7 @@ exit(int code)
 		}
 		tp = &t2->t_next;
 	}
-	ASSERT(t2, "exit: lost thread");
+	ASSERT(t2, "do_exit: lost thread");
 	last = (p->p_threads == 0);
 
 	/*
@@ -606,7 +609,7 @@ exit(int code)
 	ATOMIC_DEC(&cpu.pc_locks);	/* swtch() will handle dispatch */
 	for (;;) {
 		swtch();
-		ASSERT(0, "exit: swtch returned");
+		ASSERT(0, "do_exit: swtch returned");
 	}
 }
 

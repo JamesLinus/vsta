@@ -490,7 +490,7 @@ sendev(struct thread *t, char *ev)
 	struct evframe e;
 	struct trapframe *f;
 	struct proc *p;
-	extern void exit();
+	extern int do_exit();
 
 	ASSERT(t->t_uregs, "sendev: no user frame");
 	f = t->t_uregs;
@@ -506,7 +506,7 @@ sendev(struct thread *t, char *ev)
 		dbg_enter();
 #endif
 		strcpy(p->p_event, ev);
-		exit(_W_EV);
+		do_exit(_W_EV);
 	}
 
 	/*
@@ -525,7 +525,7 @@ sendev(struct thread *t, char *ev)
 			p->p_pid, t->t_pid, f->esp);
 		dbg_enter();
 #endif
-		exit(1);
+		do_exit(1);
 	}
 
 	/*
