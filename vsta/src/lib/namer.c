@@ -41,7 +41,7 @@ namer_register(char *buf, port_name uport)
 		}
 		__msleep(100);
 	}
-	if (port <= 0) {
+	if (port < 0) {
 		return(-1);
 	}
 
