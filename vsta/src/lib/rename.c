@@ -10,6 +10,7 @@
 #include <sys/fs.h>
 #include <std.h>
 #include <fcntl.h>
+#include <alloc.h>
 
 /*
  * Not reentrant XXX

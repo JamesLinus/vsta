@@ -6,6 +6,7 @@
 #include <sys/ports.h>
 #include <sys/fs.h>
 #include <std.h>
+#include <alloc.h>
 
 /*
  * For mapping well-known-addresses into their port names
