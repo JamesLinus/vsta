@@ -318,3 +318,4 @@ _endgrent
 ___get_tzname
 __fdclose hidden
 _fchmod
+___map_errno hidden

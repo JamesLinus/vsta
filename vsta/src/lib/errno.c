@@ -84,11 +84,11 @@ map_errstr(char *err)
 }
 
 /*
- * map_errno()
+ * __map_errno()
  *	Given POSIX errno-type value, return a pointer to a VSTa error string
  */
-static char *
-map_errno(int err)
+char *
+__map_errno(int err)
 {
 	static char errdef[] = "unknown error";
 	int x;
@@ -131,7 +131,7 @@ __ptr_errno(void)
 	 * have, we want to put things back in sync
 	 */
 	if (_old_errno != _errno) {
-		__seterr(map_errno(_errno));
+		__seterr(__map_errno(_errno));
 		return(&_errno);
 	}
 
