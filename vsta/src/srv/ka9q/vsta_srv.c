@@ -1291,7 +1291,7 @@ do_proxy(struct msg *mp, struct client *cl)
 	/*
 	 * Handle a couple special cases
 	 */
-	switch (mp->m_op) {
+	switch (mp->m_op & MSG_MASK) {
 	case M_DISCONNECT:
 		dead_client(mp, cl);
 		cl->c_wait_reply = 0;
@@ -1366,7 +1366,7 @@ proc_msg(struct msg *m)
 	/*
 	 * Switch based on request
 	 */
-	switch (m->m_op) {
+	switch (m->m_op & MSG_MASK) {
 	case M_DISCONNECT:	/* Client done */
 		dead_client(m, cl);
 		break;
@@ -1454,7 +1454,7 @@ port_daemon(void)
 			_exit(1);
 		}
 
-		switch (m.m_op) {
+		switch (m.m_op & MSG_MASK) {
 		case M_CONNECT:		/* New client */
 			new_client(&m);
 			break;
