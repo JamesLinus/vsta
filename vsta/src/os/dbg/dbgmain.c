@@ -191,10 +191,8 @@ dbg_main(void)
  	 * Command loop
  	 */
  	for (;;) {
-		printf(">");
-		if (gets(cmd) == 0) {
-			quit();
-		}
+		extern void gets();
+		gets(cmd);
 
 		/*
 		 * Keep last command, insert it if they just hit return
