@@ -32,12 +32,53 @@ typedef struct __file {
 #define _F_UBUF (256)		/* User-provided buffer */
 
 /*
+ * The following in-line functions replace the more classic UNIX
+ * approach of gnarly ?: constructs.  I think that inline C in
+ * a .h is disgusting, but a step forward from unreadably
+ * complex C expressions.
+ */
+
+/*
+ * getc()
+ *	Get a char from a stream
+ */
+static inline int
+getc(FILE *fp)
+{
+	if (((fp->f_flags & (_F_READ|_F_DIRTY)) != _F_READ) ||
+			(fp->f_cnt == 0)) {
+		return(fgetc(fp));
+	}
+	fp->f_cnt -= 1;
+	fp->f_pos += 1;
+	return(fp->f_pos[-1]);
+}
+
+/*
+ * putc()
+ *	Put a char to a stream
+ */
+static inline int
+putc(char c, FILE *fp)
+{
+	if (((fp->f_flags & (_F_WRITE|_F_SETUP|_F_DIRTY)) !=
+			(_F_WRITE|_F_SETUP)) ||
+			(fp->f_cnt >= fp->f_bufsz) ||
+			((fp->f_flags & _F_LINE) && (c == '\n'))) {
+		return(fputc(c, fp));
+	}
+	*(fp->f_pos) = c;
+	fp->f_pos += 1;
+	fp->f_cnt += 1;
+	fp->f_flags |= _F_DIRTY;
+	return(0);
+}
+
+/*
  * Smoke and mirrors
  */
-#define getc(f) fgetc(f)
-#define putc(c, f) fputc(c, f)
-#define getchar() fgetc(stdin)
-#define putchar(c) fputc(c, stdout)
+#define getchar() getc(stdin)
+#define putchar(c) putc(c, stdout)
 
 /*
  * Pre-allocated stdio structs
@@ -57,7 +98,6 @@ extern int fclose(FILE *),
 	fread(void *, int, int, FILE *),
 	fwrite(void *, int, int, FILE *),
 	feof(FILE *), ferror(FILE *),
-	getc(FILE *), putc(int, FILE *),
 	fgetc(FILE *), fputc(int, FILE *),
 	fileno(FILE *), ungetc(int, FILE *);
 extern off_t fseek(FILE *, off_t, int), ftell(FILE *);
