@@ -195,6 +195,15 @@ blankline(void *p)
 }
 
 /*
+ * Bound "col" to 1..COLS, and "row" to 1..ROWS.  Note 1-based!
+ */
+#define BOUND(col, row) \
+		if (col < 1) { col = 1; \
+		} else if (col > COLS) { col = COLS; } \
+		if (row < 1) { row = 1; \
+		} else if (row > ROWS) { row = ROWS; }
+
+/*
  * sequence()
  *	Called when we've decoded args and it's time to act
  */
@@ -294,16 +303,7 @@ sequence(int x, int y, char c)
 		/*
 		 * Bound position
 		 */
-		if (x < 1) {
-			x = 1;
-		} else if (x > COLS) {
-			x = COLS;
-		}
-		if (y < 1) {
-			y = 1;
-		} else if (y > ROWS) {
-			y = ROWS;
-		}
+		BOUND(y, x);
 		cur = top + (x-1)*(COLS*CELLSZ) + (y-1)*CELLSZ;
 		return;
 
