@@ -81,7 +81,19 @@ vfs_stat(struct msg *m, struct file *f)
 			idx += sizeof(struct fs_dirent);
 		}
 		unlock_buf(b);
-		revs = "";
+
+		/*
+		 * No revisions for directories.  However, we glom
+		 * onto this for rootdir, and display some general
+		 * values for the filesystem.
+		 */
+		if (f->f_file == rootdir) {
+			sprintf(buf2, "name=%s\nblkdev=%s\n",
+				namer_name, blk_name);
+			revs = buf2;
+		} else {
+			revs = "";
+		}
 	} else {
 		typec = 'f';
 		len = fs->fs_len - sizeof(struct fs_file);

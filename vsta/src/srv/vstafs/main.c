@@ -28,12 +28,14 @@ static struct fs
 	*fsroot;	/* Snapshot of root sector */
 static int fflag;	/* Pull in fsck-pending changes */
 int roflag;		/* Read-only on filesystem? */
+char *namer_name,	/* Name of our filesystem */
+	*blk_name;	/* Name of our block device */
 
 /*
  * This "open" file just sits around as an easy way to talk about
  * the root filesystem.
  */
-static struct openfile *rootdir;
+struct openfile *rootdir;
 
 /*
  * vfs_seek()
@@ -367,8 +369,6 @@ main(int argc, char *argv[])
 	int x;
 	port_name fsname;
 	port_t blkport;
-	char *namer_name = 0;
-	char *disk = 0;
 	static int coresec = CORESEC;
 
 	/*
@@ -382,7 +382,7 @@ main(int argc, char *argv[])
 	while ((x = getopt(argc, argv, "d:n:fB:r")) > 0) {
 		switch (x) {
 		case 'd':
-			disk = optarg;
+			blk_name = optarg;
 			break;
 		case 'n':
 			namer_name = optarg;
@@ -409,7 +409,7 @@ main(int argc, char *argv[])
 	/*
 	 * Verify usage
 	 */
-	if ((optind < argc) || !disk || !namer_name) {
+	if ((optind < argc) || !blk_name || !namer_name) {
 		usage();
 	}
 
@@ -418,7 +418,7 @@ main(int argc, char *argv[])
 	 * during bootup.
 	 */
 	for (x = 0; x < 10; ++x) {
-		blkdev = open(disk, roflag ? O_RDONLY : O_RDWR);
+		blkdev = open(blk_name, roflag ? O_RDONLY : O_RDWR);
 		if (blkdev < 0) {
 			sleep(1);
 		} else {
@@ -427,7 +427,7 @@ main(int argc, char *argv[])
 	}
 	if (blkdev < 0) {
 		syslog(LOG_ERR, "couldn't connect to block device %s: %s",
-			disk, strerror());
+			blk_name, strerror());
 		exit(1);
 	}
 

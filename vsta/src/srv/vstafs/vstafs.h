@@ -178,5 +178,7 @@ extern struct fs_file *getfs(struct openfile *, struct buf **);
 extern void cancel_rename(struct file *);
 extern void vfs_rename(struct msg *, struct file *);
 extern int roflag;
+extern char *namer_name, *blk_name;
+extern struct openfile *rootdir;
 
 #endif /* VSTAFS_H */
