@@ -461,7 +461,6 @@ mount_init(char *fstab)
 				continue;
 			}
 		}
-		printf("Name %s -> name %d\n", buf, pn);
 
 		/*
 		 * Connect to named port
@@ -501,7 +500,6 @@ mount_init(char *fstab)
 		/*
 		 * Mount port in its place
 		 */
-		printf(" ...mounted to %s port %d\n", point, p);
 		mountport(point, p);
 	}
 	fclose(fp);
