@@ -72,7 +72,8 @@ X some point.
 	mapped.  Trick is that this has to be unified with a mechanism
 	for mapping a pset to a given server and inode number.
 
-Add code to manage T_KERN bit of thread flags
+X Add code to manage T_KERN bit of thread flags
+	-- Skip it.  Not worth the trouble.
 
 Add code to qio_msg_send to handle case of a "copyout".  A bcopy()
 to ptov(pfn) should suffice?
