@@ -59,6 +59,7 @@ static port_t serv_port;	/* Our port */
 static port_name serv_name;	/*  ...its namer name */
 static uint nport;		/* # ports being served */
 static uint port_idx;		/* Thread index for port daemon */
+static struct llist tbdq;	/* Queue of proxy work pending */
 
 /*
  * Protection of privileged TCP port numbers
@@ -122,6 +123,19 @@ struct client {
 		c_perms[PROCPERMS];
 	uint c_nperms;
 	uint c_perm;		/*  ...as applied to current node */
+	uint c_msg_bytes,	/* Assembly of proxy reply message */
+		c_body_bytes,
+		c_wait_reply;	/*  ...wait for reply? */
+};
+
+/*
+ * Pending work on client in proxy mode
+ */
+struct tbd {
+	voidfun tbd_fun;		/* Function to call */
+	struct msg tbd_msg;		/* Message to process */
+	struct client *tbd_cl;		/* Client */
+	struct llist *tbd_entry;	/* Queue entry */
 };
 
 /*
@@ -131,7 +145,8 @@ static void port_daemon(void),
 	inetfs_rcv(struct tcb *, int16),
 	inetfs_xmt(struct tcb *, int16),
 	inetfs_state(struct tcb *, char, char),
-	fill_sendq(struct tcp_conn *c);
+	fill_sendq(struct tcp_conn *c),
+	clear_tbd(void);
 
 /*
  * msg_to_mbuf()
@@ -430,6 +445,7 @@ cleanup(void)
 		hash_dealloc(ports);
 		ports = 0;
 	}
+	clear_tbd();
 	vsta_daemon_done(port_idx);
 }
 
@@ -742,8 +758,9 @@ inetfs_state(struct tcb *tcb, char old, char new)
 	
 	case CLOSED:
 		tcb->user = 0;
-		del_tcp(tcb); c->t_tcb = 0;
+		del_tcp(tcb);
 		if (c) {
+			c->t_tcb = 0;
 			cleario(&c->t_readers, EIO, 0);
 			cleario(&c->t_writers, EIO, 0);
 			uncreate_conn(c->t_port, c);
@@ -899,11 +916,12 @@ inetfs_wstat(struct msg *m, struct client *cl)
 	switch (cl->c_dir) {
 	case DIR_PORT:
 		ASSERT_DEBUG(t, "inetfs_wstat: PORT null port");
-		if (!strcmp(field, "conn")) {
+		if (!val) {
+			/* Cause us to fall into error case */
+		} else if (!strcmp(field, "conn")) {
 			inetfs_conn(m, cl, val);
 			return;
-		}
-		if (!strcmp(field, "dest")) {
+		} else if (!strcmp(field, "dest")) {
 			t->t_fsock.address = aton(val);
 			break;
 		} else if (!strcmp(field, "destsock")) {
@@ -1043,7 +1061,7 @@ inetfs_read(struct msg *m, struct client *cl)
 				msg_err(m->m_sender, ENOMEM);
 				return;
 			}
-			cl->c_msg = *m;
+			bcopy(m, &cl->c_msg, sizeof(*m));
 			return;
 		}
 	}
@@ -1065,7 +1083,7 @@ inetfs_read(struct msg *m, struct client *cl)
 		msg_err(m->m_sender, ENOMEM);
 		return;
 	}
-	cl->c_msg = *m;
+	bcopy(m, &cl->c_msg, sizeof(*m));
 	inetfs_rcv(c->t_tcb, 0);
 }
 
@@ -1132,11 +1150,20 @@ fill_sendq(struct tcp_conn *c)
 		}
 
 		/*
-		 * Success
+		 * Success.  If this is a proxy request, re-queue the
+		 * writer so the result from proxyd will complete the
+		 * operation.
 		 */
-		m->m_arg = size;
-		m->m_nseg = m->m_arg1 = 0;
-		msg_reply(m->m_sender, m);
+		if (c->t_port->t_proxy) {
+			if (cl->c_wait_reply) {
+				m->m_arg1 = 0;
+				inetfs_read(m, cl);
+			}
+		} else {
+			m->m_arg = size;
+			m->m_nseg = m->m_arg1 = 0;
+			msg_reply(m->m_sender, m);
+		}
 	}
 }
 
@@ -1190,6 +1217,60 @@ inetfs_write(struct msg *m, struct client *cl)
 }
 
 /*
+ * run_tbd()
+ *	See if any of the pending TBD work can be accomplished
+ */
+static void
+run_tbd(void)
+{
+	struct llist *l, *next;
+
+	for (l = LL_NEXT(&tbdq); l != &tbdq; l = next) {
+		struct tbd *t;
+
+		t = l->l_data;
+		next = LL_NEXT(l);
+		if (t->tbd_cl->c_entry == 0) {
+			ll_delete(l);
+			(*t->tbd_fun)(&t->tbd_msg, t->tbd_cl);
+			free(t);
+		}
+	}
+}
+
+/*
+ * clear_tbd()
+ *	Flush TBD queue during shutdown
+ */
+static void
+clear_tbd(void)
+{
+	struct llist *l, *next;
+
+	for (l = LL_NEXT(&tbdq); l != &tbdq; l = next) {
+		next = LL_NEXT(l);
+		free(l->l_data);
+		ll_delete(l);
+	}
+}
+
+/*
+ * tbd()
+ *	To Be Done.  Queue a client request for later processing
+ */
+static void
+tbd(voidfun f, struct msg *mp, struct client *cl)
+{
+	struct tbd *t;
+
+	t = malloc(sizeof(struct tbd));
+	t->tbd_fun = f;
+	bcopy(mp, &t->tbd_msg, sizeof(*mp));
+	t->tbd_cl = cl;
+	t->tbd_entry = ll_insert(&tbdq, t);
+}
+
+/*
  * do_proxy()
  *	Initiate a request to our remote proxy
  */
@@ -1199,20 +1280,29 @@ do_proxy(struct msg *mp, struct client *cl)
 	struct msg m;
 	uint x, wait_reply;
 
+	printf("proxy for 0x%x\n", mp->m_sender);
+	/*
+	 * If a previous transaction is still pending, defer processing
+	 */
+	if (cl->c_entry) {
+		tbd(do_proxy, mp, cl);
+		return;
+	}
+
 	/*
 	 * Handle a couple special cases
 	 */
 	switch (mp->m_op) {
 	case M_DISCONNECT:
 		dead_client(mp, cl);
-		wait_reply = 0;
+		cl->c_wait_reply = 0;
 		break;
 	case M_DUP:
 		dup_client(mp, cl);
-		wait_reply = 0;
+		cl->c_wait_reply = 0;
 		break;
 	default:
-		wait_reply = 1;
+		cl->c_wait_reply = 1;
 		break;
 	}
 
@@ -1232,23 +1322,18 @@ do_proxy(struct msg *mp, struct client *cl)
 	/*
 	 * Send on the actual payload
 	 */
+	m.m_sender = mp->m_sender;
 	m.m_op = FS_WRITE;
 	m.m_nseg = mp->m_nseg + 1;
 	m.m_buf = mp;
 	m.m_buflen = sizeof(*mp);
+	m.m_arg1 = 0;
 	bcopy(mp->m_seg, m.m_seg + 1, (MSGSEGS-1) * sizeof(seg_t));
 	m.m_arg1 = m.m_arg = 0;
 	for (x = 0; x < m.m_nseg; ++x) {
 		m.m_arg += m.m_seg[x].s_buflen;
 	}
 	inetfs_write(&m, cl);
-
-	/*
-	 * If a replying message is needed, queue as a reader
-	 */
-	if (wait_reply) {
-		inetfs_read(mp, cl);
-	}
 }
 
 /*
@@ -1386,6 +1471,13 @@ port_daemon(void)
 			;
 
 		/*
+		 * Attempt progress on the clients
+		 */
+		if (!LL_EMPTY(&tbdq)) {
+			run_tbd();
+		}
+
+		/*
 		 * Release lock and loop
 		 */
 		v_lock(&ka9q_lock);
@@ -1415,6 +1507,7 @@ vsta1(int argc, char **argv)
 		cleanup();
 		return;
 	}
+	ll_init(&tbdq);
 
 	/*
 	 * Get server port, advertise it
@@ -1447,6 +1540,103 @@ vsta0(void)
 }
 
 /*
+ * assemble_bytes()
+ *	Pull in more bytes to a partial buffer
+ */
+static void
+assemble_bytes(void *ptrp, uint *countp, uint count, struct tcp_conn *c)
+{
+	uint len;
+
+	len = pullup(&c->t_readq, (char *)ptrp + *countp, count - *countp);
+	*countp += len;
+}
+
+/*
+ * send_proxy_data()
+ *	Assemble proxy messages and msg_reply() them back to the client
+ *
+ * Also recognizes the FS_ERR case, and msg_err()'s it back instead.
+ */
+static void
+send_proxy_data(struct tcp_conn *c, struct client *cl)
+{
+	uint len;
+	struct msg *mp;
+
+	/*
+	 * Try and assemble a complete message header
+	 */
+	while (c->t_readq && (cl->c_msg_bytes < sizeof(struct msg))) {
+		assemble_bytes(&cl->c_msg, &cl->c_msg_bytes,
+			sizeof(struct msg), c);
+		cl->c_msg.m_buf = 0;
+	}
+
+	/*
+	 * Don't have enough yet; back to the main loop
+	 */
+	if (cl->c_msg_bytes < sizeof(struct msg)) {
+		return;
+	}
+	mp = &cl->c_msg;
+
+	/*
+	 * Handle too-large I/O responses
+	 */
+	len = mp->m_arg;
+	if (len > MAXIO) {
+		ll_delete(cl->c_entry); cl->c_entry = 0;
+		msg_err(mp->m_sender, E2BIG);
+		if (mp->m_buf) {
+			free(mp->m_buf);
+		}
+		return;
+	}
+
+	/*
+	 * No I/O buffer to contain it yet; allocate
+	 */
+	if (len && (mp->m_buf == 0)) {
+		mp->m_buf = malloc(len);
+	}
+
+	/*
+	 * Assemble the body
+	 */
+	while (c->t_readq && (cl->c_body_bytes < len)) {
+		assemble_bytes(mp->m_buf, &cl->c_body_bytes, len, c);
+	}
+
+	/*
+	 * Body not arrived yet?  Return.
+	 */
+	if (cl->c_body_bytes < len) {
+		return;
+	}
+
+	/*
+	 * FS_ERR; turn into a msg_err() back to the user
+	 */
+	if (mp->m_op == FS_ERR) {
+		msg_err(mp->m_sender, mp->m_buf);
+	} else {
+		printf("proxy reply to 0x%x\n", mp->m_sender);
+		if (msg_reply(mp->m_sender, mp) < 0) {
+			perror("msg_reply");
+		}
+	}
+
+	/*
+	 * Clean up resources and return
+	 */
+	if (mp->m_buf) {
+		free(mp->m_buf);
+	}
+	ll_delete(cl->c_entry); cl->c_entry = 0;
+}
+
+/*
  * send_data()
  *	Move data from mbufs out to VSTa clients
  */
@@ -1465,6 +1655,22 @@ send_data(struct tcp_conn *c, struct llist *q)
 		 * Dequeue next request
 		 */
 		cl = LL_NEXT(q)->l_data;
+
+		/*
+		 * If this is a waiter for a reply from the remote
+		 * proxy daemon, do special assembly of the reply
+		 * message.
+		 */
+		if (c->t_port->t_proxy) {
+			send_proxy_data(c, cl);
+			continue;
+		}
+
+		/*
+		 * Otherwise this is consumption of an unstructured byte
+		 * stream, so shovel out what we have and always complete
+		 * the request.
+		 */
 		ll_delete(cl->c_entry); cl->c_entry = 0;
 
 		/*
