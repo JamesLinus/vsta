@@ -167,7 +167,6 @@ void
 remove_node(struct node *n)
 {
 	struct llist *l;
-	struct node *n2;
 
 	/*
 	 * Null--no node, ignore
@@ -183,9 +182,7 @@ remove_node(struct node *n)
 	if (DIR(n)) {
 		while (!LL_EMPTY(&n->n_elems)) {
 			l = LL_NEXT(&n->n_elems);
-			n2 = l->l_data;
-			remove_node(n2);
-			ll_delete(l);
+			remove_node(l->l_data);
 		}
 	}
 
