@@ -20,8 +20,10 @@
  */
 	.data
 	.globl	___err
+	.globl	__errcnt
 	.text
 syserr:	movb	$0,___err
+	incl	__errcnt
 	ret
 
 #define ENTRY(n, v)	.globl	_##n ; \
