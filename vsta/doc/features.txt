@@ -204,3 +204,7 @@ testsh wouldn't wait and retry to connect with the console.  In some
 Added a fionread() to <fcntl.h> to provide the ioctl FIONREAD function.
 Ported zmodem rz/sz.  Not working exactly right just yet....
 Ported svgalib and jpeg6b.  Got some of the svgalib demo apps working.
+Ported PD m4 from FreeBSD.
+Ported the 8-bit color driver from mgr-0.69 into the VSTa MGR port.
+	Adapted it to use svgalib.  Got high res working with MGR.
+Added BSD's err/warn API's.
