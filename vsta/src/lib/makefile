@@ -2,7 +2,7 @@ CC= gcc
 AS= as
 CPP= cpp
 INCS= -I../include -I..
-CFLAGS= $(INCS) -g -DDEBUG
+CFLAGS= $(INCS) -O -DDEBUG
 OBJS= crt0.o start.o syscalls.o syscall.o mem.o io.o setjmp.o malloc.o \
 	string.o doprnt.o stdio.o printf.o tty.o ctype.o scanf.o seg.o \
 	mount.o open.o stat.o fdl.o hash.o time.o exec.o getopt.o \

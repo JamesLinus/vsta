@@ -1,6 +1,6 @@
 CC= gcc
 LD= ld
-CFLAGS= -I../../include -I../..
+CFLAGS= -O -I../../include -I../..
 LDFLAGS= -L../../libc
 LIBS= -lc
 OBJS= testsh.o dump.o
