@@ -178,8 +178,9 @@ dos_stat(struct msg *m, struct file *f)
 		(void)dir_copy(n->n_dir, n->n_slot, &d);
 		p = result;
 	} else {
-		sprintf(result, "clsize=%d\ndata0=%lu\n",
-			CLSIZE, data0);
+		sprintf(result, "clsize=%d\ndata0=%lu\n"
+		 "name=%s\nblkdev=%s\n",
+			CLSIZE, data0, namer_name, blk_name);
 		p = result + strlen(result);
 	}
 	sprintf(p,

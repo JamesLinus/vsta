@@ -23,6 +23,7 @@ struct boot bootb;		/* Image of boot sector */
 static struct hash *filehash;	/* Handle->filehandle mapping */
 int ncache = NCACHE;		/* # sectors we hold in block cache */
 int rofs;			/* Read-only filesystem? */
+char *namer_name, *blk_name;	/* Our name, name of block device */
 
 extern port_t path_open(char *, int);
 
@@ -391,7 +392,6 @@ main(int argc, char *argv[])
 	port_t port;
 	port_name fsname;
 	int x, retries, nuser;
-	char *namer_name = 0, *blk_name = 0;
 
 	/*
 	 * Initialize syslog

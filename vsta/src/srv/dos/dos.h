@@ -289,5 +289,6 @@ extern uint dirents;
 extern struct node *rootdir;
 extern ulong data0;
 extern claddr_t root_cluster;
+extern char *namer_name, *blk_name;
 
 #endif /* _DOS_H */
