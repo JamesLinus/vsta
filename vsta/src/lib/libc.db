@@ -338,3 +338,12 @@ _frexp
 ___get_logopt
 _tcgetsize
 _getpass
+_getpriority
+_getrlimit
+_getrusage
+_setpriority
+_setrlimit
+_putenv
+___get_nerr
+___get_errlist
+_getpgrp
