@@ -60,15 +60,19 @@ do_dir(DIR *d)
 		}
 
 		/*
-		 * Make sure it's an RCS file
+		 * Make sure it's an RCS file.  Allow with or without
+		 * the ",v" suffix.
 		 */
-		sprintf(buf, "%s/RCS/%s", curdir, nm);
+		sprintf(buf, "%s/RCS/%s,v", curdir, nm);
 		if (access(buf, 0) < 0) {
-			continue;
+			sprintf(buf, "%s/RCS/%s", curdir, nm);
+			if (access(buf, 0) < 0) {
+				continue;
+			}
 		}
 
 		/*
-		 * Otherwise apply the command to this file
+		 * Apply the command to this file
 		 */
 		sprintf(buf, "%s %s/%s", cmd, curdir, nm);
 		system(buf);
