@@ -16,8 +16,6 @@ struct port {
 	sema_t p_sema;		/* For serializing receivers */
 	sema_t p_wait;		/* For sleeping to receive a message */
 	ushort p_flags;		/* See below */
-	struct segref		/* Incoming messages mapped */
-		p_segs;
 	struct portref		/* Linked list of references to this port */
 		*p_refs;
 };
