@@ -373,7 +373,7 @@ seteuid(uid_t uid)
 	return(__seterr(ENOTSUP));
 }
 int
-setreuid(uid_t uid)
+setreuid(uid_t uid, uid_t euid)
 {
 	return(__seterr(ENOTSUP));
 }

@@ -43,7 +43,7 @@ extern gid_t getgid(void);
 extern gid_t getegid(void);
 extern char *getlogin(void);
 extern int setuid(uid_t), seteuid(uid_t), setgid(gid_t), setegid(gid_t),
-	setreuid(uid_t);
+	setreuid(uid_t, uid_t);
 
 /*
  * POSIX things - not really useful to VSTa, but we try to emulate them as
