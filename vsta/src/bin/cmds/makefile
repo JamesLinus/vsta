@@ -7,7 +7,13 @@ LIBS= -lc
 .c.o:
 	$(CC) $(CFLAGS) -c $*.c
 
-all: test args cat id ls swapd
+all: test args cat id ls swapd rm cp
+
+cp: cp.o
+	$(LD) $(LDFLAGS) -e start -o cp ../../libc/crt0.o cp.o -lc
+
+rm: rm.o
+	$(LD) $(LDFLAGS) -e start -o rm ../../libc/crt0.o rm.o -lc
 
 swapd: swapd.o
 	$(LD) $(LDFLAGS) -e start -o swapd ../../libc/crt0.o swapd.o -lc
