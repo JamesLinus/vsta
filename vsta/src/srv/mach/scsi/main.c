@@ -683,7 +683,7 @@ char	**argv;
 /*
  * Start a timer thread.
  */
-	tfork(cam_timer_thread);
+	tfork(cam_timer_thread, 0);
 /*
  * Message receive loop.
  */

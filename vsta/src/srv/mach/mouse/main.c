@@ -260,7 +260,7 @@ main(int argc, char **argv)
       }
    } else {
       if (mouse_data.functions.mouse_poller_entry_point != NULL) {
-         if (tfork(mouse_data.functions.mouse_poller_entry_point) == -1) {
+         if (tfork(mouse_data.functions.mouse_poller_entry_point, 0) == -1) {
            syslog(LOG_ERR, "unable to fork poller thread - exiting");
            exit(1);
          }

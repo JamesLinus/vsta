@@ -354,9 +354,8 @@ queue_io(struct floppy *fl, struct msg *m, struct file *f)
  * childproc()
  *	Code to sleep, then send a message to the parent
  */
-static int child_msecs;
 static void
-childproc(void)
+childproc(ulong child_msecs)
 {
 	static port_t selfport = 0;
 	struct time t;
@@ -413,12 +412,11 @@ timeout(int msecs)
 	if (msecs == 0) {
 		return;
 	}
-	child_msecs = msecs;
 
 	/*
 	 * We launch a child thread to send our timeout message
 	 */
-	child = tfork(childproc);
+	child = tfork(childproc, msecs);
 	if (child == -1) {
 		return;
 	}
