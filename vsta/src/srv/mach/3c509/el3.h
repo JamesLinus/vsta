@@ -7,6 +7,7 @@
 #include <sys/types.h>
 #include <sys/perm.h>
 #include <llist.h>
+#include <mach/asm.h>
 #include "if_ether.h"
 
 extern unsigned short htons (unsigned short);
@@ -142,22 +143,5 @@ extern struct prot el3_prot;
 extern ulong dropped;
 extern struct llist readers, writers[];
 extern void *pak_pool;
-
-/* Temporary solution */
-inline extern void
-repoutsl (int port, void *buffer, int count)
-{
-	__asm__ __volatile__(
-		"cld; rep; outsl"
-		: "=S" (buffer), "=c" (count) : "d" (port), "0" (buffer), "1" (count));
-}
-
-inline extern void
-repinsl (int port, void *buffer, int count)
-{
-	__asm__ __volatile__(
-		"cld; rep; insl"
-		: "=D" (buffer), "=c" (count) : "d" (port), "0" (buffer), "1" (count));
-}
 
 #endif /* _EL3_H */
