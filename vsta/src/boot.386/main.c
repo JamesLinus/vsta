@@ -227,7 +227,7 @@ main(int argc, char **argv)
 	round_pbase();
 	bootbase = pbase;
 	while (fgets(buf, sizeof(buf)-1, bootf)) {
-		char *p;
+		char *p, *q;
 		ulong opbase;
 
 		/*
@@ -267,32 +267,28 @@ main(int argc, char **argv)
 		load_image(fp);
 
 		/*
-		 * If there was an arg string, try to insert
-		 * it in the boot file
+		 * Skip any leading path on the command name.
+		 * Saves precious bytes in the a.out argument
+		 * area.
+		 */
+		q = strrchr(buf, '/');
+		if (q) {
+			++q;
+		} else {
+			q = buf;
+		}
+
+		/*
+		 * If there are args, restore space
 		 */
 		if (p) {
-			char *q;
-
-			/*
-			 * Skip any leading path on the command name.
-			 * Saves precious bytes in the a.out argument
-			 * area.
-			 */
-			q = strrchr(buf, '/');
-			if (q) {
-				++q;
-			} else {
-				q = buf;
-			}
-
-			/*
-			 * Put back the space in the space-delinated
-			 * command line.  Put the arguments into place
-			 * in the memory image.
-			 */
 			*p = ' ';
-			try_setarg(opbase, q);
 		}
+
+		/*
+		 * Insert command name and args into boot file image
+		 */
+		try_setarg(opbase, q);
 	}
 	fclose(fp);
 	fclose(bootf);
