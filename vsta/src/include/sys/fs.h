@@ -26,13 +26,6 @@
 #define FS_RENAME 153		/* Renaming of files */
 
 /*
- * Messages to facilitate handling of device specific commands and
- * automatic error/fault recovery
- */
-#define DEV_READ 200
-#define DEV_WRITE 201
-
-/*
  * How to ask if an operation is a bulk read/write
  */
 #define FS_RW(op) (((op) == FS_READ) || ((op) == FS_WRITE) || \
