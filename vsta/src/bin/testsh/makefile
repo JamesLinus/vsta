@@ -2,8 +2,12 @@ CC= gcc
 LD= ld
 # Add -DSTAND for a more standalone-oriented flavor of shell
 CFLAGS= -DSTAND -O -I../../include -I../..
+# CFLAGS= -O -I../../include -I../..
 LDFLAGS= -L../../libc
-LIBS= -lc
+LIBS= -lc_s
+# LIBS= -lc
+CRT0=../../libc/crt0srv.o
+# CRT0=../../libc/crt0.o
 OBJS= testsh.o dump.o run.o
 
 .c.o:
@@ -12,7 +16,7 @@ OBJS= testsh.o dump.o run.o
 all: testsh
 
 testsh: $(OBJS)
-	$(LD) $(LDFLAGS) -e start -o testsh ../../libc/crt0srv.o $(OBJS) -lc
+	$(LD) $(LDFLAGS) -e start -o testsh $(CRT0) $(OBJS) $(LIBS)
 
 clean:
 	rm -f *.o
