@@ -278,6 +278,11 @@ I have a partially completed port of mgr-0.69.  We should eventually
 	finish the port and upgrade VSTa's mgr to be current with
 	everybody else's.
 
+On the subject of partially completed ports, I also have a mostly
+	complete gcc 2.8.1 port.  I'm not aware of any pressing need
+	to upgrade, but I think 2.8.1 has some bug fixes in things
+	like "long long" which we may eventually want.
+
 It's basically impossible to have more shared libraries, because almost
 	any additional shared library will depend on the libc one.  This
 	isn't too hard to fix; mmap() needs to be able to understand that
