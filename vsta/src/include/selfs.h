@@ -14,6 +14,7 @@ struct selclient {
 				/*  (opaque state; may be shared) */
 	uint sc_mask;		/* Mask of events; non-zero when */
 				/*  select() is used by this client */
+	uint sc_nosupp;		/*  ...unsupported bits */
 	long sc_clid;		/* Client's ID on that server */
 	ulong sc_key;		/* Key */
 	int sc_fd;		/* File descriptor value */

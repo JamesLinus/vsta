@@ -16,6 +16,8 @@ static port_t selfs_port = -1;	/* Share a port across all clients */
  *	Handle FS_WSTAT of "select" and "unselect" messages
  *
  * Returns 0 if it's handled here, 1 if not.
+ * NOTE: we "handle" it here even if it's an error for one of our
+ *  message types.
  */
 int
 sc_wstat(struct msg *m, struct selclient *scp, char *field, char *val)
@@ -32,6 +34,15 @@ sc_wstat(struct msg *m, struct selclient *scp, char *field, char *val)
 				&scp->sc_fd, &scp->sc_key) != 4) ||
 				 (!scp->sc_mask)) {
 			msg_err(m->m_sender, EINVAL);
+			return(0);
+		}
+
+		/*
+		 * Protect against any unsupported bits
+		 */
+		if (scp->sc_nosupp & scp->sc_mask) {
+			scp->sc_mask = 0;
+			msg_err(m->m_sender, ENOTSUP);
 			return(0);
 		}
 
