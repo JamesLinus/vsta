@@ -30,7 +30,8 @@ mainretmsg:
 
 _id_stack:
 	.space	0x40		/* Slop */
-	.globl	_id_stack
+_id_top:
+	.globl	_id_stack,_id_top
 
 /*
  * Entered through 32-bit task gate constructed in 16-bit mode
