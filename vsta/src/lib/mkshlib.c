@@ -36,8 +36,6 @@
 #include <string.h>
 #include <alloc.h>
 
-#undef DEBUG
-
 static char *curlib,	/* Name of library being built */
 	*curfile,	/* Filename being processed */
 	*curinput,	/* <library>.tmp */
@@ -54,6 +52,8 @@ static int ndb_hide;	/*  ...count */
 static uint page_size;	/* getpagesize() value */
 
 static void objfile(char *);
+
+#undef DEBUG
 
 /*
  * do_system()
@@ -376,7 +376,7 @@ generate_shlib(void)
 	tabf[strlen(tabf)-1] = 'o';
 
 	/*
-	 * Get shared library text size using nm(1)
+	 * Get shared library text size using size(1)
 	 */
 	sprintf(tmpf, "/tmp/shll%d", getpid());
 	sprintf(buf, "size %s > %s", curinput, tmpf);
