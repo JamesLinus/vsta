@@ -364,11 +364,11 @@ wd_start(void)
 	/*
 	 * For laptops with power management, our inportb() here can
 	 * cause the disk to wake up; the controller can then flag
-	 * a busy disk until the spinup is complete.  Give it 5 seconds.
+	 * a busy disk until the spinup is complete.  Give it 8 seconds.
 	 */
 	cyl = 0;
 	while (inportb(base + WD_STATUS) & WDS_BUSY) {
-		if (++cyl > 50) {
+		if (++cyl > 80) {
 			ASSERT(0, "wd_start: busy");
 		}
 		__msleep(100);
