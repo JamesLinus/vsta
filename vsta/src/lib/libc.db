@@ -319,3 +319,4 @@ ___get_tzname
 __fdclose hidden
 _fchmod
 ___map_errno hidden
+_setsid

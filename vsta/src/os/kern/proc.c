@@ -716,3 +716,25 @@ waits(struct exitst *w, int block)
 	FREE(e, MT_EXITST);
 	return(x);
 }
+
+/*
+ * setsid()
+ *	Set session ID
+ *
+ * Causes the current process to become the head of a new
+ * process group.
+ */
+int
+setsid(void)
+{
+	struct proc *p = curthread->t_proc;
+
+	if (p_sema(&p->p_sema, PRICATCH)) {
+		return(err(EINTR));
+	}
+	leave_pgrp(p->p_pgrp, p->p_pid);
+	p->p_pgrp = alloc_pgrp();
+	join_pgrp(p->p_pgrp, p->p_pid);
+	v_sema(&p->p_sema);
+	return(0);
+}

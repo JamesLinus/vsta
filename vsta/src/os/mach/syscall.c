@@ -30,7 +30,7 @@ extern int page_wire(), page_release(), enable_dma(), time_get(),
 	time_sleep(), exec(), waits(), perm_ctl(), set_swapdev(),
 	set_cmd(), pageout(), unhash(),
 	time_set(), ptrace(), nop(), msg_portname(), pstat();
-extern int notify_handler(), sched_op();
+extern int notify_handler(), sched_op(), setsid();
 extern void check_events(), nudge();
 
 struct syscall {
@@ -84,6 +84,7 @@ struct syscall {
 #endif
 	{notify_handler, 1},			/* 37 */
 	{sched_op, 2},				/* 38 */
+	{setsid, 0},				/* 39 */
 };
 #define NSYSCALL (sizeof(syscalls) / sizeof(struct syscall))
 #define MAXARGS (6)
