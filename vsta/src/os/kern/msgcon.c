@@ -68,15 +68,22 @@ deref_port(struct port *port, struct portref *pr)
 			ASSERT(pr2 != prstart, "deref_port: ref not found");
 			pr2 = pr2->p_next;
 		}
+		if (pr->p_next == pr) {
+			struct sysmsg *sm;
+
+			ASSERT(ref == pr, "deref_port: ref not in port");
+			ASSERT(!blocked_sema(&port->p_wait),
+				"deref_port: waiters");
+			port->p_refs = 0;
+			sm = port->p_hd;
+			if (sm != 0) {
+				ASSERT(sm->m_op == M_ISR,
+					"deref_port: messages");
+			}
+		}
 	}
 #endif
-	if (pr->p_next == pr) {
-		ASSERT_DEBUG(ref == pr, "deref_port: ref not in port");
-		ASSERT_DEBUG(port->p_hd == 0, "deref_port: messages");
-		ASSERT_DEBUG(!blocked_sema(&port->p_wait),
-			"deref_port: waiters");
-		port->p_refs = 0;
-	} else {
+	if (pr->p_next != pr) {
 		pr->p_next->p_prev = pr->p_prev;
 		pr->p_prev->p_next = pr->p_next;
 		if (ref == pr) {
@@ -575,9 +582,9 @@ shut_server(struct port *port)
 	}
 
 	/*
-	 * Let the exec() layer clean anything up it might have.
+	 * Let the mmap() layer clean anything up it might have.
 	 */
-	exec_cleanup(port);
+	mmap_cleanup(port);
 
 	/*
 	 * Enumerate our current clients, shut them down
