@@ -11,11 +11,20 @@
  * Returns length of resulting string
  */
 static
-num(char *buf, unsigned int x, unsigned int base)
+num(char *buf, unsigned int x, unsigned int base, int is_unsigned)
 {
 	char *p = buf+NUMBUF;
-	unsigned int c, len = 1;
+	unsigned int c, len = 1, neg = 0;
 
+	/*
+	 * Only decimal is signed
+	 */
+	if ((base == 10) && !is_unsigned) {
+		if ((int)x < 0) {
+			neg = 1;
+			x = -(int)x;
+		}
+	}
 	*--p = '\0';
 	do {
 		c = (x % base);
@@ -27,6 +36,18 @@ num(char *buf, unsigned int x, unsigned int base)
 		len += 1;
 		x /= base;
 	} while (x != 0);
+
+	/*
+	 * Add leading '-' if negative
+	 */
+	if (neg) {
+		*--p = '-';
+		len += 1;
+	}
+
+	/*
+	 * Move numeric image to front of buffer
+	 */
 	bcopy(p, buf, len);
 	return(len-1);
 }
@@ -62,7 +83,7 @@ __doprnt(char *buf, char *fmt, int *args)
 {
 	char *p = fmt, c;
 	char numbuf[NUMBUF];
-	int adj, width, zero, longfmt, x;
+	int adj, width, zero, longfmt, x, is_unsigned;
 
 	while (c = *p++) {
 		/*
@@ -108,7 +129,7 @@ __doprnt(char *buf, char *fmt, int *args)
 
 		/*
 		 * 'l': "long" format.  XXX Use this when sizeof(int)
-		 * stop being sizeof(long).
+		 * stops being sizeof(long).
 		 */
 		if (c == 'l') {
 			longfmt = 1;
@@ -118,19 +139,29 @@ __doprnt(char *buf, char *fmt, int *args)
 		}
 
 		/*
+		 * 'u': unsigned
+		 */
+		if (c == 'u') {
+			is_unsigned = 1;
+			c = *p++;
+		} else {
+			is_unsigned = 0;
+		}
+
+		/*
 		 * Format
 		 */
 		switch (c) {
-		case 'D':
 		case 'X':
 		case 'O':
+		case 'D':
 			longfmt = 1;
 			/* VVV fall into VVV */
 
-		case 'd':
 		case 'x':
 		case 'o':
-			x = num(numbuf, *args++, baseof(c));
+		case 'd':
+			x = num(numbuf, *args++, baseof(c), is_unsigned);
 			if (!adj) {
 				for ( ; x < width; ++x) {
 					*buf++ = zero ? '0' : ' ';
@@ -144,7 +175,7 @@ __doprnt(char *buf, char *fmt, int *args)
 				}
 			}
 			break;
-			num(numbuf, *args++, 16);
+			num(numbuf, *args++, 16, is_unsigned);
 			strcpy(buf, numbuf);
 			buf += strlen(buf);
 			break;
