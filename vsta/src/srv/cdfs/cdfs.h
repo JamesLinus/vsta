@@ -6,11 +6,12 @@
 #define	__CDFS_H__
 
 #include <time.h>
+#include <fcntl.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 
 #ifdef	__VSTA__
 typedef	char *caddr_t;
-typedef	short unsigned dev_t;
 #include <unistd.h>
 #endif
 
@@ -45,6 +46,8 @@ union	iso_date {
 #define	ISO_PROTECTED	0x10			/* 1 = see owner/perm's */
 #define	ISO_MULT_EXTENT	0x80			/* 1 = !file's final extent */
 
+#define	ISO_MAX_LEN_DR	255			/* max. directory record size */
+
 /*
  * Per-CDFS structure.
  */
@@ -52,28 +55,40 @@ struct	cdfs {
 	struct	iso_directory_record root_dir;	/* root directory record */
 	int	lbsize;				/* logical block size */
 	uint	flags;				/* filesystem flags */
+	int	susp_lenskp;			/* SUSP LEN_SKP */
 };
 
 #define	CDFS_HIGH_SIERRA	1		/* High Sierra format */
 #define	CDFS_RRIP		2		/* Rock Ridge format */
 
 /*
+ * POSIX file attributes.
+ */
+struct	cdfs_posix_attrs {
+	mode_t	mode;				/* file mode */
+	uint	nlink;				/* number of links */
+	ulong	uid;				/* user ID */
+	ulong	gid;				/* group ID */
+};
+
+/*
  * Per-open file structure.
  */
 struct	cdfs_file {
 	uint	flags;				/* misc. flags */
-	uint	perm;				/* process permissions */
 	ulong	position;			/* Byte position in file */
 	struct	cdfs *cdfs;			/* incore superblock */
 	struct	iso_directory_record node;	/* file's directory node */
-	struct	iso_extended_attributes attrs;	/* extended file attributes */
-/*
- * Copies of other fields and derived fields.
- */
-	uint	owner;				/* owner or user ID */
-	uint	group;				/* group ID */
-	char	*name;				/* file name */
+	struct	iso_extended_attributes extnd_attrs;
+						/* extended file attributes */
+	struct	cdfs_posix_attrs posix_attrs;	/* POSIX file attributes */
+	char	symname[MAXPATH];		/* symbolic link name */
 };
+
+#define	CDFS_FILE_COPY		1		/* MDUP'ed file copy */
+#define	CDFS_EXTND_ATTRS	2		/* extended attr's valid */
+#define	CDFS_POSIX_ATTRS	4		/* POSIX file attr's valid */
+#define	CDFS_ALL_ATTRS		(CDFS_EXTND_ATTRS | CDFS_POSIX_ATTRS)
 
 /*
  * Internal error codes.
@@ -123,13 +138,11 @@ extern	uint cdfs_debug_flags;
 long	cdfs_mount(struct cdfs *cdfs);
 void	cdfs_unmount(struct cdfs *cdfs);
 long	cdfs_open(struct cdfs_file *file, char *name, int flags);
-long	cdfs_lookup_name(struct cdfs_file *file, char *name,
-	                 struct iso_directory_record *newnode);
+long	cdfs_lookup_name(struct cdfs_file *file, char *name, int update);
 long	cdfs_read(struct cdfs_file *file, char *buffer, long *length);
 long	cdfs_read_dir(struct cdfs_file *file, char *buffer, long *length);
-long	cdfs_read_attrs(struct cdfs_file *file,
-	                struct iso_extended_attributes *attrs);
-int	cdfs_check_susp(struct iso_directory_record *root_dir);
+long	cdfs_get_extnd_attrs(struct cdfs_file *file,
+	                     struct iso_extended_attributes *attrs);
 long	cdfs_bmap(struct cdfs_file *file, long offset);
 int	cdfs_cvt_date(union iso_date *date, int fmt, int hs, int base_year,
 	              time_t *time);
@@ -137,6 +150,14 @@ void	*cdfs_getblk(struct cdfs *cdfs, off_t start, int nblocks, void **data);
 void	cdfs_relblk(struct cdfs *cdfs, void *cookie);
 void	cdfs_error(uint flags, char *myname, char *fmt, ...);
 void	cdfs_debug(uint when, char *myname, char *fmt, ...);
+void	*cdfs_alloc_mem(size_t size, void *ptr, unsigned int align);
+void	cdfs_free_mem(void *ptr, unsigned int align);
+void	cdfs_init_file(struct cdfs *cdfs, int perm, struct cdfs_file *file);
+int	cdfs_cksusp(struct iso_directory_record *dp, int *skip);
+void	cdfs_get_altname(struct iso_directory_record *dp,
+	                 char **name, int *name_len);
+long	cdfs_get_posix_attrs(struct iso_directory_record *dp,
+	                     struct cdfs_posix_attrs *attrs);
 #endif
 
 /*

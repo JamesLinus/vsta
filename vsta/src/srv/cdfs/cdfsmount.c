@@ -5,6 +5,8 @@
 #include "string.h"
 #include "cdfs.h"
 
+void	cdfs_ckrripfs(struct cdfs *cdfs);
+
 /*
  * cdfs_mount
  *	Look for and read in a partition header.
@@ -45,8 +47,6 @@ long	cdfs_mount(struct cdfs *cdfs)
 			cdfs->root_dir = *(struct iso_directory_record *)
 			                   vdp->root_directory_record;
 			cdfs->lbsize = isonum_723(vdp->logical_block_size);
-			if(cdfs_check_susp(&cdfs->root_dir))
-				cdfs->flags |= CDFS_RRIP;
 			status = CDFS_SUCCESS;
 		} else if(*vdp->type == (char)ISO_VD_END) {
 /*
@@ -70,6 +70,10 @@ long	cdfs_mount(struct cdfs *cdfs)
 		}
 		cdfs_relblk(cdfs, bp);
 	}
+/*
+ * Check for SUSP/RRIP capability.
+ */
+	cdfs_ckrripfs(cdfs);
 
 	CDFS_DEBUG_FCN_EXIT(myname, status);
 
@@ -88,5 +92,33 @@ void	cdfs_unmount(struct cdfs *cdfs)
 	bcache_inval();
 	cdfs->flags = 0;
 	CDFS_DEBUG_FCN_EXIT(myname, 0);
+}
+
+/*
+ * cdfs_ckrripfs - determine if the current filesystem SUSP/RRIP capable.
+ */
+void	cdfs_ckrripfs(struct cdfs *cdfs)
+{
+	struct	iso_directory_record *dp;
+	struct	cdfs_file file;
+	long	length;
+	char	rootent0[ISO_MAX_LEN_DR];
+
+	if(cdfs->flags & CDFS_HIGH_SIERRA)
+		return;
+/*
+ * Get the first root directory entry.
+ */
+	cdfs_init_file(cdfs, 0, &file);
+	dp = (struct iso_directory_record *)rootent0;
+	length = sizeof(rootent0);
+	if(cdfs_read(&file, (char *)dp, &length) == CDFS_SUCCESS) {
+/*
+ * Does the entry contain the SUSP signature?
+ */
+		if(length > sizeof(struct iso_directory_record))
+			if(cdfs_cksusp(dp, &cdfs->susp_lenskp))
+				cdfs->flags |= CDFS_RRIP;
+	}
 }
 

@@ -15,11 +15,6 @@
 #include <syslog.h>
 #include "cdfs.h"
 
-/*
- * Local file flags.
- */
-#define	CDFS_FILE_COPY	1		/* MDUP'ed file copy */
-
 int	blkdev;				/* Device this FS is mounted upon */
 port_t	rootport;			/* Port we receive contacts through */
 static	struct hash *filehash;		/* Handle->filehandle mapping */
@@ -30,13 +25,22 @@ uint	cdfs_debug_flags = CDFS_DBG_ALL;
 uint	cdfs_debug_flags = 0;
 
 /*
- * Protection for all CDFS files: everybody can read, only
- * group 1.2 (sys.sys) can write.
-XXX fixme
+ * Default protection for all CDFS files: everybody can read.
  */
-static struct prot cdfs_prot = {
+static struct prot cdfs_default_prot = {
 	2,
-	ACC_READ|ACC_EXEC,
+	ACC_READ | ACC_EXEC,
+	{1,		1},
+	{0,		0}
+};
+
+/*
+ * Protection for CDFS server: everybody can read, only
+ * group 1.1 (sys.sys) can write.
+ */
+static struct prot cdfs_server_prot = {
+	2,
+	ACC_READ | ACC_EXEC,
 	{1,		1},
 	{0,		ACC_WRITE}
 };
@@ -54,6 +58,15 @@ extern int __fd_alloc(port_t);
 int	valid_fname(char *buf, int bufsize);
 char	*perm_print(struct prot *prot);
 
+/*
+ * cdfs_init_file - initialize a CDFS file structure.
+ */
+void	cdfs_init_file(struct cdfs *cdfs, int perm, struct cdfs_file *file)
+{
+	memset(file, 0, sizeof(*file));
+	file->cdfs = cdfs;
+	file->node = cdfs->root_dir;
+}
 
 /*
  * cdfs_msg_reply
@@ -152,7 +165,7 @@ static	void cdfs_connect(struct msg *m)
 	 */
 	perms = (struct perm *)m->m_buf;
 	nperms = (m->m_buflen)/sizeof(struct perm);
-	uperms = perm_calc(perms, nperms, &cdfs_prot);
+	uperms = perm_calc(perms, nperms, &cdfs_server_prot);
 	if ((m->m_arg & ACC_WRITE) && !(uperms & ACC_WRITE)) {
 		msg_err(m->m_sender, EPERM);
 		return;
@@ -172,11 +185,7 @@ static	void cdfs_connect(struct msg *m)
 	 * possesses.  For an M_CONNECT, the message is
 	 * from the kernel, and trusted.
 	 */
-	f->flags = 0;
-	f->perm = uperms;
-	f->position = 0L;
-	f->cdfs = &cdfs;
-	f->node = cdfs.root_dir;
+	cdfs_init_file(&cdfs, uperms, f);
 
 	/*
 	 * Hash under the sender's handle
@@ -257,6 +266,44 @@ static	void cdfs_dup_client(struct msg *m, struct cdfs_file *fold)
 }
 
 /*
+ * cdfs_get_prot - convert ISO 9660 file attributes to VSTa protections.
+ */
+static	void cdfs_get_prot(struct cdfs_file *file, struct prot *vstprot)
+{
+	uchar	*vstacc;
+	mode_t	mode;
+
+	if(file->flags & CDFS_POSIX_ATTRS) {
+		memset((void *)vstprot, 0, sizeof(struct prot));
+		vstprot->prot_len = 2;
+		mode = file->posix_attrs.mode;
+
+		vstacc = &vstprot->prot_default;
+		if(mode & S_IROTH) *vstacc |= ACC_READ;
+		if(mode & S_IWOTH) *vstacc |= ACC_WRITE;
+		if(mode & S_IXOTH) *vstacc |= ACC_EXEC;
+
+		vstprot->prot_id[0] = file->posix_attrs.gid;
+		vstacc = &vstprot->prot_bits[0];
+		if(mode & S_IRGRP) *vstacc |= ACC_READ;
+		if(mode & S_IWGRP) *vstacc |= ACC_WRITE;
+		if(mode & S_IXGRP) *vstacc |= ACC_EXEC;
+
+		vstprot->prot_id[1] = file->posix_attrs.uid;
+		vstacc = &vstprot->prot_bits[1];
+		if(mode & S_IRUSR) *vstacc |= ACC_READ;
+		if(mode & S_IWUSR) *vstacc |= ACC_WRITE;
+		if(mode & S_IXUSR) *vstacc |= ACC_EXEC;
+	} else if(file->flags & CDFS_EXTND_ATTRS) {
+		*vstprot = cdfs_default_prot;	/* XXX */
+		vstprot->prot_id[0] = isonum_723(file->extnd_attrs.group);
+		vstprot->prot_id[1] = isonum_723(file->extnd_attrs.owner);
+	} else {
+		*vstprot = cdfs_default_prot;
+	}
+}
+
+/*
  * cdfs_stat()
  *	Build stat string for file, send back
  */
@@ -264,24 +311,42 @@ void	cdfs_stat(struct msg *msg, struct cdfs_file *file)
 {
 	struct	iso_directory_record *dp = &file->node;
 	time_t	time;
-	int	unsigned file_flags;
-	char	result[MAXSTAT];
+	int	unsigned owner, group;
+	char	result[MAXSTAT], file_type;
+	struct	prot prot;
 	static	char *myname = "cdfs_stat";
 	static	char *fmt = "%ssize=%d\ntype=%c\n"
 	                    "owner=%d/%d\ninode=%d\nmtime=%ld\n";
 
 	CDFS_DEBUG_FCN_ENTRY(myname);
+/*
+ * Get the owner, group, and file type.
+ */
+	if(file->flags & CDFS_POSIX_ATTRS) {
+		owner = file->posix_attrs.uid;
+		group = file->posix_attrs.gid;
+		file_type = ((file->posix_attrs.mode & S_IFDIR) ? 'd' : 'f');
+	} else if(file->flags & CDFS_EXTND_ATTRS) {
+		owner = isonum_723(file->extnd_attrs.owner);
+		group = isonum_723(file->extnd_attrs.group);
+	        file_type = ((dp->flags[0] & ISO_DIRECTORY) ? 'd' : 'f');
+	} else {
+		owner = cdfs_default_prot.prot_id[1];
+		group = cdfs_default_prot.prot_id[0];
+	        file_type = ((dp->flags[0] & ISO_DIRECTORY) ? 'd' : 'f');
+	}
+/*
+ * Get the file protections and the date.
+ */
+	cdfs_get_prot(file, &prot);
 
 	if(!cdfs_cvt_date((union iso_date *)dp->date, 7,
 	                  file->cdfs->flags & CDFS_HIGH_SIERRA,
 	                  1990, &time))
 		time = 0;
 
-	file_flags = *dp->flags;
-	sprintf(result, fmt, perm_print(&cdfs_prot), isonum_733(dp->size),
-	        ((file_flags & ISO_DIRECTORY) ? 'd' : 'f'),
-	        isonum_723(file->attrs.owner), isonum_723(file->attrs.group),
-	        isonum_733(file->node.extent), time);
+	sprintf(result, fmt, perm_print(&prot), isonum_733(dp->size),
+	        file_type, owner, group, isonum_733(file->node.extent), time);
 
 	msg->m_buf = result;
 	msg->m_buflen = strlen(result);

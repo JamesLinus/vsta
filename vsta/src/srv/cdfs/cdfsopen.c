@@ -5,14 +5,11 @@
 #include <sys/fs.h>
 #include "cdfs.h"
 
-static	struct iso_extended_attributes cdfs_default_attrs;
-
 /*
  * cdfs_open - open the next component of a pathname.
  */
 long	cdfs_open(struct cdfs_file *file, char *name, int flags)
 {
-	struct	iso_directory_record newnode;
 	long	status;
 	static	char *myname = "cdfs_open";
 
@@ -31,23 +28,13 @@ long	cdfs_open(struct cdfs_file *file, char *name, int flags)
  * Lookup the new path component.
  */
 	} else {
-		status = cdfs_lookup_name(file, name, &newnode);
-		if(status == CDFS_SUCCESS) {
+		status = cdfs_lookup_name(file, name, TRUE);
 /*
  * XXX Check for read access.
+		if(status == CDFS_SUCCESS) {
+		}
  */
 
-/*
- * Update the open file structure.
- */
-			file->node = newnode;
-/*
- * Get extended attributes, if possible.
- */
-			file->attrs = cdfs_default_attrs;
-			if(isonum_711(newnode.ext_attr_length) > 0)
-				(void)cdfs_read_attrs(file, &file->attrs);
-		}
 	}
 
 	CDFS_DEBUG_FCN_EXIT(myname, status);

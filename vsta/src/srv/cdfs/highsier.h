@@ -1,5 +1,5 @@
 /*
- * highsier.h - High Sierra specific definitions. From taken from
+ * highsier.h - High Sierra specific definitions. Adapted from
  * Linux's <linux/iso_fs.h>.
  */
 

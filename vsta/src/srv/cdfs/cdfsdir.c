@@ -13,6 +13,42 @@ void	cdfs_fncvt(char *isoname, char *newname, int isoname_len);
 int	cdfs_fncmp(char *isoname, char *string, int isoname_len);
 
 /*
+ * cdfs_get_dirname - extract a file name from a directory entry.
+ */
+static	int cdfs_get_fname(struct cdfs_file *file,
+	                   struct iso_directory_record *dp,
+	                   char *buffer, int buflen)
+{
+	char	*rripname;
+	int	name_len;
+
+	name_len = isonum_711(dp->name_len);
+/*
+ * Try for a RRIP alternate name.
+ */
+	rripname = NULL;
+	if(file->cdfs->flags & CDFS_RRIP)
+		cdfs_get_altname(dp, &rripname, &name_len);
+/*
+ * Room left in the current buffer?
+ */
+	if((name_len + 2) > buflen)
+		return(FALSE);
+/*
+ * Copy the current entry's name.
+ */
+	if(rripname != NULL)
+		strncat(buffer, rripname, name_len);
+	else
+		cdfs_fncvt(dp->name, buffer, name_len);
+
+	buffer[name_len] = '\0';
+	strcat(buffer, "\n");
+
+	return(TRUE);
+}
+
+/*
  * cdfs_read_dir - copy the current directory names into the input
  * buffer. Copy up to length bytes. '*length' is set to the number
  * of bytes actually copied.
@@ -22,7 +58,7 @@ long	cdfs_read_dir(struct cdfs_file *file, char *buffer, long *length)
 	void	*bp;
 	struct	iso_directory_record *dp = &file->node;
 	long	status, lbn, file_off, file_size = isonum_733(dp->size);
-	int	dplen, name_len, buff_off, index, count, finished;
+	int	dplen, buff_off, index, count, finished;
 	int	unsigned file_flags;
 	static	char *myname = "cdfs_read_dir";
 
@@ -90,21 +126,11 @@ long	cdfs_read_dir(struct cdfs_file *file, char *buffer, long *length)
 			    if(((file_flags & ISO_MULT_EXTENT) == 0) &&
 			       ((file_flags & ISO_ASSOC_FILE) == 0)) {
 
-				name_len = isonum_711(dp->name_len);
-/*
- * Room left in the current buffer?
- */
-				if((name_len + 2) > (*length - buff_off)) {
-					finished = 1;
+				if(!cdfs_get_fname(file, dp, buffer + buff_off,
+				                   *length - buff_off)) {
+					finished = TRUE;
 					break;
 				}
-/*
- * Copy the current entry's name.
- */
-				cdfs_fncvt(dp->name, buffer + buff_off,
-				           name_len);
-				buffer[buff_off + name_len] = '\0';
-				strcat(buffer + buff_off, "\n");
 
 				buff_off += strlen(buffer + buff_off);
 			    }
@@ -133,14 +159,42 @@ long	cdfs_read_dir(struct cdfs_file *file, char *buffer, long *length)
 }
 
 /*
+ * cdfs_get_other_attrs - try to get extended and/or POSIX file
+ * attributes.
+ */
+static	void cdfs_get_other_attrs(struct cdfs_file *file,
+	                          struct iso_directory_record *dp)
+{
+	long	status;
+
+	file->flags &= ~CDFS_ALL_ATTRS;
+/*
+ * Try to get extended attributes.
+ */
+	if(isonum_711(file->node.ext_attr_length) > 0) {
+		status = cdfs_get_extnd_attrs(file, &file->extnd_attrs);
+		if(status == CDFS_SUCCESS)
+			file->flags |= CDFS_EXTND_ATTRS;
+	}
+/*
+ * Try to get POSIX attributes.
+ */
+	if(file->cdfs->flags & CDFS_RRIP) {
+		status = cdfs_get_posix_attrs(dp, &file->posix_attrs);
+		if(status == CDFS_SUCCESS)
+			file->flags |= CDFS_POSIX_ATTRS;
+	}
+}
+
+/*
  * cdfs_lookup_name - look up 'name' in the current directory node.
  * If successful, return the new directory node in 'newnode'.
  */
-long	cdfs_lookup_name(struct cdfs_file *file, char *name,
-	                 struct iso_directory_record *newnode)
+long	cdfs_lookup_name(struct cdfs_file *file, char *name, int update)
 {
 	void	*bp;
 	struct	iso_directory_record *dp;
+	char	*rripname;
 	long	file_size = isonum_733(file->node.size);
 	long	status;
         int	lbn, file_off, count, name_len;
@@ -173,10 +227,13 @@ long	cdfs_lookup_name(struct cdfs_file *file, char *name,
 /*
  * Does the current directory entry match?
  */
-			if(cdfs_fncmp(dp->name, name, name_len) == 0) {
-				*newnode = *dp;
-				if(file->cdfs->flags & CDFS_HIGH_SIERRA)
-				    *newnode->flags = CDFS_HS_DIR_FLAGS(dp);
+			rripname = NULL;
+			if(file->cdfs->flags & CDFS_RRIP)
+				cdfs_get_altname(dp, &rripname, &name_len);
+
+			if(((rripname != NULL) &&
+			     (strncmp(rripname, name, name_len) == 0)) ||
+			   (cdfs_fncmp(dp->name, name, name_len) == 0)) {
 				status = CDFS_SUCCESS;
 				break;
 			}
@@ -192,6 +249,18 @@ long	cdfs_lookup_name(struct cdfs_file *file, char *name,
 			if(isonum_711(dp->length) == 0)
 				break;
 		}
+/*
+ * If an entry was found, update the input file structure.
+ */
+		if(status == CDFS_SUCCESS) {
+			if(update) {
+				file->node = *dp;
+				cdfs_get_other_attrs(file, dp);
+			}
+
+			if(file->cdfs->flags & CDFS_HIGH_SIERRA)
+				*file->node.flags = CDFS_HS_DIR_FLAGS(dp);
+		}
 
 		cdfs_relblk(file->cdfs, bp);
 		file_off += file->cdfs->lbsize;
@@ -203,10 +272,10 @@ long	cdfs_lookup_name(struct cdfs_file *file, char *name,
 }
 
 /*
- * cdfs_read_attrs - read the input file's extended attribute data.
+ * cdfs_get_extnd_attrs - read the input file's extended attribute data.
  */
-long	cdfs_read_attrs(struct cdfs_file *file,
-	                struct iso_extended_attributes *attrs)
+long	cdfs_get_extnd_attrs(struct cdfs_file *file,
+	                     struct iso_extended_attributes *attrs)
 {
 	void	*bp, *data;
 	long	status = CDFS_SUCCESS;
@@ -224,12 +293,12 @@ long	cdfs_read_attrs(struct cdfs_file *file,
 /*
  * Get the next block from the directory.
  */
-		lbn = cdfs_bmap(file, 0);
+		lbn = cdfs_bmap(file, -(length * file->cdfs->lbsize));
 
 		if((bp = cdfs_getblk(file->cdfs, lbn, 1, &data)) == NULL) {
 			status = CDFS_EIO;
 		} else {
-			bcopy(data, &file->attrs, sizeof(file->attrs));
+			bcopy(data, attrs, sizeof(*attrs));
 		}
 		cdfs_relblk(file->cdfs, bp);
 	}

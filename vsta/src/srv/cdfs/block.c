@@ -7,6 +7,7 @@
 #include <sys/assert.h>
 #include <std.h>
 #include <fcntl.h>
+#include "cdfs.h"
 
 /*
  * The basic cache block size.
@@ -211,15 +212,18 @@ bget(int blkno)
 	b = bfind(blkno);
 	if (!b) {
 		b = bnew(blkno);
+if(b == 0) cdfs_error(0, "bget", "bnew error");
 		if (lseek(blkdev, BOFF(blkno), 0) == -1) {
 			bjunk(b);
 			errstr = strerror();
+cdfs_error(0, "bget", "lseek %s. blkdev = %d, blkno = %d", errstr, blkdev, blkno);
 			return(0);
 		}
 		x = read(blkdev, b->b_data, BLOCKSIZE);
 		if (x != BLOCKSIZE) {
 			bjunk(b);
 			errstr = strerror();
+cdfs_error(0, "bget", "read %s. x = %d", errstr, x);
 			return(0);
 		}
 	}

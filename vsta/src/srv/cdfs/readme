@@ -18,7 +18,7 @@ The following notice applies to all files in this distribution written by the
 author:
 
 
-    Copyright (C) 1993,1994  Michael A. Larson
+    Copyright (C) 1993-1995  Michael A. Larson
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -37,6 +37,11 @@ author:
 
 Revision History
 ----------------
+
+VSTa 1.4.1
+
+	Add support for the following Rock Ridge extensions:
+	long filenames and Posix attributes.
 
 VSTa 1.3.2
 
@@ -60,9 +65,9 @@ in the background.
 	cdfs -p device_server:device_name fs/cdfs
 
 For example, assuming that the device server is SCSI/CAM and the
-device name is "sd2":
+device name is "sr2":
 
-	cdfs -p cam:sd2 fs/cdfs
+	cdfs -p cam:sr2 fs/cdfs
 
 To actually mount a filesystem, use the following command:
 
@@ -87,6 +92,7 @@ cdfserro.c		- print/log CDFS error messages.
 cdfsmount.c		- read in the CDROM FS primary descriptor.
 cdfsopen.c		- open file processing.
 cdfsread.c		- file read operations.
+cdfsrrip.c		- CDFS Rock Ridge support.
 cdfstime.c		- time conversion functions.
 iso.h			- ISO 9660 definitions.
 isofs_rr.h		- Rock Ridge definitions.
@@ -97,5 +103,5 @@ main.c			- main message processing loop + misc. utilities.
 TODO
 ----
 
-Rock Ridge formatted CDROM's.
+Finish support for Rock Ridge extensions.
 
