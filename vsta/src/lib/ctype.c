@@ -29,7 +29,7 @@ unsigned char __ctab[] = {
 4,	4,	4,	0,	0,	0,	0,	0	/* 120 */
 };
 
-#define __bits(c, b) (__ctab[c & 0x7F] & b)
+#define __bits(c, b) (__ctab[(c) & 0x7F] & (b))
 
 isupper(int c) {
 	return __bits(c, _CT_UPPER);
