@@ -13,7 +13,7 @@
 
 extern char *__cwd;	/* Current working dir */
 static void cd(), md(), quit(), ls(), pwd(), mount(), cat(), sleep(),
-	sec(), null(), run(), do_wstat(), do_fork();
+	sec(), null(), run(), do_wstat(), do_fork(), get(), set();
 
 static char *buf;	/* Utility page buffer */
 
@@ -27,8 +27,10 @@ struct {
 	"cat", cat,
 	"cd", cd,
 	"chdir", cd,
+	"env", get,
 	"exit", quit,
 	"fork", do_fork,
+	"get", get,
 	"ls", ls,
 	"md", md,
 	"mkdir", md,
@@ -38,10 +40,56 @@ struct {
 	"quit", quit,
 	"run", run,
 	"sector", sec,
+	"set", set,
 	"sleep", sleep,
 	"wstat", do_wstat,
 	0, 0
 };
+
+/*
+ * get()
+ *	Get an environment variable
+ */
+static void
+get(char *p)
+{
+	char *q;
+	extern char *getenv();
+
+	if (!p || !p[0]) {
+		printf("Usage: get <var>\n");
+		return;
+	}
+	q = getenv(p);
+	if (!q) {
+		printf("%s is not set\n", p);
+	} else {
+		printf("%s=%s\n", p, q);
+	}
+}
+
+/*
+ * set()
+ *	Set an environment variable
+ */
+static void
+set(char *p)
+{
+	char *val;
+
+	if (!p || !p[0]) {
+		printf("Usage: set <var> <value>\n");
+		return;
+	}
+	val = strchr(p, ' ');
+	if (!val) {
+		printf("Missing value\n");
+		return;
+	}
+	*val++ = '\0';
+	setenv(p, val);
+	printf("%s=%s\n", p, val);
+}
 
 /*
  * do_fork()
