@@ -43,4 +43,10 @@ extern char *optarg;
 extern int optind, opterr;
 extern int getopt(int, char **, char *);
 
+/*
+ * GNU C has managed to change this one the last three times I moved
+ * forward compilers, so don't blink your eyes.
+ */
+extern void exit(int), _exit(int);
+
 #endif /* _STD_H */
