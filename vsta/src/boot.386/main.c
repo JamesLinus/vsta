@@ -59,9 +59,14 @@ main(int argc, char **argv)
 {
 	char *bootname;
 	char buf[64];
+	extern int cputype(void);
 
 	if (argc < 2) {
 		printf("Usage is: boot <image> [ <boot-list-file> ]\n");
+		exit(1);
+	}
+	if (cputype()) {
+		printf("Must be in REAL mode (not V86) to boot VSTa\n");
 		exit(1);
 	}
 
