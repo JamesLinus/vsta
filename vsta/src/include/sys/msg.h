@@ -13,7 +13,13 @@
  */
 typedef
 struct msg {
-	long m_sender;		/* Index # of sender */
+	union {
+		long _m_sender;	/* Index # of sender */
+#ifdef KERNEL
+		struct portref *_sm_sender;
+#endif
+	} _msg_u;
+#define m_sender _msg_u._m_sender
 	int m_op;		/* Operation requested */
 	long m_arg,		/*  ...a single argument */
 		m_arg1;		/*  ...I know, I know! */
@@ -55,7 +61,7 @@ struct sysmsg {
 #define sm_op sm_msg.m_op
 #define sm_arg sm_msg.m_arg
 #define sm_arg1 sm_msg.m_arg1
-	struct portref *sm_sender;	/* Client associated with msg */
+#define sm_sender sm_msg._msg_u._sm_sender
 	int sm_nseg;			/* Segments: count & base/len */
 	struct sysmsg_seg sm_segs;
 #define sm_seg sm_segs.sm_seg
