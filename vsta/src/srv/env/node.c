@@ -79,9 +79,10 @@ clone_node(struct node *nold)
 	n->n_list = 0;
 
 	/*
-	 * Attach to parent
+	 * Attach to parent & value
 	 */
 	ref_node(n->n_up);
+	ref_val(n->n_val);
 
 	/*
 	 * Walk contents, attach to values
@@ -89,9 +90,16 @@ clone_node(struct node *nold)
 	for (l = LL_NEXT(&nold->n_elems);
 			l != &nold->n_elems; l = LL_NEXT(l)) {
 		/*
-		 * Get new node
+		 * Consider next node.  Ignore subdirs (TBD?)
 		 */
 		n2 = l->l_data;
+		if (n2->n_flags & N_INTERNAL) {
+			continue;
+		}
+
+		/*
+		 * Get new node
+		 */
 		n3 = malloc(sizeof(struct node));
 		if (n3 == 0) {
 			continue;
@@ -100,8 +108,10 @@ clone_node(struct node *nold)
 		/*
 		 * Copy most fields, attach to value
 		 */
-		*n3 = *n2;
+		bcopy(n2, n3, sizeof(*n2));
+		n3->n_refs = 1;
 		ref_val(n3->n_val);
+		ll_init(&n3->n_elems);
 
 		/*
 		 * Add to our new list
@@ -110,6 +120,8 @@ clone_node(struct node *nold)
 			deref_val(n3->n_val);
 			free(n3);
 		}
+		n3->n_up = n;
+		ref_node(n);
 	}
 	return(n);
 }
