@@ -1,14 +1,21 @@
 /*
  * rw.c
- *	Routines for doing R/W selfsphore ops
+ *	Routines for doing R/W ops
  */
 #include "selfs.h"
 #include <hash.h>
 #include <llist.h>
 #include <std.h>
 #include <stdio.h>
+#include <sys/assert.h>
+#include <time.h>
+#include <sys/syscall.h>
+#include <syslog.h>
 
 #define MAXIO (32*1024)		/* Max select_event message size */
+
+long timer_handle;		/* Handle for waking up timer slave */
+pid_t timer_tid;		/*  ...its thread ID */
 
 /*
  * run_queue()
@@ -57,6 +64,87 @@ run_queue(struct file *f)
 	msg_reply(f->f_sender, &m);
 	f->f_size = 0;
 	free(buf);
+
+	/*
+	 * Take them off the timer list if necessary
+	 */
+	if (f->f_timeq) {
+		ll_delete(f->f_timeq);
+		f->f_timeq = NULL;
+	}
+}
+
+/*
+ * soonest()
+ *	Tell if the named time is sooner than any on the list
+ */
+static int 
+soonest(struct time *t)
+{
+	struct llist *l;
+	struct file *f;
+	struct time *tp;
+
+	for (l = LL_NEXT(&time_waiters); l != &time_waiters;
+			l = LL_NEXT(l)) {
+		f = l->l_data;
+		tp = &f->f_time;
+		if ((t->t_sec > tp->t_sec) ||
+				((t->t_sec == tp->t_sec) &&
+				 (t->t_usec >= tp->t_usec))) {
+			 return(0);
+		 }
+	}
+	return(1);
+}
+
+/*
+ * timer_slave()
+ *	Code which the slave timing thread executes
+ *
+ * Basically, wait for the required interval, then send a SEL_TIME message.
+ */
+static void
+timer_slave(ulong arg)
+{
+	static port_t p = -1;
+	struct msg m;
+	int x;
+
+	/*
+	 * Connect to our server
+	 */
+	if (p < 0) {
+		p = msg_connect(fsname, ACC_WRITE);
+		if (p < 0) {
+			syslog(LOG_CRIT, "timer thread can't connect");
+			_exit(1);
+		}
+	}
+
+	for (;;) {
+		/*
+		 * Wait for the required time
+		 */
+		__msleep(arg);
+
+		/*
+		 * Send the message
+		 */
+		m.m_op = SEL_TIME;
+		m.m_arg = m.m_arg1 = m.m_nseg = 0;
+		x = msg_send(p, &m);
+		if (x == -1) {
+			syslog(LOG_CRIT,
+				"timer thread can't deliver event");
+			_exit(1);
+		}
+
+		/*
+		 * We get back the next interval
+		 */
+		arg = (uint)x;
+	}
 }
 
 /*
@@ -88,6 +176,54 @@ selfs_read(struct msg *m, struct file *f)
 	/*
 	 * Otherwise begin waiting
 	 */
+	if (m->m_arg1) {
+		/*
+		 * Convert to absolute time value
+		 */
+		(void)time_get(&f->f_time);
+		f->f_time.t_sec += m->m_arg1 / 1000;
+		f->f_time.t_usec += ((m->m_arg1 % 1000) * 1000);
+		while (f->f_time.t_usec > 1000000) {
+			f->f_time.t_sec += 1;
+			f->f_time.t_usec -= 1000000;
+		}
+
+		/*
+		 * If we have a timer thread idle, wake it up on this
+		 * interval.
+		 */
+		if (timer_handle) {
+			m->m_arg = m->m_arg1;
+			m->m_nseg = 0;
+			msg_reply(timer_handle, m);
+			timer_handle = 0;
+
+		/*
+		 * Not idle; we need to figure out if our timeout is
+		 * sooner than what he's currently looking at.  If it
+		 * is, we have to kill the thread and launch it afresh.
+		 */
+		} else if (timer_tid) {
+			if (soonest(&f->f_time)) {
+				notify(0, timer_tid, "kill");
+				timer_tid = tfork(timer_slave, m->m_arg1);
+			}
+
+		/*
+		 * Otherwise we need to kick off the thread in the
+		 * first place.
+		 */
+		} else {
+			timer_tid = tfork(timer_slave, m->m_arg1);
+		}
+
+		/*
+		 * Timed wait, so list them on the timed queue
+		 */
+		ASSERT_DEBUG(f->f_timeq == NULL,
+			"selfs_read: already queued");
+		f->f_timeq = ll_insert(&time_waiters, f);
+	}
 }
 
 /*
@@ -196,12 +332,101 @@ selfs_write(struct msg *m, struct file *f)
 
 /*
  * selfs_abort()
- *	Abort a requested selfsphore operation
+ *	Abort a requested select() operation
  */
 void
 selfs_abort(struct msg *m, struct file *f)
 {
 	f->f_size = 0;
 	m->m_arg = m->m_arg1 = m->m_nseg = 0;
+	if (f->f_timeq) {
+		ll_delete(f->f_timeq);
+		f->f_timeq = NULL;
+	}
 	msg_reply(m->m_sender, m);
+}
+
+/*
+ * timeout()
+ *	Do timeout action for a client
+ */
+static void
+timeout(struct file *f)
+{
+	struct msg m;
+
+	/*
+	 * Wake up client with no select() events
+	 */
+	m.m_op = m.m_arg = m.m_arg1 = m.m_nseg = 0;
+	msg_reply(f->f_sender, &m);
+
+	/*
+	 * Remove him from our sleeping list
+	 */
+	ll_delete(f->f_timeq);
+	f->f_timeq = NULL;
+}
+
+/*
+ * selfs_timeout()
+ *	A timeout interval has passed
+ */
+void
+selfs_timeout(struct msg *m)
+{
+	struct llist *l, *ln;
+	struct time t, *tp, next;
+	struct file *f;
+
+	/*
+	 * Record the current time, clear our note of the next
+	 */
+	(void)time_get(&t);
+	next.t_sec = 0; next.t_usec = 0;
+
+	/*
+	 * Scan our timeout-waiting clients
+	 */
+	for (l = LL_NEXT(&time_waiters); l != &time_waiters; l = ln) {
+		/*
+		 * Look at next client
+		 */
+		ln = LL_NEXT(l);
+		f = l->l_data;
+		ASSERT_DEBUG(f->f_timeq,
+			"selfs_timeout: on queue !f_timeq");
+
+		/*
+		 * See if he's expired
+		 */
+		tp = &f->f_time;
+		if ((tp->t_sec < t.t_sec) || ((tp->t_sec == t.t_sec) &&
+				(tp->t_usec <= t.t_usec))) {
+			timeout(f);
+
+		/*
+		 * If not, note the next nearest expiration time
+		 */
+		} else if ((tp->t_sec < next.t_sec) ||
+				((tp->t_sec == next.t_sec) &&
+				 (tp->t_usec <= next.t_usec))) {
+		 	next = t;
+		}
+	}
+
+	/*
+	 * Tell our slave timer thread when next to interrupt...
+	 * just leave the SEL_TIME request uncompleted if we don't
+	 * have a timed request right now.
+	 */
+	if ((next.t_sec == 0) && (next.t_usec == 0)) {
+		timer_handle = m->m_sender;
+	} else {
+		timer_handle = 0;
+		m->m_arg = (next.t_sec - t.t_sec) * 1000 +
+			(next.t_usec - t.t_usec) / 1000;
+		m->m_arg1 = m->m_nseg = 0;
+		msg_reply(m->m_sender, m);
+	}
 }

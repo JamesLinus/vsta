@@ -16,6 +16,9 @@
 struct hash *filehash;	/* Map of all active users */
 port_t rootport;	/* Port we receive contacts through */
 struct hash *files;	/* Map of integer filename -> openfile */
+struct llist		/* List of timeout select() clients */
+	time_waiters;
+port_name fsname;	/* Port name assigned by OS */
 
 /*
  * new_client()
@@ -163,22 +166,15 @@ loop:
 		selfs_stat(&msg, f);
 		break;
 
+	case SEL_TIME:		/* Timeout interval has occurred */
+		selfs_timeout(&msg);
+		break;
+
 	default:		/* Unknown */
 		msg_err(msg.m_sender, EINVAL);
 		break;
 	}
 	goto loop;
-}
-
-/*
- * usage()
- *	Tell how to use the thing
- */
-static void
-usage(void)
-{
-	printf("Usage is: selfs <name>\n");
-	exit(1);
 }
 
 /*
@@ -188,7 +184,6 @@ usage(void)
 int
 main(int argc, char *argv[])
 {
-	port_name fsname;
 	char *namer_name;
 	int x;
 
@@ -198,16 +193,13 @@ main(int argc, char *argv[])
 	openlog("selfs", LOG_PID, LOG_DAEMON);
 
 	/*
-	 * Check arguments
-	 */
-	if (argc != 2) {
-		usage();
-	}
-
-	/*
 	 * Name we'll offer service as
 	 */
-	namer_name = argv[1];
+	if (argc > 1) {
+		namer_name = argv[1];
+	} else {
+		namer_name = "fs/select";
+	}
 
 	/*
 	 * Allocate data structures we'll need
@@ -218,6 +210,7 @@ main(int argc, char *argv[])
 		syslog(LOG_ERR, "file/hash not allocated");
 		exit(1);
         }
+	ll_init(&time_waiters);
 
 	/*
 	 * Last check is that we can register with the given name.
@@ -225,7 +218,7 @@ main(int argc, char *argv[])
 	rootport = msg_port((port_name)0, &fsname);
 	x = namer_register(namer_name, fsname);
 	if (x < 0) {
-		syslog(LOG_ERR, "can't register name '%s'", fsname);
+		syslog(LOG_ERR, "can't register name '%s'", namer_name);
 		exit(1);
 	}
 

@@ -33,6 +33,12 @@
 #include <hash.h>
 
 /*
+ * Our private message type to tell ourselves a time interval has
+ * occurred.
+ */
+#define SEL_TIME (301)
+
+/*
  * Our per-open-file data structure
  */
 struct file {
@@ -43,6 +49,8 @@ struct file {
 	long f_sender;		/* Client's handle */
 	uint f_size;		/*  ...# bytes permitted */
 				/*   (non-zero if client blocked) */
+	struct llist *f_timeq;	/* Our position in timed wait queue */
+	struct time f_time;	/*  ...when we want to stop waiting */
 };
 
 /*
@@ -70,12 +78,17 @@ extern void selfs_open(struct msg *, struct file *),
 	selfs_write(struct msg *, struct file *),
 	selfs_stat(struct msg *, struct file *),
 	selfs_wstat(struct msg *, struct file *),
-	selfs_abort(struct msg *, struct file *);
+	selfs_abort(struct msg *, struct file *),
+	selfs_timeout(struct msg *);
 
 /*
  * Global data
  */
-extern struct hash *filehash;
+extern struct hash *filehash;		/* All files */
+extern struct llist time_waiters;	/* Clients waiting on timeout */
+extern long timer_handle;		/* Timer thread slave handle */
+extern pid_t timer_tid;			/*  ...its thread ID */
+extern port_name fsname;		/* Our server's port */
 
 /*
  * Data shared with library side of implementation
