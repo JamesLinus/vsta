@@ -3,7 +3,6 @@
  *	Main loop for message processing
  */
 #include "dos.h"
-#include "fat.h"	/* For fat_size */
 #include <sys/fs.h>
 #include <sys/perm.h>
 #include <sys/namer.h>
