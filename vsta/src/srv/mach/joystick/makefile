@@ -5,8 +5,7 @@ CFLAGS	= -DDEBUG -Wall $(INCS) -O
 LDFLAGS	= -L../../../libc
 OBJS	= main.o rw.o stat.o
 TOBJS	= libjoystick.o jstest.o
-CLIB	= ../../../libc/libc.a
-LIBS	= -lusr -lc -lpio
+LIBS	= -lusr -lpio -lc
 CRT0	= ../../../libc/crt0.o
 
 .c.o:
