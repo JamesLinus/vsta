@@ -54,6 +54,7 @@
 #define SCHEDOP_GETPRIO 1
 #define SCHEDOP_YIELD 2
 #define SCHEDOP_EPHEM 3
+#define SCHEDOP_PROFILE 4
 
 #ifdef KERNEL
 

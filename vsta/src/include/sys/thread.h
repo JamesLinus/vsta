@@ -58,6 +58,7 @@ struct thread {
 #define T_FPU (0x8)		/* Thread has new state in the FPU */
 #define T_EPHEM (0x10)		/* Thread is ephemeral (process exits */
 				/*  when all non-ephemeral threads die) */
+#define T_PROFILE (0x20)	/* Hand it an event every clock tick */
 
 /*
  * Values for t_state

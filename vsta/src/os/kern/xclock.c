@@ -121,13 +121,25 @@ hardclock(struct trapframe *f)
 	}
 
 	/*
-	 * Bill time to current thread
+	 * If there's a current thread...
 	 */
 	if ((t = c->pc_thread)) {
+		/*
+		 * Bill time to it
+		 */
 		if (USERMODE(f)) {
 			t->t_usrcpu += 1L;
 		} else {
 			t->t_syscpu += 1L;
+		}
+
+		/*
+		 * If it's doing profiling, hand it an event
+		 */
+		if (t->t_flags & T_PROFILE) {
+			if (t->t_evsys[0] == '\0') {
+				strcpy(t->t_evsys, "tick");
+			}
 		}
 
 		/*

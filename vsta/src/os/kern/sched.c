@@ -704,6 +704,26 @@ sched_op(int op, int arg)
 		p->p_nthread -= 1;
 		v_sema(&p->p_sema);
 
+	case SCHEDOP_PROFILE:
+		/*
+		 * Start or stop getting clock ticks as events
+		 */
+		t = curthread;
+		p = t->t_proc;
+
+		/*
+		 * Become an ephmeral thread
+		 */
+		if (p_sema(&p->p_sema, PRICATCH)) {
+			return(err(EINTR));
+		}
+		if (arg) {
+			t->t_flags |= T_PROFILE;
+		} else {
+			t->t_flags &= ~(T_PROFILE);
+		}
+		v_sema(&p->p_sema);
+
 		return(0);
 
 	default:
