@@ -317,22 +317,6 @@ unlock_page(uint pfn)
 }
 
 /*
- * free_iodone()
- *	Free page on I/O completion
- */
-static void
-free_iodone(struct qio *q)
-{
-	struct perpage *pp;
-	extern void swap_iodone();
-
-	pp = q->q_pp;
-	free_page(pp->pp_pfn);
-	pp->pp_flags &= ~(PP_R|PP_M|PP_V);
-	unlock_slot(q->q_pset, pp);
-}
-
-/*
  * set_core()
  *	Set pset/index information on a core entry
  */

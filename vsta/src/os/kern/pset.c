@@ -324,23 +324,6 @@ deref_pset(struct pset *ps)
 }
 
 /*
- * iodone_free()
- *	Common function to free a page on I/O completion
- *
- * Also updates the perpage information before unlocking the page slot
- */
-void
-iodone_free(struct qio *q)
-{
-	struct perpage *pp;
-
-	pp = q->q_pp;
-	pp->pp_flags &= ~(PP_V|PP_M|PP_R);
-	free_page(pp->pp_pfn);
-	unlock_slot(q->q_pset, pp);
-}
-
-/*
  * iodone_unlock()
  *	Simply release slot lock on I/O completion
  */
