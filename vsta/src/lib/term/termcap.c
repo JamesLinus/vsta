@@ -319,13 +319,25 @@ tskip(register char *bp)
  * i.e. the option string is separated from the numeric value by
  * a # character.  If the option is not found we return -1.
  * Note that we handle octal numbers beginning with 0.
+ *
+ * Slip in implicit knowledge here that li/co are window geometry,
+ * and that FD 0 is the place whose geometry concerns us.
  */
 int
 tgetnum(char *id)
 {
-	register int i, base;
-	register char *bp = tbuf;
+	int i, base, rows, cols;
+	char *bp = tbuf;
 
+	if (!strcmp(id, "li")) {
+		if (tcgetsize(0, &rows, &cols) >= 0) {
+			return(rows);
+		}
+	} else if (!strcmp(id, "co")) {
+		if (tcgetsize(0, &rows, &cols) >= 0) {
+			return(cols);
+		}
+	}
 	for (;;) {
 		bp = tskip(bp);
 		if (*bp == 0)
