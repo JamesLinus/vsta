@@ -27,6 +27,7 @@ struct llist *
 ll_insert(struct llist *l, void *d)
 {
 	struct llist *lnew;
+	struct llist *l_back = l->l_back;
 	extern void *malloc();
 
 	lnew = malloc(sizeof(struct llist));
@@ -35,8 +36,8 @@ ll_insert(struct llist *l, void *d)
 	lnew->l_data = d;
 
 	lnew->l_forw = l;
-	lnew->l_back = l->l_back;
-	l->l_back->l_forw = lnew;
+	lnew->l_back = l_back;
+	l_back->l_forw = lnew;
 	l->l_back = lnew;
 	return(lnew);
 }
@@ -48,8 +49,11 @@ ll_insert(struct llist *l, void *d)
 void
 ll_delete(struct llist *l)
 {
-	l->l_back->l_forw = l->l_forw;
-	l->l_forw->l_back = l->l_back;
+	struct llist *l_forw = l->l_forw;
+	struct llist *l_back = l->l_back;
+
+	l_back->l_forw = l_forw;
+	l_forw->l_back = l_back;
 #ifdef DEBUG
 	l->l_forw = l->l_back = 0;
 	l->l_data = 0;
@@ -64,10 +68,14 @@ ll_delete(struct llist *l)
 void
 ll_movehead(struct llist *head, struct llist *l)
 {
-	l->l_back->l_forw = l->l_forw;
-	l->l_forw->l_back = l->l_back;
-	l->l_forw = head->l_forw;
+	struct llist *l_back = l->l_back;
+	struct llist *l_forw = l->l_forw;
+	struct llist *head_forw = head->l_forw;
+
+	l_back->l_forw = l_forw;
+	l_forw->l_back = l_back;
+	l->l_forw = head_forw;
 	l->l_back = head;
-	head->l_forw->l_back = l;
+	head_forw->l_back = l;
 	head->l_forw = l;
 }
