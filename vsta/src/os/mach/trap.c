@@ -696,7 +696,8 @@ interrupt(ulong place_holder)
 	}
 
 	/*
-	 * Check for preemption and events if we pushed in from user mode.
+	 * Check for preemption
+	 * Check for events if we pushed in from user mode
 	 */
 out:
 	if (USERMODE(f)) {
