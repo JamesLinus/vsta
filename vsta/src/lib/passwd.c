@@ -8,12 +8,11 @@
 #include <passwd.h>
 #include <stdio.h>
 #include <std.h>
+#include <paths.h>
 
 extern void parse_perm();
 
-#define DEFSHELL "/vsta/bin/sh"
 #define DEFHOME "/vsta"
-#define DEFENV "/env"
 
 /*
  * load_groups()
@@ -119,8 +118,8 @@ fillin(char *rec, struct uinfo *u)
 	u->u_uid = u->u_gid = 2;
 	strcpy(u->u_passwd, "*");
 	strcpy(u->u_home, DEFHOME);
-	strcpy(u->u_shell, DEFSHELL);
-	strcpy(u->u_env, DEFENV);
+	strcpy(u->u_shell, _PATH_DEFAULT_SHELL);
+	strcpy(u->u_env, _PATH_ENV);
 	zero_ids(u->u_perms, PROCPERMS);
 
 	/*
