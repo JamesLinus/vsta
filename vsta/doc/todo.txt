@@ -127,7 +127,15 @@ Check whether the right nodes get flagged dirty when we create
 	a node within a dir.  Does the dir node need to be flagged?
 	(DOSFS)
 
-rmdir seems hosed.  We need to throw away the clusters under the file,
-	but we hash off this cluster number for the case of directories.
-	I also don't seem to be updating the node's length field before
-	letting deref_node() clear it.  (DOSFS)
+Xrmdir seems hosed.  We need to throw away the clusters under the file,
+X	but we hash off this cluster number for the case of directories.
+X	I also don't seem to be updating the node's length field before
+X	letting deref_node() clear it.  (DOSFS)
+	Fixed.  Fiddled with ordering of what gets cleared where.
+
+Caching of executables is indefinite.  Need two things: first, a way
+	for the page stealer to tear down & reclaim stuff which hasn't
+	been used for a while.  Second, need a way for a server to
+	get rid of a cache entry for a file being removed.
+	-- 2nd part done; DOS initiates an unhash and returns EAGAIN.
+	unlink() will try 2 times, with a 0.1 sec sleep in between.
