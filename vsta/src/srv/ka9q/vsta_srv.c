@@ -4,6 +4,7 @@
  */
 #include <sys/fs.h>
 #include <sys/perm.h>
+#include <sys/assert.h>
 #include <hash.h>
 #include <llist.h>
 #include "mbuf.h"
@@ -20,17 +21,30 @@ static struct hash *ports;	/* Port # -> tcp_port mapping */
 static port_t serv_port;	/* Our port */
 
 /*
+ * Protection of privileged TCP port numbers
+ */
+static struct prot prot_priv {
+	2,
+	0,
+	{1,	1},
+	{0,	ACC_READ|ACC_WRITE|ACC_CHMOD}
+};
+
+/*
  * Per-port TCP state.  Note that there can be numerous distinct
  * client connections
  */
 struct tcp_port {
 	struct tcb *t_tcb;	/* KA9Q's TCB struct */
-	uchar t_mode;		/* TCP_{SERVER/PASSIVE/ACTIVE} */
-	uchar t_conn;		/* tcp_open() called yet? */
-	ushort t_refs;		/* # clients attached */
+	uint t_refs;		/* # clients attached */
 	struct llist		/* Reader/writer queues */
 		t_readers,
 		t_writers;
+	struct prot t_prot;	/* Protection on this TCP port */
+	struct socket
+		t_lsock,	/* Local/foreign TCP sockets */
+		t_fsock;
+	struct mbuf *t_readq;	/* Queue of mbufs of data to be consumed */
 };
 
 /*
@@ -44,15 +58,42 @@ struct client {
 		c_msg;
 	struct llist		/* Queue waiting within */
 		*c_entry;
+	enum {DIR_ROOT = 0, DIR_TCP, DIR_PORT}
+		c_dir;		/* Current dir position */
 	uint c_pos;		/* Position, for dir reads */
 };
 
 /*
- * tcpfs_seek()
+ * msg_to_mbuf()
+ *	Convert VSTa message to mbuf chain
+ */
+static struct mbuf *
+msg_to_mbuf(struct msg *m)
+{
+	uint x;
+	struct mbuf *mb, *mtmp;
+
+	mb = NULLBUF;
+	for (x = 0; x < m->m_nseg; ++x) {
+		mtmp = alloc_mbuf(0);
+		if (mtmp == NULLBUF) {
+			(void)free_p(mb);
+			return(0);
+		}
+		s = &m->m_seg[x];
+		mtmp->data = s->s_buf;
+		mtmp->size = s->s_buflen;
+		append(&mb, mtmp);
+	}
+	return(mb);
+}
+
+/*
+ * inetfs_seek()
  *	Set file position
  */
 static void
-tcpfs_seek(struct msg *m, struct client *c)
+inetfs_seek(struct msg *m, struct client *c)
 {
 	if (m->m_arg < 0) {
 		msg_err(m->m_sender, EINVAL);
@@ -71,19 +112,6 @@ static void
 new_client(struct msg *m)
 {
 	struct client *c;
-	struct perm *perms;
-	uint x, uperms, nperms;
-
-	/*
-	 * See if they're OK to access
-	 */
-	perms = (struct perm *)m->m_buf;
-	nperms = (m->m_buflen)/sizeof(struct perm);
-	x = perm_calc(perms, nperms, &tcp_prot);
-	if ((x & (ACC_READ | ACC_WRITE)) != (ACC_READ | ACC_WRITE)) {
-		msg_err(m->m_sender, EPERM);
-		return;
-	}
 
 	/*
 	 * Get data structure
@@ -165,9 +193,12 @@ dup_client(struct msg *m, struct client *cold)
 static void
 deref_tcp(struct tcp_port *t)
 {
+	struct tcb *tcb = t->t_tcb;
+
 	t->t_refs -= 1;
-	if ((t->t_refs == 0) && t->t_tcb) {
-		close_tcp(t->t_tcb);
+	if ((t->t_refs == 0) && (tcb = t->t_tcb)) {
+		close_tcp(tcb);
+		(void)hash_delete(ports, t->t_lsock.port);
 		t->t_tcb = 0;
 	}
 }
@@ -180,6 +211,7 @@ static void
 abort_op(struct client *c)
 {
 	if (c->c_entry) {
+		/* XXX what if the buffer's active? */
 		ll_delete(c->c_entry);
 		c->c_entry = 0;
 	}
@@ -259,7 +291,7 @@ find_port(uint portnum)
  *	Create new tcp_port
  */
 static struct tcp_port *
-create_port(uint portnum)
+create_port(int16 portnum)
 {
 	struct tcp_port *t;
 
@@ -267,71 +299,343 @@ create_port(uint portnum)
 	if (t == 0) {
 		return(0);
 	}
+	if (hash_insert(ports, portnum, t)) {
+		free(t);
+		return(0);
+	}
 	bzero(t, sizeof(struct tcp_port));
 	ll_init(&t->t_readers);
 	ll_init(&t->t_writers);
+	t->lsock.address = ip_addr;
+	t->lsock.port = portnum;
 	return(t);
 }
 
 /*
- * tcpfs_open()
+ * inetfs_open()
  */
 static void
-tcpfs_open(struct msg *m, struct client *c)
+inetfs_open(struct msg *m, struct client *c)
 {
 	uint portnum;
 	struct socket lsocket;
 	struct tcp_port *t;
 
 	/*
-	 * Can only open downward into a file from top dir
+	 * Handle open request based on current dir level
 	 */
-	if (c->c_port) {
+	switch (c->c_dir) {
+	case DIR_ROOT:
+		if (strcmp(m->m_buf, "tcp")) {
+			msg_err(m->m_sender, ESRCH);
+			return;
+		c->c_dir = DIR_TCP;
+		break;
+	case DIR_TCP:
+		/*
+		 * Numeric chooses a particular TCP port #
+		 */
+		if (sscanf(m->m_buf, "%d", &portnum) != 1) {
+			/*
+			 * Only other entry is "clone"
+			 */
+			if (!strcmp(m->m_buf, "clone")) {
+				msg_err(m->m_sender, ESRCH);
+				return;
+			}
+
+			/*
+			 * Clone open; pick an unused port number
+			 */
+			portnum = lport++;
+		}
+
+		/*
+		 * Have a port #, connect to existing or create new
+		 */
+		t = find_port(portnum);
+		if (t == 0) {
+			t = create_port(portnum);
+			if (t == 0) {
+				msg_err(m->m_sender, strerror());
+				return;
+			}
+		}
+
+		/*
+		 * Add client to this port
+		 */
+		c->c_port = t;
+		t->t_refs += 1;
+		break;
+
+	default:
 		msg_err(m->m_sender, EINVAL);
 		return;
 	}
-
-	/*
-	 * Numeric chooses a particular TCP port #
-	 */
-	if (sscanf(m->m_buf, "%d", &portnum) != 1) {
-		/*
-		 * Only other entry is "clone"
-		 */
-		if (!strcmp(m->m_buf, "clone")) {
-			msg_err(m->m_sender, ESRCH);
-			return;
-		}
-
-		/*
-		 * Clone open; pick an unused port number
-		 */
-		portnum = lport++;
-	}
-
-	/*
-	 * Have a port #, connect to existing or create new
-	 */
-	t = find_port(portnum);
-	if (t == 0) {
-		t = create_port(portnum);
-		if (t == 0) {
-			msg_err(m->m_sender, strerror());
-			return;
-		}
-	}
-
-	/*
-	 * Add client to this port
-	 */
-	c->c_port = t;
-	t->t_refs += 1;
 
 	/*
 	 * Success
 	 */
 	m->m_arg = m->m_arg1 = m->m_nseg = 0;
 	msg_reply(m->m_sender, m);
+}
+
+/*
+ * inetfs_stat()
+ *	Handle status query operations
+ */
+static void
+inetfs_stat(struct msg *m, struct file *c)
+{
+	msg_err(m->m_sender, EINVAL);
+}
+
+/*
+ * cleario()
+ *	Clean up pending I/O on the given llist queue
+ */
+static void
+cleario(struct llist *l, char *err)
+{
+	struct client *c;
+
+	while (!LL_EMPTY(l)) {
+		struct msg *m;
+
+		c = LL_NEXT(l)->l_data;
+		ll_delete(c->c_entry); c->c_entry = 0;
+		m = &c->c_msg;
+		if (err) {
+			msg_err(m->m_sender, err);
+		} else {
+			m->m_nseg = m->m_arg = m->m_arg1 = 0;
+			msg_reply(m->m_sender, m);
+		}
+	}
+}
+/*
+ * inetfs_state()
+ *	Callback for connection state change
+ */
+static void
+inetfs_state(struct tcb *tcb, char old, char new)
+{
+	struct tcp_port *t = tcb->user;
+
+	switch (new) {
+	case ESTABLISHED:
+		cleario(&t->t_writers, 0);
+		break;
+
+	case FINWAIT1:
+	case FINWAIT2:
+	case CLOSING:
+	case LAST_ACK:
+	case TIME_WAIT:
+		cleario(&t->t_readers, EIO);
+		cleario(&t->t_writers, EIO);
+		break;
+
+	case CLOSE_WAIT:
+		/* flush last buffers */
+		while (!LL_EMPTY(&t->t_writers)) {
+			struct mbuf *mb;
+			struct client *c;
+
+			c = LL_NEXT(&t->t_writers)->l_data;
+			ll_delete(c->c_entry); c->c_entry = 0;
+			mb = msg_to_mbuf(&c->c_msg);
+			if (mb) {
+				send_tcp(tcb, mb);
+			}
+		}
+		close_tcp(tcb);
+		break;
+	
+	case CLOSED:
+		del_tcp(tcb);
+		t->t_tcb = NULLTCB;
+		break;
+	}
+}
+
+/*
+ * inetfs_conn()
+ *	Try to change connection mode for this TCP port
+ */
+static void
+inetfs_conn(struct msg *m, struct client *c, char *val)
+{
+	struct tcp_port *t = c->c_port;
+	uint mode;
+	char *field, *val;
+
+	/*
+	 * Disconnection--shut TCP if open, return success
+	 */
+	if (!strcmp(val, "disconnect")) {
+		if (t->t_tcb) {
+			close_tcp(t->t_tcb);
+			t->t_tcb = 0;
+		}
+		(void)msg_reply(m->m_sender, m);
+		return;
+	}
+
+	/*
+	 * Decode mode of connection
+	 */
+	if (!strcmp(val, "server")) {
+		mode = TCP_SERVER;
+	} else if (!strcmp(val, "passive")) {
+		mode = TCP_PASSIVE;
+	} else if (!strcmp(val, "active")) {
+		mode = TCP_ACTIVE;
+	} else {
+		msg_err(m->m_sender, EINVAL);
+		return;
+	}
+
+	/*
+	 * Don't permit if connection already initiated
+	 */
+	if (t->t_tcb) {
+		msg_err(m->m_sender, EBUSY);
+		return;
+	}
+
+	/*
+	 * Require a destination ip/port pair
+	 */
+	if (!t->t_fsock.address || !t->t_fsock.port) {
+		msg_err(m->m_sender, "ip/no addr");
+		return;
+	}
+
+	/*
+	 * Request connection, with upcall connections
+	 */
+	t->t_tcb = open_tcp(&lsocket, NULLSOCK, mode, 0,
+		inetfs_rcv, inetfs_xmt, inetfs_state, 0, t);
+	if (t->t_tcb == NULLTCB) {
+		msg_err(m->m_sender, err2str(net_error));
+		return;
+	}
+
+	/*
+	 * Queue as a "writer" for kicking off the connection
+	 */
+	c->c_entry = ll_insert(&t->t_writers, c);
+	if (c->c_entry == 0) {
+		msg_err(m->m_sender, strerror());
+		return;
+	}
+
+	/*
+	 * Record client message, wait for connection
+	 */
+	c->c_msg = *m;
+}
+
+/*
+ * inetfs_wstat()
+ *	Handle status setting operations
+ */
+static void
+inetfs_wstat(struct msg *m, struct client *c)
+{
+	char *field, *val;
+	struct tcp_port *t = c->c_port;
+
+	if (do_wstat(m, &c->c_port->t_prot, c->c_perm, &field, &val)) {
+		return;
+	}
+	switch (c->c_dir) {
+	case DIR_PORT:
+		ASSERT_DEBUG(t, "inetfs_wstat: PORT null port");
+		if (!strcmp(field, "dest")) {
+			t->t_fsock.address = aton(val);
+			break;
+		} else if (!strcmp(field, "destsock")) {
+			t->t_fsock.port = atoi(val);
+			break;
+		} else if (!strcmp(field, "conn")) {
+			inetfs_conn(m, c, val);
+			return;
+		}
+
+		/* VVV fall into error case VVV */
+
+	default:
+		msg_err(m->m_sender, EINVAL);
+		return;
+	}
+
+	/*
+	 * Return success
+	 */
+	m->m_buflen = m->m_nseg = m->m_arg = m->m_arg1 = 0;
+	msg_reply(m->m_sender, m);
+}
+
+/*
+ * inetfs_write()
+ *	Write message from VSTa client onto TCP stream
+ */
+static void
+inetfs_write(struct msg *m, struct client *c)
+{
+	struct mbuf *mb;
+	struct tcp_port *t = c->c_port;
+	struct tcb *tcb = t->t_tcb;
+	uint size;
+
+	/*
+	 * Output is only legal once you have a particular TCP port open
+	 */
+	if (!t) {
+		msg_err(m->m_sender, EINVAL);
+		return;
+	}
+
+	/*
+	 * Convert to mbuf format
+	 */
+	mb = msg_to_mbuf(m);
+	if (mb == 0) {
+		msg_err(m->m_sender, ENOMEM);
+		return;
+	}
+	size = len_mbuf(mb);
+
+	/*
+	 * Get a a linked list entry, queue us
+	 */
+	c->c_entry = ll_insert(&t->t_writers, c);
+	if (c->c_entry == 0) {
+		free_p(mb);
+		msg_err(m->m_sender, ENOMEM);
+		return;
+	}
+
+	/*
+	 * Record our message parameters
+	 */
+	c->c_msg = *m;
+
+	/*
+	 * If there's nothing outbound on this TCP port, send.
+	 * Otherwise queueing is sufficient; our transmit upcall
+	 * will send it later.
+	 */
+	if (tcb->sndcnt == 0) {
+		if (send_tcp(tcb, mb) < 0) {
+			msg_err(m->m_sender, err2str(net_error));
+			ll_delete(c->c_entry); c->c_entry = 0;
+			return;
+		}
+	}
 }
 
 /*
@@ -360,10 +664,10 @@ proc_msg(struct msg *m)
 		new_client(m);
 		break;
 	case M_DISCONNECT:	/* Client done */
-		dead_client(m, f);
+		dead_client(m, c);
 		break;
 	case M_DUP:		/* File handle dup during exec() */
-		dup_client(m, f);
+		dup_client(m, c);
 		break;
 
 	case M_ABORT:		/* Aborted operation */
@@ -378,7 +682,7 @@ proc_msg(struct msg *m)
 			msg_err(m->m_sender, EINVAL);
 			break;
 		}
-		tcpfs_open(m, f);
+		inetfs_open(m, c);
 		break;
 
 	case FS_ABSREAD:	/* Set position, then read */
@@ -386,10 +690,10 @@ proc_msg(struct msg *m)
 			msg_err(msg.m_sender, EINVAL);
 			break;
 		}
-		f->f_pos = msg.m_arg1;
+		c->c_pos = msg.m_arg1;
 		/* VVV fall into VVV */
 	case FS_READ:		/* Read file */
-		tcpfs_read(m, f);
+		inetfs_read(m, c);
 		break;
 
 	case FS_ABSWRITE:	/* Set position, then write */
@@ -397,14 +701,14 @@ proc_msg(struct msg *m)
 			msg_err(msg.m_sender, EINVAL);
 			break;
 		}
-		f->f_pos = msg.m_arg1;
+		c->c_pos = msg.m_arg1;
 		/* VVV fall into VVV */
 	case FS_WRITE:		/* Write file */
-		tcpfs_write(m, f);
+		inetfs_write(m, c);
 		break;
 
 	case FS_SEEK:		/* Set new file position */
-		tcpfs_seek(m, f);
+		inetfs_seek(m, c);
 		break;
 
 	case FS_REMOVE:		/* Get rid of a file */
@@ -413,14 +717,14 @@ proc_msg(struct msg *m)
 			msg_err(msg.m_sender, EINVAL);
 			break;
 		}
-		tcpfs_remove(m, f);
+		inetfs_remove(m, c);
 		break;
 
 	case FS_STAT:		/* Tell about file */
-		tcpfs_stat(m, f);
+		inetfs_stat(m, c);
 		break;
 	case FS_WSTAT:		/* Set stuff on file */
-		tcpfs_wstat(m, f);
+		inetfs_wstat(m, c);
 		break;
 	default:		/* Unknown */
 		msg_err(msg.m_sender, EINVAL);
@@ -469,7 +773,7 @@ port_daemon(void)
 
 /*
  * vsta1()
- *	Start VSTa TCP server
+ *	Start VSTa /inet server
  */
 void
 vsta1(int argc, char **argv)
@@ -512,215 +816,123 @@ vsta1(int argc, char **argv)
 	vsta_daemon(port_daemon);
 }
 
-/* XXX stuff to listen for a connection */
-{
-	struct socket lsocket;
-
-	/* Incoming Telnet */
-	lsocket.address = ip_addr;
-
-	if (argc < 2) {
-		lsocket.port = TELNET_PORT;
-	} else {
-		lsocket.port = atoi(argv[1]);
-	}
-
-	tnix_tcb = open_tcp(&lsocket,NULLSOCK,TCP_SERVER,0,
-			tnix_rcv,tnix_xmt,tnix_state,0,(char *)NULL);
-
-	if (tnix_tcb == NULLTCB) {
-		fprintf(stderr, "start telunix fails rsn %d.\n",
-			net_error);
-	} else {
-		log(tnix_tcb,"STARTED Telunix - (%d %x)",
-			lsocket.port,tnix_tcb);
-	}
-}
-
 /*
- * tnix0()
- *	Shut down Telnet server
+ * vsta0()
+ *	Shut down VSTa /inet server
  */
-tnix0(void)
+vsta0(void)
 {
 	cleanup();
 }
 
-/* Handle incoming Telnet-Unix connect requests */
+/*
+ * send_data()
+ *	Move data from mbufs out to VSTa clients
+ */
 static void
-tnix_state(struct tcb *tcb, char old, char new)
+send_data(struct tcp_port *t)
 {
-	struct telnet *tn;
-	char *ttyname;
-	int i, scanindex;
+	struct msg *m;
+	struct llist *q;
+	struct client *c;
+	uint mb_pullup = 0;
 
-	tn = (struct telnet *)tcb->user;
-
-	switch(new){
-	case ESTABLISHED:
-		/* Create and initialize a Telnet protocol descriptor */
-		if((tn = (struct telnet *)calloc(1,sizeof(struct telnet))) == NULLTN){
-			log(tcb,"reject Telunix - no space");
-			sndmsg(tcb,"Rejected; no space on remote\n");
-			close_tcp(tcb);
-			return;
-		}
-		tn->session = NULLSESSION;
-		tn->state = TS_DATA;
-		tcb->user = (char *)tn;	/* Upward pointer */
-		tn->tcb = tcb;		/* Downward pointer */
-		tn->inbuf = NULLBUF;
-		tn->outbuf = NULLBUF;
-		ttyname = (char *)0;
-		if((scanindex = tnix_addscan(tcb)) < 0 ||
-		   (tn->fd = OpenPty(&ttyname)) < 3) {	/* barf if <= stderr */
-			tnix_rmvscan(tcb);
-			log(tcb,"reject Telunix - no Unix ports");
-			sndmsg(tcb,
-			    "Rejected; no ports available on remote\n");
-			close_tcp(tcb);
- 			free (ttyname);
-			return;
-		}
-		tnix_fd2tcb[tn->fd] = tcb;
-  		log(tcb,"open Telunix - (%d %x %d %d)",tn->fd,tcb,old,new);
-
-		{ /* negotiate connection */
-			char data[] = { IAC, WILL, TN_ECHO, IAC, WILL,
-				TN_SUPPRESS_GA /*, IAC, WILL, TN_TRANSMIT_BINARY,
-				IAC, WILL, TN_STATUS, IAC, DO, TN_LFLOW, IAC,
-				DONT, ECHO */};
-			send_tcp (tcb, qdata (data, 6 /* 18 */));
-		}
-
-		/* spawn login process */
-		switch (sessionpid[scanindex] = fork ()) {
-		case -1:
-			sndmsg (tcb, "fork failed!\n");
-			close_tcp (tcb);
-			free (ttyname);
-			return;
-		case 0:
-			for (i = 0; i < getdtablesize(); i++) {
-				close(i);
-			}
-			execl("/vsta/bin/login", ttyname);
-			exit(1);
-		}
-		sndmsg(tcb, "\r\nVSTa ka9q telnet server\r\n");
-		free (ttyname);
-		break;
-
-	case FINWAIT1:
-	case FINWAIT2:
-	case CLOSING:
-	case LAST_ACK:
-	case TIME_WAIT:
-		if(tn != NULLTN &&
-		   tn->fd > 2) {
-			log(tcb,"close Telunix - (%d %x %d %d)",
-				tn->fd,tcb,old,new);
-			close(tn->fd);
-			tnix_fd2tcb[tn->fd] = NULL;
-			tn->fd = 0;
-		}
-		tnix_rmvscan(tcb);
-		break;
-
-	case CLOSE_WAIT:
-		/* flush that last buffer */
-		if(tn != NULLTN &&
-		   tn->outbuf != NULLBUF &&
-		   tn->outbuf->cnt != 0) {
-			send_tcp(tcb,tn->outbuf);
-			tn->outbuf = NULLBUF;
-		}
-		close_tcp(tcb);
-		break;
-	
-	case CLOSED:
-		if(tn != NULLTN) {
-			if(tn->fd > 2) {
-				log(tcb,"close Telunix - (%d %x %d %d)",
-					tn->fd,tcb,old,new);
-				close(tn->fd);
-				tnix_fd2tcb[tn->fd] = NULL;
-				tn->fd = 0;
-			}
-			if(tn->inbuf != NULLBUF)
-				free_p(tn->inbuf);
-			if(tn->outbuf != NULLBUF)
-				free_p(tn->outbuf);
-			free((char *)tn);
-		}
-		tnix_rmvscan(tcb);
-		del_tcp(tcb);
-		if(tcb == tnix_tcb)
-			tnix_tcb = NULLTCB;
-		break;
-	}
-}
-
-/* Telnet receiver upcall routine */
-void
-tnix_rcv(tcb,cnt)
-register struct tcb *tcb;
-int16 cnt;
-{
-	register struct telnet *tn;
-	extern void tnix_rmvscan();
-	extern int recv_tcp();
-	extern void tnix_input();
-
-	if((tn = (struct telnet *)tcb->user) == NULLTN || tn->fd < 3) {
-		/* Unknown connection - remove it from queue */
-		log(tcb,"error Telnet - tnix_try (%d)", tn);
-		tnix_rmvscan(tcb);
-		return;
-	}
 	/*
-	 * Check if there is any pending io for the pty:
+	 * While there's data and readers, move data
 	 */
-	if(tn->inbuf != NULLBUF) {
-		tnix_input(tn);
-	}
-	if(tn->inbuf == NULLBUF) {
-		if(tcb->rcvcnt > 0 &&
-		   recv_tcp(tcb,&(tn->inbuf),0) > 0)
-			tnix_input(tn);
+	q = &t->t_readers;
+	while (t->t_readq && !LL_EMPTY(q)) {
+		uint nseg, count, req;
+		struct mbuf *mb;
+
+		/*
+		 * Dequeue next request
+		 */
+		c = LL_NEXT(q)->l_data;
+		ll_delete(c->c_entry); c->c_entry = 0;
+
+		/*
+		 * Fill up scatter/gather until it's maxed or
+		 * until we've satisfied the client read.
+		 */
+		m = &c->c_msg;
+		nseg = 0;
+		count = 0;
+		req = m->m_arg;
+		mb = t->t_readq;
+		while (req && mb && (nseg < MSGSEGS)) {
+			uint step;
+
+			m->m_seg[nseg].s_buf = mb->data;
+			if (mb->size > req) {
+				mb_pullup = step = req;
+			} else {
+				step = mb->size;
+			}
+			m->m_seg[nseg].s_buflen = step;
+			req -= step;
+			count += step;
+			nseg += 1;
+			mb = mb->next;
+		}
+
+		/*
+		 * Send back to requestor
+		 */
+		m->m_arg = count;
+		m->m_nseg = nseg;
+		msg_reply(m->m_sender, m);
+
+		/*
+		 * Clean up consumed data
+		 */
+		while (nseg--) {
+			/*
+			 * For the last mbuf consumed, it may be
+			 * a pullup if we couldn't use all the data
+			 */
+			if ((nseg == 0) && mb_pullup) {
+				pullup(&t->t_readq, NULLCHAR, mb_pullup);
+			} else {
+				/*
+				 * Otherwise just free the mbuf
+				 */
+				t->t_readq = free_mbuf(t->t_readq);
+			}
+		}
 	}
 }
 
-/* call when select has input from the pty */
-
-tnix_ready(mask)
-     unsigned long mask;
+/*
+ * inetfs_rcv()
+ *	More data has arrived for a connection
+ */
+static void
+inetfs_rcv(struct tcb *tcb, int16 cnt)
 {
+	struct tcp_port *t = tcb->user;
 
-  int fd;
+	/*
+	 * If we consumed all the current data, take a new batch from TCP
+	 */
+	if (t->t_readq == 0) {
+		recv_tcp(tcb, &t->t_readq, 0);
+	}
 
-  for (fd = 0; mask; fd++, mask >>= 1)
-    if (mask & 1) {
-	if (tnix_fd2tcb[fd])
-	    tnix_read(tnix_fd2tcb[fd]);
-    }
+	/*
+	 * Send data off to clients
+	 */
+	send_data(t);
 }
 
-tnix_read(tcb)
-register struct tcb *tcb;
+/*
+ * inetfs_xmt()
+ *	Upcall when TCP finds room for more data
+ */
+inetfs_xmt(struct tcb *tcb, int16 count)
 {
-	extern void tnix_rmvscan();
-	extern int send_tcp();
+	struct tcp_port *t = tcb->user;
 
-	register struct telnet *tn;
-	register int i;
-
-	if((tn = (struct telnet *)tcb->user) == NULLTN || tn->fd < 3) {
-		/* Unknown connection - remove it from queue */
-		log(tcb,"error Telnet - tnix_try (%d)", tn);
-		tnix_rmvscan(tcb);
-		return;
-	}
 	/*
 	 * Next, check if there is any io for tcp:
 	 */
@@ -730,19 +942,7 @@ register struct tcb *tcb;
 		if(tn->outbuf == NULLBUF &&
 		   (tn->outbuf = alloc_mbuf(TURQSIZ)) == NULLBUF)
 			return;		/* can't do much without a buffer */
-	
-#ifdef undef
-		if(tn->outbuf->cnt < TURQSIZ) {
-			if((i = read(tn->fd, tn->outbuf->data + tn->outbuf->cnt,
-				(int)(TURQSIZ - tn->outbuf->cnt))) == -1) {
-				if (errno == EAGAIN) return;
-				log(tcb,"error Telunix - read (%d %d %d)",
-					errno, tn->fd,
-					TURQSIZ - tn->outbuf->cnt);
-				close_tcp(tcb);
-				return;
-			}
-#endif
+
 		if(tn->outbuf->cnt < TURQSIZ - 1) {
 		    i = 1;
 		    while (i && tn->outbuf->cnt < TURQSIZ - 1) {
@@ -990,151 +1190,4 @@ register struct telnet *tn;
 			break;
 		}
 	}
-}
-
-/* Use our own copy.  It's too confusing to mix this with the client side */
-void
-willoptx(tn,opt)
-struct telnet *tn;
-char opt;
-{
-	int ack;
-	void answer();
-
-	if (debug_options) {
-		fprintf(trfp, "[Recv: will ");
-		if(uchar(opt) <= NOPTIONS)
-			fprintf(trfp, "%s]\n",t_options[opt]);
-		else
-			fprintf(trfp, "%u]\n",opt);
-	}
-	
-	switch(uchar(opt)){
-	default:
-		ack = DONT;	/* We don't know what he's offering; refuse */
-	}
-	answer(tn,ack,opt);
-}
-void
-wontoptx(tn,opt)
-struct telnet *tn;
-char opt;
-{
-	void answer();
-
-	if (debug_options) {
-		fprintf(trfp, "[Recv: wont ");
-		if(uchar(opt) <= NOPTIONS)
-			fprintf(trfp, "%s]\n",t_options[opt]);
-		else
-			fprintf(trfp, "%u]\n",opt);
-	}
-
-	if(uchar(opt) <= NOPTIONS){
-		if(tn->remote[uchar(opt)] == 0)
-			return;		/* Already clear, ignore to prevent loop */
-		tn->remote[uchar(opt)] = 0;
-	}
-	answer(tn,DONT,opt);	/* Must always accept */
-}
-void
-dooptx(tn,opt)
-struct telnet *tn;
-char opt;
-{
-	void answer();
-	int ack;
-
-	if (debug_options) {
-		fprintf(trfp, "[Recv: do ");
-		if(uchar(opt) <= NOPTIONS)
-			fprintf(trfp, "%s]\n",t_options[opt]);
-		else
-			fprintf(trfp, "%u]\n",opt);
-	}
-
-	switch(uchar(opt)){
-/* in fact at the moment we always echo -- better fix this */
-	case TN_ECHO:
-		if(tn->local[uchar(opt)] == 1)
-			return;		/* Already set, ignore to prevent loop */
-		tn->local[uchar(opt)] = 1;
-		ack = WILL;
-		break;
-	case TN_SUPPRESS_GA:
-		if(tn->local[uchar(opt)] == 1)
-			return;		/* Already set, ignore to prevent loop */
-		tn->local[uchar(opt)] = 1;
-		ack = WILL;
-		break;
-	default:
-		ack = WONT;	/* Don't know what it is */
-	}
-	answer(tn,ack,opt);
-}
-void
-dontoptx(tn,opt)
-struct telnet *tn;
-char opt;
-{
-	void answer();
-
-	if (debug_options) {
-		fprintf(trfp, "[Recv: dont ");
-		if(uchar(opt) <= NOPTIONS)
-			fprintf(trfp, "%s]\n",t_options[opt]);
-		else
-			fprintf(trfp, "%u]\n",opt);
-	}
-
-	if(uchar(opt) <= NOPTIONS){
-		if(tn->local[uchar(opt)] == 0){
-			/* Already clear, ignore to prevent loop */
-			return;
-		}
-		tn->local[uchar(opt)] = 0;
-	}
-	answer(tn,WONT,opt);
-}
-
-
-/* This is the SIGCHLD trap handler */
-
-void
-tnix_scan()
-{
-	void tnix_try();
-	register int i;
-
-	for(i = 0; i < TUMAXSCAN; i += 1)
-		if(tnixtcb[i] != NULLTCB)
-			tnix_try(tnixtcb[i], sessionpid[i]);
-}
-
-int
-tnix_addscan(tcb)
-struct tcb *tcb;
-{
-	register int i;
-	for(i = 0; i < TUMAXSCAN; i += 1)
-		if(tnixtcb[i] == NULLTCB) {
-			tnixtcb[i] = tcb;
-			sessionpid[i] =  -1;
-			return i;
-		}
-	return -1;
-}
-
-void
-tnix_rmvscan(tcb)
-struct tcb *tcb;
-{
-	register int i;
-
-	for(i = 0; i < TUMAXSCAN; i += 1)
-		if(tnixtcb[i] == tcb) {
-			tnixtcb[i] = NULLTCB;
-			if (sessionpid[i] > 0) kill (sessionpid[i], SIGHUP);
-			sessionpid[i] = -1;
-		}
 }
