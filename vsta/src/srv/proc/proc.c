@@ -387,10 +387,11 @@ kernel_read(struct msg *m, struct file *f, uint len)
 	 */
 	kernel_pstat(f);
 	buf = &buffer[0];
-	sprintf(buf, "%u %ld %ld %u %ld %ld", f->f_kern.psk_ncpu,
+	sprintf(buf, "%u %ld %ld %u %ld %ld %u", f->f_kern.psk_ncpu,
 		f->f_kern.psk_memory, f->f_kern.psk_freemem,
 		f->f_kern.psk_runnable, f->f_kern.psk_uptime.t_sec,
-		f->f_kern.psk_uptime.t_usec);
+		f->f_kern.psk_uptime.t_usec,
+		f->f_kern.psk_hz);
 	for (x = 0; x < f->f_proc.psp_prot.prot_len; x++) {
 		if (x != 0) {
 			strcat(buf, ".");
@@ -442,10 +443,11 @@ kernel_stat(struct msg *m, struct file *f)
 	kernel_pstat(f);
 	sprintf(buf,
 		"nsize=1\ntype=f\nowner=0\ninode=%d\nperm=1\nacc=70/0\n"
-		"mem=%lu\nfree=%lu\nnrun=%u\nuptime=%lu\n",
+		"mem=%lu\nfree=%lu\nnrun=%u\nuptime=%lu\nhz=%u\n",
 		INT_MAX,
 		f->f_kern.psk_memory, f->f_kern.psk_freemem,
-		f->f_kern.psk_runnable, f->f_kern.psk_uptime.t_sec);
+		f->f_kern.psk_runnable, f->f_kern.psk_uptime.t_sec,
+		f->f_kern.psk_hz);
 	m->m_buf = buf;
 	m->m_arg = m->m_buflen = strlen(buf);
 	m->m_nseg = 1;
