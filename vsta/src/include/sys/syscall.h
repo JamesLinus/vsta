@@ -72,6 +72,11 @@ extern int time_set(struct time *arg_time);
 extern int ptrace(pid_t pid, port_name name);
 extern int notify_handler(voidfun);
 
+/*
+ * Not really a syscall, but intimate enough to be lumped in here
+ */
+extern int __seterr(char *);
+
 #endif /* __ASM__ */
 
 #endif /* _SYSCALL_H */
