@@ -11,7 +11,7 @@
 /*
  * A slot for each signal
  */
-static __voidfun sigs[_NSIG];
+static voidfun sigs[_NSIG];
 
 /*
  * __strtosig()
@@ -53,19 +53,28 @@ sigtostr(int s)
  * signal()
  *	Arrange signal handling
  */
-__voidfun
-signal(int s, __voidfun v)
+voidfun
+signal(int s, voidfun v)
 {
 	static int init = 0;
-	__voidfun ov;
+	voidfun ov;
 
 	if (!init) {
 		/* XXX wire handler */
 	}
 	if (s >= _NSIG) {
-		return((__voidfun)-1);
+		return((voidfun)-1);
 	}
 	ov = sigs[s];
 	sigs[s] = v;
 	return(ov);
+}
+
+/*
+ * kill()
+ *	Send an event
+ */
+kill(pid_t pid, int sig)
+{
+	return(notify(pid, -1, sigtostr(sig)));
 }
