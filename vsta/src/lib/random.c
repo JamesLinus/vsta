@@ -16,6 +16,8 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
+#include <random.h>
+#include <sys/types.h>
 
 /*
  * random.c
@@ -54,7 +56,6 @@
  * equal to seven, the period is actually much longer than the 7*(2**7 - 1)
  * predicted by this formula.
  */
-#include <sys/types.h>
 
 /*
  * For each of the currently supported random number generators, we have a
