@@ -65,7 +65,9 @@ copy_pview(struct pview *opv)
 
 	pv = dup_pview(opv);
 	ps = copy_pset(opv->p_set);
+	deref_pset(opv->p_set);
 	pv->p_set = ps;
+	ref_pset(ps);
 	return(pv);
 }
 
