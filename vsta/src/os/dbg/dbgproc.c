@@ -58,6 +58,7 @@ dump_thread2(struct thread *t, int brief)
 		t->t_runticks, t->t_oink);
 	printf("  flags:"); f = t->t_flags;
 	FLAG(T_RT, "RT"); FLAG(T_BG, "BG");
+	FLAG(T_FPU, "FPU"); FLAG(T_EPHEM, "EPHEM");
 	printf("\n  hd %x tl %x next %x\n",
 		t->t_hd, t->t_tl, t->t_next);
 	printf("  probe %x err %s usr/sys %d/%d eng %x\n",
@@ -170,7 +171,7 @@ dump_proc(struct proc *p, int brief)
 		&p->p_sema, p->p_prefs, p->p_nopen, p->p_allprev,
 		p->p_allnext, p->p_handler);
 	printf(" children %x parent %x\n", p->p_children, p->p_parent);
-	printf(" pgrp 0x%x\n", p->p_pgrp);
+	printf(" pgrp 0x%x nthread %d\n", p->p_pgrp, p->p_nthread);
 	printf(" ports:");
 	for (x = 0; x < PROCPORTS; ++x) {
 		if (p->p_ports[x]) {
@@ -244,8 +245,12 @@ dump_procs(arg)
 	/*
 	 * Dump one in extended format
 	 */
-	pid = atoi(arg);
-	p = dbgpfind(pid);
+	if ((arg[0] == '0') && (arg[1] == 'x')) {
+		p = (struct proc *)xtoi(arg+2);
+	} else {
+		pid = atoi(arg);
+		p = dbgpfind(pid);
+	}
 	if (!p) {
 		printf("No such process %d\n", pid);
 		return;
