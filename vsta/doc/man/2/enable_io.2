@@ -1,0 +1,33 @@
+.ll 74
+.he 'enable_io(2)'VSTa Manual'enable_io(2)'
+.fo ''%''
+.sp 2
+.bd 1
+NAME
+.br
+.ti +6
+enable_io - (i386) enable access to I/O space
+.sp
+.bd 1
+SYNOPSIS
+.br
+.in +6
+.li 3
+#include <sys/syscall.h>
+
+int enable_io(int low, int high);
+.sp 1
+.in -6
+.bd 1
+DESCRIPTION
+.br
+.in +6
+The
+.ul 1
+enable_io()
+system call enables access for a thread to use the i386 architecture
+I/O instructions.  The process must have
+.ul
+sys
+privileges.  Once granted, privileges remain for the life of the
+thread.  Successive calls are cumulative.
