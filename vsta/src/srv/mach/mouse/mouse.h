@@ -12,7 +12,6 @@
 #include <sys/param.h>
 #include <sys/perm.h>
 #include <sys/fs.h>
-#include <sys/ports.h>
 
 #include "nec_bus.h"
 #include "ms_bus.h"
