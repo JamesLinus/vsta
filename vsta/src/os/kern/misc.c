@@ -317,11 +317,8 @@ perm_ctl(int arg_idx, struct perm *arg_perm, struct perm *arg_ret)
 		 * Preserve the UID which allowed this.
 		 */
 		if (x < PROCPERMS) {
-			printf("perm_ctl uid %d\n", perm.perm_uid);
 			p->p_ids[arg_idx] = perm;
 			if (p->p_ids[x].perm_uid) {
-				printf(" ...inherit %d\n",
-					p->p_ids[x].perm_uid);
 				p->p_ids[arg_idx].perm_uid =
 					p->p_ids[x].perm_uid;
 			}
