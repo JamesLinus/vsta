@@ -34,8 +34,14 @@ namer_register(char *buf, port_name uport)
 	/*
 	 * Connect to name server
 	 */
-	port = msg_connect(PORT_NAMER, ACC_READ|ACC_WRITE);
-	if (port < 0) {
+	for (x = 0; x < 5; ++x) {
+		port = msg_connect(PORT_NAMER, ACC_READ|ACC_WRITE);
+		if (port >= 0) {
+			break;
+		}
+		__msleep(100);
+	}
+	if (port <= 0) {
 		return(-1);
 	}
 
