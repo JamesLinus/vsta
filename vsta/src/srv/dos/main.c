@@ -247,12 +247,29 @@ loop:
 		}
 		dos_open(&msg, f);
 		break;
+
+	case FS_ABSREAD:	/* Set position, then read */
+		if (msg.m_arg1 < 0) {
+			msg_err(msg.m_sender, EINVAL);
+			break;
+		}
+		f->f_pos = msg.m_arg1;
+		/* VVV fall into VVV */
 	case FS_READ:		/* Read file */
 		dos_read(&msg, f);
 		break;
+
+	case FS_ABSWRITE:	/* Set position, then write */
+		if (msg.m_arg1 < 0) {
+			msg_err(msg.m_sender, EINVAL);
+			break;
+		}
+		f->f_pos = msg.m_arg1;
+		/* VVV fall into VVV */
 	case FS_WRITE:		/* Write file */
 		dos_write(&msg, f);
 		break;
+
 	case FS_SEEK:		/* Set new file position */
 		dos_seek(&msg, f);
 		break;
@@ -321,10 +338,10 @@ main(int argc, char *argv[])
 
 		my_argv[0] = "dos";
 		my_argv[1] = "-p";
-		/* my_argv[2] = "disk/wd";
-		my_argv[3] = "wd0_dos0"; */
-		my_argv[2] = "disk/fd";
-		my_argv[3] = "fd0";
+		my_argv[2] = "disk/wd";
+		my_argv[3] = "wd0_dos0";
+		/* my_argv[2] = "disk/fd";
+		my_argv[3] = "fd0"; */
 		my_argv[4] = "fs/dos";
 		my_argv[5] = 0;
 		argv = my_argv;
