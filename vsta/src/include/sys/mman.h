@@ -23,7 +23,7 @@ extern void *mmap(caddr_t vaddr, ulong len, int prot, int flags,
 	int fd, ulong offset);
 extern int munmap(caddr_t vaddr, ulong len);
 #ifdef KERNEL
-extern void *add_map(struct vas *,
+extern struct pview *add_map(struct vas *,
 	struct portref *, caddr_t, ulong, ulong, int);
 extern char *mach_page_wire(uint flags, struct pview *pv,
 	struct perpage *pp, void *va, uint idx);
