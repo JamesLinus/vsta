@@ -23,9 +23,14 @@
  *
  * Semaphores are the only mechanism for sleeping.  When sleeping on
  * a semaphore, PRIHI will inhibit events from breaking the semaphore,
- * PRICATCH will allow events which show up as a non-zero completion
- * of the p_sema operation, and PRILO will cause the system call to return
- * with EINTR (p_sema never returns, a longjmp happens instead).
+ * and PRICATCH will allow events which show up as a non-zero completion
+ * of the p_sema operation.  PRILO caused the system call to return
+ * with EINTR (p_sema never returns, a longjmp happens instead), but
+ * has been discarded in favor of explicit PRICATCH with an EINTR return
+ * path.  Not only does it solve some problems with using shared
+ * code paths between kernel and user clients; it also spares us having
+ * to dump all the machine state into a jmp_buf for each and every
+ * system call.
  *
  * You may transition from a lock to a semaphore using p_sema_v_lock.
  * There is no way to transition from one semaphore to another atomically.
@@ -66,7 +71,7 @@ typedef uint spl_t;
 #define SPLHI_SAME (0x40)	/* Spin with interrupts unchanged */
 #endif
 typedef uint pri_t;
-#define PRILO (0)		/* Sleep interruptibly */
+/* #define PRILO (0) */		/* Sleep interruptibly (obsolete) */
 #define PRICATCH (0x7F)		/* PRILO, but p_sema returns error code */
 #define PRIHI (0xFF)		/* Sleep uninterruptibly */
 

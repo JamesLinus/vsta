@@ -5,6 +5,7 @@
 #include <sys/proc.h>
 #include <sys/assert.h>
 #include <sys/malloc.h>
+#include <sys/fs.h>
 #include <alloc.h>
 #include "../mach/mutex.h"
 
@@ -203,7 +204,10 @@ retry:
 	 * Wait for a child
 	 */
 	} else {
-		p_sema_v_lock(&e->e_sema, PRILO, &e->e_lock);
+		if (p_sema_v_lock(&e->e_sema, PRICATCH, &e->e_lock)) {
+			err(EINTR);
+			return(0);
+		}
 
 		/*
 		 * We now have a message to remove

@@ -149,14 +149,6 @@ syscall(ulong place_holder)
 	s = &syscalls[callnum];
 
 	/*
-	 * Interrupted system calls vector here
-	 */
-	if (setjmp(t->t_qsav)) {
-		f->eax = err(EINTR);
-		goto out;
-	}
-
-	/*
 	 * Default to carry flag clear - no interruption, no error
 	 */
 	f->eflags &= ~F_CF;

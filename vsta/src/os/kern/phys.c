@@ -94,7 +94,9 @@ page_wire(void *arg_va, void **arg_pa)
 	/*
 	 * Queue turn for a wired slot, take first free slot
 	 */
-	p_sema(&wired_sema, PRILO);
+	if (p_sema(&wired_sema, PRICATCH)) {
+		return(err(EINTR));
+	}
 	p_lock_fast(&wired_lock, SPL0);
 	for (w = wired; w->w_proc; ++w)
 		;

@@ -42,7 +42,9 @@ get_pstat_proclist(void *pst_info, uint pst_size)
 	/*
 	 * Do this work with the pid_sema held
 	 */
-	p_sema(&pid_sema, PRILO);
+	if (p_sema(&pid_sema, PRICATCH)) {
+		return(err(EINTR));
+	}
 
 	do {
 		p_sema(&p->p_sema, PRIHI);

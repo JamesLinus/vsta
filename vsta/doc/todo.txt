@@ -194,10 +194,13 @@ X There are a couple more pset operations which should be vectors instead
 X	of special cases in a switch statement.
 	-- Done.  I think all the appropriate ones are vectors now.
 
-System call interruption via t_qsav is screwed.  *Any* semaphore op--for
-	page fault, system call, whatever--can longjmp back out through
-	this.  Need to set it up so only system calls can have this
-	happen.
+XSystem call interruption via t_qsav is screwed.  *Any* semaphore op--for
+X	page fault, system call, whatever--can longjmp back out through
+X	this.  Need to set it up so only system calls can have this
+X	happen.
+	-- Fixed.  Got rid of t_qsav entirely.  Sometimes you carry
+	assumptions from past OS's even when it really doesn't make
+	a whole lot of sense.
 
 Need to set up message operation interruption so even a completely
 	hosed server can't hang a client.  Client should be able to

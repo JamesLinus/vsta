@@ -435,7 +435,9 @@ unhash(port_t arg_port, long arg_fid)
 	 * Interlock, get access to port, atomically switch
 	 * to mapsema.
 	 */
-	(void)p_sema(&p->p_sema, PRILO);
+	if (p_sema(&p->p_sema, PRICATCH)) {
+		return(err(EINTR));
+	}
 	port = p->p_ports[arg_port];
 	if (port == 0) {
 		v_sema(&p->p_sema);

@@ -329,7 +329,9 @@ perm_ctl(int arg_idx, struct perm *arg_perm, struct perm *arg_ret)
 		/*
 		 * See if any of our current permissions dominates it
 		 */
-		p_sema(&p->p_sema, PRILO);
+		if (p_sema(&p->p_sema, PRICATCH)) {
+			return(err(EINTR));
+		}
 		for (x = 0; x < PROCPERMS; ++x) {
 			if (perm_dominates(&p->p_ids[x], &perm)) {
 				break;

@@ -190,7 +190,9 @@ enable_io(int arg_low, int arg_high)
 	/*
 	 * Check for permission
 	 */
-	p_sema(&p->p_sema, PRILO);
+	if (p_sema(&p->p_sema, PRICATCH)) {
+		return(err(EINTR));
+	}
 	if (!(perm_calc(p->p_ids, PROCPERMS, &io_prot) & IOPRIV_IO)) {
 		v_sema(&p->p_sema);
 		return(err(EPERM));

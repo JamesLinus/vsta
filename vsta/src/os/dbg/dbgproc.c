@@ -53,8 +53,8 @@ dump_thread2(struct thread *t, int brief)
 		t->t_runticks, t->t_oink);
 	printf("  flags:"); f = t->t_flags;
 	FLAG(T_RT, "RT"); FLAG(T_BG, "BG"); FLAG(T_KERN, "KERN");
-	printf("\n  hd %x tl %x next %x qsav %x\n",
-		t->t_hd, t->t_tl, t->t_next, t->t_qsav);
+	printf("\n  hd %x tl %x next %x\n",
+		t->t_hd, t->t_tl, t->t_next);
 	printf("  probe %x err %s usr/sys %d/%d evq %x eng %x\n",
 		t->t_probe,
 		t->t_err[0] ? t->t_err : "<none>",

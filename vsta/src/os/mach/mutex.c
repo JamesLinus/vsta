@@ -109,9 +109,6 @@ p_sema(sema_t *s, pri_t p)
 	if (t->t_intr) {
 		ASSERT_DEBUG(t->t_wchan == 0, "p_sema: intr w. wchan");
 		ASSERT_DEBUG(p != PRIHI, "p_sema: intr w. PRIHI");
-		if (p != PRICATCH) {
-			longjmp(t->t_qsav, 1);
-		}
 		return(1);
 	}
 
@@ -233,9 +230,6 @@ p_sema_v_lock(sema_t *s, pri_t p, lock_t *l)
 	if (t->t_intr) {
 		ASSERT_DEBUG(t->t_wchan == 0, "p_sema: intr w. wchan");
 		ASSERT_DEBUG(p != PRIHI, "p_sema: intr w. PRIHI");
-		if (p != PRICATCH) {
-			longjmp(t->t_qsav, 1);
-		}
 		return(1);
 	}
 

@@ -148,7 +148,9 @@ notify2(pid_t arg_proc, pid_t arg_thread, char *evname)
 		 * Our process isn't too hard
 		 */
 		p = curthread->t_proc;
-		p_sema(&p->p_sema, PRILO);
+		if (p_sema(&p->p_sema, PRICATCH)) {
+			return(err(EINTR));
+		}
 	} else {
 		/*
 		 * Look up given PID

@@ -692,7 +692,9 @@ msg_err(long arg_tran, char *arg_why, int arg_len)
 	 * opens, delete it from the hash before we release
 	 * the mutex.
 	 */
-	p_sema(&p->p_sema, PRILO);
+	if (p_sema(&p->p_sema, PRICATCH)) {
+		return(err(EINTR));
+	}
 	pr = hash_lookup(p->p_prefs, arg_tran);
 	if (pr) {
 		p_lock_fast(&pr->p_lock, SPL0);
