@@ -32,7 +32,7 @@ extern const unsigned char *__get_ctab(void);
  */
 extern const unsigned char *__ctab;
 
-#define __bits(c, b) (__ctab[(c) & 0x7F] & (b))
+#define __bits(c, b) (__ctab[(unsigned)(c) & 0x7F] & (b))
 #define isupper(c) __bits((c), _CT_UPPER)
 #define islower(c) __bits((c), _CT_LOWER)
 #define isalpha(c) __bits((c), _CT_UPPER|_CT_LOWER)
@@ -43,7 +43,7 @@ extern const unsigned char *__ctab;
 #define iscntrl(c) __bits((c), _CT_CTRL)
 #define ispunct(c) (!iscntrl(c) && !isalnum(c))
 #define isprint(c) (!iscntrl(c))
-#define isascii(c) (((int)(c) >= 0) && ((int)(c) <= 0x7F))
+#define isascii(c) ((unsigned)(c) <= 0x7F)
 #define tolower(c) (isupper(c) ? ((c) - 'A' + 'a') : c)
 #define toupper(c) (islower(c) ? ((c) - 'a' + 'A') : c)
 #define toascii(c) ((c) & 0x7F)
