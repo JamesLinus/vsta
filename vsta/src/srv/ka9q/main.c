@@ -68,7 +68,7 @@ char badhost[] = "Unknown host %s\n";
 char hostname[HOSTNAMELEN];	
 unsigned nsessions = NSESSIONS;
 int32 resolve();
-int16 lport = 1001;
+int16 lport = 1024;
 char prompt[] = "net> ";
 char nospace[] = "No space!!\n";	/* Generic malloc fail message */
 unsigned char escape = 0x1d;	/* default escape character is ^] */
