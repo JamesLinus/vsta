@@ -1,12 +1,16 @@
 /*
  * syscalls.c
  *	Actual entry points into the VSTa operating system
+ *
+ * We keep the return address in a register so that tfork() will
+ * return correctly even though the child thread returns on a new
+ * stack.
  */
 #include <sys/syscall.h>
 #include <make/assym.h>
 
 #define ENTRY(n, v)	.globl	_##n ; \
-	_##n: movl $v,%eax ; int $0xFF ; ret
+	_##n: popl %ebx ; movl $v,%eax ; int $0xFF ; jmp %ebx
 
 ENTRY(msg_port, S_MSG_PORT)
 ENTRY(msg_connect, S_MSG_CONNECT)
