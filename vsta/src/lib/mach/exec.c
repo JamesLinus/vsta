@@ -97,7 +97,7 @@ execv(const char *file, char * const *argv)
 	 * Create a shared mmap() area
 	 */
 	args = p = mmap(0, plen, PROT_READ|PROT_WRITE,
-		MAP_ANON|MAP_SHARED, 0, 0L);
+		MAP_ANON|MAP_SHARED|MAP_NODEST, 0, 0L);
 	if (p == 0) {
 		close(fd);
 		return(-1);
