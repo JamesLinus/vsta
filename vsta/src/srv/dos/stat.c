@@ -168,22 +168,27 @@ dos_stat(struct msg *m, struct file *f)
 	struct node *n = f->f_node;
 	struct directory d;
 	int isdir = (n->n_type == T_DIR);
+	char *p;
 
 	/*
 	 * No dir entry for root, otherwise get a copy of it
 	 */
-	if (n != rootdir) {
-		dir_copy(n->n_dir, n->n_slot, &d);
+	bzero(&d, sizeof(d));
+	if (n != procroot) {
+		(void)dir_copy(n->n_dir, n->n_slot, &d);
+		p = result;
 	} else {
-		bzero(&d, sizeof(d));
+		sprintf(result, "clsize=%d\n", CLSIZE);
+		p = result + strlen(result);
 	}
-	sprintf(result,
+	sprintf(p,
 "perm=1/1\nacc=%s\ntype=%c\nsize=%lu\nowner=0\ninode=%lu\n"
-"mtime=%ld\nshortname=%s\n",
+"mtime=%lu\nshortname=%s\nstart=%u\n",
 		dos_acc(&d),
 		(isdir ? 'd' : 'f'),
 		(isdir ? isize(n) : n->n_len),
-		inum(n), cvt_time(d.date, d.time), shortname(&d));
+		inum(n), cvt_time(d.date, d.time), shortname(&d),
+		START(&d));
 	m->m_buf = result;
 	m->m_buflen = strlen(result);
 	m->m_nseg = 1;
