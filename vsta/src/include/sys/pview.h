@@ -22,9 +22,10 @@ struct pview {
 /*
  * Bits for protection
  */
-#define PROT_RO (1)		/* Read only */
-#define PROT_MMAP (4)		/* Created by mmap() */
-#define PROT_FORK (8)		/* View is in process of fork() */
+#define PROT_RO (0x01)		/* Read only */
+#define PROT_NOFORK (0x2)	/* Not duplicated by fork() */
+#define PROT_MMAP (0x04)	/* Created by mmap() */
+#define PROT_FORK (0x08)	/* View is in process of fork() */
 
 #ifdef KERNEL
 /*
