@@ -1,77 +1,74 @@
 This is a quick roadmap of where things are and how to get things done.
 
 0. Requirements
-	I have a driver for the ST-506 "classic AT" hard disk interface.
-This driver has also been verified with one and two disk IDE systems
+
+I have a driver for the ST-506 "classic AT" hard disk interface.  This
+driver has also been verified with one and two disk IDE systems
 (although two disk IDE is *begging* for trouble, in most people's
 experience.)  The disk geometry can be obtained via (1) the controller's
-"read parameter" command, (2) the NVRAM/BIOS stored disk parameters,
-or (3) by hand-entering the disk parameters.  Detailed instructions
-are in the boot.lst file, discussed below.
+"read parameter" command, (2) the NVRAM/BIOS stored disk parameters, or
+(3) by hand-entering the disk parameters.  Detailed instructions are in
+the boot.lst file, discussed below.
 
-	Mike Larson has written a SCSI disk driver for the Adaptec
-1542[bc] interface.  IDE and SCSI appear to co-exist without problems.
+Mike Larson has written a SCSI disk driver for the Adaptec 1542[bc]
+interface.  IDE and SCSI appear to co-exist without problems.  Mike also
+has provided support for CDROM filesystems.
 
-	The console driver supports both MGA and CGA text screen
-locations.  It is not currently auto-detect.  The keyboard driver
-expects the AT scan codes.  The floppy driver only supports 1.2M and
-1.44M (not 360K, nor 360K in a 1.2M drive.) I don't have 1.44M, so again
-don't know if it works.  My system has 4M of RAM, and that seems to be
-plenty.  Systems with up to 16 Meg have been booted.  There is code for
-> 16 M, but it has not been tested and is certainly not complete.
+The console driver supports both MGA and CGA text screen locations.  It
+is not currently auto-detect.  The keyboard driver expects the AT scan
+codes.  The floppy driver supports most common formats, although I've
+only tested 1.2M/5.25" and 1.44M/3.5".  My smallest system has 4M of
+RAM, and that seems to be plenty.  Systems with up to 16 Meg have been
+booted.  There is code for > 16 M, but it is not yet complete.
 
-	Unlike past releases, you do not need the DJ Delorie GNU C
-compiler port for DOS.  If you *do* use it, make sure you get an older
-version which generates a.out format.  Later versions use COFF, which
-is incompatible.
+Unlike past releases, you do not need the DJ Delorie GNU C compiler port
+for DOS.  If you *do* use it, make sure you get an older version which
+generates a.out format.  Later versions use COFF or DWARF; both are
+incompatible.  You will have to hassle with command line length
+limitations; building under VSTa is much easier.
 
-	The binaries distributed with VSTa include a port of the GNU
-C compiler.  Self-hosted VSTa compiles are the method of choice.  But
-since you now get precompiled versions of all the servers, commands,
-and libraries you can skip self-hosted compiles if you just want to play
-with the running system.  Or you can choose just to recompile interesting
-parts.
+The binaries distributed with VSTa include a port of the GNU C compiler.
+Self-hosted VSTa compiles are the method of choice.  But since you now
+get precompiled versions of all the servers, commands, and libraries you
+can skip self-hosted compiles if you just want to play with the running
+system.  Or you can choose just to recompile interesting parts.
 
-	If you want to recompile the boot loader in boot/, you will
-need a DOS C compiler.  It uses large model, but doesn't do much of
-anything fancy.  I happen to use Borland C and the turbo assembler
-provided with it.  The program doesn't do much that needs changing,
-so you should consider just using my .exe.  But the source is there,
-if you want to change something.
+If you want to recompile the boot loader in boot/, you will need a DOS C
+compiler.  It uses large model, but doesn't do much of anything fancy.
+I happen to use Borland C and the turbo assembler provided with it.  The
+program doesn't do much that needs changing, so you should consider just
+using my .exe.  But the source is there, if you want to change
+something.
 
 1. Loading the VSTa files onto your disk.
 
-	Make the directory /vsta under DOS.  This should be the first
-DOS partition on whatever disk you happen to be using.  If you don't
-have the DOS versions of gzip or tar, you can probably find them
-in the same place you found vsta.tz and vsta_bin.tz.
+Make the directory /vsta under DOS.  This should be the first DOS
+partition on whatever disk you happen to be using.  If you don't have
+the DOS versions of gzip or tar, you can probably find them in the same
+place you found vsta.tz and vsta_bin.tz.
 
 	mkdir \vsta
 	cd \vsta
-	(Copy the vsta_bin.tz here)
-	gzip -dv vsta_bin.tz
-	tar -xvf vsta_bin.t
-	del vsta_bin.t
-	(Copy vsta.tz here now)
+	(Copy vsta.tz here)
 	gzip -dv vsta.tz
 	tar -xvf vsta.t
 	del vsta.t
 
 	You now have all the binaries and source for VSTa.
 
-	Passwords are in /vsta/etc/passwd, and are in the clear.  Feel
-free to edit this file using a DOS editor; VSTa tries to accomodate both
-DOS \r\n and UNIX \n conventions for line-oriented data.  The format
-is described in lib/passwd.c.  The group you belong to in the passwd
-file causes you to get more abilities; see /vsta/etc/group.  Finally,
-numeric format IDs are mapped to symbolic courtesy of /vsta/etc/ids.  You
-can see how in libc/ids.c.
+Passwords are in /vsta/etc/passwd, and are in the clear.  Feel free to
+edit this file using a DOS editor; VSTa tries to accomodate both DOS
+\r\n and UNIX \n conventions for line-oriented data.  The format is
+described in lib/passwd.c.  The group you belong to in the passwd file
+causes you to get more abilities; see /vsta/etc/group.  Finally, numeric
+format IDs are mapped to symbolic courtesy of /vsta/etc/ids.  You can
+see how in libc/ids.c.
 
 2. VSTa directory organization
 
-	All source files are stored under RCS.  The RCS storage resides
-inside the RCS/ subdir in each source directory.  The binary directories,
-of course, are not kept under RCS.
+All source files are stored under RCS.  The RCS storage resides inside
+the RCS/ subdir in each source directory.  The binary directories, of
+course, are not kept under RCS.
 
 	The VSTa tree is organized under /vsta as:
 
@@ -91,58 +88,57 @@ of course, are not kept under RCS.
 
 3. Booting the kernel
 
-	cd to the "/vsta/boot" subdir.
+cd to the "/vsta/boot" subdir.
 
-	Edit the file "boot.lst".  Each boot driver has a line here,
-and the comments before each line should tell you how to fiddle
-the line to reflect your hardware.  Currently, you need to edit
-console driver to tell it whether you're CGA or MGA, and you need
-to edit the line for the wd disk driver to tell it how to get
-the parameters for your disk(s).  Or comment out the wd driver and
-uncomment the SCSI driver "cam" instead.  Or use both.
+Edit the file "boot.lst".  Each boot driver has a line here, and the
+comments before each line should tell you how to fiddle the line to
+reflect your hardware.  Currently, you need to edit console driver to
+tell it whether you're CGA or MGA, and you need to edit the line for the
+wd disk driver to tell it how to get the parameters for your disk(s).
+Or comment out the wd driver and uncomment the SCSI driver "cam"
+instead.  Or use both.
 
-	Invoke the batch file "go.bat".
+Invoke the batch file "go.bat".
 
-	This will load the kernel and boot servers from the boot
-directory, as listed in your boot.lst.  The /vsta/boot directory
-has pre-built versions of all servers.  For future reference,
-the "make install" target in teach server makefile will copy it
-over to /vsta/boot.
+This will load the kernel and boot servers from the boot directory, as
+listed in your boot.lst.  The /vsta/boot directory has pre-built
+versions of all servers.  For future reference, the "make install"
+target in teach server makefile will copy it over to /vsta/boot.
 
 4. Kernel debugger
 
-	You have two options for kernel debugging.  As shipped,
-the on-screen kernel debugger is selected.  If you want to have
-the kernel debugger talk out the serial port, see os/mach/dbg*.c.
-You will also have to change the compilation options if you're using
-a display card at the MGA text address.
+You have two options for kernel debugging.  As shipped, the on-screen
+kernel debugger is selected.  If you want to have the kernel debugger
+talk out the serial port, see os/mach/dbg*.c.  You will also have to
+change the compilation options if you're using a display card at the MGA
+text address.
 
-	You will enter the debugger if VSTa crashes.  You can also
-type ^Z (control-Z) and you'll drop into it.  A "q" will continue.
-Since the console driver handles this, it'll try to restore your screen
-after you come back from the debugger.
+You will enter the debugger if VSTa crashes.  You can also type ^Z
+(control-Z) and you'll drop into it.  A "q" will continue.  Since the
+console driver handles this, it'll try to restore your screen after you
+come back from the debugger.
 
-	Use the "pr" command to see the proc table, the "bt" command
-to see a stack backtrace of the current process.  "dv" will dump virtual
+Use the "pr" command to see the proc table, the "bt" command to see a
+stack backtrace of the current process.  "dv" will dump virtual
 addresses, and "dp" will dump physical.  You can look at the current
 user process' address space by OR'ing in 0x80000000 to the user address.
 "dv" will complain if you try to look at a non-existent address.  "di"
 will disassemble at an address; symbols were put in during the kernel
 build, so the output should be fairly comprehensible (if you know i386
-assembly!)  The "=" will take expressions and print them in hex, decimal,
-and symbolically.
+assembly!)  The "=" will take expressions and print them in hex,
+decimal, and symbolically.
 
-	"pr <num>" will dump out a particular process with more detail.
-"vas <addr>" will dump out a virtual address space struct; similarly for
-"pset", "pview", "port", "ref" (portref).  "tf" will dump out the current
-trapframe (from the last trip through trap()), or "tf <addr>" will
-assume there's a trap frame at the given address, and dump it out
+"pr <num>" will dump out a particular process with more detail.  "vas
+<addr>" will dump out a virtual address space struct; similarly for
+"pset", "pview", "port", "ref" (portref).  "tf" will dump out the
+current trapframe (from the last trip through trap()), or "tf <addr>"
+will assume there's a trap frame at the given address, and dump it out
 instead.
 
 5. Multi-screens
 
-	By default two logins are launched for two virtual screens.
-Use ALT-F1 and ALT-F2 to switch between the screens.  See the file
+By default two logins are launched for two virtual screens.  Use ALT-F1
+and ALT-F2 to switch between the screens.  See the file
 /vsta/etc/inittab to launch more screens.  The first screen (ALT-F1)
 also receives syslog output.
 
@@ -155,32 +151,32 @@ also receives syslog output.
 	(if all looks great:)
 	mkall install
 
-	You can also cd to some particular server or command source
-directory and "make" or "make install" just that piece.
+You can also cd to some particular server or command source directory
+and "make" or "make install" just that piece.
 
-	NOTE: some binaries (emacs, rc, gcc & friends) are in their
-own distribution tar file.  They may not even be present in your source
+NOTE: some binaries (emacs, rc, gcc & friends) are in their own
+distribution tar file.  They may not even be present in your source
 tree.
 
 7. Documentation
 
-	Regrettably, not much.  Use the "man" command to access the
-initial man pages.  Hopefully more will show up, but at least the
-messaging primitives are now documented.  You can list the available
-man entries with "man 2 msg", and see msg_receive() documentation
-with "man msg_receive" (or "man 2 msg_receive").
+Regrettably, not much.  Use the "man" command to access the initial man
+pages.  Hopefully more will show up, but at least the messaging
+primitives are now documented.  You can list the available man entries
+with "man 2 msg", and see msg_receive() documentation with "man
+msg_receive" (or "man 2 msg_receive").
 
-	The /vsta/doc/man directory will show you which man pages exist.
-There are also some files in /vsta/doc (like this one), but nothing
-earth shaking.  The C is pretty thoroughly commented, which'll help
+The /vsta/doc/man directory will show you which man pages exist.  There
+are also some files in /vsta/doc (like this one), but nothing earth
+shaking.  The C is pretty thoroughly commented, which'll help
 programmers.  I'm not sure VSTa's ready for non-programmers, but you're
 welcome to give it a try.
 
 8. More?
 
-	No doubt, but I can't think of what might help the most.
-Stay in touch!  The best way to do that is to join the VSTa E-mail
-list.  Send to vsta-request@cisco.com.
+No doubt, but I can't think of what might help the most.  Stay in touch!
+The best way to do that is to join the VSTa E-mail list.  Send to
+vsta-request@cisco.com.
 
 					Regards,
 					Andy Valencia
