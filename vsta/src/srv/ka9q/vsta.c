@@ -103,12 +103,12 @@ vsta_daemon(voidfun fn)
  *	Clear a daemon entry
  */
 void
-vsta_daemon_done(pid_t tid)
+vsta_daemon_done(voidfun fn)
 {
 	uint x;
 
 	for (x = 0; x < MAXDAEMON; ++x) {
-		if (daemons[x].d_tid == tid) {
+		if (daemons[x].d_fn == fn) {
 			daemons[x].d_fn = 0;
 			daemons[x].d_tid = 0;
 			return;
