@@ -49,7 +49,7 @@ TXT=src/bin/ports/less src/bin/ports/grep src/bin/ports/rh \
 ROFF=src/bin/roff src/bin/ports/nroff lib/troff
 
 # Shells
-SH=src/bin/ports/ash src/bin/testsh src/bin/ports/rc
+SH=src/bin/ash src/bin/testsh src/bin/ports/rc
 
 # Editors
 ED=src/bin/ports/emacs src/bin/ports/ed src/bin/ports/vim \
