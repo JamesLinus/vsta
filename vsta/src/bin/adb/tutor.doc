@@ -46,4 +46,3 @@ adb <a.out> [<pid>]
 adb will start, reading symbols from <a.out>.  If specified, it will
 attach to an existing process <pid>.  Otherwise, you can use :r to
 start the a.out, and debug this process.
-
