@@ -110,6 +110,7 @@ extern int puts(char *), fputs(char *, FILE *);
 extern void clearerr(FILE *), setbuf(FILE *, char *),
 	setbuffer(FILE *, char *, uint);
 extern void rewind(FILE *);
+extern int fflush(FILE *);
 
 #ifndef __PRINTF_INTERNAL
 /*
