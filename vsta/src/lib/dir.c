@@ -19,7 +19,7 @@ extern int __nmnttab;
  *	Open access to named directory
  */
 DIR *
-opendir(char *path)
+opendir(const char *path)
 {
 	DIR *d;
 	char *p;

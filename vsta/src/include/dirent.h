@@ -29,7 +29,7 @@ typedef struct {
 		d_de;
 } DIR;
 
-extern DIR *opendir(char *);
+extern DIR *opendir(const char *);
 extern int closedir(DIR *);
 extern struct dirent *readdir(DIR *);
 extern void seekdir(DIR *, long), rewinddir(DIR *);
