@@ -372,7 +372,7 @@ main(argc, argv)
 	int argc;
 	char **argv;
 {
-	int x;
+	int x, rows;
 
 	/*
 	 * Parse leading args
@@ -387,6 +387,11 @@ main(argc, argv)
 			setopt(*p);
 		}
 	}
+
+	/*
+	 * If from a terminal and can get geometry, override default
+	 */
+	(void)tcgetsize(0, &rows, &cols);
 
 	/*
 	 * Do ls on rest of file or dirnames
