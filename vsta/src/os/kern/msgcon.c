@@ -410,6 +410,11 @@ shut_client(struct portref *pr)
 	 * Free our portref
 	 */
 	free_portref(pr);
+
+	/*
+	 * Free our sysmsg
+	 */
+	FREE(sm, MT_SYSMSG);
 }
 
 /*
