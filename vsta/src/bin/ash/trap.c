@@ -190,8 +190,9 @@ setsignal(signo) {
 		 * There is a race condition here if action is not S_IGN.
 		 * A signal can be ignored that shouldn't be.
 		 */
-		if ((int)(sigact = signal(signo, SIG_IGN)) == -1)
+		if ((sigact = signal(signo, SIG_IGN)) == SIG_ERR) {
 			error("Signal system call failed");
+		}
 		if (sigact == SIG_IGN) {
 			*t = S_HARD_IGN;
 		} else {
