@@ -22,7 +22,6 @@ static void cook_args(), cook_buf(), raw_args(), raw_cat();
 int
 main(int argc, char **argv)
 {
-	extern int optind;
 	int ch;
 
 	while ((ch = getopt(argc, argv, "benstuv")) != EOF)

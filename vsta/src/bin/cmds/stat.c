@@ -162,7 +162,6 @@ int main(int argc, char **argv)
   int x;
   char c;
   int doing_wstat = 0, verbose = 0, using_port = 0;
-  extern int optind;
   port_t pt;
 
   /*
