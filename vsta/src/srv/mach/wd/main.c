@@ -224,7 +224,7 @@ loop:
 			msg_reply(msg.m_sender, &msg);
 			break;
 		}
-		msg.m_op = (msg.m_op == FS_ABSREAD) ? FS_READ : FS_WRITE;
+		msg.m_op = ((msg.m_op == FS_ABSREAD) ? FS_READ : FS_WRITE);
 
 		/* VVV fall into VVV */
 
