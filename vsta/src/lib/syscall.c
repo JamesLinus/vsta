@@ -43,7 +43,7 @@ exit(int val)
 	extern void __allclose();
 
 	__allclose();
-	_exit(val);
+	_exit(val & 0xFF);
 }
 
 /*
