@@ -365,6 +365,7 @@ main(int argc, char *argv[])
 {
 	int x;
 	port_name fsname;
+	port_t blkport;
 	char *namer_name = 0;
 	char *disk = 0;
 	static int coresec = CORESEC;
@@ -456,7 +457,12 @@ main(int argc, char *argv[])
 	/*
 	 * Init our data structures
 	 */
-	init_buf(__fd_port(blkdev), coresec);
+	blkport = clone(__fd_port(blkdev));
+	if (blkport < 0) {
+		syslog(LOG_ERR, "can't clone block device port");
+		exit(1);
+	}
+	init_buf(blkport, coresec);
 	init_node();
 	init_block();
 
