@@ -19,7 +19,6 @@
 #include "finger.h"
 #include "session.h"
 #include "nr4.h"
-#include "unix.h"
 #include <string.h>
 #include <sys/types.h>
 #include <time.h>

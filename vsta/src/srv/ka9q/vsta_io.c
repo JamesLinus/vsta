@@ -15,10 +15,10 @@
 	Hell, *I* even hacked on it... :-)  Bdale, N3EUA
 	VSTa port by Andy Valencia, WB6RRU
 */
-#include <sys/types.h>
+#include <sys/fs.h>
+#include <termios.h>
 #include <stdio.h>
 #include <std.h>
-#include <termios.h>
 #include <signal.h>
 #include <dirent.h>
 #include <time.h>
@@ -30,50 +30,59 @@
 #include "mbuf.h"
 #include "internet.h"
 #include "iface.h"
-#include "unix.h"
 #include "cmdparse.h"
 #include "vsta.h"
 
-struct asy asy[ASY_MAX];
-struct interface *ifaces;
-struct termios mysavetty, savecon;
-int savettyfl;
-int IORser[ASY_MAX];
-unsigned int nasy = ASY_MAX;
+/*
+ * Globals
+ */
+unsigned int nasy = 0;
+#define BUFLEN (4096)
 
-/* Called at startup time to set up console I/O, memory heap */
+/*
+ * Per async port state
+ */
+static struct asy {
+	char *a_tty;		/* Port accessed */
+	port_t a_txport,	/* Open ports to this name */
+		a_rxport;
+	char *a_txbuf;		/* When active, buffer being sent */
+	int a_txcnt;		/*  ...size */
+	char *a_rxbuf;		/* Receive buffer */
+	int a_hd, a_tl;		/* Head/tail of rx FIFO */
+	pid_t a_txpid,		/* Thread serving this port (tx) */
+		a_rxpid;	/*   ...rx */
+} asy[ASY_MAX];
+
+/*
+ * ioinit()
+ *	Called at startup time to set up console I/O
+ */
+int
 ioinit(void)
 {
-	struct termios ttybuf;
-	extern void ioexit();
-
-	tcgetattr(0, &ttybuf);
-	savecon = ttybuf;
-
-	ttybuf.c_iflag &= ~(ICRNL);
-	ttybuf.c_lflag &= ~(ICANON|ISIG|ECHO);
-	ttybuf.c_cc[VTIME] = 1;
-	ttybuf.c_cc[VMIN] = 0;
-
-	tcsetattr(0, TCSANOW, &ttybuf);
+	/*
+	 * Console is set up in our code for the console thread
+	 */
 	return 0;
 }
 
-void
-ioexit()
-{
-	iostop();
-	exit(0);
-}
-
+/*
+ * clearout()
+ *	Hack to flush buffered I/O on file descriptor op
+ */
 void
 clearout(fd)
      int fd;
 {
-	if (fd == 0 || fd == 1)
-	  fflush(stdout);
+	if ((fd == 0) || (fd == 1))
+		fflush(stdout);
 }
 
+/*
+ * flowon()
+ *	Ask for flow control on the given tty
+ */
 void
 flowon(int fd)
 {
@@ -84,6 +93,10 @@ flowon(int fd)
 	tcsetattr(fd, TCSANOW, &ttybuf);
 }
 
+/*
+ * flowoff()
+ *	Ask for no flow control on the given tty
+ */
 void
 flowoff(int fd)
 {
@@ -94,31 +107,28 @@ flowoff(int fd)
 	tcsetattr(fd, TCSANOW, &ttybuf);
 }
 
+/*
+ * flowdefault()
+ *	Ask for default flow control
+ *
+ * Always off by default
+ */
 void
 flowdefault(int fd, int tts)
 {
 	struct termios ttybuf;
-	int iflag;
-
-	if (tts) {
-		iflag = remote_tty_iflag(tts);
-	} else {
-		iflag = savecon.c_iflag;
-	}
 
 	tcgetattr(fd, &ttybuf);
-	if (iflag & IXON) {
-		ttybuf.c_iflag |= IXON;
-	} else {
-		ttybuf.c_iflag &= ~IXON;
-	}
+	ttybuf.c_iflag &= ~IXON;
 	tcsetattr(fd, TCSANOW, &ttybuf);
 }
 
+/*
+ * set_stdout()
+ *	Set output for \n vs. \r\n
+ */
 void
-set_stdout(fd, mode)
-	int fd;
-	int mode;
+set_stdout(int fd, int mode)
 {
 	struct termios ttybuf;
 
@@ -131,152 +141,259 @@ set_stdout(fd, mode)
 	tcsetattr(fd, TCSANOW, &ttybuf);
 }
 
-/* Initialize asynch port "dev" */
+/*
+ * asy_rx_daemon()
+ *	Thread to watch for incoming bytes, and queue them
+ */
+static void
+asy_rx_daemon(struct asy *ap)
+{
+	struct msg m;
+	int cnt;
+
+	for (;;) {
+		/*
+		 * See how much we can pull in this time
+		 */
+		if (ap->a_hd >= ap->a_tl) {
+			cnt = BUFLEN - ap->a_hd;
+		} else {
+			cnt = (ap->a_tl - ap->a_hd);
+		}
+		if (cnt <= 1) {
+			__msleep(10);
+			continue;
+		}
+		cnt -= 1;
+
+		/*
+		 * Do the receive
+		 */
+		m.m_op = FS_READ | M_READ;
+		m.m_arg = m.m_buflen = cnt;
+		m.m_arg1 = 0;
+		m.m_buf = ap->a_rxbuf + ap->a_hd;
+		m.m_nseg = 1;
+		cnt = msg_send(ap->a_rxport, &m);
+
+		/*
+		 * Update state
+		 */
+		if (cnt <= 0) {
+			__msleep(10);
+			continue;
+		}
+		if ((ap->a_hd + cnt) >= BUFLEN) {
+			ap->a_hd = 0;
+		} else {
+			ap->a_hd += cnt;
+		}
+
+		/*
+		 * Tell the main loop to run
+		 */
+		recalc_timers();
+	}
+}
+
+/*
+ * asy_tx_daemon()
+ *	Daemon to wait for data to transmit, then transmit it
+ */
+static void
+asy_tx_daemon(struct asy *ap)
+{
+	struct msg m;
+
+	for (;;) {
+		/*
+		 * Wait for work
+		 */
+		mutex_thread(0);
+
+		/*
+		 * Transmit it
+		 */
+		m.m_op = FS_WRITE;
+		m.m_arg = m.m_buflen = ap->a_txcnt;
+		m.m_arg1 = 0;
+		m.m_buf = ap->a_txbuf;
+		m.m_nseg = 1;
+		(void)msg_send(ap->a_txport, &m);
+
+		/*
+		 * Flag completion
+		 */
+		ap->a_txbuf = 0;
+		recalc_timers();
+	}
+}
+
+/*
+ * asy_init()
+ *	Initialize async state for given tty
+ */
 int
-asy_init(int16 dev, char *arg1, char *arg2, unsigned int bufsize)
+asy_init(int16 dev, char *port, unsigned int bufsize)
 {
 	struct asy *ap;
-	struct termios	sgttyb;
+	port_t p;
 
 	if (dev >= nasy)
 		return -1;
+
+	/*
+	 * Access port
+	 */
+	ap = &asy[dev];
+	p = ap->a_rxport = path_open(port, ACC_READ | ACC_WRITE);
+	if (p < 0) {
+		perror(port);
+		return(-1);
+	}
+
+	/*
+	 * Record name
+	 */
+	ap->a_tty = strdup(port);
+	printf("asy_init: tty name = %s\n", ap->a_tty);
+
+	/* 
+	 * Set to default parameters
+	 */
+	(void)wstat(p, "baud=9600\n");
+	(void)wstat(p, "databits=8\n");
+	(void)wstat(p, "stopbits=1\n");
+	(void)wstat(p, "parity=none\n");
+
+	/*
+	 * Initialize tty, launch threads
+	 */
+	ap->a_txport = clone(p);
+	ap->a_rxbuf = malloc(BUFLEN);
+	ap->a_rxpid = tfork(asy_rx_daemon, (ulong)ap);
+	ap->a_txpid = tfork(asy_tx_daemon, (ulong)ap);
+
+	return(0);
+}
+
+/*
+ * asy_stop()
+ *	Stop using a line
+ */
+int
+asy_stop(struct interface *i)
+{
+	struct asy *ap = &asy[i->dev];
+
+	/*
+	 * Terminate threads, close async port
+	 */
+	(void)notify(0, ap->a_txpid, "kill");
+	(void)notify(0, ap->a_rxpid, "kill");
+	(void)msg_disconnect(ap->a_rxport);
+	(void)msg_disconnect(ap->a_txport);
+
+	return(0);
+}
+
+
+/*
+ * asy_speed()
+ *	Set asynch line speed
+ */
+int
+asy_speed(int16 dev, int speed)
+{
+	char buf[64];
+	struct asy *ap;
 
 	ap = &asy[dev];
-	ap->tty = malloc((unsigned)(strlen(arg2)+1));
-	strcpy(ap->tty, arg2);
-	printf("asy_init: tty name = %s\n", ap->tty);
-
-	if ((IORser[dev] = open(ap->tty, O_RDWR, 0)) < 0) {
-		perror("Could not open device IORser");
-		return -1;
-	}
-	 /* 
-	  * get the stty structure and save it 
-	  */
-	tcgetattr(IORser[dev], &mysavetty);
-
-	 /* 
-	  * copy over the structure 
-	  */
-	sgttyb = mysavetty;
-	sgttyb.c_iflag = (IGNBRK | IGNPAR);
-	sgttyb.c_oflag = 0;
-	sgttyb.c_lflag = 0;
-	sgttyb.c_cflag = (B9600 | CS8 | CREAD);
-	sgttyb.c_cc[VEOL] = 0300;
-	sgttyb.c_cc[VTIME] = 0;
-	sgttyb.c_cc[VMIN] = 1;
-
-	tcsetattr(IORser[dev], TCSANOW, &sgttyb);
-
-	return 0;
+	sprintf(buf, "baud=%d\n", speed);
+	return(wstat(ap->a_txport, buf));
 }
 
-int
-asy_stop(struct interface *iface)
+/*
+ * asy_output()
+ *	Send a buffer to serial transmitter thread
+ */
+asy_output(int16 dev, char *buf, int cnt)
 {
-	return(0);
-}
+	struct asy *ap = &asy[dev];
 
-
-/* Set asynch line speed */
-int
-asy_speed(dev, speed)
-int16 dev;
-int speed;
-{
-	struct termios sgttyb;
-
-	if (speed == 0 || dev >= nasy)
-		return -1;
-
-#ifdef	SYS5_DEBUG
-	printf("asy_speed: Setting speed for device %d to %d\n",dev, speed);
-#endif
-
-	asy[dev].speed = speed;
-	tcgetattr(IORser[dev], &sgttyb);
-	cfsetispeed(&sgttyb, speed);
-	cfsetospeed(&sgttyb, speed);
-	tcsetattr(IORser[dev], TCSANOW, &sgttyb);
+	ap->a_txbuf = buf;
+	ap->a_txcnt = cnt;
+	mutex_thread(ap->a_txpid);
 
 	return(0);
 }
 
-
-/* Send a buffer to serial transmitter */
-asy_output(int dev, char *buf, int cnt)
-{
-	if (dev >= nasy)
-		return -1;
-
-	if (write(IORser[dev], buf, cnt) < cnt) {
-		perror("asy_output");
-		printf("asy_output: error in writing to device %d\n", dev);
-		return -1;
-	}
-
-	return 0;
-}
-
-/* Receive characters from asynch line
+/*
+ * asy_recv()
+ *	Receive characters from asynch line
+ *
  * Returns count of characters read
  */
 int16
-asy_recv(int dev, char *buf, int cnt)
+asy_recv(int16 dev, char *buf, int cnt)
 {
-#define	IOBUFLEN	256
-	unsigned tot;
-	int r;
-	static struct	{
-		char	buf[IOBUFLEN];
-		char	*data;
-		int	cnt;
-	}	IOBUF[ASY_MAX];
+	struct asy *ap = &asy[dev];
+	int avail;
 
-	if(IORser[dev] < 0) {
-		printf("asy_recv: bad file descriptor passed for device %d\n",
-			dev);
+	/*
+	 * Take the lesser of how much is there and how much
+	 * they want.
+	 */
+	if (ap->a_hd < ap->a_tl) {
+		avail = BUFLEN - ap->a_tl;
+	} else {
+		avail = ap->a_hd - ap->a_tl;
+	}
+	if (avail > cnt) {
+		avail = cnt;
+	}
+	if (avail <= 0) {
 		return(0);
 	}
-	tot = 0;
-	/* fill the read ahead buffer */
-	if (IOBUF[dev].cnt == 0) {
-		IOBUF[dev].data = IOBUF[dev].buf;
-		r = read(IORser[dev], IOBUF[dev].data, IOBUFLEN);
-		/* check the read */
-		if (r == -1) {
-			IOBUF[dev].cnt = 0;	/* bad read */
-			return(0);
-		} else {
-			IOBUF[dev].cnt = r;
-		}
-		
-	} 
-	r = 0;	/* return count */
-	/* fetch what you need with no system call overhead */
-	if (IOBUF[dev].cnt > 0) {
-		if(cnt == 1) { /* single byte copy, do it here */
-			*buf = *IOBUF[dev].data++;
-			IOBUF[dev].cnt--;
-			r = 1;
-		} else { /* multi-byte copy, left memcpy do the work */
-			unsigned n = min(cnt, IOBUF[dev].cnt);
-			memcpy(buf, IOBUF[dev].data, n);
-			IOBUF[dev].cnt -= n;
-			IOBUF[dev].data += n;
-			r = n;
-		}
+
+	/*
+	 * Copy it out
+	 */
+	bcopy(ap->a_rxbuf + ap->a_tl, buf, avail);
+
+	/*
+	 * Update state
+	 */
+	ap->a_tl += avail;
+	if (ap->a_tl >= BUFLEN) {
+		ap->a_tl = 0;
 	}
-	tot = (unsigned int) r;
-	return (tot);
+
+	return(avail);
 }
 
+/*
+ * asy_ioctl()
+ *	General interface to wstat functions of async driver
+ */
 asy_ioctl(struct interface *i, int argc, char **argv)
 {
+	struct asy *ap = &asy[i->dev];
+
 	if (argc < 1) {
-		printf("%d\r\n", asy[i->dev].speed);
-		return 0;
+		printf("%s\r\n", rstat(ap->a_txport, "baud"));
+		return(0);
 	}
-	return asy_speed(i->dev, atoi(argv[0]));
+	return(wstat(ap->a_txport, argv[0]));
+}
+
+/*
+ * stxrdy()
+ *	Tell if transmitter is ready for more
+ */
+stxrdy(int16 dev)
+{
+	struct asy *ap = &asy[dev];
+
+	return(ap->a_txbuf == 0);
 }

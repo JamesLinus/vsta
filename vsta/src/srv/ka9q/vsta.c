@@ -24,7 +24,6 @@
 #include "config.h"
 #include "cmdparse.h"
 #include "iface.h"
-#include "unix.h"
 #include "vsta.h"
 
 extern int detached;
@@ -690,13 +689,6 @@ disable()
 {
 }
 
-/*ARGSUSED*/
-stxrdy(dev)
-int16 dev;
-{
-	return 1;
-}
-
 /*
  * wildcard()
  *	Wildcard filename lookup
@@ -904,12 +896,11 @@ dir(char *path, int full)
 	return(fp);
 }
 
-/* Called just before exiting to restore console state */
+/* Called just before exiting to clean up */
 void
 iostop()
 {
 	uint x;
-	extern struct termios savecon;
 
 	/*
 	 * Stdout, unbuffered
@@ -924,11 +915,6 @@ iostop()
 			(*ifaces->stop)(ifaces);
 		ifaces = ifaces->next;
 	}
-
-	/*
-	 * Restore TTY modes
-	 */
-	tcsetattr(0, TCSANOW, &savecon);
 
 	/*
 	 * Nail our threads

@@ -5,7 +5,6 @@
 #include <std.h>
 #include "global.h"
 #include "netuser.h"
-#include "unix.h"
 
 int net_error;
 

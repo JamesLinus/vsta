@@ -11,11 +11,6 @@
 #include "timer.h"
 #include "ip.h"
 #include "slfp.h"
-
-#ifdef UNIX	/* BSD or SYS5 */
-#include "unix.h"
-#endif
-
 #include "asy.h"
 #ifdef MSDOS
 #include "8250.h"

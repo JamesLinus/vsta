@@ -38,7 +38,6 @@ int detached = 0;	/* Console relinquished? */
 #endif
 
 #ifdef UNIX		/* BSD or SYS5 */
-#include "unix.h"
 #include <memory.h>
 #include <string.h>
 #include <sys/types.h>
@@ -51,7 +50,6 @@ int detached = 0;	/* Console relinquished? */
 struct interface loopback = { NULLIF, "loopback" };
 #endif
 
-extern struct interface *ifaces;
 extern char version[];
 extern struct mbuf *loopq;
 extern FILE *trfp;
@@ -74,6 +72,7 @@ int16 lport = 1001;
 char prompt[] = "net> ";
 char nospace[] = "No space!!\n";	/* Generic malloc fail message */
 unsigned char escape = 0x1d;	/* default escape character is ^] */
+struct interface *ifaces;
 
 /* Command lookup and branch table */
 int go(),doax25(),cmdmode(),doconnect(),dotelnet(),doexit(),doclose(),
@@ -645,20 +644,8 @@ struct cmds attab[] = {
 #endif
 #ifdef	ASY
 	/* Ordinary PC asynchronous adaptor */
-	"asy", asy_attach, 8, 
-#ifdef	UNIX
-#ifndef	SLFP
-	"attach asy 0 <ttyname> slip|ax25|nrs <label> <buffers> <mtu> <speed>",
-#else
-	"attach asy 0 <ttyname> slip|ax25|nrs|slfp <label> <buffers> <mtu> <speed>",
-#endif	/* SLFP */
-#else
-#ifndef	SLFP
-	"attach asy <address> <vector> slip|ax25|nrs <label> <buffers> <mtu> <speed>",
-#else
-	"attach asy <address> <vector> slip|ax25|nrs|slfp <label> <buffers> <mtu> <speed>",
-#endif	/* SLFP */
-#endif
+	"asy", asy_attach, 7,
+	"attach asy <port> slip|ax25|nrs <label> <buffers> <mtu> <speed>",
 	"Could not attach asy",
 #endif
 #ifdef NETROM
@@ -724,17 +711,16 @@ struct mbuf *bp;
 /* Attach a serial interface to the system
  * argv[0]: hardware type, must be "asy"
  * argv[1]: I/O address, e.g., "0x3f8"
- * argv[2]: vector, e.g., "4"
- * argv[3]: mode, may be:
+ * argv[2]: mode, may be:
  *	    "slip" (point-to-point SLIP)
  *	    "ax25" (AX.25 frame format in SLIP for raw TNC)
  *	    "nrs" (NET/ROM format serial protocol)
  *	    "slfp" (point-to-point SLFP, as used by the Merit Network and MIT
- * argv[4]: interface label, e.g., "sl0"
- * argv[5]: receiver ring buffer size in bytes
- * argv[6]: maximum transmission unit, bytes
- * argv[7]: interface speed, e.g, "9600"
- * argv[8]: optional ax.25 callsign (NRS only)
+ * argv[3]: interface label, e.g., "sl0"
+ * argv[4]: receiver ring buffer size in bytes
+ * argv[5]: maximum transmission unit, bytes
+ * argv[6]: interface speed, e.g, "9600"
+ * argv[7]: optional ax.25 callsign (NRS only)
  *	    optional command string for modem (SLFP only)
  *          optional modem L.sys style command (SLIP only)
  */
@@ -779,23 +765,23 @@ char *argv[];
 		printf("Too many asynch controllers\n");
 		return -1;
 	}
-	if(strcmp(argv[3],"slip") == 0 || strcmp(argv[3],"cslip") ==0)
+	if(strcmp(argv[2],"slip") == 0 || strcmp(argv[2],"cslip") ==0)
 		mode = SLIP_MODE;
 #ifdef	AX25
-	else if(strcmp(argv[3],"ax25") == 0)
+	else if(strcmp(argv[2],"ax25") == 0)
 		mode = AX25_MODE;
 #endif
 #ifdef	NRS
-	else if(strcmp(argv[3],"nrs") == 0)
+	else if(strcmp(argv[2],"nrs") == 0)
 		mode = NRS_MODE;
 #endif
 #ifdef	SLFP
-	else if(strcmp(argv[3],"slfp") == 0)
+	else if(strcmp(argv[2],"slfp") == 0)
 		mode = SLFP_MODE;
 #endif
 	else {
 		printf("Mode %s unknown for interface %s\n",
-			argv[3],argv[4]);
+			argv[2],argv[3]);
 		return(-1);
 	}
 
@@ -803,9 +789,9 @@ char *argv[];
 
 	/* Create interface structure and fill in details */
 	if_asy = (struct interface *)calloc(1,sizeof(struct interface));
-	if_asy->name = malloc((unsigned)strlen(argv[4])+1);
-	strcpy(if_asy->name,argv[4]);
-	if_asy->mtu = atoi(argv[6]);
+	if_asy->name = malloc((unsigned)strlen(argv[3])+1);
+	strcpy(if_asy->name,argv[3]);
+	if_asy->mtu = atoi(argv[5]);
 	if_asy->dev = dev;
 	if_asy->recv = doslip;
 	if_asy->stop = asy_stop;
@@ -819,7 +805,7 @@ char *argv[];
 		if_asy->raw = slip_raw;
 		if_asy->flags = 0;
 		slip[dev].recv = slip_recv;
-		if(strcmp(argv[3],"cslip") == 0) {
+		if(strcmp(argv[2],"cslip") == 0) {
 		  if (! slip[dev].slcomp)
 		    slip[dev].slcomp = (char *)slhc_init(16, 16);
 		  if (slip[dev].slcomp)
@@ -850,7 +836,7 @@ char *argv[];
 #endif
 #ifdef	NRS
 	case NRS_MODE: /* Set up a net/rom serial interface */
-		if(argc < 9){
+		if(argc < 8){
 			/* no call supplied? */
 			if(mycall.call[0] == '\0'){
 				/* try to use default */
@@ -893,15 +879,15 @@ char *argv[];
 	}
 	if_asy->next = ifaces;
 	ifaces = if_asy;
-	asy_init(dev,argv[1],argv[2],(unsigned)atoi(argv[5]));
-	asy_speed(dev,atoi(argv[7]));
+	asy_init(dev, argv[1], (unsigned)atoi(argv[4]));
+	asy_speed(dev, atoi(argv[6]));
 /*
  * optional SLIP modem command?
  */
 #if defined(SLIP) && defined(MODEM_CALL)
-	if((mode == SLIP_MODE) && (argc > 8)) {
+	if((mode == SLIP_MODE) && (argc > 7)) {
 	    restricted_dev=dev;
-	    if((modem_init(dev,argc-8,argv+8)) == -1) {
+	    if((modem_init(dev,argc-7,argv+7)) == -1) {
 		printf("\nModem command sequence failed.\n");
 		asy_stop(if_asy);
 		ifaces = if_asy->next;
@@ -917,7 +903,7 @@ char *argv[];
 #endif
 #ifdef	SLFP
 	if(mode == SLFP_MODE)
-	    if(slfp_init(if_asy, argc>7?argv[8]:NULLCHAR) == -1) {
+	    if(slfp_init(if_asy, argc>6?argv[7]:NULLCHAR) == -1) {
 		printf("Request for IP address failed.\n");
 		asy_stop(if_asy);
 		ifaces = if_asy->next;
