@@ -51,6 +51,9 @@ main()
 				printf(".");
 			}
 			printf("%d", perm.perm_id[y]);
+			if (perm.perm_uid) {
+				printf("(%d)", perm.perm_uid);
+			}
 		}
 
 		/*
