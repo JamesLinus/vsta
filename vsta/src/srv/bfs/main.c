@@ -3,15 +3,16 @@
 #include <bfs/bfs.h>
 #include <lib/hash.h>
 #include <stdio.h>
-#ifdef DEBUG
 #include <fcntl.h>
+#ifdef DEBUG
+#include <sys/ports.h>
 #endif
 
 extern void *malloc(), bfs_open(), bfs_read(), bfs_write(), *bdata(),
 	*bget(), bfs_remove(), bfs_stat();
 extern char *strerror();
 
-port_t blkdev;		/* Device this FS is mounted upon */
+int blkdev;		/* Device this FS is mounted upon */
 port_t rootport;	/* Port we receive contacts through */
 struct super		/* Our filesystem's superblock */
 	*sblock;
@@ -84,7 +85,7 @@ new_client(struct msg *m)
 	 */
 	f->f_inode = ROOTINO;
 	f->f_pos = 0L;
-	f->f_write = m->m_arg & ACC_WRITE;
+	f->f_write = (uperms & ACC_WRITE);
 
 	/*
 	 * Hash under the sender's handle
@@ -272,6 +273,17 @@ loop:
 }
 
 /*
+ * usage()
+ *	Tell how to use the thing
+ */
+static void
+usage(void)
+{
+	printf("Usage is: bfs -p <portname> <portpath> <fsname>\n");
+	printf(" or: bfs <filepath> <fsname>\n");
+	exit(1);
+}
+/*
  * main()
  *	Startup of a boot filesystem
  *
@@ -281,38 +293,90 @@ loop:
 main(int argc, char *argv[])
 {
 	port_t port;
-	port_name blkname;
+	port_name fsname;
 	struct msg msg;
 	int chan, fd, x;
+	int scrn, kbd;
+	char *namer_name;
+
+#ifdef DEBUG
+	kbd = msg_connect(PORT_KBD, ACC_READ);
+	(void)__fd_alloc(kbd);
+	scrn = msg_connect(PORT_CONS, ACC_WRITE);
+	(void)__fd_alloc(scrn);
+	(void)__fd_alloc(scrn);
+#endif
 
 	/*
-	 * Our first argument should be the block device we should
-	 * interpret as a filesystem.
+	 * No arguments (not even program name!)--this is a boot
+	 * module.  Drop to the defaults.
 	 */
-	if (argc != 3) {
-		fprintf(stderr,
-		 "Usage is: %s <bdev> <ourpoint>\n",
-			argv[0]);
-		exit(1);
+	if (argc == 0) {
+		static char *my_argv[6];
+
+		my_argv[0] = "bfs";
+		my_argv[1] = "-p";
+		my_argv[2] = "disk/fd";
+		my_argv[3] = "fd0";
+		my_argv[4] = "fs/boot";
+		my_argv[5] = 0;
+		argv = my_argv;
+		argc = 5;
+
+		/*
+		 * To let the lower-level boot servers (disk driver
+		 * and namer server, in particular) to startup
+		 */
+		sleep(2);
 	}
-	blkname = namer_find(argv[1], 0);
-	if (blkname < 0) {
-		perror("BFS blkname");
-		exit(1);
+
+	/*
+	 * Check arguments
+	 */
+	if (argc == 3) {
+		blkdev = open(argv[1], O_RDWR);
+		if (blkdev < 0) {
+			perror(argv[1]);
+			exit(1);
+		}
+		namer_name = argv[2];
+	} else if (argc == 5) {
+		port_name blkname;
+
+		/*
+		 * Version of invocation where service is specified
+		 */
+		if (strcmp(argv[1], "-p")) {
+			usage();
+		}
+		blkname = namer_find(argv[2]);
+		if (blkname < 0) {
+			perror(argv[2]);
+			exit(1);
+		}
+		port = msg_connect(blkname, ACC_READ|ACC_WRITE);
+		if (port < 0) {
+			perror("BFS blkdev");
+			exit(1);
+		}
+		if (mountport("/mnt", port) < 0) {
+			perror("/mnt");
+			exit(1);
+		}
+		if (chdir("/mnt") < 0) {
+			perror("chdir /mnt");
+			exit(1);
+		}
+		blkdev = open(argv[3], O_RDWR);
+		if (blkdev < 0) {
+			perror(argv[3]);
+			exit(1);
+		}
+		namer_name = argv[4];
+	} else {
+		usage();
 	}
-#ifndef DEBUG
-	blkdev = msg_connect(blkname);
-	if (blkdev < 0) {
-		perror("BFS blkdev");
-		exit(1);
-	}
-#else
-	blkdev = open("tfs", O_RDWR|O_BINARY);
-	if (blkdev < 0) {
-		perror("tfs");
-		exit(1);
-	}
-#endif
+
 	/*
 	 * Allocate data structures we'll need
 	 */
@@ -344,8 +408,8 @@ main(int argc, char *argv[])
 	 * Block device looks good.  Last check is that we can register
 	 * with the given name.
 	 */
-	rootport = msg_port((port_name)0);
-	x = namer_register(argv[2], rootport);
+	rootport = msg_port((port_name)0, &fsname);
+	x = namer_register(namer_name, fsname);
 	if (x < 0) {
 		fprintf(stderr, "BFS: can't register name\n");
 		exit(1);
