@@ -16,7 +16,7 @@
  * namer_register()
  *	Register the given port number under the name
  */
-namer_register(char *buf, port_t uport)
+namer_register(char *buf, port_name uport)
 {
 	char *p;
 	char numbuf[8], wdbuf[64];
