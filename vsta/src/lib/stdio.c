@@ -902,7 +902,7 @@ ftell(FILE *fp)
 	/*
 	 * Get basic position in file
 	 */
-	l = lseek(fp->f_fd, SEEK_END, 0L);
+	l = lseek(fp->f_fd, 0L, SEEK_CUR);
 
 	/*
 	 * Dirty buffer--position is file position plus amount
