@@ -15,11 +15,13 @@
 #include <sys/assert.h>
 #include <sys/mutex.h>
 #include <sys/malloc.h>
+#include <sys/fs.h>
 #include <alloc.h>
 
 extern ulong random();
 
 lock_t runq_lock;		/* Mutex for scheduling */
+extern uint num_run;
 struct sched
 	sched_rt,		/* Real-time queue */
 	sched_cheated,		/* Low-CPU processes given preference */
@@ -376,6 +378,7 @@ lsetrun(struct thread *t)
 
 	ASSERT_DEBUG(t->t_wchan == 0, "lsetrun: wchan");
 	t->t_state = TS_RUN;
+	ATOMIC_INC(&num_run);
 	if (t->t_flags & T_RT) {
 
 		/*
@@ -450,6 +453,7 @@ void
 timeslice(void)
 {
 	p_lock(&runq_lock, SPLHI);
+	ATOMIC_DEC(&num_run);
 	lsetrun(curthread);
 	swtch();
 }
@@ -566,4 +570,83 @@ free_sched_node(struct sched *s)
 	 * Free the node
 	 */
 	FREE(s, MT_SCHED);
+}
+
+/*
+ * sched_prichg()
+ *	Change the scheduling priority of the current thread
+ */
+static int
+sched_prichg(int new_pri)
+{
+	spl_t s;
+	struct thread *t;
+	int x;
+
+	if ((new_pri == PRI_RT) && !isroot()) {
+		/*
+		 * isroot() will set EPERM for us
+		 */
+		return(-1);
+	}
+
+	s = p_lock(&runq_lock, SPLHI);
+
+	t->t_flags &= ~T_BG;
+	t->t_flags &= ~T_RT;
+	if (new_pri == PRI_BG) {
+		t->t_flags |= T_BG;
+	}
+	if (new_pri == PRI_RT) {
+		t->t_flags |= T_RT;
+	}
+	if (cpu.pc_pri > new_pri) {
+		/*
+		 * If we've dropped in priority nudge our engine
+		 */
+		nudge(t->t_eng);
+	}
+
+	cpu.pc_pri = new_pri;
+	v_lock(&runq_lock, s);
+	return(0);
+}
+
+/*
+ * sched_op()
+ *	Handle scheduling operations requested by user-space code
+ */
+int
+sched_op(int op, int arg)
+{
+	/*
+	 * Look at what we've been requested to do
+	 */
+	switch(op) {
+	case SCHEDOP_SETPRIO:	/* Set process priority */
+		/*
+		 * Range check the priority specified as the
+		 * argument.  An "idle" priority means just yield
+		 * and retry for the CPU.
+		 */
+		if ((arg < PRI_IDLE) || (arg > PRI_RT)) {
+			break;
+		}
+		if (arg == PRI_IDLE) {
+			timeslice();
+			return(0);
+		}
+		return(sched_prichg(arg));
+
+	case SCHEDOP_GETPRIO:
+		/*
+		 * Return the current priority
+		 */
+		return((curthread->t_flags & T_BG) ? PRI_BG :
+			(curthread->t_flags & T_RT) ? PRI_RT : PRI_TIMESHARE);
+
+	default:
+		break;
+	}
+	return(err(EINVAL));
 }
