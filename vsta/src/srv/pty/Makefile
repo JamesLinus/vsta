@@ -1,6 +1,8 @@
 COPTS=-g -Wall -DDEBUG
 OBJS=main.o ioq.o open.o rw.o stat.o
 OUT=pty
+EXTRA_CLEAN=tst.o ptysh.o
+EXTRA_CLOBBER=ptysh tst
 
 include ../../makefile.all
 
