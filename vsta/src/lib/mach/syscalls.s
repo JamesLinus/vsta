@@ -9,8 +9,23 @@
 #include <sys/syscall.h>
 #include <make/assym.h>
 
+/*
+ * syserr()
+ *	A hidden wrapper for system error string handling
+ *
+ * The point of this routine is NOT to get the error string; we
+ * merely clear the current error string from user space, so that
+ * a subsequent strerror() call will know that it must ask the
+ * kernel anew about the value.
+ */
+	.data
+	.globl	___err
+	.text
+syserr:	movb	$0,___err
+	ret
+
 #define ENTRY(n, v)	.globl	_##n ; \
-	_##n: movl $v,%eax ; int $0xFF ; ret
+	_##n: movl $v,%eax ; int $0xFF ; jc syserr; ret
 
 ENTRY(msg_port, S_MSG_PORT)
 ENTRY(msg_connect, S_MSG_CONNECT)
