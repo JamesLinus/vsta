@@ -9,6 +9,7 @@
 #include <ctype.h>
 #include <mach/io.h>
 #include <sys/assert.h>
+#include <time.h>
 
 /*
  * Parameters for screen, filled in by init_screen()
@@ -16,6 +17,7 @@
 static char *top, *bottom, *cur, *lastl;
 char *hw_screen;
 static int idx, dat, display;
+static ushort beep_port = 0x61;
 
 /*
  * load_screen()
@@ -489,6 +491,15 @@ write_string(char *s, uint cnt)
 		if (c == '\33') {
 			state = 1;
 			continue;
+		}
+
+		/*
+		 * Ring bell
+		 */
+		if (c == '\7') {
+			outportb(beep_port, inportb(beep_port) |  3);
+			__msleep(100);
+			outportb(beep_port, inportb(beep_port) & ~3);
 		}
 
 		/*
