@@ -627,6 +627,7 @@ vfs_open(struct msg *m, struct file *f)
 	/*
 	 * Check permission
 	 */
+	fs = getfs(o, &b);
 	want = m->m_arg & (ACC_READ|ACC_WRITE|ACC_CHMOD);
 	x = perm_calc(f->f_perms, f->f_nperm, &fs->fs_prot);
 	if ((want & x) != want) {
@@ -639,6 +640,11 @@ vfs_open(struct msg *m, struct file *f)
 	 * If they wanted it truncated, do it now
 	 */
 	if (m->m_arg & ACC_CREATE) {
+		if ((x & ACC_WRITE) == 0) {
+			deref_node(o);
+			msg_err(m->m_sender, EPERM);
+			return;
+		}
 		file_shrink(o, sizeof(struct fs_file));
 	}
 
