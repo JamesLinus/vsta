@@ -91,7 +91,7 @@ vsta_daemon(voidfun fn)
 	for (x = 0; x < MAXDAEMON; ++x) {
 		if (daemons[x].d_fn == 0) {
 			daemons[x].d_fn = fn;
-			daemons[x].d_tid = tfork(fn);
+			daemons[x].d_tid = tfork(fn, 0);
 			return;
 		}
 	}
@@ -799,7 +799,7 @@ yield(void)
 	 */
 	for (x = 0; x < MAXDAEMON; ++x) {
 		if (mytid == daemons[x].d_tid) {
-			daemons[x].d_tid = tfork(daemons[x].d_fn);
+			daemons[x].d_tid = tfork(daemons[x].d_fn, 0);
 
 			/*
 			 * Clear us as the current thread, and tally.
