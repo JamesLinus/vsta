@@ -3,8 +3,8 @@
  *	Write an initial filesystem image onto the named file
  */
 #include <sys/types.h>
-#include <stdio.h>
 #include "../vstafs.h"
+#include <stdio.h>
 
 static FILE *fp;	/* Device we're filling in */
 
