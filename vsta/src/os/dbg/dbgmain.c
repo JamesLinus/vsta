@@ -3,12 +3,13 @@
  * crash.c
  *	Main routine for crash program
  */
+#include <sys/assert.h>
 #include "../mach/locore.h"
 
 extern void dump_phys(), dump_virt(), dump_procs(), dump_pset(),
 	dump_instr(), trace(), trapframe(), dump_vas(), dump_port(),
 	dump_pview(), dump_thread(), dump_ref(), reboot(), memleaks(),
-	dump_sysmsg(), dump_core(), dump_seg();
+	dump_sysmsg(), dump_core();
 extern void dbg_inport(), dbg_outport();
 static void quit(), calc(), set(), set_mem();
 extern int get_num();
@@ -39,7 +40,6 @@ struct {
 	"quit", quit,
 	"ref", dump_ref,
 	"reboot", reboot,
-	"seg", dump_seg,
 	"set", set,
 	"sysmsg", dump_sysmsg,
 	"tframe", trapframe,
@@ -106,22 +106,38 @@ quit()
 static void
 set_mem(char *p)
 {
+	int byte = 0;
 	uint addr, val;
 
+	if (*p == 'b') {
+		byte = 1;
+		++p;
+		while (*p && (*p != ' ')) {
+			++p;
+		}
+		while (*p && (*p == ' ')) {
+			++p;
+		}
+	}
 	addr = get_num(p);
 	p = strchr(p, ' ');
 	if (p == 0) {
 		printf("Usage: writemem <addr> <val> [<val>...]\n");
 		return;
 	}
-	*p++ = '\0';
+	++p;
 	while (p) {
 		while (*p == ' ') {
 			++p;
 		}
 		val = get_num(p);
-		*(uint *)addr = val;
-		addr += sizeof(uint);
+		if (byte) {
+			*(uchar *)addr = val;
+			addr += sizeof(uchar);
+		} else {
+			*(uint *)addr = val;
+			addr += sizeof(uint);
+		}
 		p = strchr(p, ' ');
 	}
 }
@@ -181,6 +197,7 @@ dbg_main(void)
  	 */
 	switch (setjmp(dbg_errjmp)) {
 	case 0:
+		lastcmd[0] = '\0';
 		break;
 	case 1:
  		printf("Reset to command mode\n");
@@ -211,6 +228,8 @@ dbg_main(void)
 				if (c == ' ')
 					break;
 				*q++ = c;
+				ASSERT_DEBUG(q < lastcmd+sizeof(lastcmd),
+					"dbg_main: overflow lastcmd");
 			}
 			*q = '\0';
 		}

@@ -17,7 +17,8 @@
  * Structure superimposed onto the stream of bytes in dbg_names[]
  */
 struct sym {
-	unsigned char s_type;		/* Must be first--see dbg_names[] */
+	unsigned char s_type;	/* Must be first--see dbg_names[] */
+	unsigned char s_pad[3];
 	unsigned long s_val;
 	char s_name[1];
 };

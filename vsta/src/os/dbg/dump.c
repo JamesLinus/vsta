@@ -295,8 +295,8 @@ dump_instr(char *args)
 static void
 do_dump_pview(struct pview *pv)
 {
-	printf(" pview @ 0x%x vaddr 0x%x len 0x%x off 0x%x\n",
-		pv, pv->p_vaddr, pv->p_len, pv->p_off);
+	printf(" pview @ 0x%x vaddr 0x%x len 0x%x off 0x%x hat 0x%x\n",
+		pv, pv->p_vaddr, pv->p_len, pv->p_off, &pv->p_hat);
 	printf("  vas 0x%x next 0x%x prot 0x%x pset 0x%x\n",
 		pv->p_vas, pv->p_next, pv->p_prot, pv->p_set);
 }
@@ -380,10 +380,10 @@ dump_pset(char *p)
 	/*
 	 * Print pset dope
 	 */
-	printf("len 0x%x off 0x%x type %s locks %d data 0x%x\n",
+	printf("len 0x%x off 0x%x type %s locks %d data 0x%x hat 0x%x\n",
 		ps->p_len, ps->p_off,
 		pset_type(ps->p_type),
-		ps->p_locks, ps->p_data);
+		ps->p_locks, ps->p_data, &ps->p_hat);
 	printf(" swap 0x%x refs %d flags 0x%x perpage 0x%x\n",
 		ps->p_swapblk, ps->p_refs, ps->p_flags, ps->p_perpage);
 	printf(" ops 0x%x lock 0x%x lockwait 0x%x cowsets 0x%x\n",
@@ -552,23 +552,6 @@ dump_sysmsg(char *p)
 		}
 		printf("\n");
 	}
-}
-
-/*
- * dump_seg()
- *	Display segments
- */
-void
-dump_seg(char *p)
-{
-	struct seg *s;
-
-	if (!p || !p[0] || !(s = (struct seg *)get_num(p))) {
-		printf("Bad addr\n");
-		return;
-	}
-	printf("offset 0x%x length 0x%x\n", s->s_off, s->s_len);
-	do_dump_pview(&s->s_pview);
 }
 
 /*

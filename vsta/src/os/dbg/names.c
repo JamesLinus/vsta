@@ -10,9 +10,7 @@
 /*
  * The array and its size.  Filled in by the dbsym(1) utility.
  */
-int dbg_names_len = DBG_NAMESZ;
-uchar dbg_names[DBG_NAMESZ] = {DBG_END};
-struct sym *dbg_start = (struct sym *)dbg_names;
+uchar dbg_names[DBG_NAMESZ] = {DBG_END, 'g', 'l', 'o', 'r', 'k', 'z'};
 
 /*
  * add_ent()
@@ -26,7 +24,7 @@ add_ent(char *nm, ulong val)
 	/*
 	 * Skip to DBG_END marker
 	 */
-	s = dbg_start;
+	s = (void *)dbg_names;
 	while (s->s_type != DBG_END) {
 		s = NEXTSYM(s);
 	}
@@ -35,7 +33,7 @@ add_ent(char *nm, ulong val)
 	 * Install our new entry there
 	 */
 	s->s_type = DBG_TEXT;
-	s->s_val = val;
+	bcopy(&val, &s->s_val, sizeof(val));
 	strcpy(s->s_name, nm);
 	s = NEXTSYM(s);
 	ASSERT((uchar *)s < &dbg_names[DBG_NAMESZ],
@@ -59,7 +57,7 @@ findent(char *nm)
 	/*
 	 * Walk table looking for the symbol
 	 */
-	for (s = dbg_start; s->s_type != DBG_END; s = NEXTSYM(s)) {
+	for (s = (void *)dbg_names; s->s_type != DBG_END; s = NEXTSYM(s)) {
 		/*
 		 * Match?  Return entry.
 		 */
@@ -100,12 +98,14 @@ ulong
 symval(char *name)
 {
 	struct sym *s;
+	ulong val;
 
 	s = find_ent(name);
 	if (!s) {
 		return(0);
 	}
-	return(s->s_val);
+	bcopy(&s->s_val, &val, sizeof(val));
+	return(val);
 }
 
 /*
@@ -118,12 +118,14 @@ void
 setsym(char *name, ulong val)
 {
 	struct sym *s;
+	ulong oval;
 
 	s = find_ent(name);
 	if (s) {
+		bcopy(&s->s_val, &oval, sizeof(oval));
 		printf("Warning: previous value for %s was %x\n",
-			name, s->s_val);
-		s->s_val = val;
+			name, oval);
+		bcopy(&val, &s->s_val, sizeof(val));
 	} else {
 		add_ent(name, val);
 	}
@@ -137,12 +139,14 @@ char *
 nameval(ulong loc)
 {
 	struct sym *s;
+	ulong val;
 
-	for (s = dbg_start; s->s_type != DBG_END; s = NEXTSYM(s)) {
+	for (s = (void *)dbg_names; s->s_type != DBG_END; s = NEXTSYM(s)) {
 		/*
 		 * Quit when get exact match
 		 */
-		if (s->s_val == loc) {
+		bcopy(&s->s_val, &val, sizeof(val));
+		if (loc == val) {
 			return(s->s_name);
 		}
 	}
@@ -156,25 +160,38 @@ nameval(ulong loc)
 char *
 symloc(off_t loc)
 {
-	ulong closest = 99999999L;
+	ulong val, closest = 99999999L;
 	struct sym *s, *sclosest = 0;
 	static char buf[48];
+	extern char _end[];
 
-	for (s = dbg_start; s->s_type != DBG_END; s = NEXTSYM(s)) {
+	/*
+	 * Symbols outside our executable, just provide hex
+	 */
+	if (loc > (off_t)_end) {
+		sprintf(buf, "<%x>", loc);
+		return(buf);
+	}
+
+	/*
+	 * Otherwise scan for nearest fit
+	 */
+	for (s = (void *)dbg_names; s->s_type != DBG_END; s = NEXTSYM(s)) {
 
 		/* Done on exact match */
-		if (s->s_val == loc) {
+		bcopy(&s->s_val, &val, sizeof(val));
+		if (val == loc) {
 			return(s->s_name);
 		}
 
 		/* Don't care about values below ours */
-		if (s->s_val > loc) {
+		if (val > loc) {
 			continue;
 		}
 
 		/* Record nearest miss */
-		if ((loc - s->s_val) < closest) {
-			closest = loc - s->s_val;
+		if ((loc - val) < closest) {
+			closest = loc - val;
 			sclosest = s;
 		}
 	}
