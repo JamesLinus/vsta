@@ -1,6 +1,6 @@
 CC= gcc
 LD= ld
-CFLAGS= -g -I../../include -I../..
+CFLAGS= -O -I../../include -I../..
 LDFLAGS= -L../../libc -L../../lib
 LIBS= -lusr -lc
 OBJS= login.o
