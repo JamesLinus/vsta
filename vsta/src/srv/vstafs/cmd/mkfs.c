@@ -71,18 +71,35 @@ write_freelist(ulong nsec)
 	fwrite(&f, sizeof(struct free), 1, fp);
 }
 
+/*
+ * usage()
+ *	Complain & bail
+ */
+static void
+usage(void)
+{
+	printf("Usage is: mkfs [-p] <device> <nsector>\n");
+	exit(1);
+}
+
 int
 main(int argc, char **argv)
 {
 	ulong x, nsec;
 	char sec[SECSZ];
+	int prealloc = 0;
 
 	/*
 	 * Check/parse args
 	 */
-	if (argc != 3) {
-		printf("Usage is: %s <device> <nsector>\n", argv[0]);
-		exit(1);
+	if (argc < 3) {
+		usage();
+	}
+	if (argc > 3) {
+		if (!strcmp(argv[1], "-p")) {
+			usage();
+		}
+		prealloc = 1;
 	}
 	if (sscanf(argv[2], "%ld", &nsec) != 1) {
 		printf("Bad <nsector>: %s\n", argv[2]);
@@ -97,13 +114,21 @@ main(int argc, char **argv)
 	/*
 	 * Preallocate sectors
 	 */
-	bzero(sec, SECSZ);
-	printf("Pre-allocate: "); fflush(stdout);
-	for (x = 0; x < nsec; ++x) {
-		fwrite(sec, SECSZ, 1, fp);
-		/* Put a marker each 8K */
-		if ((x % ((8*1024)/SECSZ)) == 0) {
-			printf("."); fflush(stdout);
+	if (prealloc) {
+		bzero(sec, SECSZ);
+		printf("Pre-allocate: "); fflush(stdout);
+		for (x = 0; x < nsec; ++x) {
+			fwrite(sec, SECSZ, 1, fp);
+			/* Put a marker each 8K */
+			if ((x % ((8*1024)/SECSZ)) == 0) {
+				static int col = 0;
+
+				if (++col > 64) {
+					col = 0;
+					putchar('\n');
+				}
+				printf("."); fflush(stdout);
+			}
 		}
 	}
 
