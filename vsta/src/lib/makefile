@@ -23,7 +23,7 @@ OBJS= syscall.o malloc.o \
 
 # Libraries to be build
 LIBS=libc.a libc_s.a ld.a libusr.a libtermc.a libregex.a \
-	libpio.a $(MACHTARGS)
+	$(MACHTARGS)
 
 # Databases for shared libraries
 DBS=ld.db libc.db
@@ -69,7 +69,8 @@ startsrv.o: start.c
 	$(CC) $(CFLAGS) -DSRV -o startsrv.o -c start.c
 
 USROBJS= llist.o hash.o permsup.o permpr.o statsup.o \
-	files.o rmap.o passwd.o ids.o assert.o mem.o
+	files.o rmap.o passwd.o ids.o assert.o mem.o \
+	sema.o lock.o abc.o
 
 libusr.a: $(USROBJS)
 	rm -f libusr.a
@@ -95,10 +96,6 @@ regsub.o: regexp/regsub.c
 	$(CC) $(CFLAGS) -c regexp/regsub.c
 regerror.o: regexp/regerror.c
 	$(CC) $(CFLAGS) -c regexp/regerror.c
-
-libpio.a: pio.o
-	rm -f libpio.a
-	ar rsv libpio.a pio.o
 
 clean:
 	rm -f *.o *.tmp *.st
