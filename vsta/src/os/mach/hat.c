@@ -250,6 +250,19 @@ hat_attach(struct pview *pv, void *vaddr)
 	 * We don't allow others to consume our utility space
 	 */
 	if (vaddr) {
+		/*
+		 * This bit indicates that this is a duplication of
+		 * the address space, so using our vaddrs is OK.  This
+		 * also assumes that a hat_fork() will follow to bring the
+		 * map up to date.
+		 */
+		if (pv->p_prot & PROT_FORK) {
+			return(0);
+		}
+
+		/*
+		 * Otherwise leave our stuff alone
+		 */
 		if ((vaddr >= (void *)VMAP_BASE) &&
 				(vaddr < (void *)(VMAP_BASE+VMAP_SIZE))) {
 			return(1);
@@ -281,4 +294,18 @@ hat_detach(struct pview *pv)
 		rmap_free(pv->p_vas->v_hat.h_map,
 			btop(pv->p_vaddr), pv->p_len);
 	}
+}
+
+/*
+ * hat_fork()
+ *	vas is being duplicated, copy over rmap state
+ *
+ * Must be called after hat_init(), since it assumes the new vas
+ * already has its map allocated.
+ */
+void
+hat_fork(struct vas *ovas, struct vas *vas)
+{
+	bcopy(ovas->v_hat.h_map, vas->v_hat.h_map,
+		NRMAPSLOT*sizeof(struct rmap));
 }
