@@ -103,6 +103,28 @@ receive(port_t port, void *buf, int len)
 }
 
 /*
+ * do_mmap()
+ *	Try a kernel mmap, but ignore EEXIST when mapping segments
+ */
+static void *
+do_mmap(void *addr, uint len, uint prot, uint flags, int port, ulong off)
+{
+	void *p;
+	char err[ERRLEN];
+	extern void *_mmap_shl();
+
+	p = _mmap_shl(addr, len, prot, flags, port, off);
+	if (p) {
+		return(p);
+	}
+	strerror_shl(err);
+	if (!strcmp(err, EEXIST)) {
+		return(addr);
+	}
+	return(0);
+}
+
+/*
  * _load2()
  *	Second-level shlib loader
  *
@@ -118,7 +140,6 @@ _load2(port_name rootname, char *p)
 	void *addr_text, *addr_data, *addr_bss;
 	ulong size_text;
 	int x;
-	extern void *_mmap_shl();
 
 	/*
 	 * Open vsta/lib/<lib> from the root filesystem
@@ -140,20 +161,20 @@ _load2(port_name rootname, char *p)
 	 * and BSS right after data with zero-fill-on-demand.
 	 */
 	size_text = sizeof(aout) + aout.a_text;
-	addr_text = _mmap_shl((void *)(aout.a_entry - sizeof(struct aout)),
+	addr_text = do_mmap((void *)(aout.a_entry - sizeof(struct aout)),
 		size_text, PROT_READ, MAP_FILE, port, 0L);
 	if (addr_text == 0) {
 		goto err;
 	}
 	if (aout.a_data > 0) {
-		addr_data = _mmap_shl(addr_text + size_text,
+		addr_data = do_mmap(addr_text + size_text,
 			aout.a_data, PROT_READ | PROT_WRITE,
 			MAP_FILE | MAP_PRIVATE, port, size_text);
 		if (addr_data == 0) {
 			goto err;
 		}
 		if (aout.a_bss > 0) {
-			addr_bss = _mmap_shl(addr_data + aout.a_data,
+			addr_bss = do_mmap(addr_data + aout.a_data,
 				roundup(aout.a_bss, PAGESIZE),
 				PROT_READ | PROT_WRITE,
 				MAP_ANON, 0, 0L);

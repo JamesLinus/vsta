@@ -29,15 +29,16 @@ SRVOBJS= syscall.o malloc.o srvstr.o srvprnt.o srvopen.o srvfdl.o \
 	$(MACHOBJS)
 
 # Libraries to be build
-LIBS=libc.a libc_s.a ld.a libusr.a libtermc.a libregex.a libm.a libsrv.a \
+LIBS=libc.a libc_s.a ld.a libusr.a libtermc.a libregex.a \
+	libm.a libsrv.a \
 	$(MACHTARGS)
 
 # Databases for shared libraries
-DBS=ld.db libc.db
-SHLIBIN=ld.tmp libc.tmp
-SHLIBS=ld.shl libc.shl
+DBS=ld.db libc.db libm/libm.db
+SHLIBIN=ld.tmp libc.tmp libm.tmp
+SHLIBS=ld.shl libc.shl libm.shl
 
-all: $(LIBS) crt0.o crt0srv.o
+all: $(LIBS) crt0.o crt0srv.o mklibs
 
 # Statically linkable version of libc
 libc_s.a: $(OBJS) $(CRT)
@@ -48,18 +49,22 @@ libc_s.a: $(OBJS) $(CRT)
 # All shared libraries must be processed at once, as mkshlib assigns
 # addresses as it processes each.
 mklibs: mkshlib $(SHLIBIN) shlib.o
-	./mkshlib $(DBS)
+	./mkshlib -l $(DBS)
 	rm -f mklibs
 	touch mklibs
 
 # Utility for creating shared libraries
 mkshlib: crt0.o mkshlib.o libc_s.a
+	rm -f mkshlib
 	$(LD) -o mkshlib crt0.o mkshlib.o libc_s.a
 
 # All shared libraries are created in both .a (stub) and .shl (loadable
-# shared library) formats in the same step, "mklibs".
-libc.a: mklibs
-ld.a: mklibs
+# shared library) formats.  The stubs are needed before .shl, because
+# one shared library's .a may be needed to generate another's .shl.
+libc.a: mkshlib libc.tmp libc.db
+	./mkshlib -s libc.db
+ld.a: mkshlib ld.tmp ld.db
+	./mkshlib -s ld.db
 
 # These are the versions of our shared libraries which are used as
 # input to mkshlib.  ld.tmp, which must operate as a dynamically

@@ -151,14 +151,16 @@ _load(char *p)
 	/*
 	 * Map load.shl into its desired location.  This is a text-only
 	 * object which holds all its data on its stack.
+	 * An error here likely indicates that the boot loader is
+	 * already in the address space.  If the boot loader library
+	 * is, in fact, absent from the system, we will find
+	 * virtually nothing operational anyway.  So we ignore
+	 * the error return.
 	 */
-	addr = _mmap_shl((void *)(aout.a_entry - sizeof(struct aout)),
-		sizeof(aout) + aout.a_text,
+	addr = (void *)(aout.a_entry - sizeof(struct aout));
+	(void)_mmap_shl(addr, sizeof(aout) + aout.a_text,
 		PROT_READ, MAP_FILE, port, 0L);
 	msg_disconnect_shl(port);
-	if (addr == 0) {
-		return(0);
-	}
 
 	/*
 	 * Call loader with desired module

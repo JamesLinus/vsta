@@ -16,3 +16,4 @@ _msg_disconnect_shl hidden
 _msg_port_shl hidden
 _msg_send_shl hidden
 _munmap_shl hidden
+_strerror_shl hidden

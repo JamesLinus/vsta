@@ -50,6 +50,9 @@ static int ndb_syms;	/*  ...count */
 static char **db_hide;	/* Symbols global but not exported */
 static int ndb_hide;	/*  ...count */
 static uint page_size;	/* getpagesize() value */
+static char *progname;	/* argv[0] */
+static int vflag,	/* Verbose operation */
+	stubs, shlib;	/* Generate stubs/shlib */
 
 static void objfile(char *);
 
@@ -62,18 +65,15 @@ static void objfile(char *);
 static void
 do_system(char *cmd)
 {
-#ifdef DEBUG
 	int x;
 
-	printf("Run: %s\n", cmd);
-	x =
-#else
-	(void)
-#endif
-	system(cmd);
-#ifdef DEBUG
-	printf(" --returned %d\n", x);
-#endif
+	if (vflag) {
+		fprintf(stderr, "Run: %s\n", cmd);
+	}
+	x = system(cmd);
+	if (vflag) {
+		fprintf(stderr, " --returned %d\n", x);
+	}
 }
 
 /*
@@ -208,11 +208,15 @@ add_entry(char *p, char *arg)
 				p, arg);
 			exit(1);
 		}
-		db_hide = realloc(db_hide, ++ndb_hide * sizeof(char *));
+		db_hide = realloc(db_hide,
+			(++ndb_hide * sizeof(char *))+1);
 		db_hide[ndb_hide-1] = strdup(p);
+		db_hide[ndb_hide] = NULL;
 	} else {
-		db_syms = realloc(db_syms, ++ndb_syms * sizeof(char *));
+		db_syms = realloc(db_syms,
+			(++ndb_syms * sizeof(char *))+1);
 		db_syms[ndb_syms-1] = strdup(p);
+		db_syms[ndb_syms] = NULL;
 	}
 }
 
@@ -449,25 +453,59 @@ generate_shlib(void)
 	unlink(tabf);
 }
 
+/*
+ * usage()
+ *	Tell how to use the fool thing
+ */
+static void
+usage(void)
+{
+	fprintf(stderr,
+		"Usage is: %s [-s] [-l] <database> [ <database>...]\n",
+		progname);
+	exit(1);
+}
+
 int
 main(int argc, char **argv)
 {
 	FILE *fp;
 	char *keyword, *p, buf[128];
-	int x;
-
-	if (argc < 2) {
-		fprintf(stderr,
-			"Usage is: %s <database> [ <database>...]\n",
-			argv[0]);
-		exit(1);
-	}
+	int x, nfile = 0;
 
 	page_size = getpagesize();
 	for (x = 1; x < argc; ++x) {
 		/*
+		 * Switches
+		 */
+		if (argv[x][0] == '-') {
+			switch (argv[x][1]) {
+			case 'v':		/* Verbose/tracing */
+				vflag = 1;
+				break;
+			case 's':		/* Generate stubs */
+				stubs = 1;
+				break;
+			case 'l':		/* Generate shlib */
+				shlib = 1;
+				break;
+			default:
+				usage();
+			}
+			continue;
+		}
+
+		/*
+		 * Must choose switches first
+		 */
+		if (!stubs && !shlib) {
+			usage();
+		}
+
+		/*
 		 * Access database file
 		 */
+		nfile += 1;
 		curfile = argv[x];
 		fp = fopen(curfile, "r");
 		if (fp == NULL) {
@@ -530,13 +568,25 @@ main(int argc, char **argv)
 		/*
 		 * End of file.  Start building actual files.
 		 */
-		generate_stubs();
-		generate_shlib();
+		if (stubs) {
+			generate_stubs();
+		}
+		if (shlib) {
+			generate_shlib();
+		}
 
 		/*
 		 * Done with this library
 		 */
 		end_library();
 	}
+
+	/*
+	 * Complain if we didn't process even one file
+	 */
+	if (nfile == 0) {
+		usage();
+	}
+
 	return(0);
 }

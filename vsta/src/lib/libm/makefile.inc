@@ -6,9 +6,11 @@ MOBJS=acosh.o cabs.o expm1.o jn.o support.o asincos.o cbrt.o \
 	exp.o j0.o log1p.o sincos.o atanh.o exp__e.o j1.o log__l.o \
 	sinh.o $(LIBM_MACHOBS)
 
-libm.a: $(MOBJS)
-	rm -f libm.a
-	ar rsv libm.a $(MOBJS)
+libm.a: mkshlib libm.tmp libm/libm.db
+	./mkshlib -s libm/libm.db
+
+libm.tmp: $(MOBJS) libc.a
+	$(LD) -r -o libm.tmp $(MOBJS) libc.a
 
 acosh.o: libm/acosh.c
 	$(CC) $(CFLAGS) -c libm/acosh.c
