@@ -16,7 +16,7 @@
 #include <sys/fs.h>
 #include <sys/perm.h>
 
-#define BLOCKSIZE 8192		/* Size of blocks in filesystem */
+#define BLOCKSIZE 2048		/* Size of blocks in filesystem */
 
 /*
  * Structure of an open file in the filesystem
