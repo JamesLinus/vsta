@@ -144,3 +144,9 @@ Some problems with mutexing of semaphores and treatment of priorities.
 	I don't think we're honoring PRIHI right now.  Also, I think
 	p_sema needs to take the runq lock sooner, to provide mutexing
 	between sleeping and being handed an event.
+
+Definitely a problem with free_proc() letting go of the root of our
+	page table before we're off it.  idle_stack() needs to get onto
+	its own root page table--the one we use to boot will suffice,
+	I think.  idle_stack(), once fixed, needs to be called before
+	we ever call free_proc().
