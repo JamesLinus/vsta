@@ -17,7 +17,7 @@
 /*
  * How often our clock "ticks"
  */
-#define HZ (18)
+#define HZ (20)
 
 /*
  * Which console device to use for printf() and such
