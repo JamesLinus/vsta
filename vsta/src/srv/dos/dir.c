@@ -74,6 +74,7 @@ dir_init(void)
 	}
 	n->n_type = T_DIR;
 	n->n_clust = 0;		/* Flag root dir */
+	n->n_inum = 0L;		/* Root is inode 0 */
 	n->n_mode = 0;
 	n->n_refs = 1;		/* Always ref'ed */
 	n->n_files = hash_alloc(16);
@@ -346,6 +347,15 @@ dir_look(struct node *n, char *file)
 	n2->n_flags = 0;	/* Not dirty to start */
 	n2->n_dir = n; ref_node(n);
 	n2->n_slot = x;
+
+	/*
+	 * Assign the inode number now.  The upper 16 bits are
+	 * the allocated cluster of the containing dir (0 for root),
+	 * the lower are the offset of this file's dir entry.
+	 */
+	n2->n_inum = ((n == rootdir) ? x :
+		((get_clust0(n->n_clust) << 16) | x));
+
 	if (n2->n_type == T_DIR) {
 		/*
 		 * Get the file hash for directories
@@ -952,6 +962,23 @@ fix_dotdot(struct node *n, struct node *ndir)
 }
 
 /*
+ * check_busy()
+ *	See if the given node's busy with a page cache reference
+ */
+static char *
+check_busy(struct node *n)
+{
+	 if ((n->n_refs > 1) && (n->n_flags & N_FID)) {
+		(void)tfork(do_unhash, inum(n));
+		__msleep(10);
+		n->n_flags &= ~N_FID;
+		deref_node(n);
+		return(EAGAIN);
+	 }
+	 return(0);
+}
+
+/*
  * do_rename()
  *	Given open directories and filenames, rename an entry
  *
@@ -963,7 +990,7 @@ do_rename(struct file *fsrc, char *src, struct file *fdest, char *dest)
 	struct node *ndsrc, *nddest, *nsrc, *ndest;
 	struct directory *dsrc, *ddest, dtmp;
 	void *handsrc, *handdest;
-	char name[8], ext[3];
+	char name[8], ext[3], *p;
 
 	/*
 	 * Get directory nodes, verify that they're directories
@@ -991,6 +1018,13 @@ do_rename(struct file *fsrc, char *src, struct file *fdest, char *dest)
 	}
 
 	/*
+	 * Make sure we're the only one's using this file
+	 */
+	 if ((p = check_busy(nsrc))) {
+	 	return(p);
+	 }
+
+	/*
 	 * If our destination exists, truncate if it's a file, error
 	 * if it's a directory.
 	 */
@@ -1000,6 +1034,10 @@ do_rename(struct file *fsrc, char *src, struct file *fdest, char *dest)
 			deref_node(ndest);
 			deref_node(nsrc);
 			return(EISDIR);
+		}
+		if ((p = check_busy(ndest))) {
+			deref_node(nsrc);
+			return(p);
 		}
 		clust_setlen(ndest->n_clust, 0L);
 	} else {
@@ -1070,13 +1108,29 @@ do_rename(struct file *fsrc, char *src, struct file *fdest, char *dest)
 	{
 		struct node *ntmp;
 		uint tmp;
+		ulong inum;
 
+		/*
+		 * The dir entries
+		 */
 		ntmp = nsrc->n_dir;
 		nsrc->n_dir = ndest->n_dir;
 		ndest->n_dir = ntmp;
+
+		/*
+		 * Slot # (since we're now referenced by the
+		 * other guy's directory/directory-slot)
+		 */
 		tmp = nsrc->n_slot;
 		nsrc->n_slot = ndest->n_slot;
 		ndest->n_slot = tmp;
+
+		/*
+		 * And inode number (derived from dir & slot)
+		 */
+		inum = nsrc->n_inum;
+		nsrc->n_inum = ndest->n_inum;
+		ndest->n_inum = inum;
 	}
 
 	/*

@@ -104,7 +104,7 @@ cvt_time(uint date, uint time)
 ulong
 inum(struct node *n)
 {
-	return((ulong)n);
+	return(n->n_inum);
 }
 
 /*
@@ -191,6 +191,11 @@ dos_fid(struct msg *m, struct file *f)
 		msg_err(m->m_sender, EINVAL);
 		return;
 	}
+
+	/*
+	 * Remember that this happened
+	 */
+	n->n_flags |= N_FID;
 
 	/*
 	 * arg is the inode value; arg1 is the size in pages

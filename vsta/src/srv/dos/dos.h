@@ -44,6 +44,7 @@ struct node {
 	uint n_flags;		/* Flags */
 	struct node *n_dir;	/* Dir we exist within */
 	uint n_slot;		/*  ...index within */
+	ulong n_inum;		/* Inode #, for stat/FS_FID */
 
 	/* For T_FILE only */
 	ulong n_len;		/* Our byte length */
@@ -65,6 +66,7 @@ struct node {
  */
 #define N_DIRTY 1	/* Contents modified */
 #define N_DEL 2		/* Node has been removed */
+#define N_FID 4		/* Node has had an FS_FID done, may be cached */
 
 /*
  * Each open client has this state
@@ -195,6 +197,7 @@ extern void timestamp(struct directory *, time_t),
 extern int dir_set_type(struct file *, char *);
 extern void dir_readonly(struct file *f, int);
 extern ulong inum(struct node *);
+extern void do_unhash(ulong);
 
 /*
  * Global data
