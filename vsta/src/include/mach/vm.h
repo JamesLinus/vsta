@@ -79,4 +79,9 @@
 #define VMAP_BASE (0x40000000)	/* Map area starts at 1 Gb */
 #define VMAP_SIZE (0x20000000)	/*  ...for 1/2 Gb */
 
+/*
+ * Address of attach point for shared libraries
+ */
+#define SHLIB_BASE (VMAP_BASE + VMAP_SIZE)
+
 #endif /* _MACHVM_H */
