@@ -470,6 +470,7 @@ free_block(daddr_t d, uint nblk)
 	struct freelist *fr, *ff;
 	struct free *f;
 
+	ASSERT_DEBUG(nblk > 0, "free_block: zero len");
 retry:
 	/*
 	 * Scan the free list looking for the right place for this
