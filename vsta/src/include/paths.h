@@ -13,5 +13,7 @@
 #define _PATH_DEFAULT_SHELL "/vsta/bin/sh"
 #define _PATH_TERMCAP "/vsta/lib/termcap"
 #define _PATH_LOGIN "/vsta/bin/login"
+#define _PATH_NET "/vsta/etc/autoexec.net"
+#define _PATH_BANNER "/vsta/etc/banner"
 
 #endif /* _PATHS_H */
