@@ -270,7 +270,7 @@ resize_buf(daddr_t d, uint newsize, int fill)
 	/*
 	 * If needed, fill from disk
 	 */
-	if (fill) {
+	if (fill && (b->b_flags & B_SECS)) {
 		read_secs(b->b_start + b->b_nsec, p + stob(b->b_nsec),
 			newsize - b->b_nsec);
 	}
@@ -314,9 +314,15 @@ index_buf(struct buf *b, uint index, uint nsec)
 	} else if ((b->b_flags & B_SECS) == 0) {
 		/*
 		 * Otherwise if we don't have the whole buffer, get
-		 * it now.
+		 * it now.  Don't read in sector 0 if we already
+		 * have it.
 		 */
-		read_secs(b->b_start, b->b_data, b->b_nsec);
+		if (b->b_flags & B_SEC0) {
+			read_secs(b->b_start + 1, (char *)b->b_data + SECSZ,
+				b->b_nsec - 1);
+		} else {
+			read_secs(b->b_start, b->b_data, b->b_nsec);
+		}
 		b->b_flags |= (B_SEC0|B_SECS);
 	}
 	return((char *)b->b_data + stob(index));
