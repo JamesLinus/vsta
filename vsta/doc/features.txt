@@ -409,3 +409,4 @@ Fix segv in usage message of purge(1).
 Support scanf family %n format for # chars read.
 All /bin shell programs under source control in vsta/src/bin/cmds.
 Added some symbol/string utilities in <symbol.h>.
+A small stty(1) emulation.
