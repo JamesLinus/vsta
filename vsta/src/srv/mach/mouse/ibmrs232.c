@@ -117,6 +117,8 @@ static int
 mouse(uchar *buffer, int len, mouse_pointer_data_t *p)
 {
 	char x_off, y_off;
+	static char saw_middle;
+
 	static uchar btn_cvt[8] = {
 		0,
 		MOUSE_RIGHT_BUTTON,
@@ -159,6 +161,19 @@ mouse(uchar *buffer, int len, mouse_pointer_data_t *p)
 		x_off = (buffer[0] & 0x10) ? buffer[1] : -buffer[1];
 		y_off = (buffer[0] & 0x08) ? -buffer[2] : buffer[2];
 		break;
+	}
+
+	/*
+	 * Middle button insanity
+	 */
+	if (!saw_middle) {
+		if (p->buttons & MOUSE_MIDDLE_BUTTON) {
+			saw_middle = 1;
+		} else if ((p->buttons &
+				(MOUSE_RIGHT_BUTTON|MOUSE_LEFT_BUTTON)) ==
+				(MOUSE_RIGHT_BUTTON|MOUSE_LEFT_BUTTON)) {
+			p->buttons = MOUSE_MIDDLE_BUTTON;
+		}
 	}
 
 	/*
@@ -395,7 +410,7 @@ ibm_serial_parse_args(int argc, char **argv)
 			ibm_serial_model = RS_LOGITECH;
 		} else {
 			fprintf(stderr,
-				"mouse: unknown option 's' - aborting\n",
+				"mouse: unknown option '%s' - aborting\n",
 				argv[arg]);
 			exit(1);
 		}
@@ -418,14 +433,22 @@ ibm_serial_parse_args(int argc, char **argv)
 	wstat(ibm_serial_port, st_msg);
 	sprintf(st_msg, "parity=%s\n", m_data->parity);
 	wstat(ibm_serial_port, st_msg);
-	wstat(ibm_serial_port, "dtr=1\n");
+	wstat(ibm_serial_port, "dtr=0\n");
 	wstat(ibm_serial_port, "rts=0\n");
-	__msleep(120);
+	__msleep(400);
 	wstat(ibm_serial_port, "rts=1\n");
+	wstat(ibm_serial_port, "dtr=1\n");
 
 	if (microsoft_option + mouse_sys_3_option + mouse_sys_5_option +
 			mm_option + logitech_option > 1) {
 		ibm_serial_usage();
+	}
+	switch(ibm_serial_model) {
+	case RS_MOUSE_SYS_5:
+		rs232_putc('*');
+		rs232_putc('n');
+		rs232_putc('*');
+		rs232_putc('U');
 	}
 }
 
