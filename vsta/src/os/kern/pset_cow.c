@@ -54,21 +54,24 @@ cow_fillslot(struct pset *ps, struct perpage *pp, uint idx)
 			return(1);
 		}
 	} else {
+		struct pset *cow = ps->p_cow;
+
 		/*
 		 * Lock slot of underlying pset
 		 */
 		idx2 = ps->p_off + idx;
-		pp2 = find_pp(ps->p_cow, idx2);
-		lock_slot(ps->p_cow, pp2);
+		p_lock(&cow->p_lock, SPL0);
+		pp2 = find_pp(cow, idx2);
+		lock_slot(cow, pp2);
 
 		/*
 		 * If the memory isn't available, call its
 		 * slot filling routine.
 		 */
 		if (!(pp2->pp_flags & PP_V)) {
-			if ((*(ps->p_cow->p_ops->psop_fillslot))
-					(ps->p_cow, pp2, idx2)) {
-				unlock_slot(ps->p_cow, pp2);
+			if ((*(cow->p_ops->psop_fillslot))
+					(cow, pp2, idx2)) {
+				unlock_slot(cow, pp2);
 				return(1);
 			}
 		} else {
@@ -80,6 +83,7 @@ cow_fillslot(struct pset *ps, struct perpage *pp, uint idx)
 		 * break the sharing and copy soon, if needed.
 		 */
 		pg = pp2->pp_pfn;
+		unlock_slot(cow, pp2);
 	}
 
 	/*
