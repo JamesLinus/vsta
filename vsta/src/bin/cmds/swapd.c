@@ -69,10 +69,12 @@ main(argc, argv)
 		perror("swapd can't configure swap port");
 		exit(1);
 	}
-	for (x = 1; x < NQIO; ++x) {
+	for (x = 0; x < NQIO; ++x) {
 		if (tfork(runqio) < 0) {
 			perror("swapd qio fork");
 		}
 	}
-	runqio();
+	pageout();
+	perror("swapd can't start pageout");
+	exit(1);
 }
