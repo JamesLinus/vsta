@@ -151,6 +151,7 @@ free_vas(struct vas *vas)
 	while (vas->v_views) {
 		remove_pview(vas, vas->v_views->p_vaddr);
 	}
+	hat_freevas(vas);
 }
 
 /*
