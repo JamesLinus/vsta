@@ -506,8 +506,6 @@ exit(int code)
 	struct proc *p = t->t_proc;
 	int last;
 
-	printf("Exit.\n"); dbg_enter();
-
 	/*
 	 * Remove our thread from the process hash list
 	 */
