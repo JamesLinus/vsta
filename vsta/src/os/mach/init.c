@@ -35,7 +35,6 @@ struct percpu *nextcpu = &cpu;
 
 struct boot_task *boot_tasks;
 uint nboot_task = 0;
-uint num_run = 0;	/* Number of currently runnable threads */
 
 struct rmap *vmap;	/* Map for virtual memory */
 
