@@ -122,8 +122,8 @@ read_procmem(ulong addr, int size)
 	}
 	l = args[0];
 	switch (size) {
-	case 1: c = *(char *)&l;
-	case 2: w = *(ushort *)&l;
+	case 1: c = *(char *)&l; return(c);
+	case 2: w = *(ushort *)&l; return(w);
 	case 4: return(l);
 	}
 	return(0);
