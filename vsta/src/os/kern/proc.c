@@ -101,6 +101,7 @@ bootproc(struct boot_task *b)
 	t->t_runq = sched_thread(p->p_runq, t);
 	init_sema(&t->t_msgwait);
 	t->t_proc = p;
+	init_sema(&t->t_evq); set_sema(&t->t_evq, 1);
 
 	/*
 	 * The vas for the proc
@@ -306,7 +307,7 @@ fork_thread(voidfun f)
 	init_sema(&t->t_msgwait);
 	t->t_usrcpu = t->t_syscpu = 0L;
 	t->t_evsys[0] = t->t_evproc[0] = '\0';
-	init_sema(&t->t_evq);
+	init_sema(&t->t_evq); set_sema(&t->t_evq, 1);
 	t->t_err[0] = '\0';
 	t->t_runq = sched_thread(p->p_runq, t);
 	t->t_uregs = 0;
@@ -377,7 +378,7 @@ fork(void)
 	tnew->t_err[0] = '\0';
 	tnew->t_usrcpu = tnew->t_syscpu = 0L;
 	tnew->t_evsys[0] = tnew->t_evproc[0] = '\0';
-	init_sema(&tnew->t_evq);
+	init_sema(&tnew->t_evq); set_sema(&tnew->t_evq, 1);
 	tnew->t_state = TS_RUN;
 	tnew->t_ustack = (void *)USTACKADDR;
 
