@@ -12,7 +12,9 @@
 char *
 strcpy(char *dest, char *src)
 {
-	while (*dest++ = *src++)
+	char *p = dest;
+
+	while (*p++ = *src++)
 		;
 	return(dest);
 }
@@ -24,11 +26,11 @@ strcpy(char *dest, char *src)
 char *
 strncpy(char *dest, char *src, int len)
 {
-	char *lim;
+	char *p = dest, *lim;
 
-	lim = dest+len;
-	while (dest < lim) {
-		if ((*dest++ = *src++) == '\0') {
+	lim = p+len;
+	while (p < lim) {
+		if ((*p++ = *src++) == '\0') {
 			break;
 		}
 	}
