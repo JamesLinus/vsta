@@ -66,6 +66,7 @@
 #define WDC_WRITE	0x30	/*  ...write */
 #define WDC_READP	0xEC	/*  ...read parameters */
 #define WDC_DIAG	0x90	/* Run controller diags */
+#define WDC_SPECIFY	0x91	/* Initialise controller parameters */
 
 /*
  * Read parameters command (WDC_READP) returns this.  I think this

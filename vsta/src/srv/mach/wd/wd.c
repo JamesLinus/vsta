@@ -161,8 +161,10 @@ wd_init(int argc, char **argv)
 			uint s = parm[unit].w_size * SECSZ;
 			const uint m = 1024*1024;
 
-			printf("wd%d: %d.%dM\n", unit,
-				s / m, (s % m) / (m/10));
+			printf(
+"wd%d: %d.%dM - %d heads, %d cylinders, %d sectors\n",
+	unit, s / m, (s % m) / (m/10),
+	parm[unit].w_tracks, parm[unit].w_cyls, parm[unit].w_secpertrk);
 			found_first = 1;
 			if (unit < first_unit) {
 				first_unit = unit;
@@ -466,6 +468,18 @@ wd_readp(int unit)
 	}
 	repinsw(WD_PORT+WD_DATA, buf, sizeof(buf)/sizeof(ushort));
 	bcopy(buf, &xw, sizeof(xw));
+
+	/*
+	 * Give the controller the geometry. I'm not really sure why my
+	 * drive needs the little delay, but it did... (pat)
+	 */
+	__msleep(100);
+	outportb(WD_PORT+WD_SDH,
+		WDSDH_EXT|WDSDH_512 | (unit << 4) | (xw.w_heads - 1));
+	outportb(WD_PORT+WD_SCNT, xw.w_sectors);
+	if (wd_cmd(WDC_SPECIFY) < 0) {
+		return;
+	}
 
 	/*
 	 * Fix big-endian lossage
