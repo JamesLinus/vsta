@@ -1,9 +1,9 @@
 CC=gcc
 AS=as
 LD=ld
-CPP= cpp
-INCS= -I../../include
-CFLAGS= $(INCS) -O -DDEBUG
+CPP=cpp
+INCS=-nostdinc -I../include
+CFLAGS=$(INCS) -O -DDEBUG
 CRT=start.o
 target: all
 
@@ -27,9 +27,6 @@ SRVOBJS= syscall.o malloc.o srvstr.o srvprnt.o srvopen.o srvfdl.o \
 	permsup.o startsrv.o seg.o files.o namer.o abc.o lock.o \
 	srvtime.o getopt.o \
 	$(MACHOBJS)
-
-.c.o:
-	$(CC) $(CFLAGS) -c $*.c
 
 # Libraries to be build
 LIBS=libc.a libc_s.a ld.a libusr.a libtermc.a libregex.a libm.a libsrv.a \
