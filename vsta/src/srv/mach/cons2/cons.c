@@ -291,12 +291,20 @@ sequence(int x, int y, char c)
 		return;
 
 	case 'H':		/* Position */
-		cur = top + (x-1)*(COLS*CELLSZ) + (y-1)*CELLSZ;
-		if (cur < top) {
-			cur = top;
-		} else if (cur >= bottom) {
-			cur = lastl;
+		/*
+		 * Bound position
+		 */
+		if (x < 1) {
+			x = 1;
+		} else if (x > COLS) {
+			x = COLS;
 		}
+		if (y < 1) {
+			y = 1;
+		} else if (y > ROWS) {
+			y = ROWS;
+		}
+		cur = top + (x-1)*(COLS*CELLSZ) + (y-1)*CELLSZ;
 		return;
 
 	case 'K':		/* Clear to end of line */
