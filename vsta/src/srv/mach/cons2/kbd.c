@@ -1,9 +1,6 @@
 /*
- * rw.c
- *	Reads and writes to the keyboard device
- *
- * Well, actually just reads, since it's a keyboard.  But r.c looked
- * a little strange.
+ * kbd.c
+ *	Reading from the keyboard device
  */
 #include "cons.h"
 #include <sys/assert.h>
