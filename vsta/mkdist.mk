@@ -77,9 +77,12 @@ PYTHON=src/bin/python lib/python15
 # Diff utilities
 DIFF=src/bin/diffutl
 
+# Sample accounts
+ACCOUNT=root guest
+
 # Default: make a distribution
 dist: bindist srcdist make txt sh ed fun bc gzip sc small gcc \
-	mgrdist lang net python diff
+	mgrdist lang net python diff account
 
 bindist:
 	tar -cvf - $(BIN) | gzip -9 > $(DEST)/vsta.tz
@@ -131,3 +134,6 @@ python:
 
 diff:
 	tar -cvf - $(DIFF) | gzip -9 > $(DEST)/diff.tz
+
+account:
+	tar -cvf - $(ACCOUNT) | gzip -9 > $(DEST)/account.tz
