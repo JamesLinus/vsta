@@ -227,3 +227,4 @@ Auto-flush stdout when read from an interactive stdin happens.
 Conversion of man pages to nroff -man format.
 Ported BSD's "units" command.
 vstafs, file/dir creation inherits protection of parent dir.
+less's help ('H' command) fixed.
