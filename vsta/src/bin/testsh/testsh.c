@@ -83,6 +83,7 @@ run(char *p)
 {
 	char *q, **argv;
 	int x = 1;
+	int pid;
 
 	if (!p || !p[0]) {
 		printf("Usage: run <file>\n");
@@ -102,9 +103,14 @@ run(char *p)
 		}
 	}
 	argv[x] = 0;
-	x = execv(p, argv);
-	perror(p);
-	printf("Error code: %d\n", x);
+	pid = fork();
+	if (pid == 0) {
+		x = execv(p, argv);
+		perror(p);
+		printf("Error code: %d\n", x);
+	}
+	x = waits((void *)0);
+	printf("pid %d leaves status of %d\n", pid, x);
 }
 
 /*
