@@ -938,6 +938,11 @@ fseek(FILE *fp, off_t off, int whence)
 	}
 
 	/*
+	 * Flush out any sticky conditions
+	 */
+	clearerr(fp);
+
+	/*
 	 * Let lseek() do its work and return result
 	 */
 	return(lseek(fp->f_fd, off, whence));
