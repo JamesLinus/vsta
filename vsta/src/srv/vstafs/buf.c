@@ -18,6 +18,7 @@
 #include <std.h>
 #ifdef DEBUG
 #include <stdio.h>
+static uint nbuf = 0;		/* Running tally of buffers */
 #undef TRACE /* Very noisy */
 #endif
 
@@ -63,6 +64,8 @@ free_buf(struct buf *b)
 	free(b->b_data);
 #ifdef DEBUG
 	bzero(b, sizeof(struct buf));
+	ASSERT(nbuf > 0, "free_buf: underflow");
+	nbuf -= 1;
 #endif
 	free(b);
 }
@@ -208,6 +211,10 @@ find_buf(daddr_t d, uint nsec)
 	b->b_locks = 0;
 	read_secs(d, b->b_data, nsec);
 	bufsize += nsec;
+#ifdef DEBUG
+	nbuf += 1;
+	ASSERT(nbuf <= CORESEC, "find_buf: too many");
+#endif
 	return(b);
 }
 
