@@ -431,7 +431,7 @@ fork(void)
 	 * PID into hash.
 	 */
 	p_sema(&pid_sema, PRIHI);
-	pnew->p_pid = allocpid();
+	npid = pnew->p_pid = allocpid();
 	tnew->t_pid = allocpid();
 	v_sema(&pid_sema);
 
@@ -451,9 +451,10 @@ fork(void)
 	bzero(&pnew->p_ports, sizeof(pnew->p_ports));
 	fork_ports(pold->p_open, pnew->p_open, PROCOPENS);
 	pnew->p_prefs = 0;
+	pnew->p_flags = 0;
 	pnew->p_nopen = pold->p_nopen;
 	pnew->p_handler = pold->p_handler;
-	pnew->p_pgrp = pold->p_pgrp; join_pgrp(pold->p_pgrp, pnew->p_pid);
+	pnew->p_pgrp = pold->p_pgrp; join_pgrp(pold->p_pgrp, npid);
 	pnew->p_parent = pold->p_children; ref_exitgrp(pnew->p_parent);
 	bcopy(pold->p_cmd, pnew->p_cmd, sizeof(pnew->p_cmd));
 	v_sema(&pold->p_sema);
@@ -474,19 +475,14 @@ fork(void)
 	 * Now that we're ready, make PID known globally
 	 */
 	p_sema(&pid_sema, PRIHI);
-	hash_insert(pid_hash, pnew->p_pid, pnew);
-	v_sema(&pid_sema);
-
-	/*
-	 * Add to "all procs" list
-	 */
-	p_lock(&runq_lock, SPLHI);
+	hash_insert(pid_hash, npid, pnew);
 	add_proclist(pnew);
-	npid = pnew->p_pid;
+	v_sema(&pid_sema);
 
 	/*
 	 * Leave him runnable
 	 */
+	p_lock(&runq_lock, SPLHI);
 	lsetrun(tnew);
 	v_lock(&runq_lock, SPL0);
 	return(npid);
