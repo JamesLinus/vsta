@@ -36,6 +36,7 @@ extern struct pview *dup_pview(struct pview *),
 	*copy_pview(struct pview *);
 extern struct pview *alloc_pview(struct pset *);
 extern void remove_pview(struct vas *, void *);
+extern void attach_valid_slots(struct pview *);
 
 #endif /* KERNEL */
 #endif /* _PVIEW_H */

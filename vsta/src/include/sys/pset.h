@@ -58,7 +58,8 @@ struct psetops {
 		psop_writeslot,		/* Write slot to destination */
 		psop_init;		/* Called once on setup */
 	voidfun	psop_dup,		/* Duplicate set (fork()) */
-		psop_free;		/* Clean up on teardown */
+		psop_free,		/* Clean up on teardown */
+		psop_lastref;		/* Last ref on a slot dropped */
 };
 
 /*
@@ -101,26 +102,25 @@ struct pset {
 #define PF_SHARED 1	/* All views share (shared memory, etc.) */
 
 #ifdef KERNEL
-extern struct perpage *find_pp(struct pset *, uint);
 extern void lock_slot(struct pset *, struct perpage *),
 	unlock_slot(struct pset *, struct perpage *);
 extern int clock_slot(struct pset *, struct perpage *);
-extern void deref_pset(struct pset *), ref_pset(struct pset *);
+extern void deref_pset(struct pset *);
 extern struct pset *alloc_pset(uint);
 extern struct pset *alloc_pset_zfod(uint);
 extern struct pview *alloc_pview(struct pset *);
-extern struct pset *copy_pset(struct pset *);
+extern struct pset *copy_pset(struct pset *, uint, uint);
 extern struct pset *physmem_pset(uint, int);
 extern void add_atl(struct perpage *, struct pview *, uint);
 extern int delete_atl(struct perpage *, struct pview *, uint);
 extern void cow_write(struct pset *, struct perpage *, uint);
-extern void ref_slot(struct pset *, struct perpage *, uint),
-	deref_slot(struct pset *, struct perpage *, uint);
 extern void set_core(uint, struct pset *, uint);
 extern struct pset *alloc_pset_cow(struct pset *, uint, uint);
 extern ulong alloc_swap(uint);
 extern void free_swap(ulong, uint);
 extern struct pset *alloc_pset_fod(struct portref *, uint);
+extern void pset_lastref(struct pset *, struct perpage *, uint);
+extern int valid_pset_slots(struct pset *);
 #endif /* KERNEL */
 
 #endif /* _PSET_H */
