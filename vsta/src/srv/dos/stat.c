@@ -136,6 +136,21 @@ dos_acc(struct directory *d)
 }
 
 /*
+ * shortname()
+ *	Return name in dir entry as short UNIX-ish filename
+ *
+ * Return value is in a static buffer.
+ */
+static char *
+shortname(struct directory *d)
+{
+	static char buf[14];
+
+	pack_name(d, buf);
+	return(buf);
+}
+
+/*
  * dos_stat()
  *	Build stat string for file, send back
  */
@@ -145,29 +160,23 @@ dos_stat(struct msg *m, struct file *f)
 	char result[MAXSTAT];
 	struct node *n = f->f_node;
 	struct directory d;
+	int isdir = (n->n_type == T_DIR);
 
 	/*
-	 * Directories
+	 * No dir entry for root, otherwise get a copy of it
 	 */
 	if (n != rootdir) {
 		dir_copy(n->n_dir, n->n_slot, &d);
 	} else {
 		bzero(&d, sizeof(d));
 	}
-	if (n->n_type == T_DIR) {
-		sprintf(result,
- "perm=1/1\nacc=%s\nsize=%d\ntype=d\nowner=0\ninode=%lu\nmtime=%ld\n",
-			dos_acc(&d), isize(n), inum(n),
-			cvt_time(d.date, d.time));
-	} else {
-		/*
-		 * Otherwise look up file and get dope
-		 */
-		sprintf(result,
- "perm=1/1\nacc=%s\nsize=%ld\ntype=f\nowner=0\ninode=%lu\nmtime=%ld\n",
-			dos_acc(&d), n->n_len, inum(n),
-			cvt_time(d.date, d.time));
-	}
+	sprintf(result,
+"perm=1/1\nacc=%s\ntype=%c\nsize=%lu\nowner=0\ninode=%lu\n"
+"mtime=%ld\nshortname=%s\n",
+		dos_acc(&d),
+		(isdir ? 'd' : 'f'),
+		(isdir ? isize(n) : n->n_len),
+		inum(n), cvt_time(d.date, d.time), shortname(&d));
 	m->m_buf = result;
 	m->m_buflen = strlen(result);
 	m->m_nseg = 1;

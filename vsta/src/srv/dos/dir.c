@@ -29,7 +29,8 @@ claddr_t root_cluster;		/* Root cluster #, if FAT32 */
 
 static int mystrcasecmp(const char *s1, const char *s2);
 
-static const char illegal[] = ";+=[]',\"*\\<>/?:|";
+static const char illegal[] = ";+=[]',\"*\\<>/?:|",
+	villegal[] = "\"*\\<>/?:|";
 
 /*
  * ddirty()
@@ -154,14 +155,32 @@ static int
 map_filename(char *file, char *f1, char *f2)
 {
 	char *p, c;
-	int len;
+	int len, ndot;
 
 	/*
 	 * Scan filename for illegal characters.
 	 */
-	for (p = file; (c = (*p & 0x7F)); ++p) {
+	for (p = file, ndot = 0; (c = (*p & 0x7F)); ++p) {
 		if ((c < ' ') || strchr(illegal, c)) {
+			/*
+			 * If char is illegal in a short name,
+			 * but OK in a long, use long format.
+			 */
+			if (strchr(villegal, c)) {
+				return(1);
+			}
 			return(2);
+		}
+
+		/*
+		 * More than one dot in a filename means
+		 * it has to be represented as a long
+		 * filename.
+		 */
+		if (c == '.') {
+			if (ndot++ > 0) {
+				return(1);
+			}
 		}
 	}
 
@@ -174,6 +193,7 @@ map_filename(char *file, char *f1, char *f2)
 
 	/*
 	 * Map .<file> to _<file>
+	 * TBD: nuke this and depend on long filenames.
 	 */
 	if (*file == '.') {
 		len += 1;
@@ -1145,7 +1165,7 @@ unique_filename(char *file, char *f1, char *f2, struct node *n)
 	 * Assemble the base, up to 8 characters
 	 */
 	strcpy(f1, "        ");
-	for (x = 0; x < 8; ++x) {
+	for (x = 0, p = f1; x < 8; ++x) {
 		/*
 		 * End of string?
 		 */
@@ -1166,6 +1186,14 @@ unique_filename(char *file, char *f1, char *f2, struct node *n)
 		 */
 		if (c == '.') {
 			/*
+			 * We map ".<name>" into "<name>~<num>"
+			 */
+			if (x == 0) {
+				tilde = 1;
+				continue;
+			}
+
+			/*
 			 * We need a generated name if there's more
 			 * than one dot in the filename.
 			 */
@@ -1179,14 +1207,14 @@ unique_filename(char *file, char *f1, char *f2, struct node *n)
 		/*
 		 * Bring it across
 		 */
-		f1[x] = toupper(c);
+		*p++ = toupper(c);
 	}
-	baselen = x;
+	baselen = p - f1;
 
 	/*
 	 * We also need a generated name if the "real" name is too long
 	 */
-	if (x == 8) {
+	if (baselen == 8) {
 		if (file[x] && (file[x] != '.')) {
 			tilde = 1;
 		}

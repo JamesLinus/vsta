@@ -153,10 +153,10 @@ dos_write(struct msg *m, struct file *f)
  * pack_name()
  *	Pack a DOS name into a UNIX-ish format
  */
-static void
-pack_name(char *name, char *ext, char *file)
+void
+pack_name(struct directory *d, char *file)
 {
-	char *p;
+	char *p, *name = d->name, *ext = d->ext;
 
 	for (p = name; (p < name+8) && (*p != ' '); ++p) {
 		*file++ = tolower(*p);
@@ -454,7 +454,7 @@ dos_readdir(struct msg *m, struct file *f)
 			/*
 			 * Otherwise just convert the short name
 			 */
-			pack_name(d.name, d.ext, file);
+			pack_name(&d, file);
 		}
 
 		/*
