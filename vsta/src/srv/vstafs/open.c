@@ -6,7 +6,45 @@
 #include <vstafs/alloc.h>
 #include <vstafs/buf.h>
 #include <std.h>
+#include <sys/param.h>
 #include <sys/assert.h>
+
+/*
+ * partial_trunc()
+ *	Trim back the block allocation on an allocation unit
+ */
+static void
+partial_trunc(struct alloc *a, uint newsize)
+{
+	uint topbase;
+
+	ASSERT_DEBUG(newsize > 0, "partial_trunc: 0 size");
+
+	/*
+	 * If not even a single block has been freed, the partial
+	 * trunc comes to a no-op from the perspective of block
+	 * allocation.
+	 */
+	if (newsize == a->a_len) {
+		return;
+	}
+
+	/*
+	 * Inval buffer extents beyond last one with data
+	 */
+	topbase = roundup(newsize, EXTSIZ);
+	if (a->a_len > topbase) {
+		inval_buf(a->a_start + topbase, a->a_len - topbase);
+	}
+
+	/*
+	 * Consider last buffer extent with data, and resize
+	 */
+	topbase = (newsize & ~(EXTSIZ-1));
+	resize_buf(a->a_start + topbase, newsize - topbase, 0);
+	free_block(a->a_start + newsize, a->a_len - newsize);
+	a->a_len = newsize;
+}
 
 /*
  * file_shrink()
@@ -55,22 +93,18 @@ file_shrink(struct openfile *o, ulong len)
 		y = btors(len - pos);
 		if (y > 0) {
 			/*
-			 * Reconfigure any buffer, free excess storage.
+			 * Shave it
 			 */
-			if (a->a_len > EXTSIZ) {
-				inval_buf(a->a_start + EXTSIZ,
-					a->a_len - EXTSIZ);
-			}
-			resize_buf(a->a_start, y, 0);
-			free_block(a->a_start + y, a->a_len - y);
-			a->a_len = y;
+			partial_trunc(a, y);
 
 			/*
 			 * If this was extent 0, our buffer data
 			 * might move on the resize.  Re-access
 			 * it.
 			 */
-			fs = index_buf(b, 0, 1);
+			if (idx == 0) {
+				fs = index_buf(b, 0, 1);
+			}
 
 			/*
 			 * This extent is finished, advance to next
