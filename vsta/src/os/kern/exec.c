@@ -51,17 +51,17 @@ discard_vas(struct vas *vas)
 }
 
 /*
- * add_minstack()
- *	Add the minimal user stack pview
+ * add_stack()
+ *	Add the user stack pview
  */
 static void
-add_minstack(struct vas *vas)
+add_stack(struct vas *vas)
 {
 	/*
 	 * Stack is ZFOD at the fixed address USTACKADDR.  There isn't
 	 * much to be done if it fails.
 	 */
-	if (!alloc_zfod_vaddr(vas, btorp(UMINSTACK), (void *)USTACKADDR)) {
+	if (!alloc_zfod_vaddr(vas, btorp(UMAXSTACK), (void *)USTACKADDR)) {
 #ifdef DEBUG
 		printf("exec pid %d: out of swap on stack\n",
 			curthread->t_proc->p_pid);
@@ -166,7 +166,7 @@ exec(uint arg_port, struct mapfile *arg_map, void *arg)
 	/*
 	 * Add back a minimal stack
 	 */
-	add_minstack(&p->p_vas);
+	add_stack(&p->p_vas);
 
 	/*
 	 * Put in the views of the file
