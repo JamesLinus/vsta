@@ -11,7 +11,7 @@
 /*
  * Constants
  */
-#define MAXARGS (8)	/* Max # args to :r command */
+#define MAXARGS (16)	/* Max # args to :r command */
 #define MAX_BPOINT (4)	/*  ... # breakpoints */
 
 /*
