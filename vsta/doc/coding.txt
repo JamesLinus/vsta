@@ -1,0 +1,180 @@
+The coding standards for VSTa.
+
+Yes, we have coding standards.  The ones described here apply to
+the kernel, C library, utility library, and "core servers"--the ones
+you will generally use to boot.  A seperate coding standard
+exists for the windowing system.  If another distinct subsystem
+comes up, and you write it from scratch, then you can apply your
+own coding standard to that part.
+
+I've tried to hone it down to just 10 rules.  It seems like a lot,
+but hopefully 5 of them will match your personal style anyway,
+so it isn't as bad as it looks.
+
+0. Henry Spencer's Rules of C
+
+	Read this article.  Believe it.  The rest of this is just
+some refinement of what he says.  This doesn't count as one of the
+10, because you shouldn't be writing C until you have read this.
+
+1. Comments
+
+/*
+ * function_name()
+ *	One-liner (only) for the function
+ *
+ * Further discussion.  This is a good place to mention success/failure
+ * values and so forth.
+ *
+ * A distinct thought, or perhaps a note about assumptions or limitations.
+ */
+struct foobar *
+function_name(void)
+{
+	int x;
+
+	/*
+	 * Describe a block of code, then write the block of code
+	 */
+	for (x = 0; x < FOOBLAT; ++x) {
+		something(x);
+		...
+	}
+}
+
+Do NOT use pretty blocks of stars.  They make it hard to update
+the comments.  We all know what happens when comments are a pain
+to update....
+
+2. Conditionals
+
+	if (condition) {
+		...
+	}
+
+	if (condition1 || condition2) {
+	} else {
+	}
+
+	if (foo && !bar) {
+	} else if (bletch) {
+	}
+
+3. Loops
+
+	for (x = 0; x < 20; ++x) {
+	}
+
+Do NOT use the open version:
+	for (x = 0; x < 20; ++x)
+		bar();
+If you aren't tripped by it, somebody else will be instead.
+
+4. Indentation
+
+	Do not use tabs in the actual data part.  You may use tabs
+to space out to the following comments.  Trailing tabs before the
+closing */ just make it hard to add further words.  Yes, making the
+closing */'s on lines match up is pretty, but we have art and
+museums for that.
+
+int foob;		/* Will count instances of foob */
+static char bar;	/*  ...the char matching foob */
+
+5. Patching somebody's code
+
+	Do not go fiddle somebody's organization just because
+you think you can make it prettier.  It is especially bad form
+to fiddle the indentation and layout, PLUS add some new stuff,
+then hand them back the entire result.  Now they have to dig
+through a bunch of indentation changes while trying to find
+functional changes.
+
+extern int x, y, z;
+
+	VVV
+
+extern int x;
+extern int y;
+extern int w;
+extern int z;
+
+	Such a change adds little, but fills our screens with
+diffs.  If you take over the file AND you add comments to each
+line, it might be worth it.  It sure would be easy to miss
+that "w" in there at the same time, wouldn't it?
+
+6. ANSI prototypes
+
+	Use ANSI prototypes where possible.  The one major
+exception is anonymous struct pointers.  Imagine a header
+which uses an anonymous pointer (i.e., they know the name
+of the struct they're pointing to, but they don't know
+the definitions of the struct.)  gcc will complain about
+such a prototype:
+
+extern void my_func(struct foob *);
+
+unless he has already seen "struct foob" at level 0 (global).
+In my opinion (and I am well outside industry consensus, and
+am aware of that) it is better to leave out the prototype than
+to make this .h #include the one which defines "struct foob".
+Basically, I prefer to limit scope of knowledge more than I
+want prototypes for all function calls.
+
+There are workarounds, and most of them suck.  If you use
+one of these workarounds, I will probably accept your code.
+
+7. ANSI void *
+
+	Use ANSI void pointers when you're dealing with
+a generic pointer value.  Do NOT do math with such a pointer.
+Yes, GCC will happen to treat it as a char *.  If you're counting
+on this, cast it to (char *) and then do the math.
+
+8. C types
+
+	Use the basic C types for most work.  If you have a
+struct pointer, just name it as such.  I want:
+
+struct foo {
+	int field1;
+	...
+};
+...
+{
+	struct foo *f;
+
+	f = ...;
+	f->field1 = bar;
+}
+
+And not:
+
+typedef struct {
+	int field1;
+	...
+} foo_t;
+...
+
+C has good basic ways for naming types, and typedef's should
+not be used to hide them.  The exceptions are industry-recognized
+types like "ushort" (unsigned short) and so forth.
+
+9. #define's
+
+	A short #define can help encapsulate a simple operation
+or value into a useful name.  If you find that the number of
+"#define"'s is becoming a large fraction of your header file
+(or even your code!) then back off.  Make it a function.  Maybe
+it'll go slower... maybe GCC will in-line it anyway.
+
+10. Variable names
+
+	Use short variable names.  A phone number is 7 digits
+because that's the size of "name" the human mind can carry around
+easily.  Keep your variables in the same class of length.  Long,
+descriptive variables make code-reading cumbersome, as the mind
+continually must re-parse the components of the variable name.
+Globals used across source files will tend to be a little bit
+longer.
