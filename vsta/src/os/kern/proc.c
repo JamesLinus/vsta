@@ -172,15 +172,17 @@ bootproc(struct boot_task *b)
 static void
 refill_pids(void)
 {
-	static ulong rotor = 200L;	/* Where to scan from */
-	ulong pnext, pid;
+	static pid_t rotor = 0L;
+	pid_t pnext, pid;
 	struct proc *p;
+	struct thread *t = 0;
 
 retry:
-	pnext = (ulong)-1;	/* XXX assumes two's complement */
+	pnext = -1;
 	for (p = allprocs; p; p = p->p_allnext) {
-		struct thread *t = 0;
-
+		if (rotor <= 0) {
+			rotor = 200L;	/* Where to scan from */
+		}
 		pid = p->p_pid;
 		do {
 			/*
@@ -245,10 +247,10 @@ retry:
  * We keep a range of free process IDs memorized.  When we exhaust it,
  * we scan for a new range.
  */
-ulong
+pid_t
 allocpid(void)
 {
-	ulong pid;
+	pid_t pid;
 
 	/*
 	 * If we're out, scan for new ones
@@ -270,12 +272,13 @@ allocpid(void)
  * fork_thread()
  *	Launch a new thread within the same process
  */
+pid_t
 fork_thread(voidfun f)
 {
 	struct proc *p = curthread->t_proc;
 	struct thread *t;
 	void *ustack;
-	uint npid;
+	pid_t npid;
 	extern void *alloc_zfod();
 
 	/*
@@ -372,11 +375,12 @@ init_proc(void)
  * fork()
  *	Fork out an entirely new process
  */
+pid_t
 fork(void)
 {
 	struct thread *tnew, *told = curthread;
 	struct proc *pold = told->t_proc, *pnew;
-	uint npid;
+	pid_t npid;
 	extern struct vas *fork_vas();
 
 	/*
@@ -433,6 +437,7 @@ fork(void)
 	bcopy(pold->p_cmd, pnew->p_cmd, sizeof(pnew->p_cmd));
 	v_sema(&pold->p_sema);
 	pnew->p_children = alloc_exitgrp(pnew);
+	pnew->p_event[0] = '\0';
 
 	/*
 	 * Duplicate stack now that we have a viable thread/proc
@@ -607,7 +612,7 @@ exit(int code)
  *	Find a process, return it locked
  */
 struct proc *
-pfind(ulong pid)
+pfind(pid_t pid)
 {
 	struct proc *p;
 
@@ -627,7 +632,7 @@ pfind(ulong pid)
  * waits()
  *	Get next exit() event from our exit group
  */
-waits(struct exitst *w)
+waits(struct exitst *w, int block)
 {
 	struct proc *p = curthread->t_proc;
 	struct exitst *e;
@@ -638,7 +643,7 @@ waits(struct exitst *w)
 	 * call, so a NULL return here simply means there are no
 	 * children on which to wait.
 	 */
-	e = wait_exitgrp(p->p_children);
+	e = wait_exitgrp(p->p_children, block);
 	if (e == 0) {
 		return(err(ESRCH));
 	}
