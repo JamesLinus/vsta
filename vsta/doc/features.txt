@@ -250,3 +250,4 @@ Implement inbuf/outbuf counts for console.  fionread() now works there.
 Always let owner (UID) to chown operations on vstafs.  Otherwise you
 	can paint yourself into a corner, where you remove all abilities
 	of all users to touch the file!
+Fix some more long-filename compilation errors.
