@@ -404,6 +404,10 @@ mount(char *p)
 	port_name pn;
 	int x;
 
+	if (!p || !p[0]) {
+		printf("Usage: mount <port> <path>\n");
+		return;
+	}
 	while (isspace(*p)) {
 		++p;
 	}
