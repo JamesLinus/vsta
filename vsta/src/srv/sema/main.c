@@ -185,16 +185,6 @@ loop:
 		sema_read(&msg, f);
 		break;
 
-	case FS_ABSWRITE:	/* Write at position */
-		if (sema_seek(&msg, f)) {
-			break;
-		}
-		/* VVV fall into VVV */
-
-	case FS_WRITE:		/* Write file */
-		sema_write(&msg, f);
-		break;
-
 	case FS_STAT:		/* Tell about file */
 		sema_stat(&msg, f);
 		break;
