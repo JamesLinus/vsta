@@ -5,6 +5,7 @@ OBJECTS = boot.o check.o common.o dosfsck.o fat.o file.o io.o lfn.o
 all: dosfsck
 
 dosfsck: $(OBJECTS)
+	rm -f dosfsck
 	$(CC) -o $@ $(LDFLAGS) $(OBJECTS)
 
 .c.o:
