@@ -127,6 +127,7 @@ ptrace_slave(char *event)
 	struct portref *pr;
 	port_t port;
 	long args[3];
+	uint x;
 	extern struct portref *find_portref();
 
 retry:
@@ -218,12 +219,11 @@ retry:
 			args[0] = set_break(args[1], args[0]);
 			break;
 
-		case PD_REGS:	/* Read/write registers */
-			if (args[1] == 0) {
-				args[0] = getreg(args[0]);
-			} else {
-				args[0] = setreg(args[0], args[1]);
-			}
+		case PD_RDREG:	/* Read register */
+			args[0] = getreg(args[0]);
+			break;
+		case PD_WRREG:	/* Write register */
+			args[0] = setreg(args[0], args[1]);
 			break;
 
 		case PD_MASK:	/* Set debug event mask */
@@ -247,6 +247,24 @@ retry:
 				args[1] = 0;
 			}
 			args[0] = 0;
+			break;
+		case PD_MEVENT:	/* Read/write event string */
+			x = args[0] & 0xFF;
+			if (x > ERRLEN) {
+				args[0] = -1;
+				break;
+			}
+			if (args[0] & 0xFF00) {
+				if (event) {
+					event[x] = args[1];
+				}
+			} else {
+				if (event) {
+					args[1] = event[x];
+				} else {
+					args[1] = 0;
+				}
+			}
 			break;
 		default:	/* Bogus--drop him */
 			v_sema(&pr->p_sema);
