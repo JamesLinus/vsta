@@ -1,6 +1,6 @@
 /*
  * vsta_srv.c
- *	Offer a VSTa filesystem interface to the KA9Q TCP engine
+ *	Offer a VSTa filesystem interface to the KA9Q TCP/IP engine
  */
 #include <sys/fs.h>
 #include <sys/perm.h>
@@ -9,17 +9,18 @@
 #include "mbuf.h"
 #include "vsta.h"
 
+static void port_daemon(void);
+
 const int hash_size = 16;	/* Guess, # clients */
 
 extern int32 ip_addr;		/* Our node's IP address */
 
-static struct hash *clients;	/* TCP filesystem clients */
+static struct hash *clients;	/* /inet filesystem clients */
 static struct hash *ports;	/* Port # -> tcp_port mapping */
 static port_t serv_port;	/* Our port */
-static void port_daemon(void);
 
 /*
- * Per-port state.  Note that there can be numerous distinct
+ * Per-port TCP state.  Note that there can be numerous distinct
  * client connections
  */
 struct tcp_port {
@@ -305,7 +306,7 @@ tcpfs_open(struct msg *m, struct client *c)
 		/*
 		 * Clone open; pick an unused port number
 		 */
-		portnum = next_port();
+		portnum = lport++;
 	}
 
 	/*
@@ -499,7 +500,7 @@ vsta1(int argc, char **argv)
 		cleanup();
 		return;
 	}
-	if (namer_register("net/tcp", pn) < 0) {
+	if (namer_register("net/inet", pn) < 0) {
 		printf("Can't register port name\n");
 		cleanup();
 		return;
