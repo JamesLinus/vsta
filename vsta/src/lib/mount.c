@@ -192,3 +192,171 @@ umount(char *point, int fd)
 	bcopy(mt+1, mt, __nmnttab - (mt-__mnttab));
 	return(0);
 }
+
+/*
+ * __mount_size()
+ *	Tell how big the save state of the mount table would be
+ */
+ulong
+__mount_size(void)
+{
+	ulong len;
+	uint x;
+	struct mnttab *mt;
+
+	/*
+	 * Count of mnttab slots
+	 */
+	len = sizeof(ulong);
+
+	/*
+	 * For each mount table slot
+	 */
+	for (x = 0; x < __nmnttab; ++x) {
+		struct mntent *me;
+
+		mt = &__mnttab[x];
+		len += (strlen(mt->m_name)+1);
+		len += sizeof(uint);	/* Count of mntent's here */
+		for (me = mt->m_entries; me; me = me->m_next) {
+			len += sizeof(port_t);
+		}
+	}
+	return(len);
+}
+
+/*
+ * __mount_save()
+ *	Save mount table state into byte array
+ */
+void
+__mount_save(char *p)
+{
+	uint x, l;
+	struct mnttab *mt;
+
+	/*
+	 * Count of mnttab slots
+	 */
+	*(ulong *)p = __nmnttab;
+	p += sizeof(ulong);
+
+	/*
+	 * For each mount table slot
+	 */
+	for (x = 0; x < __nmnttab; ++x) {
+		struct mntent *me;
+		ulong *lp;
+
+		mt = &__mnttab[x];
+
+		/*
+		 * Copy in string
+		 */
+		l = strlen(mt->m_name)+1;
+		bcopy(mt->m_name, p, l);
+		p += l;
+
+		/*
+		 * Record where mntent count will go
+		 */
+		lp = (ulong *)p;
+		p += sizeof(ulong);
+		l = 0;
+
+		/*
+		 * Scan mntent's, storing port # in place
+		 */
+		for (me = mt->m_entries; me; me = me->m_next) {
+			*(port_t *)p = me->m_port;
+			p += sizeof(port_t);
+			l += 1;
+		}
+
+		/*
+		 * Back-patch mntent count now that we know
+		 */
+		*lp = l;
+	}
+}
+
+/*
+ * __mount_restore()
+ *	Restore mount state from byte array
+ */
+char *
+__mount_restore(char *p)
+{
+	ulong x, len;
+	uint l;
+	struct mnttab *mt;
+
+	/*
+	 * Count of mnttab slots
+	 */
+	__nmnttab = len = *(ulong *)p;
+	p += sizeof(ulong);
+
+	/*
+	 * Get mnttab
+	 */
+	__mnttab = malloc(sizeof(struct mnttab) * len);
+	if (__mnttab == 0) {
+		abort();
+	}
+
+	/*
+	 * For each mount table slot
+	 */
+	for (x = 0; x < len; ++x) {
+		struct mntent *me, **mp;
+		uint y;
+
+		mt = &__mnttab[x];
+
+		/*
+		 * Copy in string
+		 */
+		l = strlen(p)+1;
+		mt->m_name = malloc(l);
+		if (mt->m_name == 0) {
+			abort();
+		}
+		bcopy(p, mt->m_name, l);
+		p += l;
+
+		/*
+		 * Get mntent count
+		 */
+		l = *(ulong *)p;
+		p += sizeof(ulong);
+
+		/*
+		 * Generate mntent's
+		 */
+		mp = &mt->m_entries;
+		for (y = 0; y < l; ++y) {
+			/*
+			 * Get next mntent
+			 */
+			me = malloc(sizeof(struct mntent));
+			if (me == 0) {
+				abort();
+			}
+
+			/*
+			 * Tack onto linked list
+			 */
+			me->m_port = *(port_t *)p;
+			*mp = me;
+			mp = &me->m_next;
+			p += sizeof(port_t);
+		}
+
+		/*
+		 * Terminate with null
+		 */
+		*mp = 0;
+	}
+	return(p);
+}
