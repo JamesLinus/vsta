@@ -421,6 +421,9 @@ write(int fd, void *buf, uint nbyte)
 	if ((port = __port(fd)) == 0) {
 		return(-1);
 	}
+	if (nbyte == 0) {
+		return(0);
+	}
 	return((*(port->p_write))(port, buf, nbyte));
 }
 
