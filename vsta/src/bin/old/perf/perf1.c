@@ -165,6 +165,7 @@ void	main(int argc, char **argv)
 			perror("message receive error");
 			exit(0);
 		}
+		msg.m_op &= MSG_MASK;
 		switch(msg.m_op) {
 		case M_CONNECT:
 			msg_accept(msg.m_sender);
