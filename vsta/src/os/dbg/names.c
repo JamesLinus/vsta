@@ -85,6 +85,18 @@ find_ent(char *nm)
 	if (!s && (nm[0] == '_')) {
 		s = findent(nm+1);
 	}
+
+	/*
+	 * If not match and we didn't specify an underscore, try it
+	 * with prefix underscore.
+	 */
+	if (!s && (nm[0] != '_')) {
+		char buf[64];
+
+		buf[0] = '_';
+		bcopy(nm, buf+1, strlen(nm)+1);
+		s = findent(buf);
+	}
 	return(s);
 }
 
