@@ -59,7 +59,6 @@
 
 extern uint freemem, totalmem;		/* Free and total pages in system */
 					/*  total does not include C_SYS */
-sema_t pageout_sema;
 uint pageout_secs = 0;		/* Set to PAGEOUT_SECS when ready */
 uint desfree, minfree;		/* Initial values calculated on boot */
 extern struct portref
@@ -487,11 +486,6 @@ pageout(void)
 	desfree = totalmem/DESFREE;
 
 	/*
-	 * Initialize our semaphore
-	 */
-	init_sema(&pageout_sema);
-
-	/*
 	 * Main loop
 	 */
 	for (;;) {
@@ -530,12 +524,11 @@ pageout(void)
 				}
 			}
 #endif
-			p_sema(&pageout_sema, PRIHI);
 
 			/*
-			 * Clear all v's after wakeup
+			 * Suspend until the next interval
 			 */
-			set_sema(&pageout_sema, 0);
+			interval_sleep(pageout_secs);
 		}
 
 		/*
@@ -547,15 +540,4 @@ pageout(void)
 		ADVANCE(hand2);
 		npg += 1;
 	}
-}
-
-/*
- * kick_pageout()
- *	Wake pageout daemon periodically
- */
-void
-kick_pageout(void)
-{
-	ASSERT_DEBUG(pageout_secs > 0, "kick_pageout: no daemon");
-	v_sema(&pageout_sema);
 }
