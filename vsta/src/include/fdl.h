@@ -17,6 +17,7 @@ struct port {
 		p_close,
 		p_seek;
 	uint p_refs;	/* # FD's mapping to this port # */
+	ulong p_pos;	/* Absolute byte offset in file */
 };
 
 /*
