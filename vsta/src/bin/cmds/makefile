@@ -12,7 +12,7 @@ CRT0=../../lib/crt0.o
 # Note: "ps", which used to be here, is now located in srv/proc/cmd
 #
 PROGS=test args cat id ls swapd rm cp sleep mkdir pwd kill mv stat \
-	dumpsect man fstab rmdir touch strings
+	dumpsect man fstab rmdir touch strings xargs echo
 
 all: $(PROGS)
 
@@ -75,6 +75,12 @@ test: test.o operator.o
 
 args: args.o
 	$(LD) $(LDFLAGS) -o args $(CRT0) args.o -lc
+
+echo: echo.o
+	$(LD) $(LDFLAGS) -o echo $(CRT0) echo.o -lc
+
+xargs: xargs.o
+	$(LD) $(LDFLAGS) -o xargs $(CRT0) xargs.o -lc
 
 strings: strings.o
 	$(LD) $(LDFLAGS) -o strings $(CRT0) strings.o -lc
