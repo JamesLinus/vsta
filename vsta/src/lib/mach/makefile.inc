@@ -21,13 +21,13 @@ setjmp.o: mach/setjmp.s
 
 # crt0, standard version and one with boot server support
 crt0.o: mach/crt0.s
-	$(CPP) mach/crt0.s tmp.s
-	$(AS) -o crt0.o tmp.s
-	rm -f tmp.s
+	$(CPP) mach/crt0.s crt0.st
+	$(AS) -o crt0.o crt0.st
+	rm -f crt0.st
 crt0srv.o: mach/crt0.s
-	$(CPP) -DSRV mach/crt0.s tmp.s
-	$(AS) -o crt0srv.o tmp.s
-	rm -f tmp.s
+	$(CPP) -DSRV mach/crt0.s crt0s.st
+	$(AS) -o crt0srv.o crt0s.st
+	rm -f crt0s.st
 gnufuncs.o: mach/gnufuncs.s
 	$(AS) -o gnufuncs.o mach/gnufuncs.s
 exec.o: mach/exec.c
@@ -35,15 +35,15 @@ exec.o: mach/exec.c
 
 # Our tricky syscall stub which needs to use CPP
 syscalls.o: mach/syscalls.s
-	$(CPP) -D__ASM__ $(INCS) mach/syscalls.s tmp.s
-	as -o syscalls.o tmp.s
-	rm -f tmp.s
+	$(CPP) -D__ASM__ $(INCS) mach/syscalls.s sysc.st
+	as -o syscalls.o sysc.st
+	rm -f sysc.st
 
 # Minimal version for shlib loading
 shcalls.o: mach/shcalls.s
-	$(CPP) -D__ASM__ $(INCS) mach/shcalls.s tmp.s
-	as -o shcalls.o tmp.s
-	rm -f tmp.s
+	$(CPP) -D__ASM__ $(INCS) mach/shcalls.s shc.st
+	as -o shcalls.o shc.st
+	rm -f shc.st
 
 # Disk partition interpretation library
 libdpart.a: dpart.o
