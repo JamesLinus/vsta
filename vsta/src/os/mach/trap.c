@@ -101,6 +101,17 @@ page_fault(ulong place_holder)
 	dbg_trap_frame = f;
 #endif
 
+	/*
+	 * Get fault address, then let interrupts back in.  This
+	 * minimizes latency on kernel preemption, while still keeping
+	 * a preempting task from hosing our CR2 value.
+	 */
+	l = get_cr2();
+	sti();
+
+	/*
+	 * User mode page fault
+	 */
 	if (user_mode) {
 		ASSERT_DEBUG(t, "page_fault: user !curthread");
 		ASSERT_DEBUG(t->t_uregs == 0,
@@ -109,11 +120,10 @@ page_fault(ulong place_holder)
 	}
 
 	/*
-	 * Get fault address.  Drop the high bit because the
+	 * Drop the high bit because the
 	 * user's 0 maps to our 0x80000000, but our vas is set
 	 * up in terms of his virtual addresses.
 	 */
-	l = get_cr2();
 	if (l < 0x80000000) {
 		ASSERT(user_mode, "trap: kernel fault");
 
@@ -592,6 +602,13 @@ init_trap(void)
 	 * Users can make system calls with "int $T_SYSCALL"
 	 */
 	idt[T_SYSCALL].g_dpl = PRIV_USER;
+
+	/*
+	 * Hold off interrupts on a page fault until we can grab
+	 * CR2's value (thanks, Intel, next time put it on the stack
+	 * along with the rest of the trap context, eh?)
+	 */
+	idt[T_PGFLT].g_type = T_INTR;
 
 	/*
 	 * Load the IDT into hardware
