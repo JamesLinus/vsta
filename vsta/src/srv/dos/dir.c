@@ -384,9 +384,13 @@ search_vfat(char *name, struct directory *d, int ndir, struct directory *d2)
 		}
 
 		/*
-		 * If not a VSE, ignore
+		 * If not a VSE, compare against the plain old DOS name.
 		 */
 		if (d->attr != DA_VFAT) {
+			pack_name(d, buf);
+			if (!mystrcasecmp(name, buf)) {
+				return(x);
+			}
 			continue;
 		}
 
