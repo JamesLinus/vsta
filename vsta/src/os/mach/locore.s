@@ -203,7 +203,7 @@ _fpu_disable:
 	jz	1f
 	fnsave	(%eax)
 1:	movl	%cr0,%eax
-	orl	$CR0_EM,%eax
+	orl	$(CR0_EM),%eax
 	movl	%eax,%cr0
 	ret
 
