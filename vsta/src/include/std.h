@@ -23,5 +23,6 @@ extern long __cwd_size(void);
 extern void __cwd_save(char *);
 extern char *__cwd_restore(char *);
 extern char *getcwd(char *, int);
+extern int dup(int), dup2(int, int);
 
 #endif /* _STD_H */
