@@ -363,8 +363,17 @@ loop:
 static void
 usage(void)
 {
+	/*
+	 * If it's interactive, they'll see this...
+	 */
 	printf("Usage: dos -p <portpath> <fsname>\n");
 	printf("   or: dos <filepath> <fsname>\n");
+
+	/*
+	 * If not, perhaps syslog will be noticed
+	 */
+	syslog(LOG_ERR, "Illegal command line arguments");
+
 	exit(1);
 }
 
