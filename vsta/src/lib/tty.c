@@ -292,23 +292,40 @@ __tty_close(struct port *port)
  * tcsetattr()
  *	Set TTY attributes
  *
- * This needs rethinking when I put a TTY monitor on top.  We still
- * fiddle the state in the FDL, but we also have to pass some stuff
- * up to our monitor.  For instance, the monitor needs to know what
- * the interrupt characters are so he can spot them and send a signal
- * to the appropriate process group.  wstat() will be the right way,
- * but have to think what format the wstat() message would use, so leave
- * until I'm ready to work on the monitor code.
+ * In addition to recording the state locally, key parts are forwarded
+ * to the underlying TTY port server.  This permits this port server--
+ * be it a window under MGR or the console server--to know what mode
+ * the TTY is in, and what characters should result in a signal.
+ *
+ * This change is wstat()'ed upward, but no error return is recorded.
+ * It is quite possible that the TTY server does not implement interrupt
+ * and quit characters; this is fine for TTY servers which primarily offer
+ * operation in an embedded mode.
  */
 tcsetattr(int fd, int flag, struct termios *t)
 {
 	struct port *port;
+	char buf[128];
 
 	port = __port(fd);
 	if (!port || (port->p_read != __tty_read)) {
 		return(-1);
 	}
-	tty_state = *t;
+	if (t->c_cc[VINTR] != tty_state.c_cc[VINTR]) {
+		sprintf(buf, "intr=%d\n", t->c_cc[VINTR]);
+		(void)wstat(port->p_port, buf);
+	}
+	if (t->c_cc[VQUIT] != tty_state.c_cc[VQUIT]) {
+		sprintf(buf, "quit=%d\n", t->c_cc[VQUIT]);
+		(void)wstat(port->p_port, buf);
+	}
+	if ((t->c_lflag & (ISIG | ICANON)) !=
+			(tty_state.c_lflag & (ISIG | ICANON))) {
+		sprintf(buf, "isig=%d\n",
+			(t->c_lflag & (ISIG | ICANON)) == (ISIG | ICANON));
+		(void)wstat(port->p_port, buf);
+	}
+	bcopy(t, &tty_state, sizeof(tty_state));
 	return(0);
 }
 
