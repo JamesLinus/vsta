@@ -57,7 +57,7 @@ static char rcsid[] = "redir.c,v 1.5 1993/08/01 18:58:01 mycroft Exp";
 
 
 #define EMPTY -2		/* marks an unused slot in redirtab */
-#define PIPESIZE 4096		/* amount of buffering in a pipe */
+#define PIPESIZE 0		/* amount of buffering in a pipe */
 
 
 MKINIT
