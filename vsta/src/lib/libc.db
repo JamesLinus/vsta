@@ -317,3 +317,4 @@ _setgrent
 _endgrent
 ___get_tzname
 __fdclose hidden
+_fchmod
