@@ -26,6 +26,11 @@
 #define FS_RENAME 153		/* Renaming of files */
 
 /*
+ * Used for tunneling an error code within a struct msg
+ */
+#define FS_ERR (154)
+
+/*
  * How to ask if an operation is a bulk read/write
  */
 #define FS_RW(op) (((op) == FS_READ) || ((op) == FS_WRITE) || \
