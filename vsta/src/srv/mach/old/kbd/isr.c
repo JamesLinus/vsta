@@ -74,6 +74,7 @@ key_event(uchar c)
 		extern void dbg_enter();
 
 		dbg_enter();
+		ctl = 0;	/* We presume they released it */
 		return;
 	}
 #endif

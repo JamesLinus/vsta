@@ -1,7 +1,10 @@
 /*
- * rs232.c
+ * dbg_ser.c
  *	Routines to do a spin-oriented interface to a serial port
  */
+#include <mach/param.h>
+
+#ifdef SERIAL
 
 /*
  * 1 for COM1, 0 for COM2 (bleh)
@@ -22,11 +25,11 @@
 #define MODEM (IOBASE+0xC)	/* Modem lines */
 
 /*
- * rs232_init()
+ * init_cons()
  *	Initialize to 9600 baud on com port
  */
 void
-rs232_init(void)
+init_cons(void)
 {
 	outportb(LINEREG, 0x80);	/* 9600 baud */
 	outportb(HIBAUD, 0);
@@ -39,20 +42,25 @@ rs232_init(void)
  *	Busy-wait and then send a character
  */
 void
-rs232_putc(int c)
+cons_putc(int c)
 {
 	while ((inportb(LINESTAT) & 0x20) == 0)
 		;
 	outportb(DATA, c & 0x7F);
 }
 
+#ifdef KDB
 /*
- * rs232_getc()
+ * cons_getc()
  *	Busy-wait and return next character
  */
-rs232_getc(void)
+int
+cons_getc(void)
 {
 	while ((inportb(LINESTAT) & 1) == 0)
 		;
 	return(inportb(DATA) & 0x7F);
 }
+#endif /* KDB */
+
+#endif /* SERIAL */

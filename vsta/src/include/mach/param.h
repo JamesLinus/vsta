@@ -19,4 +19,9 @@
  */
 #define HZ (18)
 
+/*
+ * Which console device to use for printf() and such
+ */
+#undef SERIAL		/* Define for COM1, else use screen */
+
 #endif /* _MACHPARAM_H */

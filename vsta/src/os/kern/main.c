@@ -6,7 +6,7 @@
 
 extern void init_machdep(), init_page(), init_qio(), init_sched(),
 	init_proc(), init_swap(), swtch(), init_malloc(), init_msg();
-extern void init_wire(), start_clock();
+extern void init_wire(), start_clock(), init_cons();
 #ifdef DEBUG
 extern void init_debug();
 #endif
@@ -20,6 +20,7 @@ main(void)
 	init_machdep();
 	init_page();
 	init_malloc();
+	init_cons();
 #ifdef DEBUG
 	init_debug();
 #endif
