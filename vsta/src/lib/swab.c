@@ -2,8 +2,10 @@
  * swab()
  *	Swap pairs of bytes in a string
  */
+#include <string.h>
+
 void
-swap(const char *src, char *dest, size_t len)
+swab(const char *src, char *dest, size_t len)
 {
 	for ( ; len > 1; len -= 2) {
 		dest[1] = src[0];
