@@ -658,7 +658,7 @@ sendev(struct thread *t, char *ev)
 	 */
 	if (copyout((void *)(f->esp - sizeof(e)), &e, sizeof(e))) {
 #ifdef DEBUG
-		printf("Stack overflow pid %ld/%ld sp 0x%x\n",
+		printf("Stack overflow pid %d/%d sp 0x%x\n",
 			p->p_pid, t->t_pid, f->esp);
 		dbg_enter();
 #endif
