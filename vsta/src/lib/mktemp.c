@@ -5,6 +5,7 @@
  * This doesn't co-exist well with read-only strings in C, but
  * needed for compatibility.
  */
+#include <std.h>
 
 /*
  * mktemp()
