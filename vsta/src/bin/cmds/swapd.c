@@ -42,15 +42,10 @@ main(argc, argv)
 		port_name n;
 		struct msg m;
 
-		n = namer_find(argv[1]);
-		s.s_port = n;
+		strcpy(s.s_path, argv[1]);
 		s.s_off = 0;
 		s.s_len = 0;
-		if (argc > 2) {
-			strcpy(s.s_path, argv[2]);
-		} else {
-			s.s_path[0] = '\0';
-		}
+
 		m.m_op = SWAP_ADD;
 		m.m_buf = &s;
 		m.m_buflen = sizeof(s);
