@@ -140,7 +140,7 @@ extern int vscanf(const char *, va_list),
 	vsscanf(char *, const char *, va_list);
 extern FILE *tmpfile(void);
 extern FILE *popen(const char *, const char *);
-extern void pclose(FILE *);
+extern int pclose(FILE *);
 
 /*
  * Pseudo-FDL at the FILE * layer
