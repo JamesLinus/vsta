@@ -199,7 +199,7 @@ hat_deletetrans(struct pview *pv, void *va, uint pfn)
 	}
 	*pt &= ~PT_V;
 	if (pv->p_vas == curthread->t_proc->p_vas) {
-		flush_tlb();
+		flush_tlb(va);
 	}
 }
 
