@@ -21,6 +21,7 @@
  * A poor man's <assert.h> to avoid circular library dependencies
  */
 #ifdef DEBUG
+#include <fcntl.h>
 #define ASSERT(cond, msg) if (!(cond)) \
 	{ write(2, msg, sizeof(msg)-1); abort(); }
 #else
@@ -330,7 +331,7 @@ set_size(void *mem, int size)
  * get_size()
  *	Get size attribute for some memory
  */
-static
+static int
 get_size(void *mem)
 {
 	struct chunk *c;
@@ -512,7 +513,6 @@ void *
 realloc(void *mem, uint newsize)
 {
 	uint oldsize;
-	int copy = 0;
 	void *newmem;
 
 	/*
