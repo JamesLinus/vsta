@@ -12,3 +12,9 @@ msg_receive: msg_rece.2
 msg_send: msg_send.2
 tfork: tfork.2
 waits: waits.2
+enable_io: enabio.2
+enable_isr: enabisr.2
+mmap: mmap.2
+munmap: munmap.2
+strerror: strerr.2
+notify: notify.2
