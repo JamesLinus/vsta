@@ -121,6 +121,25 @@ cleanup(void)
 }
 
 /*
+ * do_reply()
+ *	Send back a simple reply message to complete the remote I/O
+ */
+static void
+do_reply(long sender, int arg)
+{
+	struct msg m, m2;
+
+	m.m_sender = sender;
+	m.m_op = m.m_arg1 = m.m_nseg = 0;
+	m.m_arg = arg;
+	m2.m_op = FS_WRITE;
+	m2.m_arg = m2.m_buflen = sizeof(m);
+	m2.m_nseg = 1;
+	m2.m_buf = &m;
+	(void)msg_send(txport, &m2);
+}
+
+/*
  * rxmsg()
  *	Receive next message from the TCP byte stream
  */
@@ -129,7 +148,7 @@ rxmsg(void)
 {
 	struct msg *mp;
 	struct cmsg *cm;
-	int x, msgleft, bodyleft;
+	uint x, msgleft, bodyleft;
 	char *bufp, *clmsgp, *body = 0, *bodyp;
 	char clbuf[1024];
 	static char *pushback;
@@ -206,6 +225,10 @@ rxmsg(void)
 			 * view of message.  It'll all be coalesced into
 			 * a single message on this side.
 			 */
+			if (mp->m_nseg > MSGSEGS) {
+				syslog(LOG_ERR, "corrupt message header");
+				goto out;
+			}
 			bodyleft = 0;
 			for (seg = 0; seg < mp->m_nseg; ++seg) {
 				bodyleft += mp->m_seg[seg].s_buflen;
@@ -291,25 +314,33 @@ no_op(char *event)
 /*
  * send_err()
  *	Send back a special FS_ERR message to our client
- *
- * The message is encoded as a dump of the message header itself
- * (self-referential messages, cool, huh?) followed by the strerror()
- * buffer.
  */
 static void
 send_err(long clid)
 {
-	struct msg m;
+	struct msg m, m2;
 
-	m.m_sender = clid;
-	m.m_op = FS_ERR;
-	m.m_seg[0].s_buf = &m;
-	m.m_seg[0].s_buflen = sizeof(struct msg);
-	m.m_seg[1].s_buf = strerror();
-	m.m_seg[1].s_buflen = strlen(m.m_seg[1].s_buf) + 1;
-	m.m_arg = m.m_seg[0].s_buflen + m.m_seg[1].s_buflen;
-	m.m_arg1 = 0;
+	/*
+	 * Build the FS_ERR message the remote client sees
+	 */
+	m2.m_sender = clid;
+	m2.m_op = FS_ERR;
+	m2.m_nseg = 1;
+	m2.m_buf = strerror();
+	m2.m_arg = m2.m_buflen = strlen(m2.m_buf) + 1;
+	m2.m_arg1 = 0;
+
+	/*
+	 * Construct the FS_WRITE of this message
+	 */
+	m.m_op = FS_WRITE;
 	m.m_nseg = 2;
+	m.m_buf = &m2;
+	m.m_buflen = sizeof(struct msg);
+	m.m_seg[1].s_buf = m2.m_buf;
+	m.m_seg[1].s_buflen = m2.m_buflen;
+	m.m_arg = m.m_buflen + m.m_seg[1].s_buflen;
+	m.m_arg1 = 0;
 	(void)msg_send(txport, &m);
 }
 
@@ -326,6 +357,7 @@ serve_slave(struct client *cl)
 	struct msg *mp;
 	int x;
 	char *rxbuf;
+	struct msg m;
 
 	for (;;) {
 		/*
@@ -362,13 +394,7 @@ serve_slave(struct client *cl)
 		 * this and will free the message at that point.
 		 */
 		if (mp->m_op == M_ABORT) {
-			mp->m_op = FS_WRITE;
-			mp->m_sender = cl->c_sender;
-			mp->m_buf = mp;
-			mp->m_arg = mp->m_buflen = sizeof(struct msg);
-			mp->m_nseg = 1;
-			mp->m_arg1 = 0;
-			(void)msg_send(txport, mp);
+			do_reply(cl->c_sender, 0);
 			mp->m_op = 0;
 			continue;
 		}
@@ -393,23 +419,17 @@ serve_slave(struct client *cl)
 		x = msg_send(cl->c_local, mp);
 		if (x < 0) {
 			send_err(cl->c_sender);
-		} else if (mp->m_nseg == MSGSEGS) {
-			struct msg m;
-
+		} else {
+			m.m_op = FS_WRITE;
 			m.m_sender = cl->c_sender;
 			m.m_buf = mp;
 			m.m_arg = m.m_buflen = sizeof(struct msg);
 			m.m_nseg = 1;
 			(void)msg_send(txport, &m);
-			(void)msg_send(txport, mp);
-		} else {
-			bcopy(&mp->m_seg[0], &mp->m_seg[1],
-				mp->m_nseg * sizeof(seg_t));
-			mp->m_sender = cl->c_sender;
-			mp->m_buf = mp;
-			mp->m_buflen = sizeof(struct msg);
-			mp->m_nseg += 1;
-			(void)msg_send(txport, &cl->c_msg);
+			if (mp->m_nseg) {
+				mp->m_op = FS_WRITE;
+				(void)msg_send(txport, mp);
+			}
 		}
 
 		/*
@@ -613,7 +633,6 @@ serve_client(port_t clport)
 	 */
 	cm = rxmsg();
 	if (cm == 0) {
-		syslog(LOG_DEBUG, "err on FS_OPEN");
 		cleanup();
 		exit(1);
 	}
@@ -623,7 +642,6 @@ serve_client(port_t clport)
 	 * The first message has to be the path to attach
 	 */
 	if (mp->m_op != FS_OPEN) {
-		syslog(LOG_DEBUG, "not an FS_OPEN");
 		cleanup();
 		exit(1);
 	}
@@ -637,6 +655,12 @@ serve_client(port_t clport)
 		cleanup();
 		exit(1);
 	}
+
+	/*
+	 * Tell them we're happy
+	 */
+	printf("Reply to 0x%x\n", mp->m_sender);
+	do_reply(mp->m_sender, 0);
 
 	/*
 	 * Set up hash of clients multiplexed from here
@@ -659,6 +683,7 @@ serve(port_t p)
 {
 	struct msg m;
 	int x;
+	pid_t pid;
 
 	for (;;) {
 		/*
@@ -680,7 +705,8 @@ serve(port_t p)
 		/*
 		 * Launch a client for this connection
 		 */
-		switch (fork()) {
+		pid = fork();
+		switch (pid) {
 		case 0:
 			serve_client(p);
 			break;
