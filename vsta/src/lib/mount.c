@@ -5,6 +5,8 @@
 #include <mnttab.h>
 #include <std.h>
 #include <fcntl.h>
+#include <stdio.h>
+#include <sys/fs.h>
 
 struct mnttab *__mnttab;
 int __nmnttab = 0;
@@ -359,4 +361,69 @@ __mount_restore(char *p)
 		*mp = 0;
 	}
 	return(p);
+}
+
+/*
+ * init_mount()
+ *	Read mntrc, add any mount entries described within
+ */
+void
+init_mount(char *mntrc)
+{
+	FILE *fp;
+	char *p, buf[80];
+	char *sympath, *point;
+	port_name name;
+	port_t port;
+
+	if ((fp = fopen(mntrc, "r")) == 0) {
+		return;
+	}
+	while (fgets(buf, sizeof(buf), fp)) {
+		/*
+		 * Ignore comment lines
+		 */
+		buf[strlen(buf)-1] = '\0';
+		if ((buf[0] == '\0') || (buf[0] == '#')) {
+			continue;
+		}
+
+		/*
+		 * Carve out first field--path to name in namer
+		 * database.
+		 */
+		sympath = buf;
+		p = strchr(buf, ':');
+		if (p == 0) {
+			continue;
+		}
+
+		/*
+		 * Second field is where to mount
+		 */
+		*p++ = '\0';
+		point = p;
+
+		/*
+		 * Look up port #
+		 */
+		name = namer_find(sympath);
+		if (name < 0) {
+			printf("Unknown resource: %s\n", sympath);
+			continue;
+		}
+
+		/*
+		 * Connect to server
+		 */
+		port = msg_connect(name, ACC_READ);
+		if (port < 0) {
+			printf("Can't connect to: %s\n", sympath);
+		}
+
+		/*
+		 * Mount it
+		 */
+		mountport(point, port);
+	}
 }
