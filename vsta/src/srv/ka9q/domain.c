@@ -378,8 +378,7 @@ is_dotnum(char *p)
  * name is definitely not valid.
  */
 int32
-resolve(name)
-char *name;
+resolve(char *name)
 {
 	char *buf;
 	int32 addr;
