@@ -148,3 +148,34 @@ boot_regs(struct thread *t, struct boot_task *b)
 	t->t_kregs->ebp = (ulong)u;
 	t->t_kregs->esp = (t->t_kregs->ebp) - sizeof(ulong);
 }
+
+/*
+ * set_execarg()
+ *	Pass an argument back to a newly-exec()'ed process
+ *
+ * For i386, we push it on the stack.
+ */
+void
+set_execarg(struct thread *t, void *arg)
+{
+	struct trapframe *u = t->t_uregs;
+
+	ASSERT_DEBUG(u, "set_execarg: no user frame");
+	u->esp -= sizeof(void *);
+	(void)copyout(u->esp, &arg, sizeof(arg));
+}
+
+/*
+ * reset_uregs()
+ *	Reset the user's registers during an exec()
+ */
+void
+reset_uregs(struct thread *t, ulong entry_addr)
+{
+	struct trapframe *u = t->t_uregs;
+
+	u->ebp =
+	u->esp = (USTACKADDR+UMINSTACK) - sizeof(ulong);
+	u->eflags = F_IF;
+	u->eip = entry_addr;
+}
