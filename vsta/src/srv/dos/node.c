@@ -24,12 +24,21 @@ ref_node(struct node *n)
 void
 deref_node(struct node *n)
 {
+	struct clust *c;
+
 	ASSERT(n->n_refs > 0, "deref_node: no refs");
 
 	/*
 	 * Remove ref, do nothing if still open
 	 */
 	if ((n->n_refs -= 1) > 0) {
+		return;
+	}
+
+	/*
+	 * Never touch root
+	 */
+	if (n == rootdir) {
 		return;
 	}
 
@@ -42,17 +51,24 @@ deref_node(struct node *n)
 	}
 
 	/*
-	 * Free FAT cache
-	 */
-	free_clust(n->n_clust);
-
-	/*
 	 * If file, remove ref from dir we're within
 	 */
+	c = n->n_clust;
 	if (n->n_type == T_FILE) {
 		hash_delete(n->n_dir->n_files, n->n_slot);
 		deref_node(n->n_dir);
+	} else {
+		extern struct hash *dirhash;
+
+		ASSERT_DEBUG(n->n_type == T_DIR, "deref_node: bad type");
+		ASSERT(c->c_nclust > 0, "deref_node: short dir");
+		hash_delete(dirhash, c->c_clust[0]);
 	}
+
+	/*
+	 * Free FAT cache
+	 */
+	free_clust(c);
 
 	/*
 	 * Free our memory
