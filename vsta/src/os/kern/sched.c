@@ -235,9 +235,7 @@ swtch(void)
 {
 	struct sched *s;
 	uint pri;
-	static struct thread *t;
-	
-	t = curthread;
+	struct thread *t = curthread;
 
 	/*
 	 * Now that we're going to reschedule, clear any pending preempt
