@@ -28,7 +28,13 @@ ytos(uint y)
 	ulong ret;
 
 	if (y < 1990) {
-		syslog(LOG_WARNING, "year %d is less than 1990!\n", y);
+		static int once;
+
+		if (!once) {
+			syslog(LOG_WARNING,
+				"year %d is less than 1990!\n", y);
+			once = 1;
+		}
 	}
 	ret = 0;
 	for (i = 1990; i < y; i++) {
