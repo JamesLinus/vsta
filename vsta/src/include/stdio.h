@@ -124,6 +124,7 @@ extern int scanf(const char *, ...),
 extern int vscanf(const char *, va_list),
 	vfscanf(FILE *, const char *, va_list),
 	vsscanf(char *, const char *, va_list);
+extern FILE *tmpfile(void);
 
 /*
  * Miscellany

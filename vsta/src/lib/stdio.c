@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <std.h>
 #include <fcntl.h>
+#include <alloc.h>
 
 /*
  * Memory for the three predefined files.  If stdin/stdout are hooked
@@ -958,4 +959,21 @@ void
 rewind(FILE *fp)
 {
 	fseek(fp, (off_t)0, SEEK_SET);
+}
+
+/*
+ * tmpfile()
+ *	Open a tmp file
+ */
+FILE *
+tmpfile(void)
+{
+	char *buf;
+
+	buf = alloca(32);
+	if (buf == 0) {
+		return(0);
+	}
+	sprintf(buf, "/tmp/tf%d", getpid());
+	return(fopen(buf, "w"));
 }
