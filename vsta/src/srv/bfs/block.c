@@ -72,6 +72,7 @@ bnew(int blkno)
 				b->b_hash =
 					ll_insert(&hash[blkno & HASHMASK], b);
 				b->b_refs = 1;
+				cached += 1;
 				return(b);
 			}
 			free(b);
@@ -107,7 +108,9 @@ bnew(int blkno)
 		/*
 		 * Update our "all block" header to point one past us
 		 */
-		ll_movehead(&allblocks, l->l_forw);
+		ll_delete(b->b_all);
+		b->b_all = ll_insert(&allblocks, b);
+		ASSERT_DEBUG(b->b_all, "bnew: lost the llist");
 
 		/*
 		 * Update the hash chain it resides on, and return it.
