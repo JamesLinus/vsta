@@ -555,6 +555,23 @@ dump_sysmsg(char *p)
 }
 
 /*
+ * dump_seg()
+ *	Display segments
+ */
+void
+dump_seg(char *p)
+{
+	struct seg *s;
+
+	if (!p || !p[0] || !(s = (struct seg *)get_num(p))) {
+		printf("Bad addr\n");
+		return;
+	}
+	printf("offset 0x%x length 0x%x\n", s->s_off, s->s_len);
+	do_dump_pview(&s->s_pview);
+}
+
+/*
  * dump_core()
  *	Dump out status of a core slot
  */
