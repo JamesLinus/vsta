@@ -11,8 +11,7 @@
 #include <sys/vm.h>
 #include <sys/fs.h>
 #include <sys/port.h>
-
-extern void *malloc();
+#include <lib/alloc.h>
 
 static sema_t qio_sema;		/* Counting semaphore for # elements */
 static struct qio *qios = 0;	/* Free elements */
@@ -147,8 +146,33 @@ run_qio(void)
 	if (!isroot()) {
 		return(-1);
 	}
+
+	/*
+	 * Get a new qio structure, add to the pool
+	 */
+	q = malloc(sizeof(struct qio));
+	p_lock(&qio_lock, SPL0);
+	q->q_next = qios;
+	qios = q;
+	v_lock(&qio_lock, SPL0);
+
+	/*
+	 * Bump the count allowed through the qio semaphore
+	 */
+	v_sema(&qio_sema);
+
+	/*
+	 * Endless loop
+	 */
 	for (;;) {
+		/*
+		 * Wait for work
+		 */
 		p_sema(&qio_gate, PRIHI);
+
+		/*
+		 * Extract one unit of work
+		 */
 		p_lock(&qio_lock, SPL0);
 		q = qio_hd;
 		ASSERT_DEBUG(q, "run_qio: gate mismatch with run");
@@ -159,6 +183,10 @@ run_qio(void)
 		}
 #endif
 		v_lock(&qio_lock, SPL0);
+
+		/*
+		 * Do the work
+		 */
 		qio_msg_send(q);
 	}
 }
@@ -176,9 +204,11 @@ alloc_qio(void)
 	struct qio *q;
 
 	p_sema(&qio_sema, PRIHI);
+	p_lock(&qio_lock, SPL0);
 	q = qios;
 	ASSERT_DEBUG(q, "qio_alloc: bad sema count");
 	qios = q->q_next;
+	v_lock(&qio_lock, SPL0);
 	return(q);
 }
 
@@ -189,18 +219,8 @@ alloc_qio(void)
 void
 init_qio(void)
 {
-	struct qio *q;
-	int x;
-
-	init_sema(&qio_sema);
-	set_sema(&qio_sema, MAXQIO);
-	for (x = 0, qios = 0; x < MAXQIO; ++x) {
-		q = malloc(sizeof(struct qio));
-		q->q_next = qios;
-		qios = q;
-	}
-	init_sema(&qio_gate);
-	set_sema(&qio_gate, MAXQIO);
-	qio_hd = qio_tl = 0;
+	init_sema(&qio_sema); set_sema(&qio_sema, 0);
+	init_sema(&qio_gate); set_sema(&qio_gate, 0);
+	qios = qio_hd = qio_tl = 0;
 	init_lock(&qio_lock);
 }
