@@ -8,10 +8,13 @@ Things to do per release:
 4. "changed", followed by "changed -r | grep -vw '[oa]'"
 5. "cd /vsta/src" and "sh mkall", followed (if OK) by "sh mkall install"
 6. Reboot and verify things still work
-7. "cd /vsta", mount something on /dist, and "make -f mkdist.mk"
-8. Put the install packages on my test machine and do a scratch install
-9. Push it out to the FTP server
-10. See if there are any new packages, and put links in the WWW page
-11. "cd /vsta", and "rcsdo rcs -N<rel>:"
+7. "cd /vsta/src" and "sh mkall clobber"
+8. "cd /vsta", mount something on /dist, and "make -f mkdist.mk"
+9. Put the install packages on my test machine and do a scratch install
+10. Push it out to the FTP server
+11. See if there are any new packages, and put links in the WWW page
+12. "cd /vsta", and "rcsdo rcs -N<rel>:"
 	<rel> is formatted as V1_6_4 (for 1.6.4, duh)
-12. Update the release note page on the web site
+13. Update the release note page on the web site
+14. Take latest release note entries and mail to list along with
+	release announcement
