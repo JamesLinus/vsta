@@ -4,7 +4,7 @@
  */
 #include "cons.h"
 #include <sys/assert.h>
-#include <mach/kbd.h>
+#include <mach/io.h>
 
 static int shift = 0,	/* Count # shift keys down */
 	alt = 0,	/*  ...alt keys */
@@ -45,12 +45,10 @@ key_event(uchar c)
 	uchar ch;
 
 	/*
-	 * Function keys--HACK
+	 * Function keys--ALT-F1 and so forth switch screens
 	 */
 	if (alt && ((c >= F1) && (c <= F10))) {
-		extern void try_screenflip(uint);
-
-		try_screenflip(c-F1);
+		select_screen(c-F1);
 		return;
 	}
 
@@ -79,9 +77,7 @@ key_event(uchar c)
 
 #ifdef DEBUG
 	if (ch == '\32') {
-		extern void dbg_enter();
-
-		dbg_enter();
+		do_dbg_enter();
 		ctl = 0;	/* We presume they released it */
 		return;
 	}
@@ -99,7 +95,7 @@ key_event(uchar c)
  *
  * Returns 1 if it *was* a shift-type key, 0 otherwise.
  */
-static
+static int
 shift_key(uchar c)
 {
 	switch (c) {
