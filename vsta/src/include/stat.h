@@ -36,12 +36,6 @@ struct	stat {
 #define S_ISFIFO(m)	(((m) & S_IFMT) == S_IFIFO)
 
 /*
- * Function prototypes for the VSTa stat mechanism
- */
-extern char *rstat(port_t fd, char *field);
-extern int wstat(port_t fd, char *field);
-
-/*
  * Function prototypes for POSIX that use the VSTa stat mechanism
  */
 extern int fstat(int fd, struct stat *s);
