@@ -145,17 +145,6 @@ initvar()
 		}
 	}
 
-    /* Pull goodies from our environment */
-    {
-	const char **envp;
-
-	for (envp = environ ; *envp ; envp++) {
-		if (strchr(*envp, '=')) {
-			setvareq((char *)*envp, /* VEXPORT| */ VTEXTFIXED);
-		}
-	}
-    }
-
 	/*
 	 * PS1 depends on uid
 	 */
@@ -166,6 +155,17 @@ initvar()
 		vps1.text = "PS1=$ ";
 		vps1.flags = VSTRFIXED|VTEXTFIXED;
 	}
+
+    /* Pull goodies from our environment */
+    {
+	const char **envp;
+
+	for (envp = environ ; *envp ; envp++) {
+		if (strchr(*envp, '=')) {
+			setvareq((char *)*envp, /* VEXPORT| */ VTEXTFIXED);
+		}
+	}
+    }
 }
 
 /*
