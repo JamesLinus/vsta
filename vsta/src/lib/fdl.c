@@ -21,6 +21,8 @@
 #include <std.h>
 #include <unistd.h>
 
+extern char *rstat(port_t, char *);
+
 /*
  * For saving state of fdl on exec()
  */
@@ -135,7 +137,6 @@ do_seek(struct port *port, long off, int whence)
 	struct msg m;
 	off_t l;
 	int x;
-	extern char *rstat();
 
 	switch (whence) {
 	case SEEK_SET:
@@ -187,17 +188,43 @@ do_close(struct port *port)
  */
 __do_open(struct port *port)
 {
-	port->p_close = do_close;
-	port->p_seek = do_seek;
-	if ((port->p_port != (port_t)-1) && __isatty(port->p_port)) {
+	char *p;
+
+	/*
+	 * Some special cases, based on file type.
+	 */
+	p = rstat(port->p_port, "type");
+
+	/*
+	 * null-type; emulate null handler within this process
+	 */
+	if (p && !strcmp(p, "null")) {
+		fdnull(port);
+		return(0);
+	}
+
+	/*
+	 * "character"-type; use a POSIXish TTY interface
+	 */
+	if ((port->p_port != (port_t)-1) && p && !strcmp(p, "c")) {
 		extern int __tty_read(), __tty_write();
 
+		/*
+		 * XXX this should just be another FDL in its
+		 * own file, not this hackery.
+		 */
 		port->p_read = __tty_read;
 		port->p_write = __tty_write;
 	} else {
 		port->p_read = do_read;
 		port->p_write = do_write;
 	}
+
+	/*
+	 * Default handlers
+	 */
+	port->p_close = do_close;
+	port->p_seek = do_seek;
 	port->p_pos = 0L;
 	return(0);
 }
