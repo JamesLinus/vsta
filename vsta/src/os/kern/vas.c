@@ -207,7 +207,7 @@ attach_pview(struct vas *vas, struct pview *pv)
 	 * Let HAT choose a virtual address
 	 */
 	pv->p_vas = vas;
-	if (hat_attach(pv, pv->p_vaddr)) {
+	if (hat_attach(pv)) {
 		pv->p_vas = 0;
 		return(0);
 	}

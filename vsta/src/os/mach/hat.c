@@ -238,15 +238,16 @@ hat_getbits(struct pview *pv, void *vaddr)
  * Returns 0 on success, 1 on failure.
  */
 int
-hat_attach(struct pview *pv, void *vaddr)
+hat_attach(struct pview *pv)
 {
 	uint pg;
+	ulong vaddr = (ulong)pv->p_vaddr;
 
 	/*
 	 * Don't let them scribble on the kernel's part of the
 	 * address space.
 	 */
-	if (vaddr && ((ulong)vaddr >= 0x80000000)) {
+	if (vaddr && (vaddr >= 0x80000000)) {
 		return(1);
 	}
 
@@ -267,8 +268,8 @@ hat_attach(struct pview *pv, void *vaddr)
 		/*
 		 * Otherwise leave our stuff alone
 		 */
-		if ((vaddr >= (void *)VMAP_BASE) &&
-				(vaddr < (void *)(VMAP_BASE+VMAP_SIZE))) {
+		if ((vaddr >= VMAP_BASE) &&
+				(vaddr < (VMAP_BASE+VMAP_SIZE))) {
 			return(1);
 		}
 		return(0);
