@@ -12,6 +12,8 @@
 #include <time.h>
 #include "../telnet.h"
 
+#define MAXIO (64*1024*1024)	/* Max single message size */
+
 /*
  * State shared between threads serving a TCP->telnet connection
  */
@@ -432,6 +434,28 @@ queue_data(struct tnserv *tn, uchar *buf, uint cnt)
 }
 
 /*
+ * crlf_ify()
+ *	Convert \n to \r\n in a buffer
+ *
+ * Returns index to next free position in "buf"
+ */
+static int
+crlf_ify(char *buf, int off, seg_t *s)
+{
+	int x, len = s->s_buflen;
+	char c, *ptr = s->s_buf;
+
+	for (x = 0; x < len; ++x) {
+		c = ptr[x];
+		if (c == '\n') {
+			buf[off++] = '\r';
+		}
+		buf[off++] = c;
+	}
+	return(off);
+}
+
+/*
  * io_server()
  *	Thread which provides stdin/out to our local processes
  */
@@ -458,7 +482,38 @@ io_server(struct tnserv *tn)
 			break;
 
 		case FS_WRITE:
+			/*
+			 * If we can, map \n to \r\n
+			 */
+			if (m.m_arg <= MAXIO) {
+				static char buf[MAXIO];
+				int off = 0;
+
+				/*
+				 * Convert each message in place
+				 */
+				for (x = 0; x < m.m_nseg; ++x) {
+					off = crlf_ify(buf, off, &m.m_seg[x]);
+				}
+
+				/*
+				 * Fix up our buffer to send it off
+				 */
+				m.m_buf = buf;
+				m.m_arg = m.m_buflen = off;
+				m.m_nseg = 1;
+				m.m_arg1 = 0;
+			}
+
+			/*
+			 * Send the data upstream
+			 */
 			m.m_arg = msg_send(tn->tn_write, &m);
+
+			/*
+			 * And hand back this result to our own
+			 * requester.
+			 */
 			m.m_nseg = m.m_arg1 = 0;
 			msg_reply(m.m_sender, &m);
 			break;
