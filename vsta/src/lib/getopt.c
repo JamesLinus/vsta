@@ -10,6 +10,9 @@
 /*
  * get option letter from argument vector
  */
+#undef opterr
+#undef optind
+#undef optarg
 static
 int	opterr = 1,		/* if error message should be printed */
 	optind = 1,		/* index into parent argv vector */
