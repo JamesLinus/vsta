@@ -444,3 +444,17 @@ __cwd_restore(char *p)
 	bcopy(p, __cwd, len);
 	return(p+len);
 }
+
+/*
+ * getcwd()
+ *	Get current working directory
+ */
+char *
+getcwd(char *buf, int len)
+{
+	if (strlen(__cwd) >= len) {
+		return(0);
+	}
+	strcpy(buf, __cwd);
+	return(buf);
+}
