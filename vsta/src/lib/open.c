@@ -528,3 +528,12 @@ unlink(char *path)
 	close(fd);
 	return(x);
 }
+
+/*
+ * creat()
+ *	Create a file - basically a specialised version of open()
+ */
+int creat(char *path, int mode)
+{
+	return open(path, (O_WRONLY | O_CREAT | O_TRUNC), mode);
+}

@@ -28,6 +28,7 @@
 #define MAXPATH (512)
 
 extern int open(char *, int, ...), close(int),
+	creat(char *, int),
 	read(int fd, void *buf, int nbyte),
 	write(int fd, void *buf, int nbyte),
 	close(int), mkdir(char *),
@@ -35,3 +36,4 @@ extern int open(char *, int, ...), close(int),
 extern off_t lseek(int fd, off_t offset, int whence);
 
 #endif /* _FCNTL_H */
+
