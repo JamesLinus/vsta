@@ -5,18 +5,68 @@
 #include <sys/types.h>
 #include "cons.h"
 #include <sys/mman.h>
+#include <std.h>
+#include <ctype.h>
+#include <mach/io.h>
 
 /*
  * Parameters for screen, filled in by init_screen()
  */
 static char *top, *bottom, *cur, *lastl;
+char *hw_screen;
+
+/*
+ * load_screen()
+ *	Switch to new screen image as stored in "s"
+ */
+void
+load_screen(struct screen *s)
+{
+	bcopy(s->s_img, top, SCREENMEM);
+	cur = top + s->s_pos;
+	cursor();
+}
+
+/*
+ * save_screen()
+ *	Dump screen image to memory in "s"
+ */
+void
+save_screen(struct screen *s)
+{
+	bcopy(top, s->s_img, SCREENMEM);
+	s->s_pos = cur-top;
+}
+
+/*
+ * save_screen_pos()
+ *	Save just cursor position
+ */
+void
+save_screen_pos(struct screen *s)
+{
+	s->s_pos = cur-top;
+}
+
+/*
+ * set_screen()
+ *	Cause the emulator to start using the named memory as the display
+ */
+void
+set_screen(char *p, uint cursor)
+{
+	top = p;
+	bottom = p + SCREENMEM;
+	lastl = p + ((ROWS-1)*COLS*CELLSZ);
+	cur = p + cursor;
+}
 
 /*
  * cursor()
  *	Take current data position, update hardware cursor to match
  */
-static void
-cursor()
+void
+cursor(void)
 {
 	ulong pos = (cur-top) >> 1;
 
@@ -51,14 +101,17 @@ init_screen(void)
 {
 	char *p;
 
-	p = mmap((void *)DISPLAY, ROWS*COLS*CELLSZ,
+	/*
+	 * Open physical device, make it the current display
+	 * destination.
+	 */
+	p = mmap((void *)DISPLAY, SCREENMEM,
 		PROT_READ|PROT_WRITE, MAP_PHYS, 0, 0L);
 	if (!p) {
 		exit(1);
 	}
-	cur = top = p;
-	bottom = p + (ROWS*COLS*CELLSZ);
-	lastl = p + ((ROWS-1)*COLS*CELLSZ);
+	hw_screen = p;
+	set_screen(p, 0);
 	cls(); cursor();
 }
 
@@ -181,7 +234,7 @@ sequence(int x, int y, char c)
  * do_multichar()
  *	Handle further characters in a multi-character sequence
  */
-static
+static int
 do_multichar(int state, char c)
 {
 	static int x, y;
@@ -262,7 +315,7 @@ do_multichar(int state, char c)
  *	Given a counted string, put the characters onto the screen
  */
 void
-write_string(char *s, int cnt)
+write_string(char *s, uint cnt)
 {
 	char c;
 	int x;
@@ -375,10 +428,4 @@ write_string(char *s, int cnt)
 		 * Ignore other control characters
 		 */
 	}
-
-	/*
-	 * Only bother with cursor now that the whole string's
-	 * on the screen.
-	 */
-	cursor();
 }
