@@ -160,7 +160,7 @@ nostrip: $(OBJS)
 	$(LD) $(LDFLAGS) -o vsta $(OBJS) $(LIBS)
 
 dbsym: ../dbg/dbsym.c
-	$(CC) $(DEFS) -o dbsym ../dbg/dbsym.c
+	$(CC) $(COPTS) -o dbsym ../dbg/dbsym.c
 
 install: vsta
 	cp vsta ../../../boot
