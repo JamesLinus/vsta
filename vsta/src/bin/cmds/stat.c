@@ -49,13 +49,19 @@ read_stat(char *name, int use_port, char *field, int verbose)
 		/*
 		 * Open the named file, stat it and then close it!
 		 */
-		fd = open(name, O_RDONLY);
+		if (!strcmp(name, "-")) {
+			fd = 0;
+		} else {
+			fd = open(name, O_RDONLY);
+		}
 		if (fd < 0) {
 			perror(name);
 			return 1;
 		}
 		statstr = rstat(__fd_port(fd), field);
-		close(fd);
+		if (fd != 0) {
+			close(fd);
+		}
 	} else {
 		pt = path_open(name, ACC_CHMOD);
 		if (pt < 0) {
@@ -126,13 +132,19 @@ write_stat(char *name, int use_port, char *field, int verbose)
 		/*
 		 * Open the named file, stat it and then close it!
 		 */
-		fd = open(name, O_CHMOD);
+		if (!strcmp(name, "-")) {
+			fd = 1;
+		} else {
+			fd = open(name, O_CHMOD);
+		}
 		if (fd < 0) {
 			perror(name);
 			return 1;
 		}
 		rcode = wstat(__fd_port(fd), statstr);
-		close(fd);
+		if (fd != 1) {
+			close(fd);
+		}
 	} else {
 		pt = path_open(name, ACC_CHMOD);
 		if (pt < 0) {
