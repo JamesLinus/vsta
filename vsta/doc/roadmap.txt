@@ -23,13 +23,14 @@ along with VFAT "long filenames").  It is expected that you'll
 already have set up such a filesystem, and you'll be expected to
 load the VSTa files onto it using whatever OS got this filesystem
 set up.  Examples below are for a DOS-like environment (DOS native,
-or very likely a DOS window under Windows).
+or very likely a DOS window under Windows).  You should make sure that
+your DOS/Windows extraction utilities support long filenames.
 
 The console driver supports both MGA and CGA text screen locations.
 It is not auto-detect.  The keyboard driver expects the AT scan
 codes.  The floppy driver supports most common formats, although
 I've only tested 1.2M/5.25" and 1.44M/3.5".  My smallest system
-has 8M of RAM, and that seems to be plenty.  Systems with up to 256
+has 8M of RAM, and that seems to be plenty.  Systems with up to 768
 Meg have been booted.  If you use the C compiler, you'll need a CPU
 with a floating point unit.
 
@@ -80,13 +81,12 @@ format is described in src/lib/passwd.c, but should be familiar to
 anyone who's messed with UN*X-like password files.  The group you
 belong to in the passwd file causes you to get more abilities; see
 /vsta/etc/group.  Finally, numeric format IDs are mapped to symbolic
-courtesy of /vsta/etc/ids.  You can see how in src/lib/ids.c.
+courtesy of /vsta/etc/ids.  You can see how in vsta/src/lib/ids.c.
 
 2. VSTa directory organization
 
-All source files are stored under RCS.  The RCS storage resides inside
-the RCS/ subdir in each source directory.  The binary directories, of
-course, are not kept under RCS.
+The main VSTa source is under CVS; the CVS storage is available separately.
+The binary directories are not kept under CVS.
 
 	The VSTa tree is organized under /vsta as:
 
@@ -152,7 +152,8 @@ A snapshot of a known working GRUB distribution is available at:
 
 Please use the FSF version if at all possible, since GRUB is under
 active development, and is receiving many useful bug fixes and
-enhancements.
+enhancements.  For instance, it recently received support for VSTa's
+experimental filesystem, vstafs.
 
 4. Kernel debugger
 
@@ -195,11 +196,11 @@ screen (ALT-F1) also receives syslog output.
 6. Building the system
 
 	(Boot VSTa)
-	cd /vsta
-	sh -x mkall
+	cd /vsta/src
+	sh -x mkall.sh
 	(watch the blinkin lights)
 	(if all looks great:)
-	sh -x mkall install
+	sh -x mkall.sh install
 
 You can also cd to some particular server or command source directory
 and "make" or "make install" just that piece.  This is probably the
