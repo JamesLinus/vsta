@@ -22,7 +22,7 @@ bfs_stat(struct msg *m, struct file *f)
 	 */
 	if (f->f_inode == ROOTINO) {
 		sprintf(result,
-		 "perm=1/1\nacc=5/0/2\nsize=%d\ntype=d\nowner=1/1\ninode=-1\n",
+		 "perm=1/1\nacc=5/0/2\nsize=%d\ntype=d\nowner=0\ninode=-1\n",
 			NDIRBLOCKS*BLOCKSIZE);
 	} else {
 		/*
@@ -33,7 +33,7 @@ bfs_stat(struct msg *m, struct file *f)
 			return;
 		}
 		sprintf(result,
-		 "perm=1/1\nacc=5/0/2\nsize=%d\ntype=f\nowner=1/1\ninode=%d\n",
+		 "perm=1/1\nacc=5/0/2\nsize=%d\ntype=f\nowner=0\ninode=%d\n",
 			d.d_len, d.d_inum);
 	}
 	m->m_buf = result;
