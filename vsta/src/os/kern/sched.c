@@ -101,12 +101,11 @@ preempt(void)
 
 	c = nextcpu;
 	do {
-		if (!(c->pc_flags & CPU_UP)) {
-			continue;
-		}
-		if (c->pc_pri < pri) {
-			lowest = c;
-			pri = c->pc_pri;
+		if (c->pc_flags & CPU_UP) {
+			if (c->pc_pri < pri) {
+				lowest = c;
+				pri = c->pc_pri;
+			}
 		}
 		c = c->pc_next;
 	} while (c != nextcpu);
