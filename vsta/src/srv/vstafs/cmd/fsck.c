@@ -107,7 +107,7 @@ check_root(void)
 		printf("Filesystem has zero size!\n");
 		exit(1);
 	}
-	if (stat(fd, &sb) < 0) {
+	if (fstat(fd, &sb) < 0) {
 		perror("stat");
 		printf("Couldn't stat device.\n");
 		exit(1);
