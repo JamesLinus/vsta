@@ -390,6 +390,7 @@ shut_client(struct portref *pr)
 		v_lock(&pr->p_lock, SPL0);	/* for lock count in percpu */
 		free_portref(pr);
 		free(sm);
+		return;
 	}
 
 	/*
