@@ -85,7 +85,8 @@ __doprnt(char *buf, char *fmt, int *args)
 {
 	char *p = fmt, c;
 	char numbuf[NUMBUF];
-	int adj, width, zero, longfmt, x, is_unsigned;
+	int adj, width, zero, longfmt, x, is_unsigned,
+		dotf, precision;
 
 	while (c = *p++) {
 		/*
@@ -125,8 +126,28 @@ __doprnt(char *buf, char *fmt, int *args)
 			while (isdigit(*p))
 				++p;
 			c = *p++;
+			precision = 0;
 		} else {
 			width = 0;
+		}
+
+		/*
+		 * '.'; precision for numeric, max length * for strings.
+		 */
+		if (c == '.') {
+			dotf = 1;
+			c = *p++;
+			if (isdigit(c)) {
+				precision = atoi(p-1);
+				while (isdigit(*p))
+					++p;
+				c = *p++;
+			} else if (c == '*') {
+				precision = *args++;
+				c = *p++;
+			}
+		} else {
+			dotf = 0;
 		}
 
 		/*
@@ -188,15 +209,19 @@ __doprnt(char *buf, char *fmt, int *args)
 				args[0] = (int)"(null)";
 			}
 			x = strlen((char *)(args[0]));
+			if (precision && (x > precision)) {
+				x = precision;
+			}
 			if (!adj) {
-				for ( ; x < width; ++x) {
+				while (width-- > x) {
 					*buf++ = ' ';
 				}
 			}
-			strcpy(buf, (char *)(*args++));
-			buf += strlen(buf);
+			bcopy(*args++, buf, x);
+			buf[x] = '\0';
+			buf += x;
 			if (adj) {
-				for ( ; x < width; ++x) {
+				while (width-- > x) {
 					*buf++ = ' ';
 				}
 			}
