@@ -18,6 +18,7 @@ do_dir(DIR *d)
 	int olen;
 	struct dirent *de;
 	struct stat sb;
+	char *rcsdir;
 
 	olen = strlen(curdir);
 	while (de = readdir(d)) {
@@ -30,7 +31,7 @@ do_dir(DIR *d)
 				continue;
 			}
 		}
-		if (!strcmp(de->d_name, "rcs")) {
+		if (!stricmp(de->d_name, "rcs")) {
 			continue;
 		}
 
@@ -66,15 +67,20 @@ do_dir(DIR *d)
 		/*
 		 * If not an RCS directory, ignore
 		 */
+		rcsdir = "rcs";
 		sprintf(buf, "%s/rcs", curdir);
 		if (access(buf, 0) < 0) {
-			continue;
+			rcsdir = "RCS";
+			sprintf(buf, "%s/RCS", curdir);
+			if (access(buf, 0) < 0) {
+				continue;
+			}
 		}
 
 		/*
 		 * If file is not both here and in RCS form, ignore
 		 */
-		sprintf(buf, "%s/rcs/%s", curdir, de->d_name);
+		sprintf(buf, "%s/%s/%s", curdir, rcsdir, de->d_name);
 		if (access(buf, 0) < 0) {
 			if (rflag) {
 				printf("%s/%s\n", curdir, de->d_name);
