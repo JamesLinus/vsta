@@ -1,0 +1,14 @@
+Features by release:
+
+v1.3.2:
+
+Added TCP/IP networking with KA9Q package.
+Added ne2000 ethernet interface server.
+Added shared libraries.
+Enhanced RS-232 so you can set parity, data bits, and so forth.
+Added ps(1) command, via the pstat system call interface.
+Added CDROM filesystems.
+Converted all servers to use syslog.
+Port of "vim" vi clone editor.
+Floppy driver now works.
+i387 FPU supported by kernel--library support still TBD.
