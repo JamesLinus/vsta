@@ -170,6 +170,7 @@ void abort_io(struct file *f);
 extern void rs232_isr(struct msg *m);
 extern void start_tx(void);
 extern void rs232_enable(void);
+extern ulong overruns;
 
 /*
  * Prototypes for control.c

@@ -11,6 +11,7 @@ extern struct fifo *inbuf, *outbuf;
 extern uchar dtr, dsr, rts, cts, dcd, ri;
 
 int txbusy;		/* UART sending data right now? */
+ulong overruns;		/* Count of overruns */
 
 /*
  * rs232_isr()
@@ -33,7 +34,10 @@ rs232_isr(struct msg *m)
 		 * Line state, just clear
 		 */
 		case IIR_RLS:
-			(void)inportb(iobase + LSR);
+			c = inportb(iobase + LSR);
+			if (c & LSR_OE) {
+				overruns += 1;
+			}
 			break;
 
 		/*
@@ -56,7 +60,7 @@ rs232_isr(struct msg *m)
 		case IIR_RXTOUT:	/* Receiver ready */
 		case IIR_RXRDY:
 			c = inportb(iobase + DATA);
-#ifdef DEBUG
+#if defined(DEBUG) && defined(KDB)
 			if (c == '\32') {
 				extern void dbg_enter(void);
 
