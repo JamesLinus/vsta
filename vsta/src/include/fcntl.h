@@ -38,5 +38,6 @@ extern int open(const char *, int, ...), close(int),
 #define remove(path) unlink(path)
 extern off_t lseek(int fd, off_t offset, int whence);
 extern int fionread(int fd);
+extern char *fd_rstat(int fd, char *);
 
 #endif /* _FCNTL_H */

@@ -966,3 +966,25 @@ fionread(int fd)
 	}
 	return(atoi(p));
 }
+
+/*
+ * fd_rstat()
+ *	Do a port-ish rstat(), but via file descriptor
+ *
+ * This is needed to permit select() to interoperate with data I/O
+ * gathered via rstat(), since select() is a file descriptor feature,
+ * not a raw port one.
+ */
+char *
+fd_rstat(int fd, char *field)
+{
+	struct port *port;
+
+	port = __port(fd);
+	if (port == NULL) {
+		__seterr(EBADF);
+		return(NULL);
+	}
+	port->p_iocount += 1;
+	return(rstat(port->p_port, field));
+}
