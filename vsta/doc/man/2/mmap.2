@@ -1,0 +1,123 @@
+.ll 74
+.he 'mmap(2)'VSTa Manual'mmap(2)'
+.fo ''%''
+.sp 2
+.bd 1
+NAME
+.br
+.ti +6
+mmap - manipulate process virtual address space
+.sp
+.bd 1
+SYNOPSIS
+.br
+.in +6
+.li 3
+#include <sys/mman.h>
+
+int mmap(void *vaddr, ulong len, int prot, int flags, int fd, ulong offset);
+.sp 1
+.in -6
+.bd 1
+DESCRIPTION
+.br
+.in +6
+The
+.ul 1
+mmap()
+system call manipulates the address space of a process.  In general,
+.ul 1
+len
+bytes of mapped space is created, and is mapped in at the
+specified
+.ul 1
+vaddr.
+The
+.ul 1
+vaddr
+can be (void *)0, and the OS will choose an address.
+.ul 1
+MAP_FIXED,
+specified below, also affects address assignment.
+.sp
+The protection of the mapped space is controlled by
+the
+.ul 1
+prot
+parameters, with the following bits defined:
+.sp
+.nf
+.bd 99
+.in +4
+#define PROT_EXEC (0x01)
+#define PROT_READ (0x02)
+#define PROT_WRITE (0x04)
+.in -4
+.bd 0
+.fi
+.sp
+.ul 1
+flags
+controls the contents of the memory space created by
+.ul 1
+mmap,
+and may contain the following options:
+.sp
+.nf
+.in +4
+.bd 99
+#define MAP_ANON (0x01)
+#define MAP_FILE (0x02)
+#define MAP_FIXED (0x04)
+#define MAP_PRIVATE (0x08)
+#define MAP_SHARED (0x10)
+#define MAP_PHYS (0x20)
+.bd 0
+.in -4
+.fi
+.sp
+.ul 1
+MAP_ANON
+specifies "anonymous" memory; this is memory which is filled on
+demand with an initial contents of zero.
+.sp
+.ul 1
+MAP_FILE
+creates memory whose contents is initially filled from the
+file specified by the
+.ul 1
+fd
+parameter.  The contents is filled from
+.ul 1
+offset
+bytes into the file.
+.sp
+.ul 1
+MAP_FIXED
+requires that the new memory object be mapped exactly at the
+address specified by
+.ul 1
+vaddr;
+otherwise, the request fails.
+.sp
+.ul 1
+MAP_PRIVATE
+creates a memory objects in which any changes to the initial
+contents are not reflected in the object as viewed in any
+other address space.
+.sp
+.ul 1
+MAP_SHARED
+is the opposite of
+.ul 1
+MAP_PRIVATE;
+this option is not supported for writable memory segments in VSTa.
+.sp
+.ul 1
+MAP_PHYS
+creates a view into physical memory; it is generally used
+by device drivers.  In this case,
+.ul 1
+vaddr
+is instead the physical address to map.  The attached memory
+is always mapped in at an OS-chosen address.
