@@ -11,7 +11,7 @@
  * inum()
  *	Synthesize an "inode" number for the node
  */
-static uint
+uint
 inum(struct node *n)
 {
 	extern struct node *rootdir;
