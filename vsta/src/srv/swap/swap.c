@@ -30,6 +30,8 @@ struct swapmap *swapend = 0;
 struct rmap *smap;		/* Map of swap currently free */
 ulong total_swap = 0L,		/* Counts of swap blocks */
 	free_swap = 0L;
+ulong swap_pending = 0L;	/* Blocks alloc'ed before first swap */
+				/*  partition configured */
 
 /*
  * swapent()
@@ -78,6 +80,7 @@ swapadd(port_t port, ulong len, ulong off)
 	 * Allocate more space for swap map
 	 */
 	if (!swapmap) {
+		ASSERT(swap_pending < len, "swapadd: too much pending");
 		low = 1L;
 	} else {
 		s = swapend-1;
@@ -105,7 +108,12 @@ swapadd(port_t port, ulong len, ulong off)
 	/*
 	 * Add it to our resource map, too
 	 */
-	rmap_free(smap, low, len);
+	if (swap_pending) {
+		rmap_free(smap, low + swap_pending, len - swap_pending);
+		swap_pending = 0L;
+	} else {
+		rmap_free(smap, low, len);
+	}
 	free_swap += len;
 	total_swap += len;
 }
@@ -142,24 +150,10 @@ swap_add(struct msg *m, struct file *f, uint len)
 	/*
 	 * Connect to the named server
 	 */
-	if ((p = msg_connect(sa->s_port, ACC_READ|ACC_WRITE)) < 0) {
+	p = path_open(sa->s_path, ACC_READ | ACC_WRITE);
+	if (p < 0) {
 		msg_err(m->m_sender, EINVAL);
 		return;
-	}
-
-	/*
-	 * If there's a path, walk it and get the destination port
-	 */
-	if (sa->s_path[0]) {
-		mountport("/xx", p);
-		chdir("/xx");
-		fd = open(sa->s_path, O_RDWR);
-		umount("/xx", -1);
-		if (fd < 0) {
-			msg_err(m->m_sender, strerror());
-			return;
-		}
-		p = __fd_port(fd);
 	}
 
 	/*
@@ -178,8 +172,8 @@ swap_add(struct msg *m, struct file *f, uint len)
 	 * Add the swap space
 	 */
 #ifdef DEBUG
-	printf("swap: add port %d path '%s' len %d off %d\n",
-		sa->s_port, sa->s_path, slen, sa->s_off);
+	printf("swap: add path '%s' len %d off %d\n",
+		sa->s_path, slen, sa->s_off);
 #endif
 	swapadd(p, slen, sa->s_off);
 
@@ -208,10 +202,19 @@ swap_alloc(struct msg *m, struct file *f)
 	}
 
 	/*
-	 * Pull blocks from resource map
+	 * Before first swap device is configured, run pending
+	 * tally.
 	 */
 	blocks = m->m_arg;
-	if ((blkno = rmap_alloc(smap, blocks)) == 0) {
+	if (!swapmap) {
+		m->m_arg = swap_pending + 1L;
+		swap_pending += blocks;
+	}
+
+	/*
+	 * Else pull blocks from resource map
+	 */
+	else if ((blkno = rmap_alloc(smap, blocks)) == 0) {
 		/*
 		 * Failure
 		 */
