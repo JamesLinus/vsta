@@ -326,3 +326,32 @@ b_pages counts up the # of pages used for a particular bucket size.
 	We should think about free'ing some pages back to the main
 	free list if that bucket appears to have enough resources
 	anyway.
+
+There's a deadlock which can happen when two threads in one process
+	are used to implement a certain kind of server.  The problem
+	is when one thread is a client of the server, which the
+	other thread is running.  If the client has a request pending,
+	and you kill the entire process, you may find that the server
+	thread is gone, and the client thread--because a request
+	was pending--is blocked trying to get an interrupted operation
+	acknowledged from the (now dead) server.  If the server thread
+	were not in the same process, then process cleanup would have
+	cleared the server port automatically.  But since it is, the
+	kernel doesn't know but that the other thread may be the next
+	to take over handling of server actions.
+
+	The fix is probably to keep count of the number of threads
+	which are not blocked on a port served from the process of
+	the threads.  When this count reaches 0, each server port
+	in the process should be closed.
+
+I've been trying to get a handle on a bug which hoses the first text
+	page of the console server.  It looks like a couple 32-bit
+	values scrozz a couple spots of text--in practice, always
+	a bit of code needed when you switch virtual console screens.
+	The interesting bit is that these values are stack pointer
+	values for the kernel stack of the console server thread
+	itself.  Some really funky condition, and very hard to
+	reproduce.
+
+In a release or so, /bin/ovim should go away.
