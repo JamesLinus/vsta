@@ -50,8 +50,8 @@ signal_thread(struct thread *t, char *event, int is_sys)
 	extern void nudge(), lsetrun();
 
 	if (!is_sys) {
-		if (p_sema(&t->t_evq, PRICATCH)) {
-			return(err(EINTR));
+		if (cp_sema(&t->t_evq)) {
+			return(err(EAGAIN));
 		}
 	}
 
