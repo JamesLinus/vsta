@@ -23,9 +23,9 @@ extern char *__cwd_restore(char *);
 extern char *getcwd(char *, int);
 extern int dup(int), dup2(int, int);
 extern int execl(const char *, const char *, ...),
-	execv(const char *, const char **),
+	execv(const char *, char * const *),
 	execlp(const char *, const char *, ...),
-	execvp(const char *, const char **);
+	execvp(const char *, char * const *);
 extern char *getenv(const char *);
 extern int setenv(const char *, const char *);
 extern pid_t getpid(void), gettid(void), getppid(void);

@@ -12,13 +12,13 @@
 int
 system(const char *cmd)
 {
-	const char *argv[4];
+	char *argv[4];
 	long pid;
 	struct exitst w;
 
 	argv[0] = "sh";
 	argv[1] = "-c";
-	argv[2] = cmd;
+	argv[2] = (char *)cmd;
 	argv[3] = 0;
 	pid = fork();
 	if (pid < 0) {
@@ -36,7 +36,7 @@ system(const char *cmd)
  * execvp()
  *	Interface to execv() with path honored
  */
-execvp(const char *prog, const char **argv)
+execvp(const char *prog, char * const *argv)
 {
 	char *pathbuf, *path, *p, *buf;
 	int len;
@@ -105,5 +105,5 @@ execvp(const char *prog, const char **argv)
  */
 execlp(const char *path, const char *arg0, ...)
 {
-	return(execvp(path, &arg0));
+	return(execvp(path, (char **)&arg0));
 }

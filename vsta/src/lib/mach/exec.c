@@ -16,7 +16,7 @@
  * execv()
  *	Execute a file with some arguments
  */
-execv(const char *file, const char **argv)
+execv(const char *file, char * const *argv)
 {
 	int fd, x;
 	uint plen, fdl_len, mnt_len, cwd_len;
@@ -145,5 +145,5 @@ execv(const char *file, const char **argv)
  */
 execl(const char *file, const char *arg0, ...)
 {
-	return(execv(file, &arg0));
+	return(execv(file, (char **)&arg0));
 }
