@@ -244,6 +244,7 @@ dos_remove(struct msg *m, struct file *f)
 	 * Done with node
 	 */
 	deref_node(n);
+	sync();
 
 	/*
 	 * Return success
