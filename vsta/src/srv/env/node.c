@@ -152,8 +152,11 @@ deref_node(struct node *n)
 	ASSERT(n->n_elems.l_forw == &n->n_elems, "deref_node: elems !ref");
 
 	/*
-	 * Free ref to value, parent
+	 * Break connection to value, parent
 	 */
+	if (n->n_list) {
+		ll_delete(n->n_list);
+	}
 	deref_val(n->n_val);
 	deref_node(n->n_up);
 
