@@ -130,10 +130,12 @@ login(struct uinfo *u)
 	port_t port;
 	struct perm perm;
 	char buf[128];
+	extern void zero_ids();
 
 	/*
 	 * Activate root abilities
 	 */
+	zero_ids(&perm, 1);
 	perm.perm_len = 0;
 	if (perm_ctl(1, &perm, (void *)0) < 0) {
 		printf("login: can't enable root\n");
