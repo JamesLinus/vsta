@@ -33,7 +33,14 @@ strings(char *file)
 				putchar(c);
 			} else {
 				inprint = 0;
+				putchar('\n');
 			}
+		/*
+		 * When we see something printable, we wait to see at
+		 * least four such in a row.  This avoids lots of noise
+		 * where single bytes in a binary stream happen to have
+		 * ASCII values.
+		 */
 		} else if (printable(c)) {
 			print[nprint++] = c;
 			if (nprint >= RUNLEN) {
@@ -46,7 +53,9 @@ strings(char *file)
 		}
 	}
 	fclose(fp);
-	putchar('\n');
+	if (inprint) {
+		putchar('\n');
+	}
 }
 
 main(int argc, char **argv)
