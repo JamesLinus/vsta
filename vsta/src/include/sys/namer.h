@@ -10,7 +10,7 @@
 #include <sys/msg.h>
 
 port_name namer_find(char *);
-int namer_register(char *, port_t);
+int namer_register(char *, port_name);
 
 #ifdef _NAMER_H_INTERNAL
 #include <sys/types.h>
