@@ -120,15 +120,19 @@ static
 field(char *str, int idx)
 {
 	int x;
-	char *p;
+	char *p, *eos;
 
 	/*
 	 * Walk forward to the n'th field
 	 */
 	p = str;
+	eos = strchr(p, '\n');		/* Don't walk into next field */
+	if (eos == 0) {	/* Corrupt */
+		return(0);
+	}
 	for (x = 0; x < idx; ++x) {
 		p = strchr(p, '/');
-		if (!p) {
+		if (!p || (p >= eos)) {
 			return(0);
 		}
 		++p;
@@ -196,8 +200,8 @@ fstat(int fd, struct stat *s)
 	 */
 	p = fieldval(sbuf, "owner");
 	if (p) {
-		s->st_gid = field(p, 0);
-		s->st_uid = field(p, 1);
+		s->st_uid = field(p, 0);
+		s->st_gid = field(p, 1);
 	} else {
 		s->st_gid = s->st_uid = 0;
 	}
@@ -208,13 +212,13 @@ fstat(int fd, struct stat *s)
 	p = fieldval(sbuf, "type");
 	if (!p) {
 		mode = S_IFREG;
-	} else if (!strcmp(p, "d")) {
+	} else if (!strncmp(p, "d\n", 2)) {
 		mode = S_IFDIR;
-	} else if (!strcmp(p, "c")) {
+	} else if (!strncmp(p, "c\n", 2)) {
 		mode = S_IFCHR;
-	} else if (!strcmp(p, "b")) {
+	} else if (!strncmp(p, "b\n", 2)) {
 		mode = S_IFBLK;
-	} else if (!strcmp(p, "fifo")) {
+	} else if (!strncmp(p, "fifo\n", 5)) {
 		mode = S_IFIFO;
 	} else {
 		mode = S_IFREG;
@@ -228,10 +232,10 @@ fstat(int fd, struct stat *s)
 		mode |= modes(field(p, 0));
 		mode |= modes(field(p, 1)) << 3;
 		mode |= modes(field(p, 2)) << 6;
-		s->st_mode = mode;
 	} else {
-		s->st_mode |= ((S_IREAD|S_IWRITE) << 6);
+		mode |= ((S_IREAD|S_IWRITE) << 6);
 	}
+	s->st_mode = mode;
 	return(0);
 }
 
