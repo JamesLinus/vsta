@@ -34,7 +34,7 @@
 
 static unsigned short *dbg_tvram = (unsigned short *) TVRAM;
 static unsigned char dbg_current_col = 0;
-static unsigned char dbg_current_row = 10; /* start debugger at row 10 */
+static unsigned char dbg_current_row = 24; /* start debugger at bottom */
 
 /*
  * init_cons()
