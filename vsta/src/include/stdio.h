@@ -22,15 +22,16 @@ typedef struct __file {
 /*
  * Bits in f_flags
  */
-#define _F_WRITE (1)		/* Can write */
-#define _F_READ (2)		/*  ...read */
-#define _F_DIRTY (4)		/* Buffer holds new data */
-#define _F_EOF (8)		/* Sticky EOF */
-#define _F_ERR (16)		/*  ...error */
-#define _F_UNBUF (32)		/* Flush after each put */
-#define _F_LINE (64)		/*  ...after each newline */
-#define _F_SETUP (128)		/* Buffers, etc. set up now */
-#define _F_UBUF (256)		/* User-provided buffer */
+#define _F_WRITE (0x0001)	/* Can write */
+#define _F_READ (0x0002)	/*  ...read */
+#define _F_DIRTY (0x0004)	/* Buffer holds new data */
+#define _F_EOF (0x0008)		/* Sticky EOF */
+#define _F_ERR (0x0010)		/*  ...error */
+#define _F_UNBUF (0x0020)	/* Flush after each put */
+#define _F_LINE (0x0040)	/*  ...after each newline */
+#define _F_SETUP (0x0080)	/* Buffers, etc. set up now */
+#define _F_UBUF (0x0100)	/* User-provided buffer */
+#define _F_TTY (0x0200)		/* isatty(f_fd) == TRUE */
 
 /*
  * These need to be seen before getc()/putc() are defined
