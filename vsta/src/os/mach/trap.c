@@ -496,6 +496,11 @@ sendev(struct thread *t, char *ev)
 	 */
 	p = t->t_proc;
 	if (!p->p_handler || !strcmp(ev, EKILL)) {
+#ifdef DEBUG
+		printf("tid %d dies on unhandled event: %s\n",
+			t->t_pid, ev);
+		dbg_enter();
+#endif
 		exit(1);
 	}
 
@@ -552,18 +557,29 @@ interrupt(ulong place_holder)
 		extern void hardclock();
 
 		hardclock();
-		return;
+		goto out;
 	}
 
 	/*
 	 * Let processes registered for an IRQ get them
 	 */
 	if (deliver_isr(isr)) {
-		return;
+		goto out;
 	}
 
 	/*
 	 * Otherwise bomb on stray interrupt
 	 */
 	ASSERT(0, "interrupt: stray");
+
+	/*
+	 * Check for preemption if we pushed in from user mode
+	 * XXX should allow preemption from kernel too.  "Should"
+	 * work, but I don't want to chase too many bugs at once!
+	 */
+out:
+	if ((f->ecs & 0x3) == PRIV_USER) {
+		sti();
+		check_preempt();
+	}
 }
