@@ -28,7 +28,7 @@ struct syscall {
 	intfun s_fun;
 	int s_narg;
 } syscalls[] = {
-	{msg_port, 1},				/*  0 */
+	{msg_port, 2},				/*  0 */
 	{msg_connect, 2},			/*  1 */
 	{msg_accept, 1},			/*  2 */
 	{msg_send, 2},				/*  3 */

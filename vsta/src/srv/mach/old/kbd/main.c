@@ -259,7 +259,7 @@ main()
 	/*
 	 * Get a port for the keyboard
 	 */
-	kbdport = msg_port(PORT_KBD);
+	kbdport = msg_port(PORT_KBD, 0);
 
 	/*
 	 * Tell system about our I/O vector

@@ -271,7 +271,7 @@ main()
 	/*
 	 * Get a port for the console
 	 */
-	consport = msg_port(PORT_CONS);
+	consport = msg_port(PORT_CONS, 0);
 
 	/*
 	 * Let screen mapping get initialized

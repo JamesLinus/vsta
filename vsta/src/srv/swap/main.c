@@ -278,7 +278,7 @@ main(int argc, char *argv[])
 	/*
 	 * Register as THE system swap task
 	 */
-	rootport = msg_port(PORT_SWAP);
+	rootport = msg_port(PORT_SWAP, 0);
 	if (rootport < 0) {
 		fprintf(stderr, "SWAP: can't register name\n");
 		exit(1);

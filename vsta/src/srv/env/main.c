@@ -306,7 +306,7 @@ main(int argc, char *argv[])
 	 * Block device looks good.  Last check is that we can register
 	 * with the given name.
 	 */
-	envport = msg_port(PORT_ENV);
+	envport = msg_port(PORT_ENV, 0);
 	if (x < 0) {
 		fprintf(stderr, "ENV: can't register name\n");
 		exit(1);

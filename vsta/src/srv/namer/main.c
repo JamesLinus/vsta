@@ -309,7 +309,7 @@ main(int argc, char *argv[])
 	 * Block device looks good.  Last check is that we can register
 	 * with the given name.
 	 */
-	namerport = msg_port(PORT_NAMER);
+	namerport = msg_port(PORT_NAMER, 0);
 	if (x < 0) {
 		fprintf(stderr, "NAMER: can't register name\n");
 		exit(1);

@@ -56,7 +56,7 @@ extern int copyoutsegs(struct sysmsg *, struct msg *);
 
 #endif /* KERNEL */
 
-port_t msg_port(port_name);		/* Create new port */
+port_t msg_port(port_name, port_name *); /* Create new port */
 port_t msg_connect(port_name, int);	/* Connect to port */
 int msg_accept(long);			/* Accept M_CONNECT */
 int msg_send(port_t, msg_t *);		/* Send message to port */
