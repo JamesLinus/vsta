@@ -362,7 +362,7 @@ static int
 search_vfat(char *name, struct directory *d, int ndir, struct directory *d2)
 {
 	int x;
-	uint c;
+	uchar c;
 	struct dirstate state;
 	char buf[VSE_MAX_NAME+2];
 
@@ -371,7 +371,7 @@ search_vfat(char *name, struct directory *d, int ndir, struct directory *d2)
 		 * Null char in filename means no entries
 		 * beyond this point; search failed.
 		 */
-		c = d->name[0] & 0xFF;
+		c = d->name[0];
 		if (c == 0) {
 			return(-1);
 		}
@@ -821,12 +821,12 @@ dir_empty(struct node *n)
 		 * Search directory block
 		 */
 		for (x = 0; x < cldirs; ++x,++d) {
-			uint c;
+			uchar c;
 
 			/*
 			 * Look at first character
 			 */
-			c = (d->name[0] & 0xFF);
+			c = d->name[0];
 
 			/*
 			 * No more entries--we haven't seen a file,
@@ -941,6 +941,8 @@ dir_remove(struct node *n)
 	 * Null out any leading VSE's
 	 */
 	while (slot > 0) {
+		uchar c;
+
 		/*
 		 * Get next slot.  Leave when we can't get the slot,
 		 * or when it stops being leading VSE's.
@@ -950,7 +952,9 @@ dir_remove(struct node *n)
 		if (d == NULL) {
 			break;
 		}
-		if (d->attr != DA_VFAT) {
+		c = d->name[0];
+		ASSERT_DEBUG(c != 0, "dir_remove: null'ed entry");
+		if ((c == DN_DEL) || (d->attr != DA_VFAT)) {
 			dfree(handle);
 			break;
 		}
@@ -977,7 +981,7 @@ dir_findslot(struct node *n, int nentry)
 	uint x, start = 0, got = 0;
 	struct clust *c = n->n_clust;
 	void *handle;
-	uint ch;
+	uchar ch;
 
 	if (n == rootdir) {
 		/*
@@ -990,7 +994,7 @@ dir_findslot(struct node *n, int nentry)
 			 * it in our attempt to find "nentry" of
 			 * them in a row.
 			 */
-			ch = (d->name[0] & 0xFF);
+			ch = d->name[0];
 			if ((ch == 0) || (ch == DN_DEL)) {
 				/*
 				 * First one--remember beginning of run
@@ -1039,7 +1043,7 @@ dir_findslot(struct node *n, int nentry)
 		base = d = index_buf(handle, 0, CLSIZE);
 		endd = d+cldirs;
 		for ( ; d < endd; ++d) {
-			ch = (d->name[0] & 0xFF);
+			ch = d->name[0];
 			if ((ch == 0) || (ch == DN_DEL)) {
 				/*
 				 * First one--remember beginning of run
@@ -1068,7 +1072,7 @@ dir_findslot(struct node *n, int nentry)
 		/*
 		 * No more blocks
 		 */
-		return(0);
+		return(-1);
 	}
 
 	/*
