@@ -130,3 +130,22 @@ Proxy functions over KA9Q TCP/IP now working.
 Ports of GNU awk, bison, flex, make, text utils, file utils.
 VSTa is Multiboot compliant; boots from GRUB loader.  Boot from under
 	DOS is no longer used.
+
+1.6.1
+Fix KA9Q so it doesn't lock up on "real" network interfaces.
+Add packet buffering to srv/mach/ne.  TCP/IP is now actually
+	usable.
+Convert srv/dos to getopt().
+Add -B flag to dos and vstafs to set buffer cache size.
+Fix PATH inheritance bug in /bin/sh; shell scripts could otherwise
+	fail pathname lookup for their commands.
+Fix bug in environ[] emulation; garbage chars at end of some strings.
+Help for kernel debugger.
+PID's now start at 1 so even the first process can be notify()'ed.
+Enable SIGINTR/SIGQUIT generation from console keyboard.  Fix login
+	to mark process group to TTY, and TTY mode handling to permit
+	updating of the TTY input signal state.  Said signals are
+	generated with the assumed identity of the client who set
+	the process group.
+Add -k to rs232 server so it's easy to control whether ^Z puts you
+	into the kernel debugger.
