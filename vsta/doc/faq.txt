@@ -20,9 +20,8 @@ It really isn't all that simple!
 3. What does VSTa run on?
 
 VSTa was originally written for the i386 PC.  It has since run on 2 meg
-386sx processors and 16 meg Pentium processors.  The DMA system currently
-does not correctly support > 16 meg ISA bus access.  Most of the code is
-there (bounce buffers and such) but it is not completely implemented.
+386sx processors and 16 meg Pentium processors.  The DMA system handles
+memory for > 16 meg ISA bus access using a bounce buffer.
 
 VSTa has driver support for ST-506, IDE, and Adaptec 1542[bc] disk
 interfaces.  It supports floppy drives, MGA and CGA monitors, RS-232
@@ -33,8 +32,10 @@ VSTa has a port to the Amiga with 68030.  It supports the display,
 keyboard, and SCSI disk.  While operational, it is not being actively
 maintained.
 
-VSTa has people looking at ports to R3000's and SPARC's.  No bootable code
-has been reported yet.
+The VSTa kernel has been ported to a MIPS R4000.
+
+Someone once looked at a port to the SPARC.  No bootable code was ever
+reported.
 
 4. How do I get VSTa?
 
@@ -67,17 +68,18 @@ in the same archive, which tells you how to boot up the system.
 
 6. Ok, I booted it, but how do I find out more about its design?
 
-The FTP sites hold an aging introduction paper.  The mailing list archives
+The FTP sites hold an aged introduction paper.  The mailing list archives
 at the FTP sites contain several messages which describe the design of
 various parts (booting, VM, scheduling, ...) of the system.  If you are
 searching for a particular topic, a hypertext index:
 
-	http://www.zendo.com/vandys/vsta-mail
+	http://www.vsta.org/mail
 
-provides a powerful interface for searching all message list traffic.
+will let you read through the mail archives.
 
-The doc/ subdirectory holds a skeletal amount of documentation on the basic
-kernel interfaces.  More will be added (time permitting :->).
+The doc/ subdirectory of a VSTa distribution holds a skeletal amount of
+documentation on the basic kernel interfaces.  More will be added
+(time permitting :->).
 
 Finally, the code itself has relatively consistent and numerous comments.
 
@@ -95,25 +97,33 @@ A port of KA9Q has been done.  It uses the ne2000 driver and can be
 used to telnet and FTP.  KA9Q provides a /inet filesystem interface,
 which processes can open and use to receive and initiate TCP connections.
 A telnetd has been implemented, permitting network logins to VSTa.
+A proxy daemon can make the kernel IPC transparently accessiable from
+any other IP node.  Since almost all services are built on top of kernel
+IPC, in practice this means much of VSTa can be transparently accessed
+from any network location.
 
 8. What's being developed for VSTa?
 
 VSTa has been ported to the 68030 and R4000.  MGR is the primary
-windowing system, and runs pretty well.  Distributed VSTa (binding
-kernel messages to the IP stack) is working in a basic form.
+windowing system, and runs pretty well.  Over time, more and newer
+ports of various UNIX-ish software get ported.  select() support
+was added recently.
 
 9. Is there a mailing list?
 
 We run a VSTa mailing list.  Send a subscription request to:
 
-    vsta-request@zendo.com
+    vsta-request@vsta.org
 
 There's no list server, so feel free to use English.  Once you're on the
 list, send to:
 
-    vsta@zendo.com
+    vsta@vsta.org
 
-and the message will be distributed to all members.
+and the message will be distributed to all members.  There is a spam
+filter, so be sure to send from your subscribed address.  Where this is
+a problem, send a note to vsta-request and we can register more
+addresses.
 
 A digest format is available; specify this in your subscription request
 if you prefer it.  Our digest algorithm is to wait up to three days to
