@@ -309,16 +309,18 @@ free_pages(void *vaddr, uint npg)
 {
 	int x;
 	uint pg;
+	void *addr;
 
 	for (x = 0; x < npg; ++x) {
-		pg = btop(vtop(vaddr+ptob(x)));
+		addr = (char *)vaddr + ptob(x);
+		pg = btop(vtop(addr));
 		free_page(pg);
-#ifdef DEBUG
+
 		/*
-		 * This might help catch users of stale pointers
+		 * Remove the translation and ensure the TLB is
+		 * gone.
 		 */
-		kern_deletetrans(vaddr+ptob(x), pg);
-#endif
+		kern_deletetrans(addr, pg);
 	}
 	free_vmap(btop(vaddr), npg);
 }
