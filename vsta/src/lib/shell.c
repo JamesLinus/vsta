@@ -26,6 +26,6 @@ system(char *cmd)
 		execv("/bin/sh", argv);
 		_exit(-1);
 	}
-	waits(&w);
+	waits(&w, 1);
 	return(w.e_code);
 }
