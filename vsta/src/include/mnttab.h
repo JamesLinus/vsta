@@ -35,5 +35,8 @@ struct mntent {
  */
 extern int mount(char *, char *), mountport(char *, port_t);
 extern int umount(char *, port_t);
+extern ulong __mount_size(void);
+extern void __mount_save(char *);
+extern char *__mount_restore(char *);
 
 #endif /* _MNTTAB_H */
