@@ -78,7 +78,7 @@ struct syscall {
 	{nop, 1},
 #endif
 	{notify_handler, 1},			/* 37 */
-	{sched_op, 1},				/* 38 */
+	{sched_op, 2},				/* 38 */
 };
 #define NSYSCALL (sizeof(syscalls) / sizeof(struct syscall))
 #define MAXARGS (6)
