@@ -79,7 +79,7 @@ p_sema(sema_t *s, pri_t p)
 	/*
 	 * Counts > 0, just decrement the count and go
 	 */
-	p_lock_fast(&s->s_lock, SPLHI);
+	p_lock_void(&s->s_lock, SPLHI);
 	s->s_count -= 1;
 	if (s->s_count >= 0) {
 		v_lock(&s->s_lock, SPL0);
@@ -95,7 +95,7 @@ p_sema(sema_t *s, pri_t p)
 	t->t_nointr = (p == PRIHI);
 	t->t_intr = 0;	/* XXX this can race with notify */
 	q_sema(s, t);
-	p_lock_fast(&runq_lock, SPLHI_SAME);
+	p_lock_void(&runq_lock, SPLHI_SAME);
 	v_lock(&s->s_lock, SPLHI_SAME);
 	t->t_state = TS_SLEEP;
 	ATOMIC_DEC(&num_run);
@@ -159,7 +159,7 @@ v_sema(sema_t *s)
 		ASSERT_DEBUG(t->t_wchan == s, "v_sema: mismatch");
 		dq_sema(s, t);
 		t->t_wchan = 0;
-		p_lock_fast(&runq_lock, SPLHI_SAME);
+		p_lock_void(&runq_lock, SPLHI_SAME);
 		lsetrun(t);
 		v_lock(&runq_lock, SPLHI_SAME);
 	} else {
@@ -198,7 +198,7 @@ p_sema_v_lock(sema_t *s, pri_t p, lock_t *l)
 	 * Take semaphore lock.  If count is high enough, release
 	 * semaphore and lock now.
 	 */
-	p_lock_fast(&s->s_lock, SPLHI);
+	p_lock_void(&s->s_lock, SPLHI);
 	s->s_count -= 1;
 	if (s->s_count >= 0) {
 		v_lock(&s->s_lock, SPLHI_SAME);
@@ -215,7 +215,7 @@ p_sema_v_lock(sema_t *s, pri_t p, lock_t *l)
 	t->t_intr = 0;
 	t->t_nointr = (p == PRIHI);
 	q_sema(s, t);
-	p_lock_fast(&runq_lock, SPLHI_SAME);
+	p_lock_void(&runq_lock, SPLHI_SAME);
 	v_lock(&s->s_lock, SPLHI_SAME);
 	v_lock(l, SPLHI_SAME);
 	t->t_state = TS_SLEEP;

@@ -97,7 +97,7 @@ page_wire(void *arg_va, void **arg_pa)
 	if (p_sema(&wired_sema, PRICATCH)) {
 		return(err(EINTR));
 	}
-	p_lock_fast(&wired_lock, SPL0);
+	p_lock_void(&wired_lock, SPL0);
 	for (w = wired; w->w_proc; ++w)
 		;
 	ASSERT_DEBUG(w < &wired[MAX_WIRED], "page_wire: bad count");
@@ -180,7 +180,7 @@ page_release(uint arg_handle)
 	 * Lock and see if this is really our slot
 	 */
 	w = &wired[arg_handle];
-	p_lock_fast(&wired_lock, SPL0);
+	p_lock_void(&wired_lock, SPL0);
 	if (w->w_proc == curthread->t_proc) {
 		pfn = w->w_pfn;
 		w->w_proc = 0;
@@ -223,7 +223,7 @@ pages_release(struct proc *p)
 			/*
 			 * Lock and check again
 			 */
-			p_lock_fast(&wired_lock, SPL0);
+			p_lock_void(&wired_lock, SPL0);
 			if (w->w_proc == p) {
 				/*
 				 * Record PFN, clear slot

@@ -70,7 +70,7 @@ cow_fillslot(struct pset *ps, struct perpage *pp, uint idx)
 		 * Lock slot of underlying pset
 		 */
 		idx2 = ps->p_off + idx;
-		p_lock_fast(&cow->p_lock, SPL0);
+		p_lock_void(&cow->p_lock, SPL0);
 		pp2 = find_pp(cow, idx2);
 		lock_slot(cow, pp2);
 
@@ -163,7 +163,7 @@ cow_free(struct pset *ps)
 	 * Free our reference to the master set on PT_COW
 	 */
 	ps2 = ps->p_cow;
-	p_lock_fast(&ps2->p_lock, SPL0);
+	p_lock_void(&ps2->p_lock, SPL0);
 	psp = &ps2->p_cowsets;
 	for (p = ps2->p_cowsets; p; p = p->p_cowsets) {
 		if (p == ps) {
@@ -192,7 +192,7 @@ add_cowset(struct pset *pscow, struct pset *ps)
 	 * Attach to the underlying pset
 	 */
 	ref_pset(pscow);
-	p_lock_fast(&pscow->p_lock, SPL0);
+	p_lock_void(&pscow->p_lock, SPL0);
 	ps->p_cowsets = pscow->p_cowsets;
 	pscow->p_cowsets = ps;
 	ps->p_cow = pscow;
@@ -259,7 +259,7 @@ cow_lastref(struct pset *ps, struct perpage *pp, uint idx)
 	if (pp->pp_flags & PP_COW) {
 		ps2 = ps->p_cow;
 		idx += ps->p_off;
-		p_lock_fast(&ps2->p_lock, SPL0);
+		p_lock_void(&ps2->p_lock, SPL0);
 		pp2 = find_pp(ps2, idx);
 		lock_slot(ps2, pp2);
 		deref_slot(ps2, pp2, idx);

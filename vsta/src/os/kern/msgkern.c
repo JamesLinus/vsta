@@ -34,7 +34,7 @@ kernmsg_send(struct portref *pr, int op, long *args)
 	/*
 	 * Interlock with server
 	 */
-	p_lock_fast(&pr->p_lock, SPL0);
+	p_lock_void(&pr->p_lock, SPL0);
 
 	/*
 	 * If port gone, I/O error

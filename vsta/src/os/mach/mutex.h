@@ -128,11 +128,11 @@ p_lock(lock_t *l, spl_t s)
 }
 
 /*
- * p_lock_fast()
+ * p_lock_void()
  *	Take a spinlock, but don't return anything
  */
 inline static void
-p_lock_fast(lock_t *l, spl_t s)
+p_lock_void(lock_t *l, spl_t s)
 {
 	ASSERT_DEBUG(l->l_lock == 0, "p_lock: deadlock");
 

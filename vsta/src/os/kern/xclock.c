@@ -51,7 +51,7 @@ alarm_wakeup(struct time *t)
 	struct eventq *e, **ep;
 
 	ep = &eventq;
-	p_lock_fast(&time_lock, SPLHI);
+	p_lock_void(&time_lock, SPLHI);
 	for (e = eventq; e; e = e->e_next) {
 		/*
 		 * Our list is ordered to the second, so we can bail
@@ -260,7 +260,7 @@ timed_sleep(struct time *t, int intr)
 	 * for the same second.
 	 */
 	ep = &eventq;
-	p_lock_fast(&time_lock, SPLHI);
+	p_lock_void(&time_lock, SPLHI);
 	for (e = eventq; e; e = e->e_next) {
 		if (l <= e->e_time.t_sec) {
 			break;
@@ -282,7 +282,7 @@ timed_sleep(struct time *t, int intr)
 		/*
 		 * Regain lock, and see if we're still on the list.
 		 */
-		p_lock_fast(&time_lock, SPLHI);
+		p_lock_void(&time_lock, SPLHI);
 		if (ev->e_onlist) {
 			/*
 			 * Hunt ourselves down and remove from the list

@@ -638,7 +638,7 @@ do_exit(int code)
 	 */
 	FREE(curthread, MT_THREAD);
 	curthread = 0;
-	p_lock_fast(&runq_lock, SPLHI);
+	p_lock_void(&runq_lock, SPLHI);
 	PREEMPT_OK();	/* Can't preempt now with runq_lock held */
 	for (;;) {
 		swtch();

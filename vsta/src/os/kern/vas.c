@@ -34,10 +34,10 @@ find_pview(struct vas *vas, void *vaddr)
 {
 	struct pview *pv;
 
-	p_lock_fast(&vas->v_lock, SPL0);
+	p_lock_void(&vas->v_lock, SPL0);
 	for (pv = vas->v_views; pv; pv = pv->p_next) {
 		if (CONTAINS(pv, vaddr)) {
-			p_lock_fast(&pv->p_set->p_lock, SPL0_SAME);
+			p_lock_void(&pv->p_set->p_lock, SPL0_SAME);
 			v_lock(&vas->v_lock, SPL0_SAME);
 			return(pv);
 		}
@@ -65,7 +65,7 @@ detach_pview(struct vas *vas, void *vaddr)
 	 * Remove our pview from the vas.  It's singly linked, so we
 	 * have to search from the front.
 	 */
-	p_lock_fast(&vas->v_lock, SPL0);
+	p_lock_void(&vas->v_lock, SPL0);
 	pv = vas->v_views;
 	pvp = &vas->v_views;
 	for ( ; pv; pv = pv->p_next) {
@@ -82,7 +82,7 @@ detach_pview(struct vas *vas, void *vaddr)
 	/*
 	 * Walk each valid slot, and tear down any HAT translation.
 	 */
-	p_lock_fast(&ps->p_lock, SPL0_SAME);
+	p_lock_void(&ps->p_lock, SPL0_SAME);
 	for (x = 0; x < pv->p_len; ++x) {
 		uint pfn, idx;
 
@@ -124,7 +124,7 @@ detach_pview(struct vas *vas, void *vaddr)
 		/*
 		 * Reacquire pset lock
 		 */
-		p_lock_fast(&ps->p_lock, SPL0_SAME);
+		p_lock_void(&ps->p_lock, SPL0_SAME);
 	}
 
 	/*
@@ -179,7 +179,7 @@ attach_pview(struct vas *vas, struct pview *pv)
 	/*
 	 * Now that we're committed, link it onto the vas
 	 */
-	p_lock_fast(&vas->v_lock, SPL0);
+	p_lock_void(&vas->v_lock, SPL0);
 	pv->p_next = vas->v_views;
 	vas->v_views = pv;
 	v_lock(&vas->v_lock, SPL0_SAME);
@@ -251,7 +251,7 @@ fork_vas(struct vas *ovas, struct vas *vas)
 		 * to, but above or equal to, vaddr.
 		 */
 		closest = 0;
-		p_lock_fast(&ovas->v_lock, SPL0);
+		p_lock_void(&ovas->v_lock, SPL0);
 		for (pv = ovas->v_views; pv; pv = pv->p_next) {
 			if ((char *)pv->p_vaddr <= vaddr) {
 				continue;

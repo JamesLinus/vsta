@@ -120,7 +120,7 @@ pageio(uint pfn, struct portref *pr, uint off, uint cnt, int op)
 	 * One at a time through the portref
 	 */
 	p_sema(&pr->p_sema, PRIHI);
-	p_lock_fast(&pr->p_lock, SPL0_SAME);
+	p_lock_void(&pr->p_lock, SPL0_SAME);
 
 	/*
 	 * If port gone, I/O error
@@ -238,7 +238,7 @@ alloc_swap(uint pages)
 	 */
 	args[0] = 0;
 	if (swap_pending && swapdev) {
-		p_lock_fast(&swap_lock, SPL0);
+		p_lock_void(&swap_lock, SPL0);
 		if (swap_pending) {
 			args[0] = swap_pending;
 			swap_pending = 0;
@@ -260,7 +260,7 @@ alloc_swap(uint pages)
 	 * If no swap manager, run a "pending" tally
 	 */
 	if (!swapdev) {
-		p_lock_fast(&swap_lock, SPL0);
+		p_lock_void(&swap_lock, SPL0);
 		if (!swapdev) {
 			args[0] = swap_pending+1;
 			swap_pending += pages;

@@ -215,7 +215,7 @@ get_map_pset(struct portref *pr)
 	 * cache of mappings.  This also keeps the port from shutting
 	 * on us.
 	 */
-	p_lock_fast(&pr->p_lock, SPL0);
+	p_lock_void(&pr->p_lock, SPL0);
 	port = pr->p_port;
 	if (port) {
 		if ((port->p_flags & P_CLOSING) ||
@@ -443,7 +443,7 @@ unhash(port_t arg_port, long arg_fid)
 		v_sema(&p->p_sema);
 		return(err(EBADF));
 	}
-	p_lock_fast(&port->p_lock, SPLHI);
+	p_lock_void(&port->p_lock, SPLHI);
 	v_sema(&p->p_sema);
 	p_sema_v_lock(&port->p_mapsema, PRIHI, &port->p_lock);
 

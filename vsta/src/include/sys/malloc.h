@@ -104,7 +104,7 @@ MALLOC(uint size, uint type)
 		return(malloc(size));
 	}
 	b = &buckets[BUCKET(size)];
-	p_lock_fast(&b->b_lock, SPL0_SAME);
+	p_lock_void(&b->b_lock, SPL0_SAME);
 	v = b->b_mem;
 	if (v) {
 		b->b_mem = *(void **)v;

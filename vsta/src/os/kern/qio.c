@@ -29,7 +29,7 @@ static void free_qio(struct qio *);
 void
 qio(struct qio *q)
 {
-	p_lock_fast(&qio_lock, SPL0);
+	p_lock_void(&qio_lock, SPL0);
 	q->q_next = 0;
 	if (qio_hd == 0) {
 		qio_hd = q;
@@ -64,7 +64,7 @@ qio_msg_send(struct qio *q)
 	 * Become sole I/O through port
 	 */
 	p_sema(&pr->p_sema, PRIHI);
-	p_lock_fast(&pr->p_lock, SPL0);
+	p_lock_void(&pr->p_lock, SPL0);
 
 	/*
 	 * We lose if the server for the port has left
@@ -88,7 +88,7 @@ qio_msg_send(struct qio *q)
 	ASSERT_DEBUG(sema_count(&pr->p_iowait) == 0, "qio_msg_send: p_iowait");
 	queue_msg(pr->p_port, &sm, SPL0);
 	p_sema_v_lock(&pr->p_iowait, PRIHI, &pr->p_lock);
-	p_lock_fast(&pr->p_lock, SPL0);
+	p_lock_void(&pr->p_lock, SPL0);
 	if ((pr->p_port == 0) || (sm.sm_arg < 0)) {
 		error = 1;
 		goto out;
@@ -139,7 +139,7 @@ run_qio(void)
 	 * Get a new qio structure, add to the pool
 	 */
 	q = MALLOC(sizeof(struct qio), MT_QIO);
-	p_lock_fast(&qio_lock, SPL0);
+	p_lock_void(&qio_lock, SPL0);
 	q->q_next = qios;
 	qios = q;
 	v_lock(&qio_lock, SPL0_SAME);
@@ -161,7 +161,7 @@ run_qio(void)
 		/*
 		 * Extract one unit of work
 		 */
-		p_lock_fast(&qio_lock, SPL0);
+		p_lock_void(&qio_lock, SPL0);
 		q = qio_hd;
 		ASSERT_DEBUG(q, "run_qio: gate mismatch with run");
 		qio_hd = q->q_next;
@@ -192,7 +192,7 @@ alloc_qio(void)
 	struct qio *q;
 
 	p_sema(&qio_sema, PRIHI);
-	p_lock_fast(&qio_lock, SPL0);
+	p_lock_void(&qio_lock, SPL0);
 	q = qios;
 	ASSERT_DEBUG(q, "qio_alloc: bad sema count");
 	qios = q->q_next;
@@ -207,7 +207,7 @@ alloc_qio(void)
 static void
 free_qio(struct qio *q)
 {
-	p_lock_fast(&qio_lock, SPL0);
+	p_lock_void(&qio_lock, SPL0);
 	q->q_next = qios;
 	qios = q;
 	v_lock(&qio_lock, SPL0_SAME);

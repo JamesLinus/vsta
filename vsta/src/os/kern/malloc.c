@@ -92,7 +92,7 @@ malloc(uint size)
 	/*
 	 * Lock and see if our bucket is empty or not
 	 */
-	p_lock_fast(&b->b_lock, SPL0);
+	p_lock_void(&b->b_lock, SPL0);
 	
 	/*
 	 * We now know what bucket to use.  If it appears to be empty,
@@ -109,7 +109,7 @@ malloc(uint size)
 		 */
 		v_lock(&b->b_lock, SPL0_SAME);
 		pg = alloc_page();
-		p_lock_fast(&b->b_lock, SPL0_SAME);
+		p_lock_void(&b->b_lock, SPL0_SAME);
 
 		/*
 		 * Fill in per-page information, flag page as
@@ -212,7 +212,7 @@ free(void *mem)
 	 * Get bucket and lock
 	 */
 	b = &buckets[x];
-	p_lock_fast(&b->b_lock, SPL0);
+	p_lock_void(&b->b_lock, SPL0);
 
 #ifdef DEBUG
 	/*

@@ -59,7 +59,7 @@ find_portref(struct proc *p, port_t port)
 	/*
 	 * Take spinlock on portref.  Release proc.
 	 */
-	p_lock_fast(&ptref->p_lock, SPL0_SAME);
+	p_lock_void(&ptref->p_lock, SPL0_SAME);
 	v_sema(&p->p_sema);
 
 	/*
@@ -80,7 +80,7 @@ find_portref(struct proc *p, port_t port)
 		err(EINTR);
 		return(0);
 	}
-	p_lock_fast(&ptref->p_lock, SPL0_SAME);
+	p_lock_void(&ptref->p_lock, SPL0_SAME);
 	if (ptref->p_port == 0) {
 		v_lock(&ptref->p_lock, SPL0_SAME);
 		v_sema(&ptref->p_sema);
@@ -130,7 +130,7 @@ delete_portref(struct proc *p, port_t port)
 	/*
 	 * Take spinlock on portref.  Release proc.
 	 */
-	p_lock_fast(&ptref->p_lock, SPL0_SAME);
+	p_lock_void(&ptref->p_lock, SPL0_SAME);
 	v_sema(&p->p_sema);
 
 	/*
@@ -178,7 +178,7 @@ find_port(struct proc *p, port_t portid)
 	/*
 	 * Take spinlock on port.  Release proc.
 	 */
-	p_lock_fast(&port->p_lock, SPLHI);
+	p_lock_void(&port->p_lock, SPLHI);
 	v_sema(&p->p_sema);
 
 	/*
@@ -190,7 +190,7 @@ find_port(struct proc *p, port_t portid)
 		err(EINTR);
 		return(0);
 	}
-	p_lock_fast(&port->p_lock, SPLHI);
+	p_lock_void(&port->p_lock, SPLHI);
 	return(port);
 }
 
@@ -231,7 +231,7 @@ delete_port(struct proc *p, port_t portid)
 	/*
 	 * Take spinlock on port.  Release proc.
 	 */
-	p_lock_fast(&port->p_lock, SPLHI);
+	p_lock_void(&port->p_lock, SPLHI);
 	v_sema(&p->p_sema);
 
 	/*

@@ -295,7 +295,7 @@ swtch(void)
 		v_lock(&runq_lock, SPL0);
 		t = curthread = 0;
 		idle();
-		p_lock_fast(&runq_lock, SPLHI);
+		p_lock_void(&runq_lock, SPLHI);
 	}
 
 	/*
@@ -422,7 +422,7 @@ setrun(struct thread *t)
 inline static void
 timeslice(void)
 {
-	p_lock_fast(&runq_lock, SPLHI);
+	p_lock_void(&runq_lock, SPLHI);
 	ATOMIC_DEC(&num_run);
 	lsetrun(curthread);
 	swtch();
@@ -498,7 +498,7 @@ sched_thread(struct sched *parent, struct thread *t)
 	struct sched *s;
 
 	s = MALLOC(sizeof(struct sched), MT_SCHED);
-	p_lock_fast(&runq_lock, SPLHI);
+	p_lock_void(&runq_lock, SPLHI);
 	s->s_up = parent;
 	s->s_thread = t;
 	s->s_prio = PRIO_DEFAULT;
@@ -522,7 +522,7 @@ sched_node(struct sched *parent)
 	struct sched *s;
 
 	s = MALLOC(sizeof(struct sched), MT_SCHED);
-	p_lock_fast(&runq_lock, SPLHI);
+	p_lock_void(&runq_lock, SPLHI);
 	s->s_up = parent;
 	s->s_down = 0;
 	s->s_prio = PRIO_DEFAULT;
@@ -542,7 +542,7 @@ sched_node(struct sched *parent)
 void
 free_sched_node(struct sched *s)
 {
-	p_lock_fast(&runq_lock, SPLHI);
+	p_lock_void(&runq_lock, SPLHI);
 
 	/*
 	 * De-ref parent

@@ -58,7 +58,7 @@ signal_thread(struct thread *t, char *event, int is_sys)
 	/*
 	 * Take lock, place event in appropriate place
 	 */
-retry:	p_lock_fast(&runq_lock, SPLHI);
+retry:	p_lock_void(&runq_lock, SPLHI);
 	strcpy((is_sys ? t->t_evsys : t->t_evproc), event);
 
 	/*

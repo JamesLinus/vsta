@@ -238,7 +238,7 @@ msg_connect(port_name arg_port, int arg_mode)
 	/*
 	 * Lock port
 	 */
-	p_lock_fast(&port->p_lock, SPLHI);
+	p_lock_void(&port->p_lock, SPLHI);
 
 	/*
 	 * Fill in port we're trying to attach
@@ -314,7 +314,7 @@ tran_find(long arg_tran)
 	if (!pr) {
 		err(EINVAL);
 	} else {
-		p_lock_fast(&pr->p_lock, SPL0);
+		p_lock_void(&pr->p_lock, SPL0);
 	}
 	v_sema(&p->p_sema);
 	return(pr);
@@ -377,7 +377,7 @@ shut_client(struct portref *pr)
 	/*
 	 * If he's closed on us at the same time, no problem.
 	 */
-	p_lock_fast(&pr->p_lock, SPL0);
+	p_lock_void(&pr->p_lock, SPL0);
 	if (!(port = pr->p_port)) {
 		v_lock(&pr->p_lock, SPL0_SAME);	/* for lock count in percpu */
 		free_portref(pr);
@@ -418,8 +418,8 @@ close_client(struct port *port, struct portref *pr)
 	int err;
 
 	unmapsegs(&pr->p_segs);
-	p_lock_fast(&pr->p_lock, SPL0);
-	p_lock_fast(&port->p_lock, SPLHI);
+	p_lock_void(&pr->p_lock, SPL0);
+	p_lock_void(&port->p_lock, SPLHI);
 	if (port->p_hd) {
 		err = 1;
 	} else {
@@ -455,7 +455,7 @@ bounce_msgs(struct port *port)
 	 * hold the port lock and go for the portrefs, as we lock in
 	 * the other order, and would deadlock.
 	 */
-	p_lock_fast(&port->p_lock, SPL0);
+	p_lock_void(&port->p_lock, SPL0);
 	msgs = port->p_hd;
 	port->p_hd = port->p_tl = 0;
 	v_lock(&port->p_lock, SPL0);
@@ -493,8 +493,8 @@ bounce_msgs(struct port *port)
 		/*
 		 * Lock portref, then port
 		 */
-		p_lock_fast(&pr->p_lock, SPL0_SAME);
-		p_lock_fast(&port->p_lock, SPLHI);
+		p_lock_void(&pr->p_lock, SPL0_SAME);
+		p_lock_void(&port->p_lock, SPLHI);
 
 		/*
 		 * If any segments in the message, discard them
@@ -696,7 +696,7 @@ msg_err(long arg_tran, char *arg_why, int arg_len)
 	}
 	pr = hash_lookup(p->p_prefs, arg_tran);
 	if (pr) {
-		p_lock_fast(&pr->p_lock, SPL0);
+		p_lock_void(&pr->p_lock, SPL0);
 		if (pr->p_state == PS_OPENING) {
 			hash_delete(p->p_prefs, arg_tran);
 		}
@@ -737,7 +737,7 @@ msg_err(long arg_tran, char *arg_why, int arg_len)
 		/*
 		 * A failed open needs the portref cleared
 		 */
-		p_lock_fast(&port->p_lock, SPLHI);
+		p_lock_void(&port->p_lock, SPLHI);
 		deref_port(port, pr);
 		v_lock(&port->p_lock, SPL0);
 

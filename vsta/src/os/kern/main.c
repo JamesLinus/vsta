@@ -37,6 +37,6 @@ main(void)
 	 * so take it and fall into the scheduler.
 	 */
 	upyet = 1;
-	p_lock_fast(&runq_lock, SPLHI);
+	p_lock_void(&runq_lock, SPLHI);
 	swtch();	/* Assumes curthread is 0 currently */
 }

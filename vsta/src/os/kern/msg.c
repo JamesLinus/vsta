@@ -286,7 +286,7 @@ msg_send(port_t arg_port, struct msg *arg_msg)
 		 * message before we take the lock, in case we need
 		 * it.
 		 */
-		p_lock_fast(&pr->p_lock, SPL0_SAME);
+		p_lock_void(&pr->p_lock, SPL0_SAME);
 
 		/*
 		 * Based on the state, either abort the I/O or
@@ -482,7 +482,7 @@ msg_receive(port_t arg_port, struct msg *arg_msg)
 		return(err(EINTR));
 	}
 
-	p_lock_fast(&port->p_lock, SPLHI);
+	p_lock_void(&port->p_lock, SPLHI);
 	ASSERT_DEBUG(port->p_hd,
 		"msg_receive: p_wait/p_hd disagree");
 
@@ -638,7 +638,7 @@ msg_reply(long arg_who, struct msg *arg_msg)
 	pr = hash_lookup(p->p_prefs, arg_who);
 	if (pr) {
 		unmapsegs(&pr->p_segs);
-		p_lock_fast(&pr->p_lock, SPL0_SAME);
+		p_lock_void(&pr->p_lock, SPL0_SAME);
 		v_sema(&p->p_sema);
 	} else {
 		/*
@@ -668,7 +668,7 @@ msg_reply(long arg_who, struct msg *arg_msg)
 
 			ASSERT_DEBUG(newpr->p_port == port,
 				"msg_reply: newpr != port");
-			p_lock_fast(&port->p_lock, SPLHI);
+			p_lock_void(&port->p_lock, SPLHI);
 			ref_port(port, newpr);
 			v_lock(&port->p_lock, SPL0);
 			v_lock(&pr->p_lock, SPL0_SAME);

@@ -36,7 +36,7 @@ lock_slot(struct pset *ps, struct perpage *pp)
 		ASSERT(ps->p_locks > 1, "lock_slot: stray lock");
 		pp->pp_lock |= PP_WANT;
 		p_sema_v_lock(&ps->p_lockwait, PRIHI, &ps->p_lock);
-		p_lock_fast(&ps->p_lock, SPL0);
+		p_lock_void(&ps->p_lock, SPL0);
 	}
 	pp->pp_lock |= PP_LOCK;
 	v_lock(&ps->p_lock, SPL0);
@@ -75,7 +75,7 @@ unlock_slot(struct pset *ps, struct perpage *pp)
 	int wanted;
 
 	ASSERT_DEBUG(pp->pp_lock & PP_LOCK, "unlock_slot: not locked");
-	p_lock_fast(&ps->p_lock, SPL0);
+	p_lock_void(&ps->p_lock, SPL0);
 	ps->p_locks--;
 	wanted = (pp->pp_lock & PP_WANT);
 	pp->pp_lock &= ~(PP_LOCK|PP_WANT);
@@ -144,7 +144,7 @@ deref_pset(struct pset *ps)
 	/*
 	 * Lock the page set, reduce its reference count
 	 */
-	p_lock_fast(&ps->p_lock, SPL0);
+	p_lock_void(&ps->p_lock, SPL0);
 	ATOMIC_DECL(&ps->p_refs);
 	refs = ps->p_refs;
 	v_lock(&ps->p_lock, SPL0_SAME);
@@ -273,7 +273,7 @@ dup_slots(struct pset *ops, struct pset *ps, uint low, uint cnt)
 
 	for (x = 0; x < cnt; ++x) {
 		if (!locked) {
-			p_lock_fast(&ops->p_lock, SPL0);
+			p_lock_void(&ops->p_lock, SPL0);
 			locked = 1;
 		}
 		pp = find_pp(ops, x + low);

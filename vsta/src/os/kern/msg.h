@@ -54,9 +54,9 @@ inline_queue_msg(struct port *port, struct sysmsg *sm, spl_t exit_state)
 	 * bump its sleeping semaphore.
 	 */
 	if ((exit_state == SPLHI) || (exit_state == SPLHI_SAME)) {
-		p_lock_fast(&port->p_lock, SPLHI_SAME);
+		p_lock_void(&port->p_lock, SPLHI_SAME);
 	} else {
-		p_lock_fast(&port->p_lock, SPLHI);
+		p_lock_void(&port->p_lock, SPLHI);
 	}
 	inline_lqueue_msg(port, sm);
 	if ((exit_state == SPLHI) || (exit_state == SPLHI_SAME)) {

@@ -301,7 +301,7 @@ do_hand(struct core *c, int trouble, intfun steal)
 	/*
 	 * Lock pset
 	 */
-	p_lock_fast(&ps->p_lock, SPL0);
+	p_lock_void(&ps->p_lock, SPL0);
 
 	/*
 	 * 0 references means we've come upon this pset in the process

@@ -51,7 +51,7 @@ alloc_page(void)
 {
 	struct core *c;
 
-	p_lock_fast(&mem_lock, SPL0);
+	p_lock_void(&mem_lock, SPL0);
 	/*
 	 * This is a classic "sleeping for memory"
 	 * scenario.  Because our allocate and free primitives
@@ -60,7 +60,7 @@ alloc_page(void)
 	 */
 	while (freemem == 0) {
 		p_sema_v_lock(&mem_sema, PRIHI, &mem_lock);
-		p_lock_fast(&mem_lock, SPL0_SAME);
+		p_lock_void(&mem_lock, SPL0_SAME);
 	}
 	freemem -= 1;
 
@@ -98,7 +98,7 @@ free_page(uint pfn)
 	}
 #endif
 	ASSERT_DEBUG(!(c->c_flags & C_BAD), "free_page: C_BAD");
-	p_lock_fast(&mem_lock, SPL0);
+	p_lock_void(&mem_lock, SPL0);
 	c->c_free = freelist;
 	freelist = c;
 	freemem += 1;
@@ -207,7 +207,7 @@ alloc_vmap(uint npg)
 	uint idx;
 
 	for (;;) {
-		p_lock_fast(&vmap_lock, SPL0);
+		p_lock_void(&vmap_lock, SPL0);
 		idx = rmap_alloc(vmap, npg);
 		if (idx)
 			break;
@@ -224,7 +224,7 @@ alloc_vmap(uint npg)
 inline static void
 free_vmap(uint idx, uint npg)
 {
-	p_lock_fast(&vmap_lock, SPL0);
+	p_lock_void(&vmap_lock, SPL0);
 	rmap_free(vmap, idx, npg);
 	v_lock(&vmap_lock, SPL0_SAME);
 }
