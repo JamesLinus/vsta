@@ -130,7 +130,6 @@ sm_to_m(struct sysmsg *sm)
 	struct seg *seg;
 	struct msg *m = &sm->sm_msg;
 
-	m->m_op &= ~M_READ;
 	m->m_nseg = sm->sm_nseg;
 	for (x = 0, s = m->m_seg; x < sm->sm_nseg; ++x, ++s) {
 		seg = sm->sm_seg[x];
@@ -143,13 +142,6 @@ sm_to_m(struct sysmsg *sm)
 /*
  * m_to_sm()
  *	Convert from user segments (msg format) to sysmsg format
- *
- * For !M_READ, creates segments for each chunk of user memory,
- * walks across all the "segments" of the user's message,
- * converts to internal format, and places under the sysmsg.
- *
- * For M_READ, only the header part is copied.  The user buffers
- * will be filled out once an answer comes back from the server.
  *
  * Can sleep in make_seg().
  *
@@ -173,30 +165,26 @@ m_to_sm(struct vas *vas, struct sysmsg *sm)
 	/*
 	 * Walk user segments, construct struct seg's for each part
 	 */
-	if (!(sm->sm_op & M_READ)) {
-		for (x = 0, s = m->m_seg; x < m->m_nseg; ++x, ++s) {
-			/*
-			 * On error, have to go back and clean up the
-			 * segments we've already constructed.  Then
-			 * return error.
-			 */
-			seg = make_seg(vas, s->s_buf, s->s_buflen);
-			if (seg == 0) {
-				uint y;
+	for (x = 0, s = m->m_seg; x < m->m_nseg; ++x, ++s) {
+		/*
+		 * On error, have to go back and clean up the
+		 * segments we've already constructed.  Then
+		 * return error.
+		 */
+		seg = make_seg(vas, s->s_buf, s->s_buflen);
+		if (seg == 0) {
+			uint y;
 
-				for (y = 0; y < x; ++y) {
-					free_seg(sm->sm_seg[y]);
-					sm->sm_seg[y] = 0;
-				}
-				sm->sm_nseg = 0;
-				return(err(EFAULT));
+			for (y = 0; y < x; ++y) {
+				free_seg(sm->sm_seg[y]);
+				sm->sm_seg[y] = 0;
 			}
-			sm->sm_seg[x] = seg;
+			sm->sm_nseg = 0;
+			return(err(EFAULT));
 		}
-		sm->sm_nseg = m->m_nseg;
-	} else {
-		sm->sm_nseg = 0;
+		sm->sm_seg[x] = seg;
 	}
+	sm->sm_nseg = m->m_nseg;
 	return(0);
 }
 
@@ -229,20 +217,23 @@ msg_send(port_t arg_port, struct msg *arg_msg)
 
 	/*
 	 * Protect our reserved messages types.
-	 *
-	 * We mask the low bits to avoid being confused by the
-	 * M_READ bit in the higher bits.
 	 */
-	if ((sm.sm_op & 0xFFF) < M_RESVD) {
+	if ((sm.sm_op & MSG_MASK) < M_RESVD) {
 		return(err(EINVAL));
 	}
 
 	/*
-	 * Construct a system message
+	 * Construct a system message.  If we are reading, then we
+	 * don't need to convert the message segments here, but
+	 * rather use them once we get a response.
 	 */
-	if (m_to_sm(&p->p_vas, &sm)) {
-		error = -1;
-		goto out2;
+	if (!(sm.sm_op & M_READ)) {
+		if (m_to_sm(&p->p_vas, &sm)) {
+			error = -1;
+			goto out2;
+		}
+	} else {
+		sm.sm_nseg = 0;
 	}
 
 	/*

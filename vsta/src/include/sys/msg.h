@@ -153,6 +153,7 @@ int msg_portname(port_t);		/* Get port_name for port */
 #define M_RESVD 99		/* This and below reserved */
 
 #define M_READ 0x80000000	/* Buffer is destination, not source */
+#define MSG_MASK (0xFFF)	/* Bits used for actual message op # */
 
 /*
  * The only bit of the access mode interpreted by the kernel
