@@ -85,7 +85,6 @@ struct fs_dirent {
  * block allocation.  The file's contents follows.
  */
 struct fs_file {
-	daddr_t fs_clstart;	/* Starting cluster # */
 	daddr_t fs_prev;	/* Previous version of this file */
 	ulong fs_rev;		/* Revision # */
 	ulong fs_len;		/* File length in bytes */

@@ -188,7 +188,6 @@ create_file(struct file *f, uint type)
 	/*
 	 * Fill in the fields
 	 */
-	d->fs_clstart = da;
 	d->fs_prev = 0;
 	d->fs_rev = 1;
 	d->fs_len = 0;
