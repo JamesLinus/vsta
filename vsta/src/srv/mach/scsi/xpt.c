@@ -209,17 +209,21 @@ long	xpt_init(void)
 			device = &edt->devices[edt->ndevices++];
 			device->target = target;
 			device->lun = lun;
-			memcpy(device->dev_edt.inq_data, (char *)&inq_data,
+			bcopy((char *)&inq_data, device->dev_edt.inq_data,
 			       sizeof(inq_data));
 /*
  * Print out the SCSI device information.
  */
 			idbuf[0] = '\0';
-			strncat(idbuf, (char *)inq_data.vendor_id,
-			        sizeof(inq_data.vendor_id));
+
+			i = sizeof(inq_data.vendor_id);
+			inq_data.vendor_id[i-1] = '\0';
+			bcopy(inq_data.vendor_id, idbuf + strlen(idbuf), i);
 			strcat(idbuf, " ");
-			strncat(idbuf, (char *)inq_data.prod_id,
-			        sizeof(inq_data.prod_id));
+			i = sizeof(inq_data.prod_id);
+			inq_data.prod_id[i-1] = '\0';
+			bcopy((char *)inq_data.prod_id,
+				idbuf + strlen(idbuf), i);
 			cam_info(0, "SCSI device [%d/%d/%d] %s",
 			         path_id, target, lun, idbuf);
 		}
