@@ -19,6 +19,17 @@
 #define P_DEBUG 16	/*  ... debug */
 
 /*
+ * Description of a process group
+ */
+struct pgrp {
+	uint pg_nmember;	/* # PID's in group */
+	uint pg_nelem;		/* # PID's in pg_members[] array */
+	ulong *pg_members;	/* Pointer to linear array */
+	sema_t pg_sema;		/* Mutex for pgrp */
+};
+#define PG_GROWTH (20)		/* # slots pg_members[] grows by */
+
+/*
  * The actual per-process state
  */
 struct proc {
@@ -42,12 +53,25 @@ struct proc {
 		*p_allnext;
 	ulong p_sys, p_usr;	/* Cumulative time for all prev threads */
 	voidfun p_handler;	/* Handler for events */
+	struct pgrp		/* Process group for proc */
+		*p_pgrp;
 };
 
 #ifdef KERNEL
 extern ulong allocpid(void);
 extern int alloc_open(struct proc *);
 extern void free_open(struct proc *, int);
+extern void join_pgrp(struct pgrp *, ulong),
+	leave_pgrp(struct pgrp *, ulong);
+extern struct pgrp *alloc_pgrp(void);
+
+/*
+ * notify() syscall and special value for thread ID to signal whole
+ * process group instead.
+ */
+extern notify(ulong, ulong, char *, int);
+#define NOTIFY_PG ((ulong)-1)
+
 #endif
 
 #endif /* _PROC_H */
