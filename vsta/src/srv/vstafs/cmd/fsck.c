@@ -207,8 +207,7 @@ check_freelist(void)
 	/*
 	 * Walk all sectors chained in free list
 	 */
-	next = FREE_SEC;
-	do {
+	for (next = FREE_SEC; next; next = fr->f_next) {
 		struct alloc *a;
 		uint x;
 
@@ -274,7 +273,7 @@ printf("Free list sector %ld slot %d has out-of-order block %ld\n",
 			 */
 			nfree += a->a_len;
 		}
-	} while (next = fr->f_next);
+	}
 
 	/*
 	 * Report
@@ -704,7 +703,7 @@ printf("Warning: couldn't free all pending space\n");
 			a = &fs->fs_freesecs[ntofree++];
 			a->a_start = x;
 			a->a_len = 0;
-			while (!getbit(freemap, x, 1)) {
+			while ((x <= max_blk) && !getbit(freemap, x, 1)) {
 				a->a_len += 1;
 				x += 1;
 			}
