@@ -45,7 +45,8 @@
 #define S_MSG_PORTNAME 35
 #define S_PSTAT 36
 #define S_NOTIFY_HANDLER 37
-#define S_HIGH S_NOTIFY_HANDLER
+#define S_SCHED_OP 38
+#define S_HIGH S_SCHED_OP
 
 /*
  * Some syscall prototypes
