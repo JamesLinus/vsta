@@ -169,6 +169,7 @@ ls(void)
 
 	fd = open(__cwd, O_READ);
 	while ((x = read(fd, buf, sizeof(buf)-1)) > 0) {
+		buf[x] = '\0';
 		printf("%s", buf);
 	}
 	close(fd);
