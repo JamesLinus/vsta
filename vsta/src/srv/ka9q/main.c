@@ -75,13 +75,15 @@ unsigned char escape = 0x1d;	/* default escape character is ^] */
 struct interface *ifaces;
 
 /* Command lookup and branch table */
-int go(),doax25(),cmdmode(),doconnect(),dotelnet(),doexit(),doclose(),
-	dohostname(),doreset(),dotcp(),dotrace(),doescape(),dohelp(),
-	doroute(),doecho(),dolog(),doip(),dobootp(),dodomain(),
+static int doexit(), dohostname(), dolog(), dohelp(), dotrace(),
+	doescape(), doremote();
+int go(),doax25(),cmdmode(),doconnect(),dotelnet(),doclose(),
+	doreset(),dotcp(),
+	doroute(),doecho(),doip(),dobootp(),dodomain(),
 	doarp(),dosession(),doftp(),dostart(),dostop(),doattach(),
 	dosmtp(),doudp(),doparam(),doeol(),go_mode(),
 	dodump(),dorecord(),doupload(),dokick(),domode(),doshell(),
-	dodir(),docd(),doatstat(),doping(),doforward(),doremote(),donetrom(),
+	dodir(),docd(),doatstat(),doping(),doforward(),donetrom(),
 	donrstat(), dombox(), mulport(), dopassword(), dodetach();
 
 #ifdef ETHER
@@ -352,6 +354,7 @@ char *argv[];
 {
 	static char inbuf[BUFSIZ];	/* keep it off the stack */
 	FILE *fp;
+#ifdef DETACH
 	int pid;
 
 	/*
@@ -371,6 +374,7 @@ char *argv[];
 		(void)wait(&st);
 		_exit(0);
 	}
+#endif /* DETACH */
 
 	/*
 	 * The "true" KA9Q continues on from here
@@ -1154,6 +1158,7 @@ dopassword(int argc, char **argv)
 
 dodetach()
 {
+#ifdef DETACH
 	extern void detach_kbio();
 
 	printf("Detaching from console...\n");
@@ -1161,4 +1166,7 @@ dodetach()
 	detach_kbio();
 	close(0); close(1); close(2);
 	detached = 1;
+#else
+	printf("You must #define DETACH to use this command\n");
+#endif
 }
