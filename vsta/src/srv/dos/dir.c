@@ -803,6 +803,72 @@ root_sync(void)
 }
 
 /*
+ * tree_contains()
+ *	Tell if one dir contains another node within its directory tree
+ */
+static int
+tree_contains(struct node *tree, struct node *n)
+{
+	struct node *nprev;
+
+	/*
+	 * Walk the tree upwards
+	 */
+	do {
+		/*
+		 * Look up next node upwards
+		 */
+		nprev = n;
+		n = dir_look(nprev, "..");
+		if (n == 0) {
+			return(0);
+		}
+
+		/*
+		 * If we run into our root, return true
+		 */
+		deref_node(n);
+		if (n == tree) {
+			return(1);
+		}
+	} while (n != nprev);
+
+	/*
+	 * When we reach the root of the filesystem, we know we
+	 * aren't contained within the node
+	 */
+	return(0);
+}
+
+/*
+ * fix_dotdot()
+ *	Update the ".." entry in a node for a new value
+ */
+static void
+fix_dotdot(struct node *n, struct node *ndir)
+{
+	struct directory *de;
+	void *handle;
+	struct buf *b;
+
+	/*
+	 * Get the entry, convert the handle back into a buf pointer.
+	 * Index 0 for a dir is always "."; 1 is always "..".
+	 */
+	de = get_dirent(n, 1, &handle);
+	if (de == 0) {
+		return;
+	}
+	b = handle;
+
+	/*
+	 * Point to new parent dir
+	 */
+	de->start = get_clust0(ndir->n_clust);
+	bdirty(b);
+}
+
+/*
  * do_rename()
  *	Given open directories and filenames, rename an entry
  *
@@ -832,12 +898,20 @@ do_rename(struct file *fsrc, char *src, struct file *fdest, char *dest)
 	if (nsrc == 0) {
 		return(ESRCH);
 	}
-	ndest = dir_look(nddest, dest);
+
+	/*
+	 * If we're moving a directory, make sure we're not moving to
+	 * a point within our own tree
+	 */
+	if ((nsrc->n_type == T_DIR) && tree_contains(nsrc, nddest)) {
+		return(EINVAL);
+	}
 
 	/*
 	 * If our destination exists, truncate if it's a file, error
 	 * if it's a directory.
 	 */
+	ndest = dir_look(nddest, dest);
 	if (ndest) {
 		if (ndest->n_type == T_DIR) {
 			deref_node(ndest);
@@ -849,8 +923,7 @@ do_rename(struct file *fsrc, char *src, struct file *fdest, char *dest)
 		/* 
 		 * Otherwise, create a new entry for the file
 		 */
-		ndest = dir_newfile(fdest, dest,
-			(nsrc->n_type == T_DIR) ? ACC_DIR : 0);
+		ndest = dir_newfile(fdest, dest, 0);
 		if (ndest == 0) {
 			deref_node(nsrc);
 			return(strerror());
@@ -891,10 +964,10 @@ do_rename(struct file *fsrc, char *src, struct file *fdest, char *dest)
 	} else {
 		/*
 		 * Dir nodes are hashed under starting sector,
-		 * which should not change.
+		 * which should not change.  Fix up ".." for its
+		 * new parent dir.
 		 */
-		/* XXX fixup ".." */
-		ASSERT(0, "do_rename: dir");
+		fix_dotdot(nsrc, nddest);
 	}
 
 	/*

@@ -503,3 +503,16 @@ fat_sync(void)
 		map_write();
 	}
 }
+
+/*
+ * get_clust0()
+ *	Get first cluster # of first cluster
+ *
+ * Used to fill in the "start" field of dir entries like ".."
+ */
+uint
+get_clust0(struct clust *c)
+{
+	ASSERT_DEBUG(c->c_nclust > 0, "get_clust0: no data");
+	return(c->c_clust[0]);
+}

@@ -143,25 +143,21 @@ extern uint clsize;
 /*
  * Node handling routines
  */
-extern void rw_init(void);	/* Set up root directory */
-extern struct node *rootdir;	/*  ...it's always here */
-extern struct node		/* Look up name in directory */
-	*do_lookup(struct node *, char *);
-extern void			/* Add/remove a reference to a node */
-	ref_node(struct node *),
+extern void rw_init(void);
+extern struct node *rootdir;
+extern struct node *do_lookup(struct node *, char *);
+extern void ref_node(struct node *),
 	deref_node(struct node *);
 
 /*
  * Cluster handling routines
  */
-extern void clust_init(void);	/* Bring FAT tables into memory */
-extern struct clust		/* Allocate representation of chain */
-	*alloc_clust(uint);
-extern void			/*  ...free this representation */
-	free_clust(struct clust *);
-extern void fat_sync(void);	/* Sync FAT table to disk */
-extern int			/* Set cluster allocation */
-	clust_setlen(struct clust *, ulong);
+extern void clust_init(void);
+extern struct clust *alloc_clust(uint);
+extern void free_clust(struct clust *);
+extern void fat_sync(void);
+extern int clust_setlen(struct clust *, ulong);
+extern uint get_clust0(struct clust *);
 
 /*
  * Block cache
