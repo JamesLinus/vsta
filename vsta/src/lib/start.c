@@ -12,7 +12,12 @@
  *	Do some massaging of arguments during C startup
  */
 void
-__start(int *argcp, char ***argvp, char *a)
+#ifdef SRV
+__start2
+#else
+__start
+#endif
+(int *argcp, char ***argvp, char *a)
 {
 	char *p, **argv = 0;
 	int x, argc = 0, len;
@@ -22,6 +27,18 @@ __start(int *argcp, char ***argvp, char *a)
 	 * Boot programs get this
 	 */
 	if (a == 0) {
+#ifdef SRV
+		extern int __bootargc;
+		extern char *__bootargv;
+		extern char __bootarg[];
+
+		if (__bootargc) {
+			*argcp = __bootargc;
+			*argvp = &__bootargv;
+			set_cmd(__bootargv);
+			return;
+		}
+#endif
 noargs:
 		*argcp = 0;
 		*argvp = 0;
