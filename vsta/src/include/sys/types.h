@@ -27,6 +27,7 @@ typedef int port_name;
 typedef long pid_t;
 typedef void (*voidfun)();
 typedef int (*intfun)();
+typedef unsigned long uid_t, gid_t;
 
 /*
  * For talking about a structure without knowing its definition
