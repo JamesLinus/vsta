@@ -4,14 +4,47 @@
  */
 #include <stat.h>
 #include <std.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include "../vstafs.h"
 
 #define NBBY (8)		/* # bits in a byte */
 
-static FILE *fp;		/* Underlying block device */
+static int fd;			/* Open block device */
 static daddr_t max_blk;		/* Highest block # in filesystem */
 static char *freemap;		/* Bitmap of allocated blocks */
 static char *allocmap;		/*  ...of blocks in files */
+
+/*
+ * get_sec()
+ *	Return the named sector, maintain a little cache
+ */
+static void *
+get_sec(daddr_t sec)
+{
+	static void *buf = 0;
+	static daddr_t lastsec;
+	off_t pos;
+
+	if (buf && (lastsec == sec)) {
+		return(buf);
+	}
+	buf = malloc(SECSZ);
+	if (!buf) {
+		perror("malloc secbuf");
+		exit(1);
+	}
+	pos = stob(sec);
+	if (lseek(fd, pos, SEEK_SET) != pos) {
+printf("Error seeking to sector %ld: %s\n", sec, strerror());
+		exit(1);
+	}
+	if (read(fd, buf, SECSZ) != SECSZ) {
+printf("Error reading sector %ld: %s\n", sec, strerror());
+		exit(1);
+	}
+	return(buf);
+}
 
 /*
  * setbit()
@@ -74,7 +107,7 @@ check_root(void)
 		printf("Filesystem has zero size!\n");
 		exit(1);
 	}
-	if (stat(fileno(fp), &sb) < 0) {
+	if (stat(fd, &sb) < 0) {
 		perror("stat");
 		printf("Couldn't stat device.\n");
 		exit(1);
@@ -98,6 +131,22 @@ check_root(void)
 }
 
 /*
+ * valid_block()
+ *	Tell if given block number lies within filesystem
+ */
+static int
+valid_block(daddr_t d)
+{
+	if (d <= FREE_SEC) {
+		return(0);
+	}
+	if (d > max_blk) {
+		return(0);
+	}
+	return(1);
+}
+
+/*
  * check_freelist()
  *	Read in free list blocks, check
  *
@@ -107,6 +156,7 @@ check_root(void)
 static void
 check_freelist(void)
 {
+	struct free *fr;
 	daddr_t next, highest = FREE_SEC+1;
 
 	printf("Scan freelist\n");
@@ -116,7 +166,6 @@ check_freelist(void)
 	 */
 	next = FREE_SEC;
 	do {
-		struct free *fr;
 		struct alloc *a;
 		uint x;
 
@@ -260,6 +309,64 @@ printf("File %s has %ld excess blocks off end\n",
 }
 
 /*
+ * check_dirent()
+ *	Tell if the named directory entry is sane
+ *
+ * Returns 1 on problem, 0 on OK.
+ */
+static int
+check_dirent(struct fs_dirent *d)
+{
+	uint x;
+
+	/*
+	 * The starting sector has already been sanity checked
+	 */
+
+	/*
+	 * Name must be ASCII characters, and '\0'-terminated
+	 */
+	for (x = 0; x < MAXNAMLEN; ++x) {
+		char c;
+
+		/*
+		 * High bit in first means "file deleted", but that
+		 * shouldn't get here.
+		 * XXX I don't think I'm skipping deleted entries yet
+		 */
+		c = d->fs_name[x];
+		if (c & 0x80) {
+			return(1);
+		}
+
+		/*
+		 * Printable are fine.  Yes, we allow '/'--this could
+		 * be supported if you tweak your open() lookup loop to
+		 * use another path seperator character.
+		 */
+		if ((c >= '\1') && (c < 0x7F)) {
+			continue;
+		}
+
+		/*
+		 * End of name.  There has to be at least one character.
+		 */
+		if (c == '\0') {
+			if (x == 0) {
+				return(1);
+			}
+			return(0);
+		}
+	}
+
+	/*
+	 * If we drop out the bottom, we never found the '\0', so
+	 * gripe about the entry.
+	 */
+	return(1);
+}
+
+/*
  * check_fsdir()
  *	Check each directory entry in the given file
  *
@@ -268,31 +375,74 @@ printf("File %s has %ld excess blocks off end\n",
 static int
 check_fsdir(daddr_t sec, char *name)
 {
+	ulong idx = sizeof(struct fs_file), file_len;
 	struct fs_file *fs;
-	ulong len, idx = sizeof(struct fs_file), secidx;
-	uint blkidx = 0, blklen;
+	uint x;
 
 	/*
 	 * Snapshot the two size fields, so we can refer to them
 	 * even when our sector buffer may have been reused
 	 */
 	fs = get_sec(sec);
-	len = fs->fs_len;
-	blklen = fs->fs_nblk;
+	file_len = fs->fs_len;
 
 	/*
 	 * An easy initial check
 	 */
-	if ((len % sizeof(struct fs_dirent)) != 0) {
-printf("Error: directory %s has unaligned length %ld\n", name, len);
+	if ((file_len % sizeof(struct fs_dirent)) != 0) {
+printf("Error: directory %s has unaligned length %ld\n", name, file_len);
 		return(1);
 	}
 
 	/*
 	 * Walk through each directory entry, checking sanity
 	 */
-	for (;;) {
-		if (idx 
+	for (x = 0; ; ++x) {
+		daddr_t blk, blkend;
+		struct alloc *a;
+
+		/*
+		 * Drop out if we've walked all the blocks
+		 */
+		fs = get_sec(sec);
+		if (x >= fs->fs_nblk) {
+			break;
+		}
+
+		/*
+		 * Look at next contiguous allocation extent
+		 */
+		a = &fs->fs_blks[x];
+		blk = a->a_start;
+		blkend = blk + a->a_len;
+		while (blk < blkend) {
+			struct fs_dirent *d, *dend;
+
+			/*
+			 * Position at top of this sector.  For the first
+			 * sector in a file, skip the fs_file part.
+			 */
+			d = get_sec(blk);
+			dend = (struct fs_dirent *)((char *)d + SECSZ);
+			if (idx == sizeof(struct fs_file)) {
+				d = (struct fs_dirent *)((char *)d + idx);
+			}
+
+			/*
+			 * Walk the entries, sanity checking
+			 */
+			while (d < dend) {
+				if (idx >= file_len) {
+					break;
+				}
+				if (check_dirent(d)) {
+printf("Corrupt directory entry file %s position %ld\n",
+	name, idx - sizeof(struct fs_file));
+					return(1);
+				}
+				idx += sizeof(struct fs_dirent);
+			}
+		}
 	}
 	return(0);
 }
@@ -307,7 +457,7 @@ printf("Error: directory %s has unaligned length %ld\n", name, len);
  * Returns 0 if entry was OK or fixable, 1 if the entry is entirely
  * hosed.
  */
-static void
+static int
 check_tree(daddr_t sec, char *name)
 {
 	struct fs_file *fs;
@@ -378,7 +528,7 @@ main(int argc, char **argv)
 		printf("Usage is: %s <disk>\n", argv[0]);
 		exit(1);
 	}
-	if ((fp = fopen(argv[1], "rb")) == NULL) {
+	if ((fd = open(argv[1], O_READ)) < 0) {
 		perror(argv[1]);
 		exit(1);
 	}
