@@ -9,12 +9,24 @@
 #include <sys/param.h>
 #include <sys/fs.h>
 #include <sys/perm.h>
+#include <sys/stat.h>
+#include <string.h>
 #include <fcntl.h>
 
 static int ndir;	/* # dirs being displayed */
 static int cols = 80;	/* Columns on display */
 
 static int lflag = 0;	/* -l flag */
+
+/*
+ * sort()
+ *	Sort entries by name
+ */
+static int
+sort(void *v1, void *v2)
+{
+	return(strcmp(*(char **)v1, *(char **)v2));
+}
 
 /*
  * prcols()
@@ -35,6 +47,11 @@ prcols(char **v)
 			maxlen = x;
 		}
 	}
+
+	/*
+	 * Put entries in order
+	 */
+	qsort((void *)v, nelem, sizeof(char *), sort);
 
 	/*
 	 * Calculate how many columns that makes, and how many
@@ -269,12 +286,33 @@ ls(char *path)
 	struct dirent *de;
 	char **v = 0;
 	int nelem;
+	struct stat st;
 
-	/*
-	 * Prefix with name of dir if multiples
-	 */
-	if (ndir > 1) {
-		printf("%s:\n", path);
+	if (stat(path, &st)) {
+		perror("stat failed");
+		return;
+	}
+	if (!S_ISDIR(st.st_mode)) {
+		if (lflag) {
+			struct dirent de;
+
+			de.d_namlen = strlen(path);
+			strcpy(de.d_name, path);
+			ls_l(&de);
+		} else {
+			char *v[2];
+			v[0] = path;
+			v[1] = 0;
+			prcols(v);
+		}
+		return;
+	} else {
+		/*
+		 * Prefix with name of dir if multiples
+		 */
+		if (ndir > 1) {
+			printf("%s:\n", path);
+		}
 	}
 
 	/*
