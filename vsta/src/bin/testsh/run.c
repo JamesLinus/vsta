@@ -120,9 +120,19 @@ run(char *p)
 	if (bg) {
 		printf("%d &\n", pid);
 	} else {
-		x = waits(&e);
-		printf("pid %d status %d user %d system %d\n",
-			pid, e.e_code, e.e_usr, e.e_sys);
+		for (;;) {
+			e.e_pid = 0;
+			x = waits(&e);
+			if (e.e_pid == 0) {
+				perror("waits");
+				break;
+			}
+			printf("pid %d status %d user %d system %d\n",
+				pid, e.e_code, e.e_usr, e.e_sys);
+			if (e.e_pid == pid) {
+				break;
+			}
+		}
 	}
 	free(argv);
 }
