@@ -2,7 +2,6 @@
  * main.c
  *	Main routines for test shell
  */
-#define STAND
 #include <sys/types.h>
 #ifdef STAND
 #include <sys/ports.h>
