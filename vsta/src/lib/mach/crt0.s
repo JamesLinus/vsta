@@ -18,6 +18,9 @@
 	.data
 argc:	.long	0	/* Private variables for __start() to fill in */
 argv:	.long	0
+	.globl	___iob,___ctab
+___iob:	.long	0	/* Data "shared" with libc users */
+___ctab: .long	0
 	.text
 
 	.globl	start,_main,_exit
@@ -60,12 +63,16 @@ ___bootarg:
 	call	___start
 #endif
 	addl	$8,%esp
-	pushl	argv
+	call	___get_iob	/* Get iob and ctab array values */
+	movl	%eax,___iob
+	call	___get_ctab
+	movl	%eax,___ctab
+	pushl	argv		/* Call main(argc, argv) */
 	pushl	argc
 	call	_main
 	addl	$8,%esp
 	pushl	%eax
-1:	call	_exit
+1:	call	_exit		/* exit() with value returned from main() */
 	movl	$0,(%esp)
 	jmp	1b
 
