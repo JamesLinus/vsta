@@ -67,6 +67,16 @@ fifo_empty(struct fifo *f)
 }
 
 /*
+ * fifo_full()
+ *	Tell if FIFO is full of data
+ */
+static inline int
+fifo_full(struct fifo *f)
+{
+	return(f->f_cnt == f->f_size);
+}
+
+/*
  * External routines
  */
 extern struct fifo *fifo_alloc();

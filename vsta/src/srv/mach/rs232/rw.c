@@ -9,6 +9,7 @@
 #include <syslog.h>
 #include <sys/assert.h>
 #include <sys/seg.h>
+#include <string.h>
 #include "rs232.h"
 #include "fifo.h"
 
@@ -87,6 +88,7 @@ rs232_write(struct msg *m, struct file *fl)
 	 */
 	m->m_nseg = m->m_arg1 = m->m_buflen = 0;
 	msg_reply(m->m_sender, m);
+	fl->f_selfs.sc_needsel = 1;
 }
 
 /*
@@ -144,6 +146,7 @@ rs232_read(struct msg *m, struct file *fl)
 	if ((m->m_arg == 0) && fifo_empty(f)) {
 		m->m_buflen = m->m_nseg = m->m_arg = m->m_arg1 = 0;
 		msg_reply(m->m_sender, m);
+		fl->f_selfs.sc_needsel = 1;
 		return;
 	}
 
@@ -173,6 +176,7 @@ rs232_read(struct msg *m, struct file *fl)
 		f->f_hd = f->f_tl = f->f_cnt = 0;
 		m->m_arg1 = 0;
 		msg_reply(m->m_sender, m);
+		fl->f_selfs.sc_needsel = 1;
 		return;
 	}
 
@@ -213,6 +217,7 @@ rs232_read(struct msg *m, struct file *fl)
 		m->m_arg = m->m_buflen;
 		m->m_arg1 = 0;
 		msg_reply(m->m_sender, m);
+		fl->f_selfs.sc_needsel = 1;
 		return;
 	}
 
@@ -270,6 +275,7 @@ rs232_init(void)
 {
 	ll_init(&read_q);
 	ll_init(&write_q);
+	ll_init(&selectors);
 	inbuf = fifo_alloc(RS232_MAXBUF);
 	outbuf = fifo_alloc(RS232_MAXBUF);
 	if (!inbuf || !outbuf) {

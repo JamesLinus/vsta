@@ -5,6 +5,8 @@
 #include <sys/param.h>
 #include <sys/perm.h>
 #include <sys/fs.h>
+#include <stdio.h>
+#include <std.h>
 #include "rs232.h"
 #include "fifo.h"
 
@@ -19,12 +21,13 @@ extern uchar dsr, dtr, cts, rts, dcd, ri;
 extern struct fifo *inbuf, *outbuf;
 extern int uart;
 extern port_name rs232port_name;
-extern char uart_names[][RS232_UARTNAMEMAX];
 
 static char parity_names[5][5] = {"none", "even", "odd", "zero", "one"};
 uchar onlcr = 1;	/* Convert \n to \r\n on output */
 static int rows = 24,		/* Geometry */
 	cols = 80;
+uint nsel;			/* # of select() clients */
+struct llist selectors;		/* List of all select() clients */
 
 /*
  * rs232_stat()
@@ -43,7 +46,7 @@ rs232_stat(struct msg *m, struct file *f)
 	sprintf(buf,
 		"size=0\ntype=c\nowner=0\ninode=0\ngen=%d\n%s" \
 		"dev=%d\nuart=%s\nbaseio=0x%x\nirq=%d\n" \
-		"rxfifothr=%d\ntxfifothr=%d\noverruns=%D\n" \
+		"rxfifothr=%d\ntxfifothr=%d\noverruns=%ld\n" \
 		"baud=%d\ndatabits=%d\nstopbits=%s\nparity=%s\n" \
 		"dsr=%d\ndtr=%d\ncts=%d\nrts=%d\ndcd=%d\nri=%d\n" \
 		"inbuf=%d\noutbuf=%d\nonlcr=%d\nrows=%d\ncols=%d\n",
@@ -64,6 +67,51 @@ rs232_stat(struct msg *m, struct file *f)
 }
 
 /*
+ * update_select()
+ *	Send out new select events
+ */
+void
+update_select(void)
+{
+	struct llist *l;
+	struct file *f;
+	uint event;
+
+	/*
+	 * If no selectors, bail out quickly
+	 */
+	if (nsel == 0) {
+		return;
+	}
+
+	/*
+	 * Figure out which events to hand off
+	 */
+	event = 0;
+	if (inbuf->f_cnt > 0) {
+		event |= ACC_READ;
+	}
+	if (outbuf->f_cnt < outbuf->f_size) {
+		event |= ACC_WRITE;
+	}
+
+	/*
+	 * No events--don't bother
+	 */
+	if (event == 0) {
+		return;
+	}
+
+	/*
+	 * Tell our clients
+	 */
+	for (l = LL_NEXT(&selectors); l != &selectors; l = LL_NEXT(l)) {
+		f = l->l_data;
+		sc_event(&f->f_selfs, event);
+	}
+}
+
+/*
  * rs232_wstat()
  *	Allow writing of supported stat messages - rather a lot of them :-)
  */
@@ -78,6 +126,16 @@ rs232_wstat(struct msg *m, struct file *f)
 	 */
 	if (do_wstat(m, &rs232_prot, f->f_flags, &field, &val) == 0)
 		return;
+
+	/*
+	 * See if it's a select() client
+	 */
+	if (sc_wstat(m, &f->f_selfs, field, val) == 0) {
+		f->f_sentry = ll_insert(&selectors, f);
+		nsel += 1;
+		update_select();
+		return;
+	}
 
 	/*
 	 * Process each kind of field we can write

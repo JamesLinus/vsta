@@ -1,4 +1,4 @@
-COPTS=-DKDB
+COPTS=-g -DKDB -Wall
 OBJS=fifo.o main.o rw.o isr.o stat.o control.o
 OUT=rs232
 

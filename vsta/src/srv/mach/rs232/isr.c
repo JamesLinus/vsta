@@ -5,6 +5,9 @@
 #include <sys/fs.h>
 #include <sys/sched.h>
 #include <syslog.h>
+#include <mach/io.h>
+#include <sys/syscall.h>
+#include <std.h>
 #include "rs232.h"
 #include "fifo.h"
 
@@ -61,7 +64,7 @@ do_tx(void)
 void
 run_helper(void)
 {
-	uint x;
+	uint x, events = 0;
 
 	/*
 	 * More receive data?  Move it into the regular
@@ -78,6 +81,9 @@ run_helper(void)
 		}
 		if (!fifo_empty(inbuf) && rxwaiters) {
 			dequeue_rx();
+		}
+		if (!fifo_empty(inbuf)) {
+			events |= ACC_READ;
 		}
 	}
 
@@ -98,8 +104,29 @@ run_helper(void)
 		txbuf[txhd] = fifo_get(outbuf);
 		txhd = x;
 	}
+
+	/*
+	 * If we moved data over, and the physical transmitter is not
+	 * currently active, kick it into life.
+	 */
 	if ((txhd != txtl) && !txbusy) {
 		do_tx();
+	}
+
+	/*
+	 * Record whether we think a write() could put more data into
+	 * our pipe.
+	 */
+	if (!fifo_full(outbuf)) {
+		events |= ACC_WRITE;
+	}
+
+	/*
+	 * If we see an opportunity for either read or write,
+	 * send off the events.
+	 */
+	if (events) {
+		update_select();
 	}
 }
 

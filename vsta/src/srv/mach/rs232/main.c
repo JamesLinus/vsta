@@ -6,6 +6,8 @@
 #include <sys/fs.h>
 #include <sys/assert.h>
 #include <sys/param.h>
+#include <sys/syscall.h>
+#include <sys/namer.h>
 #include <hash.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -64,7 +66,7 @@ struct rs232_defaults {
 /*
  * Names of the UARTs supported
  */
-char uart_names[][RS232_UARTNAMEMAX] = {
+char *uart_names[] = {
 	"8250", "16450", "16550", "16550A", NULL
 };
 
@@ -104,6 +106,8 @@ new_client(struct msg *m)
 	 */
 	f->f_gen = accgen;
 	f->f_flags = uperms;
+	sc_init(&f->f_selfs);
+	f->f_sentry = NULL;
 
 	/*
 	 * Hash under the sender's handle
@@ -141,6 +145,8 @@ dup_client(struct msg *m, struct file *fold)
 	 * Fill in fields.  Simply duplicate old file.
 	 */
 	*f = *fold;
+	sc_init(&f->f_selfs);
+	f->f_sentry = NULL;
 
 	/*
 	 * Hash under the sender's handle
@@ -166,6 +172,10 @@ static void
 dead_client(struct msg *m, struct file *f)
 {
 	(void)hash_delete(filehash, m->m_sender);
+	if (f->f_sentry) {
+		ll_delete(f->f_sentry);
+		nsel -= 1;
+	}
 	free(f);
 }
 
@@ -173,7 +183,7 @@ dead_client(struct msg *m, struct file *f)
  * check_gen()
  *	Check access generation
  */
-static
+static int
 check_gen(struct msg *m, struct file *f)
 {
 	if (f->f_gen != accgen) {
@@ -216,15 +226,19 @@ loop:
 	 */
 	f = hash_lookup(filehash, msg.m_sender);
 	switch (msg.m_op & MSG_MASK) {
+
 	case M_CONNECT:		/* New client */
 		new_client(&msg);
 		break;
+
 	case M_DISCONNECT:	/* Client done */
 		dead_client(&msg, f);
 		break;
+
 	case M_DUP:		/* File handle dup during exec() */
 		dup_client(&msg, f);
 		break;
+
 	case M_ABORT:		/* Aborted operation */
 		/*
 		 * Hunt down any active operation for this
@@ -236,24 +250,32 @@ loop:
 		}
 		msg_reply(msg.m_sender, &msg);
 		break;
+
 	case FS_READ:		/* Read file */
 		if (check_gen(&msg, f)) {
 			break;
 		}
+		f->f_selfs.sc_iocount += 1;
+		f->f_selfs.sc_needsel = 0;
 		rs232_read(&msg, f);
 		break;
+
 	case FS_WRITE:		/* Write */
 		if (check_gen(&msg, f)) {
 			break;
 		}
+		f->f_selfs.sc_iocount += 1;
+		f->f_selfs.sc_needsel = 0;
 		rs232_write(&msg, f);
 		break;
+
 	case FS_STAT:		/* Get stat of file */
 		if (check_gen(&msg, f)) {
 			break;
 		}
 		rs232_stat(&msg, f);
 		break;
+
 	case FS_WSTAT:		/* Writes stats */
 		if (check_gen(&msg, f)) {
 			break;
@@ -401,12 +423,12 @@ parse_options(int argc, char **argv)
 			/*
 			 * Force the uart type
 			 */
-			for(uart = 0; uart_names[uart][0]; uart++) {
+			for(uart = 0; uart_names[uart]; uart++) {
 				if (!strcmp(&p[5], uart_names[uart])) {
 					break;
 				}
 			}
-			if (!uart_names[uart][0]) {
+			if (!uart_names[uart]) {
 				fprintf(stderr, "rs232: invalid UART type " \
 					"'%s' - aborting\n", p);
 				exit(1);
@@ -514,4 +536,5 @@ main(int argc, char **argv)
 	 * Start serving requests for the filesystem
 	 */
 	rs232_main();
+	return(0);
 }

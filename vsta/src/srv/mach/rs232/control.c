@@ -2,6 +2,7 @@
  * control.c
  *	Control the line settings of the serial port
  */
+#include <mach/io.h>
 #include "rs232.h"
 
 extern int irq, iobase;

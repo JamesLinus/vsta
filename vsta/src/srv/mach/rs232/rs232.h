@@ -9,6 +9,8 @@
  */
 #include <sys/types.h>
 #include <sys/msg.h>
+#include <selfs.h>
+#include <llist.h>
 
 #define RS232_MAXBUF (16*1024)	/* # bytes buffered from/to serial port */
 #define RS232_STDSUPPORT (4)	/* Support 4 standard PC ports, com1-com4 */
@@ -33,6 +35,9 @@ struct file {
 	uint f_flags;		/* User access bits */
 	uint f_count;		/* Number of bytes wanted for current op */
 	void *f_buf;		/* Buffer for current write */
+	struct selclient
+		f_selfs;	/* State for select() */
+	struct llist *f_sentry;	/*  ...list of select() clients */
 };
 
 /*
@@ -196,12 +201,16 @@ extern int rs232_iduart(int test_uart);
  */
 extern void rs232_stat(struct msg *m, struct file *f);
 extern void rs232_wstat(struct msg *m, struct file *f);
+extern void update_select(void);
 extern uchar onlcr;
+extern uint nsel;
+extern struct llist selectors;
 
 /*
  * Prototypes from main.c
  */
 extern port_name rs232port_name;
 extern int kdb;
+extern char *uart_names[];
 
 #endif /* _RS232_H */
