@@ -106,6 +106,9 @@ dump_ids(struct perm *perms)
 				printf("%d", perms->perm_id[y]);
 			}
 		}
+		if (perms->perm_uid) {
+			printf("(%d)", perms->perm_uid);
+		}
 		if (PERM_DISABLED(perms)) {
 			printf("[disabled]");
 		}
