@@ -103,6 +103,10 @@ do_dbg_enter(void)
 #endif
 }
 
+#ifdef KDB
+extern struct trapframe *dbg_trap_frame;
+#endif
+
 /*
  * mach_flagerr()
  *	Flag that the current operation resulted in an error
@@ -126,6 +130,9 @@ syscall(ulong place_holder)
 	struct thread *t = curthread;
 	ulong parms[MAXARGS];
 
+#ifdef KDB
+	dbg_trap_frame = f;
+#endif
 	/*
 	 * Sanity check system call number
 	 */
