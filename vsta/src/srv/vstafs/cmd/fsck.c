@@ -29,10 +29,12 @@ get_sec(daddr_t sec)
 	if (buf && (lastsec == sec)) {
 		return(buf);
 	}
-	buf = malloc(SECSZ);
 	if (!buf) {
-		perror("malloc secbuf");
-		exit(1);
+		buf = malloc(SECSZ);
+		if (!buf) {
+			perror("malloc secbuf");
+			exit(1);
+		}
 	}
 	pos = stob(sec);
 	if (lseek(fd, pos, SEEK_SET) != pos) {
@@ -43,6 +45,7 @@ printf("Error seeking to sector %ld: %s\n", sec, strerror());
 printf("Error reading sector %ld: %s\n", sec, strerror());
 		exit(1);
 	}
+	lastsec = sec;
 	return(buf);
 }
 
@@ -392,44 +395,34 @@ check_dirent(struct fs_dirent *d)
 static int
 check_fsdir(daddr_t sec, char *name)
 {
-	ulong idx = sizeof(struct fs_file), file_len;
-	struct fs_file *fs;
+	ulong idx = sizeof(struct fs_file);
+	struct fs_file fs;
 	uint x;
 
 	/*
-	 * Snapshot the two size fields, so we can refer to them
-	 * even when our sector buffer may have been reused
+	 * Snapshot the fs_file so we can refer to it directly
 	 */
-	fs = get_sec(sec);
-	file_len = fs->fs_len;
+	bcopy(get_sec(sec), &fs, sizeof(fs));
 
 	/*
 	 * An easy initial check
 	 */
-	if ((file_len % sizeof(struct fs_dirent)) != 0) {
-printf("Error: directory %s has unaligned length %ld\n", name, file_len);
+	if ((fs.fs_len % sizeof(struct fs_dirent)) != 0) {
+printf("Error: directory %s has unaligned length %ld\n", name, fs.fs_len);
 		return(1);
 	}
 
 	/*
 	 * Walk through each directory entry, checking sanity
 	 */
-	for (x = 0; ; ++x) {
+	for (x = 0; x < fs.fs_nblk; ++x) {
 		daddr_t blk, blkend;
 		struct alloc *a;
 
 		/*
-		 * Drop out if we've walked all the blocks
-		 */
-		fs = get_sec(sec);
-		if (x >= fs->fs_nblk) {
-			break;
-		}
-
-		/*
 		 * Look at next contiguous allocation extent
 		 */
-		a = &fs->fs_blks[x];
+		a = &fs.fs_blks[x];
 		blk = a->a_start;
 		blkend = blk + a->a_len;
 		while (blk < blkend) {
@@ -448,17 +441,29 @@ printf("Error: directory %s has unaligned length %ld\n", name, file_len);
 			/*
 			 * Walk the entries, sanity checking
 			 */
-			while (d < dend) {
-				if (idx >= file_len) {
-					break;
-				}
-				if (check_dirent(d)) {
+			while ((d < dend) && (idx < fs.fs_len)) {
+				/*
+				 * Skip deleted entries
+				 */
+				if (d->fs_clstart &&
+						!(d->fs_name[0] & 0x80)) {
+					/*
+					 * Check entry for sanity
+					 */
+					if (check_dirent(d)) {
 printf("Corrupt directory entry file %s position %ld\n",
 	name, idx - sizeof(struct fs_file));
-					return(1);
+						return(1);
+					}
 				}
 				idx += sizeof(struct fs_dirent);
+				d += 1;
 			}
+
+			/*
+			 * Advance to next block
+			 */
+			blk += 1;
 		}
 	}
 	return(0);
