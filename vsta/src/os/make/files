@@ -14,7 +14,6 @@ machproc.c
 syscall.c
 dbg_ibm.c
 dbg_ser.c
-# dbg_nec.c -- for NEC PC
 
 kern:
 main.c

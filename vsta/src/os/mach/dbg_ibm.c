@@ -6,7 +6,6 @@
  */
 #include <mach/param.h>
 
-#ifndef NEC
 #ifndef SERIAL
 
 #define COLOR			/* Else MGA text locations */
@@ -252,5 +251,3 @@ again:
 #endif /* KDB */
 
 #endif /* !SERIAL */
-
-#endif /* !NEC */
