@@ -5,6 +5,8 @@
 #include <sys/pstat.h>
 #include <std.h>
 
+static uint hz;
+
 /*
  * Container for a pstat entry so we can keep them
  * in sorted order.
@@ -42,11 +44,14 @@ statename(struct pstat_proc *p)
  * words).
  */
 static char *
-timestr(uint tm)
+timestr(uint tmhz)
 {
 	char *buf = malloc(16);
+	uint tm = tmhz / hz;
 
-	if (tm < 60*60) {
+	if (tmhz < hz) {
+		sprintf(buf, ".%02d", (tmhz * 100) / hz);
+	} else if (tm < 60*60) {
 		sprintf(buf, "%d:%02d", tm / 60, tm % 60);
 	} else if (tm < 24*60*60) {
 		sprintf(buf, "%dh%dm", tm/(60*60), (tm % (60*60)) / 60);
@@ -77,15 +82,34 @@ printps(struct pstat_proc *p)
 main(int argc, char **argv)
 {
 	struct pstat_proc ps;
+	struct pstat_kernel psk;
 	pid_t pids[NPROC*4];
 	int x, npid;
 	struct plist *phead = 0, *p, **pp, *pnew;
 
+	/*
+	 * Get the kernel config, which'll tell us HZ.  Default
+	 * to 20 for kernels which don't support this field.
+	 */
+	psk.psk_hz = 20;
+	if (pstat(PSTAT_KERNEL, 0, &psk, sizeof(struct pstat_kernel)) < 0) {
+		perror(argv[0]);
+		exit(1);
+	}
+	hz = psk.psk_hz;
+
+	/*
+	 * Now generate our list of processes
+	 */
 	npid = pstat(PSTAT_PROCLIST, 0, pids, sizeof(pids));
 	if (npid < 0) {
 		perror(argv[0]);
 		exit(1);
 	}
+
+	/*
+	 * Dump out the procs
+	 */
 	for (x = 0; x < npid; ++x) {
 		/*
 		 * Get next slot
