@@ -19,6 +19,7 @@ partial_trunc(struct alloc *a, uint newsize)
 	uint topbase;
 
 	ASSERT_DEBUG(newsize > 0, "partial_trunc: 0 size");
+	ASSERT_DEBUG(newsize <= a->a_len, "partial_trunc: grow");
 
 	/*
 	 * If not even a single block has been freed, the partial
