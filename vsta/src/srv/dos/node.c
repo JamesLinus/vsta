@@ -13,6 +13,7 @@ void
 ref_node(struct node *n)
 {
 	n->n_refs += 1;
+	ASSERT(n->n_refs != 0, "ref_node: overflow");
 }
 
 /*
