@@ -19,7 +19,8 @@ SRCSRV=src/srv/bfs src/srv/cdfs src/srv/devnull src/srv/dos \
 	src/srv/vstafs
 
 # Core source distribution
-SRC=$(LAW) mkdist.mk src/bin/adb src/bin/init src/bin/login src/bin/perf \
+SRC=$(LAW) mkdist.mk rcs \
+	src/bin/adb src/bin/init src/bin/login src/bin/perf \
 	src/bin/cmds src/bin/time src/lib src/os \
 	$(SRCSRV) src/boot.386
 
