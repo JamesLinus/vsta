@@ -20,7 +20,6 @@ extern int deliver_isr();
 
 extern char *heap;
 
-int do_preempt = 0;	/* Flag preempt requested */
 struct gate *idt;	/* Our IDT for VSTa */
 struct segment *gdt;	/*  ...and GDT */
 struct tss *tss;	/*  ...and TSS */
