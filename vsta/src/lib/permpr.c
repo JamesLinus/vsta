@@ -33,6 +33,7 @@ perm_print(struct prot *prot)
 		sprintf(buf2, "/%d", prot->prot_bits[x]);
 		strcat(p, buf2);
 	}
+	strcat(p, "\n");
 	return(buf);
 }
 
