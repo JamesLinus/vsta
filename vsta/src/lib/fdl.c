@@ -224,23 +224,13 @@ setfd(int fd, struct port *port)
 }
 
 /*
- * fd_alloc()
- *	Allocate the next file descriptor
- *
- * If possible, allocate from the first NFD.  Otherwise create the
- * hash table on first allocation, and allocate from there.
+ * allocfd()
+ *	Allocate next free file descriptor value
  */
-__fd_alloc(port_t portnum)
+static
+allocfd(void)
 {
 	int x;
-	struct port *port;
-
-	/*
-	 * Allocate the port data structure
-	 */
-	if ((port = malloc(sizeof(struct port))) == 0) {
-		return(0);
-	}
 
 	/*
 	 * Scan low slots
@@ -256,7 +246,8 @@ __fd_alloc(port_t portnum)
 	 */
 	if (x >= NFD) {
 		/*
-		 * On first use of high slots, allocate the hash
+		 * No high values ever used, so we know it's free.
+		 * Otherwise scan.
 		 */
 		if (fdhash) {
 			/*
@@ -268,6 +259,32 @@ __fd_alloc(port_t portnum)
 		}
 		x = fdnext; INC(fdnext);
 	}
+	return(x);
+}
+
+/*
+ * fd_alloc()
+ *	Allocate the next file descriptor
+ *
+ * If possible, allocate from the first NFD.  Otherwise create the
+ * hash table on first allocation, and allocate from there.
+ */
+__fd_alloc(port_t portnum)
+{
+	struct port *port;
+	int x;
+
+	/*
+	 * Allocate the port data structure
+	 */
+	if ((port = malloc(sizeof(struct port))) == 0) {
+		return(0);
+	}
+
+	/*
+	 * Get corresponding file descriptor
+	 */
+	x = allocfd();
 	setfd(x, port);
 
 	/*
@@ -278,6 +295,38 @@ __fd_alloc(port_t portnum)
 	port->p_refs = 1;
 	__do_open(port);
 	return(x);
+}
+
+/*
+ * dup()
+ *	Duplicate file descriptor to higher port #
+ */
+dup(int fd)
+{
+	int fdnew;
+	struct port *port;
+
+	/*
+	 * Get handle to existing port
+	 */
+	port = __port(fd);
+	if (port == 0) {
+		__seterr(EBADF);
+		return(-1);
+	}
+
+	/*
+	 * Get new file descriptor value
+	 */
+	fdnew = allocfd();
+
+	/*
+	 * Map to existing port, as a new reference
+	 */
+	setfd(fdnew, port);
+	port->p_refs += 1;
+
+	return(fdnew);
 }
 
 /*
