@@ -134,9 +134,13 @@ bmap(struct buf *b_fs, struct fs_file *fs, ulong pos,
 	 * Grow file if needed
 	 */
 	if (pos >= fs->fs_len) {
+		int need_sync;
+
 		/*
 		 * Calculate growth.  If more blocks are needed, get
 		 * them now.  Otherwise just fiddle the file length.
+		 * For fiddling file length, we don't sync out mods
+		 * if allocation hasn't changed yet.
 		 */
 		osize = btors(fs->fs_len);
 		nsize = btors(pos + cnt);
@@ -145,11 +149,15 @@ bmap(struct buf *b_fs, struct fs_file *fs, ulong pos,
 				return(0);
 			}
 			fs = index_buf(b_fs, 0, 1);
+			need_sync = 1;
 		} else {
 			fs->fs_len = pos+cnt;
+			need_sync = 0;
 		}
 		dirty_buf(b_fs);
-		sync_buf(b_fs);
+		if (need_sync) {
+			sync_buf(b_fs);
+		}
 	}
 
 	/*
