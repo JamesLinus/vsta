@@ -519,9 +519,10 @@ do_dbg_enter(void)
 {
 	extern void dbg_enter(void);
 
-	save_screen(&screens[curscreen]);
+	save_screen_pos(&screens[curscreen]);
+	save_screen(&screens[hwscreen]);
 	dbg_enter();
-	load_screen(&screens[curscreen]);
+	load_screen(&screens[hwscreen]);
 }
 #endif
 
