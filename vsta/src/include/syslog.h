@@ -6,11 +6,13 @@
  *
  * Be warned; VSTa ignores most of this
  */
+#include <stdarg.h>
 
 /*
  * Main entry for reporting stuff
  */
 extern void syslog(int, const char *, ...),
+	vsyslog(int, const char *, va_list),
 	openlog(char *, int, int);
 
 /*
