@@ -11,22 +11,23 @@
 #include <sys/types.h>
 #include <time.h>
 
-typedef ulong mode_t;	/* POSIX types, "A name for everybody" */
-typedef ulong nlink_t;
-typedef ulong dev_t;
-typedef ulong ino_t;
-
-struct	stat {
-	dev_t st_dev;
-	ino_t st_ino;
-	mode_t st_mode;
-	nlink_t st_nlink;
-	ulong st_uid, st_gid;
-	dev_t st_rdev;
-	off_t st_size;
-	time_t st_atime, st_mtime, st_ctime;
-	ulong st_blksize;
-	ulong st_blocks;
+/*
+ * The POSIX stat structure
+ */
+struct stat {
+	dev_t	st_dev;		/* ID of device containing dir entry */
+	ino_t	st_ino;		/* inode number */
+	mode_t	st_mode;	/* file mode - POSIX permissions */
+	nlink_t st_nlink;	/* number of links */
+	uid_t	st_uid;		/* user ID of the file's owner */
+	gid_t	st_gid;		/* group ID of the file's group */
+	dev_t	st_rdev;	/* ID of device if special, eg block special */
+	off_t	st_size;	/* file size in bytes */
+	time_t	st_atime;	/* last access time */
+	time_t	st_mtime;	/* last modification time */
+	time_t	st_ctime;	/* last status change time */
+	ulong	st_blksize;	/* prefered I/O block size */
+	ulong	st_blocks;	/* number of blocks allocated */
 };
 
 /*
@@ -34,7 +35,7 @@ struct	stat {
  */
 #define major(dev) (((dev) >> 8) & 0xffffff)
 #define minor(dev) ((dev) & 0xff)
-#define makedev(maj, min) (((maj) << 8) || ((min) & 0x0ff))
+#define makedev(maj, min) (((maj) << 8) | ((min) & 0x0ff))
 
 /*
  * POSIX mode definitions
