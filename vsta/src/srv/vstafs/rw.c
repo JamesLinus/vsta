@@ -23,7 +23,7 @@
  * newsize is in sectors.  Returns 0 on success, 1 on failure.
  */
 static int
-file_grow(struct fs_file *fs, ulong newsize)
+file_grow(struct buf *b_fs, struct fs_file *fs, ulong newsize)
 {
 	ulong incr, got;
 	struct alloc *a;
@@ -59,6 +59,7 @@ file_grow(struct fs_file *fs, ulong newsize)
 			free_block(newstart, got);
 			return(1);
 		}
+		fs = index_buf(b_fs, 0, 1);
 
 		/*
 		 * Update extent information
@@ -137,9 +138,10 @@ bmap(struct buf *b_fs, struct fs_file *fs, ulong pos,
 		osize = btors(fs->fs_len);
 		nsize = btors(pos + cnt);
 		if (nsize > osize) {
-			if (file_grow(fs, nsize)) {
+			if (file_grow(b_fs, fs, nsize)) {
 				return(0);
 			}
+			fs = index_buf(b_fs, 0, 1);
 		} else {
 			fs->fs_len = pos+cnt;
 		}
