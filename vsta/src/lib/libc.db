@@ -389,3 +389,4 @@ _warnc
 _warnx
 _realpath
 _gettimeofday
+_gl_set_tab_hook

@@ -967,3 +967,12 @@ int new_search;
         gl_putc('\007');
     }
 }
+
+/*
+ * Set tab intercept hook
+ */
+void
+gl_set_tab_hook(intfun f)
+{
+   gl_tab_hook = f;
+}
