@@ -135,6 +135,7 @@ do_seek(struct port *port, long off, int whence)
 	struct msg m;
 	ulong l;
 	int x;
+	extern char *rstat();
 
 	switch (whence) {
 	case SEEK_SET:
