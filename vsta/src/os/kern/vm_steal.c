@@ -30,7 +30,6 @@
 #include <sys/pset.h>
 #include <sys/core.h>
 #include <sys/fs.h>
-#include <sys/qio.h>
 #include <sys/vm.h>
 #include <sys/malloc.h>
 
@@ -41,8 +40,6 @@ extern struct portref *swapdev;
 
 /* Entries to avoid */
 #define BAD(c) ((c)->c_flags & (C_SYS|C_BAD|C_WIRED))
-
-ulong failed_qios = 0L;		/* Number pushes which failed */
 
 /*
  * The following are in terms of 1/nth memory
@@ -62,8 +59,8 @@ extern struct core *core,		/* Per-page info */
 extern uint freemem, totalmem;		/* Free and total pages in system */
 					/*  total does not include C_SYS */
 sema_t pageout_sema;
-static struct qio *pgio;	/* Our asynch I/O descriptor */
 uint pageout_secs = 0;		/* Set to PAGEOUT_SECS when ready */
+uint desfree, minfree;		/* Initial values calculated on boot */
 
 /*
  * unvirt()
@@ -173,6 +170,7 @@ do_hand(struct core *c, int trouble, intfun steal)
 	struct pset *ps;
 	struct perpage *pp;
 	uint idx, pgidx;
+	int slot_held;
 	extern void iodone_unlock();
 
 	/*
@@ -224,6 +222,7 @@ do_hand(struct core *c, int trouble, intfun steal)
 		unlock_page(pgidx);
 		return;
 	}
+	slot_held = 1;
 
 	/*
 	 * If this is the target for COW psets, several assumptions
@@ -260,6 +259,7 @@ do_hand(struct core *c, int trouble, intfun steal)
 		 */
 		pp->pp_flags &= ~PP_M;
 		(*(ps->p_ops->psop_writeslot))(ps, pp, idx, iodone_unlock);
+		slot_held = 0;	/* Released in iodone_unlock */
 	} else {
 		/*
 		 * No, leave it alone.  Clear REF bit so we can
@@ -268,7 +268,9 @@ do_hand(struct core *c, int trouble, intfun steal)
 		pp->pp_flags &= ~PP_R;
 	}
 out:
-	unlock_slot(ps, pp);
+	if (slot_held) {
+		unlock_slot(ps, pp);
+	}
 	unlock_page(pgidx);
 }
 
@@ -345,6 +347,8 @@ pageout(void)
 	troub_cnt[0] = totalmem/SMALLSCAN;
 	troub_cnt[1] = totalmem/MEDSCAN;
 	troub_cnt[2] = totalmem/LARGESCAN;
+	minfree = totalmem/MINFREE;
+	desfree = totalmem/DESFREE;
 
 	/*
 	 * Initialize our semaphore
@@ -358,9 +362,9 @@ pageout(void)
 		/*
 		 * Categorize the current memory situation
 		 */
-		if (freemem < totalmem/MINFREE) {
+		if (freemem < minfree) {
 			trouble = 2;
-		} else if (freemem < totalmem/DESFREE) {
+		} else if (freemem < desfree) {
 			trouble = 1;
 		} else {
 			trouble = 0;
@@ -371,19 +375,16 @@ pageout(void)
 		 */
 		if (npg > troub_cnt[trouble]) {
 			npg = 0;
+#ifdef WATCHMEM
+			printf("pageout free %d des %d min %d trouble %d\n",
+				freemem, desfree, minfree, trouble);
+#endif
 			p_sema(&pageout_sema, PRIHI);
 
 			/*
 			 * Clear all v's after wakeup
 			 */
 			set_sema(&pageout_sema, 0);
-		}
-
-		/*
-		 * Ensure a slot for asynch page push
-		 */
-		if (!pgio) {
-			pgio = alloc_qio();
 		}
 
 		/*
