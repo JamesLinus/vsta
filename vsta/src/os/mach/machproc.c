@@ -2,6 +2,7 @@
  * machproc.c
  *	Machine-dependent parts of process handling
  */
+#define LONGENA		/* longjmp() enables interrupts */
 #include <sys/proc.h>
 #include <sys/thread.h>
 #include <sys/vas.h>
