@@ -49,8 +49,8 @@
 /*
  * Parameters for WD_SDH
  */
-#define WDSDH_512	0x20
-#define WDSDH_EXT	0x80
+#define WDSDH_IBM	(0x20|0x80)	/* 512 sectors | extension */
+#define WDSDH_LBA	(0x40)		/* Logical Block Addressing */
 
 /*
  * Bits for controller port
@@ -75,29 +75,61 @@
 struct wdparameters {
 
 	/* drive info */
-	ushort	w_config;		/* general configuration */
-	ushort	w_fixedcyl;		/* number of non-removable cylinders */
-	ushort	w_removcyl;		/* number of removable cylinders */
-	ushort	w_heads;		/* number of heads */
-	ushort	w_unfbytespertrk;	/* number of unformatted bytes/track */
-	ushort	w_unfbytes;		/* number of unformatted bytes/sector */
-	ushort	w_sectors;		/* number of sectors */
-	ushort	w_minisg;		/* minimum bytes in inter-sector gap*/
-	ushort	w_minplo;		/* minimum bytes in postamble */
-	ushort	w_vendstat;		/* number of words of vendor status */
+	ushort	w_config;		/* 0   general configuration */
+	ushort	w_fixedcyl;		/* 1   # non-removable cylinders */
+	ushort	w_removcyl;		/* 2   # removable cylinders */
+	ushort	w_heads;		/* 3   # heads */
+	ushort	w_unfbytespertrk;	/* 4   # unformatted bytes/track */
+	ushort	w_unfbytes;		/* 5   # unformatted bytes/sector */
+	ushort	w_sectors;		/* 6   # sectors */
+	ushort	w_minisg;		/* 7   min bytes inter-sector gap*/
+	ushort	w_minplo;		/* 8   min bytes postamble */
+	ushort	w_vendstat;		/* 9   # words of vendor status */
 
 	/* controller info */
-	char	w_cnsn[20];		/* controller serial number */
-	ushort	w_cntype;		/* controller type */
+	char	w_cnsn[20];		/* 10  controller serial number */
+	ushort	w_cntype;		/* 20  controller type */
 #define	WDTYPE_SINGLEPORTSECTOR	1	 /* single port, single sector buffer */
 #define	WDTYPE_DUALPORTMULTI	2	 /* dual port, multiple sector buffer */
 #define	WDTYPE_DUALPORTMULTICACHE 3	 /* above plus track cache */
-	ushort	w_cnsbsz;		/* sector buffer size, in sectors */
-	ushort	w_necc;			/* ecc bytes appended */
-	char	w_rev[8];		/* firmware revision */
-	char	w_model[40];		/* model name */
-	ushort	w_nsecperint;		/* sectors per interrupt */
-	ushort	w_usedmovsd;		/* can use double word read/write? */
+	ushort	w_cnsbsz;		/* 21  sector buffer size, in sectors */
+	ushort	w_necc;			/* 22  ecc bytes appended */
+	char	w_rev[8];		/* 23  firmware revision */
+	char	w_model[40];		/* 27  model name */
+	ushort	w_nsecperint;		/* 47  sectors per interrupt */
+	ushort	w_usedmovsd;		/* 48  can use double word read/write? */
+	ushort	w_caps;			/* 49  capabilities */
+#define WDCAP_STANDBY_STD 0x2000	 /* standard timeout values? */
+#define WDCAP_IORDY 0x0800		 /* IORDY supported */
+#define WDCAP_IORDY_DISAB 0x0400	 /*  ...can be disabled? */
+	ushort	w_resv1;		/* 50  reserved */
+	ushort	w_pio;			/* 51  PIO data transfer cycle timing */
+	ushort	w_resv2;		/* 52  reserved */
+	ushort	w_valid;		/* 53  flag valid fields to follow */
+#define WDFIELD_54_58 0x01		 /* Fields 54 through 58 are valid */
+#define WDFIELD_64_70 0x02		 /*  ...64 through 70 */
+	ushort	w_logcyl;		/* 54  Logical cylinders */
+	ushort	w_loghead;		/* 55  Logical heads */
+	ushort	w_logspt;		/* 56  Logical sector/track */
+	ushort	w_cap0;			/* 57  Capacity in sectors (32-bit) */
+	ushort	w_cap1;
+	ushort	w_multisec;		/* 59  Multiple sector values */
+#define WDMULTI_VALID 0x100		 /* Low byte is valid value */
+	ushort	w_totalsec0;		/* 60  Total number of user sectors */
+	ushort	w_totalsec1;		/* 61   (LBA; 32-bit value) */
+	ushort	w_resv3;		/* 62  Reserved */
+	ushort	w_multimode;		/* 63  Multiword DMA */
+#define WDMULTI_NSEC 0x100		 /* Low byte is transfer mode */
+	ushort	w_piomode;		/* 64  Advanced PIO modes */
+	ushort	w_minmulti;		/* 65  Minimum multiword xfer */
+	ushort	w_multitime;		/* 66  Recommended cycle time */
+	ushort	w_minpio;		/* 67  Min PIO without flow ctl */
+	ushort	w_miniodry;		/* 68  Min with IORDY flow */
+	ushort	w_resv4[10];		/* 69  Reserved */
+	ushort	w_ver;			/* 80  Major version number */
+	ushort	w_verminor;		/* 81  Minor version number */
+	ushort	w_cmdset;		/* 82  Command set supported */
+	ushort	w_cmdset2;
 };
 
 /*
@@ -110,6 +142,7 @@ struct wdparms {
 	uint w_secpertrk;	/* = w_sectors */
 	uint w_secpercyl;	/* = w_heads * w_sectors */
 	uint w_size;		/* = w_secpercyl * w_cyls */
+	uint w_lba;		/* LBA addressing (else old IBM) */
 };
 
 /*

@@ -285,11 +285,17 @@ wd_init(int argc, char **argv)
 			uint s = w->w_size * SECSZ;
 			const uint m = 1024*1024;
 
-			syslog(LOG_INFO,
-				"unit %d: %d.%dM - " \
-				"%d heads, %d cylinders, %d sectors",
-				i, s / m, (s % m) / (m / 10),
-				w->w_tracks, w->w_cyls, w->w_secpertrk);
+			if (!w->w_lba) {
+				syslog(LOG_INFO,
+				 "unit %d: %d.%dM - " \
+				 "%d heads, %d cylinders, %d sectors",
+				 i, s / m, (s % m) / (m / 10),
+				 w->w_tracks, w->w_cyls, w->w_secpertrk);
+			} else {
+				syslog(LOG_INFO,
+				 "unit %d: %d.%dM - LBA",
+				 i, s / m, (s % m) / (m / 10));
+			}
 			found_first = 1;
 			if (i < first_unit) {
 				first_unit = i;
@@ -377,17 +383,24 @@ wd_start(void)
 	/*
 	 * Given disk geometry, calculate parameters for next I/O
 	 */
-	cyl =  cur_sec / w->w_secpercyl;
-	sect = cur_sec % w->w_secpercyl;
+	if (w->w_lba) {
+		sect = cur_sec & 0xFF;
+		cyl = (cur_sec >> 8) & 0xFFFF;
+		trk = ((cur_sec >> 24) & 0xF) | WDSDH_LBA;
+		lsect = cur_secs;
+	} else {
+		cyl =  cur_sec / w->w_secpercyl;
+		sect = cur_sec % w->w_secpercyl;
 #ifdef AUTO_HEAD
-	lsect = w->w_secpercyl - sect;
+		lsect = w->w_secpercyl - sect;
 #endif
-	trk = sect / w->w_secpertrk;
-	sect = (sect % w->w_secpertrk) + 1;
+		trk = sect / w->w_secpertrk;
+		sect = (sect % w->w_secpertrk) + 1;
 #ifndef AUTO_HEAD
-	/* Cap at end of this track--heads won't switch automatically */
-	lsect = w->w_secpertrk + 1 - sect;
+		/* Cap at end of this track--heads won't switch automatically */
+		lsect = w->w_secpertrk + 1 - sect;
 #endif
+	}
 
 	/*
 	 * Transfer size--either the rest, or the remainder of this track
@@ -406,7 +419,7 @@ wd_start(void)
 	outportb(base + WD_CYL0, cyl & 0xFF);
 	outportb(base + WD_CYL1, (cyl >> 8) & 0xFF);
 	outportb(base + WD_SDH,
-		WDSDH_EXT|WDSDH_512 | trk | (cur_unit << 4));
+		WDSDH_IBM | trk | (cur_unit << 4));
 	outportb(base + WD_CMD,
 		(cur_op == FS_READ) ? WDC_READ : WDC_WRITE);
 
@@ -590,7 +603,7 @@ wd_readp(int unit)
 	/*
 	 * Send READP and see if he'll answer
 	 */
-	outportb(wd_baseio + WD_SDH, WDSDH_EXT|WDSDH_512 | (unit << 4));
+	outportb(wd_baseio + WD_SDH, WDSDH_IBM | (unit << 4));
 	if (wd_cmd(WDC_READP) < 0) {
 		return;
 	}
@@ -610,7 +623,7 @@ wd_readp(int unit)
 	 */
 	__msleep(100);
 	outportb(wd_baseio + WD_SDH,
-		WDSDH_EXT|WDSDH_512 | (unit << 4) | (xw.w_heads - 1));
+		WDSDH_IBM | (unit << 4) | (xw.w_heads - 1));
 	outportb(wd_baseio + WD_SCNT, xw.w_sectors);
 	if (wd_cmd(WDC_SPECIFY) < 0) {
 		return;
@@ -629,7 +642,21 @@ wd_readp(int unit)
 	w->w_tracks = xw.w_heads;
 	w->w_secpertrk = xw.w_sectors;
 	w->w_secpercyl = xw.w_heads * xw.w_sectors;
-	w->w_size = w->w_secpercyl * w->w_cyls;
+
+	/*
+	 * Decode whether we can use LBA with this disk
+	 */
+	if ((xw.w_totalsec0 == 0) && (xw.w_totalsec1 == 0)) {
+		w->w_lba = 0;
+		w->w_size = w->w_secpercyl * w->w_cyls;
+	} else {
+		w->w_lba = 1;
+		w->w_size = (xw.w_totalsec1 << 16) | xw.w_totalsec0;
+	}
+
+	/*
+	 * This disk is now active
+	 */
 	disks[unit].d_configed = 1;
 }
 

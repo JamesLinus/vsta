@@ -214,7 +214,7 @@ loop:
 		break;
 
 	case FS_SEEK:		/* Set position */
-		if (!f || (msg.m_arg < 0)) {
+		if (!f) {
 			msg_err(msg.m_sender, EINVAL);
 			break;
 		}
@@ -225,7 +225,7 @@ loop:
 
 	case FS_ABSREAD:	/* Set position, then read */
 	case FS_ABSWRITE:	/* Set position, then write */
-		if (!f || (msg.m_arg1 < 0)) {
+		if (!f) {
 			msg_err(msg.m_sender, EINVAL);
 			break;
 		}
