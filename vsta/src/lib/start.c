@@ -61,6 +61,15 @@ noargs:
 	*argvp = argv;
 
 	/*
+	 * Set command
+	 */
+	if (p = strrchr(argv[0], '/')) {
+		(void)set_cmd(p+1);
+	} else {
+		(void)set_cmd(argv[0]);
+	}
+
+	/*
 	 * Restore our fdl state
 	 */
 	a = __fdl_restore(a);
