@@ -16,7 +16,7 @@ extern int *__ptr_errno(void);
 
 #define	EPERM (1)	/* Not sufficient permissions */
 #define	ENOENT (2)	/* No such file or directory */
-#define	ESRCH (3)	/* No such process */
+#define	ESRCH (ENOENT)	/* No such process */
 #define	EINTR (4)	/* Interrupted system call */
 #define	EIO (5)		/* I/O error */
 #define	ENXIO (6)	/* No such device or address */
