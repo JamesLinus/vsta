@@ -6,7 +6,9 @@
  */
 #include <sys/types.h>
 #include <sys/param.h>
+#include <sys/core.h>
 #include "../mach/mutex.h"
+#include "../mach/vminline.h"
 
 /*
  * Basic functions
@@ -44,8 +46,6 @@ extern void free(void *);
 
 #define MALLOCTYPES (24)	/* UPDATE when you add values above */
 				/* ALSO check n_allocname[] */
-
-extern void *_malloc(uint, uint), _free(void *, uint);
 
 /*
  * Our per-storage-size information
@@ -86,6 +86,8 @@ extern struct bucket buckets[];
  */
 #ifdef DEBUG
 
+extern void *_malloc(uint, uint), _free(void *, uint);
+
 #define MALLOC(size, type) _malloc(size, type);
 #define FREE(ptr, type) _free(ptr, type);
 
@@ -98,7 +100,7 @@ MALLOC(uint size, uint type)
 	void *v;
 
 	if (size > (NBPG/2)) {
-		return(_malloc(size, type));
+		return(malloc(size));
 	}
 	b = &buckets[BUCKET(size)];
 	p_lock_fast(&b->b_lock, SPL0_SAME);
@@ -110,7 +112,7 @@ MALLOC(uint size, uint type)
 	if (v) {
 		return(v);
 	}
-	return(_malloc(size, type));
+	return(malloc(size));
 }
 
 inline static void
@@ -121,11 +123,11 @@ FREE(void *ptr, uint type)
 
 	size = PAGE_GETVAL(btop(vtop(ptr)));
 	if (size >= PGSHIFT) {
-		_free(ptr, type);
+		free(ptr);
 		return;
 	}
 	b = &buckets[size];
-	_free(ptr, type);
+	free(ptr);
 }
 
 #endif /* !DEBUG */
