@@ -25,6 +25,11 @@ struct tnserv {
 		tn_write;	/*  ...writing side */
 };
 
+struct pendio {
+	struct msg p_msg;	/* Message from sender */
+	struct llist *p_entry;	/* Where this is queued */
+};
+
 static struct llist readq,	/* Queue of readers awaiting data */
 	dataq;			/*  ...of data awaiting readers */
 
@@ -40,6 +45,172 @@ static struct llist readq,	/* Queue of readers awaiting data */
 static void
 tn_read(struct msg *m)
 {
+	int nseg, size;
+	struct llist *l;
+	struct pendio *p;
+	struct msg *mp;
+	seg_t *s, *sp;
+
+	/*
+	 * If no data yet, get in line
+	 */
+	if (LL_EMPTY(&dataq)) {
+		p = malloc(sizeof(struct pendio));
+		if (p == 0) {
+			msg_err(m->m_sender, strerror());
+			return;
+		}
+		p->p_entry = ll_insert(&readq, p);
+		if (p->p_entry == 0) {
+			msg_err(m->m_sender, strerror());
+			return;
+		}
+		p->p_msg = *m;
+		return;
+	}
+
+	/*
+	 * Get next block of data available
+	 */
+	l = LL_NEXT(&dataq);
+	p = l->l_data;
+	mp = p->p_msg;
+
+	/*
+	 * If it appears to be less than or equal to the requested
+	 * amount, dump it right back
+	 */
+	if (mp->m_arg <= m->m_arg) {
+		msg_reply(m->m_sender, mp);
+		ll_delete(p->p_entry);
+		free(p);
+		return;
+	}
+
+	/*
+	 * Otherwise extract data until the read request is
+	 * satisfied and adjust the queued data element to reflect
+	 * the residual
+	 */
+	size = m->m_arg;
+	nseg = 0;
+	s = &m->m_seg[0];
+	sp = &mp->m_seg[0];
+	while ((size > 0) && (nseg < mp->m_nseg)) {
+		*s = *sp;
+		if (s->s_buflen > size) {
+			sp->s_buflen -= size;
+			sp->s_buf += size;
+			s->s_buflen = size;
+			size = 0;
+		} else {
+			nseg += 1;
+			++s, ++sp;
+			size -= s->s_buflen;
+		}
+	}
+
+	/*
+	 * Send back the data
+	 */
+	m->m_nseg = nseg;
+	msg_reply(m->m_sender, m);
+
+	/*
+	 * If we consumed any segments, reap either the whole
+	 * transaction (if we used them all) or the slot.
+	 */
+	if (nseg > 0) {
+		if (nseg == mp->m_nseg) {
+			ll_delete(p->p_entry);
+			free(p);
+		} else {
+			mp->m_nseg -= nseg;
+			bcopy(&mp->m_seg[nseg], &mp->m_seg[0],
+				(mp->m_nseg - nseg) * sizeof(seg_t));
+		}
+	}
+}
+
+/*
+ * queue_data()
+ *	Make data available for consumption via the dataq
+ *
+ * Actually, feed it out directly to any queued readers.  Place any
+ * residual on the dataq.  For the latter, the data must be dup'ed so
+ * our caller can reuse his buffer.
+ */
+static void
+queue_data(char *buf, uint cnt)
+{
+	struct llist *l;
+	struct pendio *p;
+	uint x;
+
+	/*
+	 * Send it directly on its way if possible
+	 */
+	while (!LL_EMPTY(&readq) && cnt) {
+		/*
+		 * Get next reader
+		 */
+		l = LL_NEXT(&readq);
+		p = l->l_data;
+
+		/*
+		 * We'll be sending from here in any case
+		 */
+		p->p_msg.m_buf = buf;
+		p->p_msg.m_nseg = 1;
+
+		/*
+		 * If he can take it all, away it goes
+		 */
+		x = p->p_msg.m_arg;
+		if (x >= cnt) {
+			p->p_msg.m_buflen = p->p_msg.m_arg = cnt;
+			msg_reply(p->p_msg.m_sender, &p->p_msg);
+			cnt = 0;
+		} else {
+			/*
+			 * Give him the requested amount
+			 */
+			p->p_msg.m_buflen = x;
+			cnt -= x;
+			buf += x;
+		}
+		msg_reply(p->p_msg.m_sender, &p->p_msg);
+		ll_delete(p->p_entry);
+		free(p);
+	}
+
+	/*
+	 * If all data consumed, we're done
+	 */
+	if (cnt == 0) {
+		return;
+	}
+
+	/*
+	 * Queue the rest for future use
+	 */
+	p = malloc(sizeof(struct pendio);
+	if (p == 0) {
+		return;
+	}
+	p->p_msg.m_buf = malloc(cnt);
+	if (p->p_msg.m_buf == 0) {
+		free(p);
+		return;
+	}
+	p->p_entry = ll_insert(&dataq, p);
+	if (p->p_entry == 0) {
+		free(p->p_msg.m_buf);
+		free(p);
+		return;
+	}
+	bcopy(buf, p->p_msg.m_buf);
+	p->p_msg.m_buflen = cnt;
 }
 
 /*
@@ -96,8 +267,9 @@ io_server(struct tnserv *tn)
 
 				p = l->l_data;
 				l = LL_NEXT(l);
-				if (p->p_sender == m.m_sender) {
+				if (p->p_msg.m_sender == m.m_sender) {
 					ll_delete(p->p_entry);
+					free(p);
 					break;
 				}
 			}
@@ -131,7 +303,7 @@ static void
 launch_client(port_t tn_read)
 {
 	struct tnserv tn;
-
+	pid_t pid;
 
 	/*
 	 * clone() the TCP port so we can do simultaneous reads
@@ -158,6 +330,32 @@ launch_client(port_t tn_read)
 	 */
 	ll_init(&readq);
 	ll_init(&dataq);
+
+	/*
+	 * Launch the login process
+	 */
+	pid = fork();
+	if (pid < 0) {
+		syslog(LOG_ERR, "Can't fork: %s", strerror());
+		_exit(1);
+	}
+	if (pid == 0) {
+		port_t p;
+		int x;
+
+		p = msg_connect(tn.tn_pn, ACC_READ | ACC_WRITE);
+		if (p < 0) {
+			_exit(1);
+		}
+		for (x = getdtablesize(); x >= 0; --x) {
+			close(x);
+		}
+		x = __fd_open(p);
+		dup2(x, 0); dup2(x, 1); dup2(x, 2);
+		(void)execl("/vsta/bin/login", "login", (char *)0);
+		syslog(LOG_ERR, "Can't login: %s", strerror());
+		_exit(1);
+	}
 
 	/*
 	 * Run a thread to serve this port
