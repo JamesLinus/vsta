@@ -1,7 +1,7 @@
 CC= gcc
 LD= ld
-CFLAGS= -O -I../../include -I../..
-LDFLAGS= -L../../libc
+CFLAGS= -g -I../../include -I../..
+LDFLAGS= -L../../libc -L../../lib
 LIBS= -lc
 
 .c.o:
@@ -13,7 +13,7 @@ swapd: swapd.o
 	$(LD) $(LDFLAGS) -e start -o swapd ../../libc/crt0.o swapd.o -lc
 
 ls: ls.o
-	$(LD) $(LDFLAGS) -e start -o ls ../../libc/crt0.o ls.o -lc
+	$(LD) $(LDFLAGS) -e start -o ls ../../libc/crt0.o ls.o -lusr -lc
 
 id: id.o
 	$(LD) $(LDFLAGS) -e start -o id ../../libc/crt0.o id.o -lc
