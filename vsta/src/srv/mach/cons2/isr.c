@@ -251,7 +251,9 @@ shift_key(uchar c)
 	case 0x45:
 		break;
 	case 0xba:		/* Caps lock up */
+#ifdef CAPS
 		capstoggle = !capstoggle;
+#endif
 		break;
 	case 0xc5:		/* Num lock up */
 		numtoggle = !numtoggle;
