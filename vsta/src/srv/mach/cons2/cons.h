@@ -15,8 +15,8 @@ struct file {
 };
 
 #define NORMAL 7		/* Attribute for normal characters */
-#define BLANK (0x07200720)	/* Normal attribute, blank char */
-				/*  ... two of them in a longword */
+#define BLANKW (0x0720)		/* Normal attribute, blank char */
+#define BLANK (0x07200720)	/*  ... two of them in a longword */
 
 #define ROWS 25		/* Screen dimensions */
 #define COLS 80

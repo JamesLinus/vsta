@@ -122,26 +122,34 @@ sequence(int x, int y, char c)
 	case '@':		/* Insert character */
 		while (x-- > 0) {
 			y = cur-top;
-			y = y + (COLS*CELLSZ - (y % (COLS*CELLSZ)));
+			y = COLS*CELLSZ - (y % (COLS*CELLSZ));
 			p = cur+y;
 			bcopy(cur, cur+1, (p-cur)-1);
-			cur[0] = ' ';
+			*(ushort *)cur = BLANKW;
 		}
 		return;
 
 	case 'P':		/* Delete character */
 		while (x-- > 0) {
 			y = cur-top;
-			y = y + (COLS*CELLSZ - (y % (COLS*CELLSZ)));
+			y = COLS*CELLSZ - (y % (COLS*CELLSZ));
 			p = cur+y;
 			bcopy(cur+1, cur, (p-cur)-1);
 			p -= CELLSZ;
-			p[0] = ' ';
+			*(ushort *)p = BLANKW;
 		}
 		return;
 
-	case 'J':		/* Clear (assume arg==2) */
-		cls();
+	case 'J':		/* Clear screen/eos */
+		if (x == 1) {
+			p = cur;
+			while (p < bottom) {
+				*(ushort *)p = BLANKW;
+				p += CELLSZ;
+			}
+		} else {
+			cls();
+		}
 		return;
 
 	case 'H':		/* Position */
@@ -151,6 +159,16 @@ sequence(int x, int y, char c)
 		} else if (cur >= bottom) {
 			cur = lastl;
 		}
+		return;
+
+	case 'K':		/* Clear to end of line */
+		y = cur-top;
+		y = COLS*CELLSZ - (y % (COLS*CELLSZ));
+		p = cur+y;
+		do {
+			p -= CELLSZ;
+			*(ushort *)p = BLANKW;
+		} while (p > cur);
 		return;
 
 	default:
