@@ -9,6 +9,7 @@
 #include <sys/param.h>
 #include <sys/assert.h>
 #include <hash.h>
+#include <time.h>
 
 static struct hash *rename_pending;
 
@@ -384,6 +385,7 @@ create_file(struct file *f, uint type)
 	d->fs_nblk = 1;
 	d->fs_blks[0].a_start = da;
 	d->fs_blks[0].a_len = 1;
+	time(&d->fs_ctime); d->fs_mtime = d->fs_ctime;
 
 	/*
 	 * Default protection, use 0'th perm
@@ -778,6 +780,14 @@ vfs_open(struct msg *m, struct file *f)
 			return;
 		}
 		file_shrink(o, sizeof(struct fs_file));
+	}
+
+	/*
+	 * If opening for writing or truncation, update mtime
+	 */
+	if (m->m_arg & (ACC_CREATE | ACC_WRITE)) {
+		time(&fs->fs_mtime);
+		dirty_buf(b);
 	}
 
 	/*

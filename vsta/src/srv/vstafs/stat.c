@@ -72,8 +72,10 @@ vfs_stat(struct msg *m, struct file *f)
 		typec = 'f';
 		len = fs->fs_len - sizeof(struct fs_file);
 	}
-	sprintf(buf, "size=%u\ntype=%c\nowner=%d\ninode=%u\n",
-		len, typec, fs->fs_owner, fs->fs_blks[0].a_start);
+	sprintf(buf, "size=%u\ntype=%c\nowner=%d\ninode=%u\n"
+		"ctime=%u\nmtime=%u\n",
+		len, typec, fs->fs_owner, fs->fs_blks[0].a_start,
+		fs->fs_ctime, fs->fs_mtime);
 	strcat(buf, perm_print(&fs->fs_prot));
 	m->m_buf = buf;
 	m->m_arg = m->m_buflen = strlen(buf);
@@ -111,6 +113,20 @@ vfs_wstat(struct msg *m, struct file *f)
 	 */
 	if (do_wstat(m, &fs->fs_prot, f->f_perm, &field, &val) == 0) {
 		dirty_buf(b);
+		return;
+	}
+
+	/*
+	 * Permit the mtime to be set
+	 */
+	if (!strcmp(field, "mtime")) {
+		/*
+		 * Convert to number, write to file attribute
+		 */
+		fs->fs_mtime = atoi(val);
+		dirty_buf(b);
+		m->m_nseg = m->m_arg = m->m_arg1 = 0;
+		msg_reply(m->m_sender, m);
 		return;
 	}
 
