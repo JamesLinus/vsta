@@ -7,6 +7,7 @@
 extern int irq, iobase;
 extern int baud, databits, stopbits, parity;
 extern uchar dtr, dsr, rts, cts, dcd, ri;
+extern int uart, rx_fifo_threshold, tx_fifo_threshold;
 
 /*
  * rs232_linesetup()
@@ -128,7 +129,7 @@ rs232_setrts(int newrts)
 }
 
 /*
- * rs232_getinsigs(void)
+ * rs232_getinsigs()
  *	Read the dsr, cts, dcd and ri status lines
  */
 void
@@ -142,4 +143,177 @@ rs232_getinsigs(void)
 	dcd = (c & MSR_DCD) ? 1 : 0;
 	ri = (c & MSR_RI) ? 1 : 0;
 
+}
+
+/*
+ * rs232_setrxfifo()
+ *	Set the receiver UART FIFO threshold
+ *
+ * Returns 0 on success, non-zero otherwise.  If we enter with threshold
+ * equal to 0 we attempt to pick an appropriate threshold for the baud rate
+ * currently in use
+ */
+int
+rs232_setrxfifo(int threshold)
+{
+	uchar b;
+
+	if (threshold == 0) {
+		/*
+		 * Work out what to set
+		 */
+		if (uart == UART_16550A) {
+			if (baud < 2400) {
+				threshold = 1;
+			} else {
+				threshold = 4;
+			}
+		} else {
+			/*
+			 * We're not doing anything wrong, we're just not
+			 * changing anything either
+			 */
+			rx_fifo_threshold = 1;
+			tx_fifo_threshold = 1;
+			return(0);
+		}
+	} else {
+		/*
+		 * We can only set the FIFO threshold on a 16550A
+		 */
+		if (uart != UART_16550A) {
+			return(-1);
+		}
+	}
+
+	switch(threshold) {
+	case 1:
+		b = FIFO_TRIGGER_1;
+		break;
+	case 4:
+		b = FIFO_TRIGGER_4;
+		break;
+	case 8:
+		b = FIFO_TRIGGER_8;
+		break;
+	case 14:
+		b = FIFO_TRIGGER_14;
+		break;
+	default:
+		/*
+		 * We must have had a non valid value
+		 */
+		return(-1);
+	}
+
+	/*
+	 * OK we had a good value, set the threshold details and reset the
+	 * contents of the FIFOs - changing them whilst data's flowing would
+	 * be a little daft!
+	 */
+	outportb(iobase + FIFO,
+		b | FIFO_ENABLE | FIFO_RCV_RST | FIFO_XMT_RST);
+	rx_fifo_threshold = threshold;
+	tx_fifo_threshold = 16;
+
+	return(0);
+}
+
+/*
+ * rs232_iduart()
+ *	Work out what sort of UART we have
+ *
+ * Returns non-zero if we can't find or determine the type of UART in the
+ * system.  Returns zero and sets "uart" appropriately if we can work out
+ * what we've got
+ *
+ * A lot of this code is based from the Linux serial driver written by
+ * Ted Ts'o
+ */
+int
+rs232_iduart(int test_uart)
+{
+	uchar x, t1, t2, t3;
+
+	if (test_uart) {
+		/*
+		 * Check that there's anything to talk to at the base address
+		 */
+		t1 = inportb(iobase + IER);
+		outportb(iobase + IER, 0);
+		t2 = inportb(iobase + IER);
+		outportb(iobase + IER, t1);
+		if (t2) {
+			return(1);
+		}
+
+		/*
+		 * If requested, check that there is a UART at the base
+		 * address.  We allow this test to be ignored to cope with
+		 * some nasty modems that don't have internal loopback
+		 * capability
+		 */
+		t3 = inportb(iobase + MCR);
+		outportb(iobase + MCR, t3 | MCR_LOOPBACK);
+		t2 = inportb(iobase + MSR);
+		outportb(iobase + MCR, MCR_LOOPBACK | MCR_IENABLE | MCR_RTS);
+		t1 = inportb(iobase + MSR)
+			& (MSR_DCD | MSR_RI | MSR_DSR | MSR_CTS);
+		outportb(iobase + MCR, t3);
+		outportb(iobase + MSR, t2);
+
+		if (t1 != (MSR_DCD | MSR_CTS)) {
+			return(1);
+		}
+	}
+	
+	if (uart == UART_UNKNOWN) {
+		/*
+		 * Look to see if we can find any sort of FIFO response
+		 */
+		outportb(iobase + FIFO, FIFO_ENABLE);
+		x = (inportb(iobase + IIR) & IIR_FIFO_MASK) >> 6;
+
+		switch(x) {
+		case 0:
+			/*
+			 * No FIFO response is a 16450 or 8250.  The 8250
+			 * doesn't have a scratchpad register though.  We
+			 * make this test attempt to restore the original
+			 * scratchpad state
+			 */
+			uart = UART_16450;
+			t3 = inportb(iobase + SCRATCH);
+			outportb(iobase + SCRATCH, 0xa5);
+			t1 = inportb(iobase + SCRATCH);
+			outportb(iobase + SCRATCH, 0x5a);
+			t2 = inportb(iobase + SCRATCH);
+			outportb(iobase + SCRATCH, t3);
+			if ((t1 != 0xa5) || (t2 != 0x5a)) {
+				uart = UART_8250;
+			}
+			break;
+		case 1:
+			/*
+			 * This would be a pretty unique wierd response
+			 */
+			uart = UART_UNKNOWN;
+			return(1);
+		case 2:
+			/*
+			 * This is the sort of broken response we get from an
+			 * early 16550 part with a broken FIFO
+			 */
+			uart = UART_16550;
+			break;
+		case 3:
+			/*
+			 * We have a 16550A - working FIFOs
+			 */
+			uart = UART_16550A;
+			break;
+		}
+	}
+	
+	return(0);
 }

@@ -107,16 +107,6 @@ void
 rs232_enable(void)
 {
 	/*
-	 * Set up 16550 FIFO chip, if present
-	 */
-	outportb(iobase + FIFO, FIFO_ENABLE|FIFO_RCV_RST|
-		FIFO_XMT_RST|FIFO_TRIGGER_4);
-	__msleep(100);
-	if ((inportb(iobase + IIR) & IIR_FIFO_MASK) == IIR_FIFO_MASK) {
-		outportb(iobase + FIFO, FIFO_ENABLE|FIFO_TRIGGER_4);
-	}
-
-	/*
 	 * Start with port set up for hard-wired RS-232
 	 */
 	outportb(iobase + MCR, MCR_DTR|MCR_RTS|MCR_IENABLE);

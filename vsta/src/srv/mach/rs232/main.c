@@ -10,14 +10,20 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <syslog.h>
+#include <string.h>
 #include "rs232.h"
 
 static struct hash *filehash;	/* Map session->context structure */
 char rs232_name[NAMESZ] = "";	/* Port namer name for this server */
 port_t rs232port;		/* Port we receive contacts through */
+port_name rs232port_name;	/* What our port is known as externally */
 uint accgen = 0;		/* Generation counter for access */
+int uart = UART_UNKNOWN;	/* What type of UART do we have? */
+static int test_uart = 1;	/* Are we going to test the UART? */
 int irq;			/* IRQ number for rs232 */
 int iobase;			/* Corresponding I/O base */
+int rx_fifo_threshold;		/* Point at which UART rx FIFO triggers */
+int tx_fifo_threshold;		/* Point at which UART tx FIFO triggers */
 int baud;			/* Baud rate */
 int databits;			/* Number of data bits in use */
 int stopbits;			/* Number of stop bits in use */
@@ -52,6 +58,13 @@ struct rs232_defaults {
 	{0x2f8, 3},		/* COM2 */
 	{0x3e8, 5},		/* COM3 */
 	{0x2e8, 5}		/* COM4 */
+};
+
+/*
+ * Names of the UARTs supported
+ */
+char uart_names[][RS232_UARTNAMEMAX] = {
+	"8250", "16450", "16550", "16550A", NULL
 };
 
 /*
@@ -268,7 +281,9 @@ usage(void)
 		"[opts=args] ...\n\n");
 	fprintf(stderr, "          options: baseio=<I/O-base-address>\n" \
 			"                   irq=<IRQ-number>\n" \
-			"                   namer=<namer-entry>\n\n");
+			"                   namer=<namer-entry>\n" \
+			"                   uart=<uart-type>\n" \
+			"                   nouarttest\n\n");
 	exit(1);
 }
 
@@ -316,10 +331,12 @@ parse_options(int argc, char **argv)
 	 */
 	i = 2;
 	while (i < argc) {
-		/*
-		 * Select a new IRQ line
-		 */
-		if (!strncmp(argv[i], "irq=", 4)) {
+		if (!strchr(argv[i], '=')) {
+			/*
+			 * Compatibility: arg can be portname
+			 */
+			strcpy(rs232_name, argv[i]);
+		} else if (!strncmp(argv[i], "irq=", 4)) {
 			/*
 			 * Select a new IRQ line
 			 */
@@ -350,11 +367,30 @@ parse_options(int argc, char **argv)
 				exit(1);
 			}
 			strcpy(rs232_name, &argv[i][6]);
-		} else {
-			fprintf(stderr,
-				"rs232: unknown option '%s' - aborting\n",
-				argv[i]);
-			exit(1);
+		} else if (!strncmp(argv[i], "notest=", 7)) {
+			/*
+			 * Don't attempt to test the UART
+			 */
+			test_uart = 0;
+		} else if (!strncmp(argv[i], "uart=", 5)) {
+			/*
+			 * Force the uart type
+			 */
+			for(uart = 0; uart_names[uart][0]; uart++) {
+				if (!strcmp(&argv[i][5], uart_names[uart])) {
+					break;
+				}
+			}
+			if (!uart_names[uart][0]) {
+				fprintf(stderr, "rs232: invalid UART type " \
+					"'%s' - aborting\n", argv[i]);
+				exit(1);
+			}
+ 		} else {
+ 			fprintf(stderr,
+ 				"rs232: unknown option '%s' - aborting\n",
+ 				argv[i]);
+ 			exit(1);
 		}
 		i++;
 	}
@@ -382,12 +418,15 @@ parse_options(int argc, char **argv)
 
 /*
  * main()
- *	Startup of the keyboard server
+ *	Startup of the rs232 server
  */
 int
 main(int argc, char **argv)
 {
-	port_name n;
+	/*
+	 * Initialise syslog
+	 */
+	openlog("rs232", LOG_PID, LOG_DAEMON);	
 
 	/*
 	 * Work out which I/O addresses to use, etc
@@ -418,10 +457,18 @@ main(int argc, char **argv)
 	}
 
 	/*
-	 * Get a port for the keyboard
+	 * Determine the type of UART we have, and test it's really there
 	 */
-	rs232port = msg_port((port_name)0, &n);
-	if (namer_register(rs232_name, n) < 0) {
+	if (rs232_iduart(test_uart)) {
+		syslog(LOG_ERR, "unable to find UART at 0x%x", iobase);
+		exit(1);
+	}
+
+	/*
+	 * Get a port for the rs232
+	 */
+	rs232port = msg_port((port_name)0, &rs232port_name);
+	if (namer_register(rs232_name, rs232port_name) < 0) {
 		syslog(LOG_ERR, "namer registry of '%s'", rs232_name);
 		exit(1);
 	}
@@ -438,12 +485,14 @@ main(int argc, char **argv)
 	 * Default configuration and turn on interrupts
 	 */
 	rs232_baud(9600);
+	rs232_setrxfifo(0);
 	rs232_databits(8);
 	rs232_stopbits(1);
 	rs232_parity(PARITY_NONE);
 	rs232_enable();
 
-	syslog(LOG_INFO, "established (IRQ %d, I/O base 0x%x)", irq, iobase);
+	syslog(LOG_INFO, "%s on IRQ %d, I/O base 0x%x",
+		uart_names[uart], irq, iobase);
 
 	/*
 	 * Start serving requests for the filesystem

@@ -14,8 +14,12 @@ extern struct prot rs232_prot;
 extern uint accgen;
 extern int irq, iobase;
 extern int baud, databits, stopbits, parity;
+extern int rx_fifo_threshold, tx_fifo_threshold;
 extern uchar dsr, dtr, cts, rts, dcd, ri;
 extern struct fifo *inbuf, *outbuf;
+extern int uart;
+extern port_name rs232port_name;
+extern char uart_names[][RS232_UARTNAMEMAX];
 
 static char parity_names[5][5] = {"none", "even", "odd", "zero", "one"};
 
@@ -35,12 +39,15 @@ rs232_stat(struct msg *m, struct file *f)
 	rs232_getinsigs();
 	sprintf(buf,
 		"size=0\ntype=c\nowner=0\ninode=0\ngen=%d\n%s" \
-		"baseio=0x%x\nirq=%d\n" \
+		"dev=%d\nuart=%s\nbaseio=0x%x\nirq=%d\n" \
+		"rxfifothr=%d\ntxfifothr=%d\n" \
 		"baud=%d\ndatabits=%d\nstopbits=%s\nparity=%s\n" \
 		"dsr=%d\ndtr=%d\ncts=%d\nrts=%d\ndcd=%d\nri=%d\n" \
 		"inbuf=%d\noutbuf=%d\n",
 		accgen, perm_print(&rs232_prot),
+		rs232port_name, uart_names[uart],
 		iobase, irq,
+		rx_fifo_threshold, tx_fifo_threshold,
 		baud, databits,
 		(stopbits == 1 ? "1" : (databits == 5 ? "1.5" : "2")),
 		parity_names[parity],
@@ -158,6 +165,20 @@ rs232_wstat(struct msg *m, struct file *f)
 			return;
 		}
 		rs232_parity(ptype);
+	} else if (!strcmp(field, "rxfifothr")) {
+		/*
+		 * Set the UART receiver FIFO threshold
+		 */
+		int t;
+		
+		t = val ? atoi(val) : 0;
+		if (rs232_setrxfifo(t)) {
+			/*
+			 * We don't support that value on this UART
+			 */
+			msg_err(m->m_sender, EINVAL);
+			return;
+		}
 	} else {
 		/*
 		 * Not a field we support - fail!

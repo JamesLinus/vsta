@@ -12,6 +12,7 @@
 
 #define RS232_MAXBUF (1024)	/* # bytes buffered from/to serial port */
 #define RS232_STDSUPPORT (4)	/* Support 4 standard PC ports, com1-com4 */
+#define RS232_UARTNAMEMAX (8)	/* Max length of name of UART */
 
 /*
  * Maximum range of I/O ports used
@@ -140,6 +141,20 @@ struct file {
 #define	MSR_DCTS	0x01
 
 /*
+ * Scrathpad register
+ */
+#define SCRATCH (7)
+
+/*
+ * UART types
+ */
+#define UART_UNKNOWN	-1
+#define UART_8250	0
+#define UART_16450	1
+#define UART_16550	2
+#define UART_16550A	3
+
+/*
  * Function prototypes for rw.c
  */
 extern void rs232_write(struct msg *m, struct file *fl);
@@ -166,6 +181,8 @@ extern void rs232_parity(int ptype);
 extern void rs232_setdtr(int newdtr);
 extern void rs232_setrts(int newrts);
 extern void rs232_getinsigs(void);
+extern int rs232_setrxfifo(int threshold);
+extern int rs232_iduart(int test_uart);
 
 /*
  * Prototypes for stat.c

@@ -6,6 +6,7 @@
  * name of efficiency.
  */
 #include <llist.h>
+#include <syslog.h>
 #include <sys/assert.h>
 #include <sys/seg.h>
 #include "rs232.h"
@@ -270,7 +271,10 @@ rs232_init(void)
 	ll_init(&write_q);
 	inbuf = fifo_alloc(RS232_MAXBUF);
 	outbuf = fifo_alloc(RS232_MAXBUF);
-	ASSERT(inbuf && outbuf, "rs232_init: no memory");
+	if (!inbuf || !outbuf) {
+		syslog(LOG_ERR, "unable to allocate queue memory");
+		exit(1);
+	}
 }
 
 /*
