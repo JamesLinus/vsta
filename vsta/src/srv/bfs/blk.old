@@ -95,12 +95,18 @@ blk_alloc(struct inode *i, uint newsize)
 	}
 
 	/*
-	 * Ignore if doesn't affect allocation of blocks
+	 * No biggy if doesn't affect allocation of blocks
 	 */
 	oldblocks = BLOCKS(d->d_len);
 	newblocks = BLOCKS(newsize);
 	diff = newblocks-oldblocks;
 	if (diff == 0) {
+		/*
+		 * Have to update byte length, which *does* dirty
+		 * the directory entry.
+		 */
+		d->d_len = newsize;
+		bdirty(handle);
 		bfree(handle);
 		return(0);
 	}
