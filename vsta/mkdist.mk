@@ -75,7 +75,7 @@ SMALL=src/bin/ports/small src/bin/ports/smalltalk-1.8.3 \
 GCC=src/bin/ports/gcc2 src/bin/ports/binutl2 src/bin/ports/gdb
 
 # MGR windowing system
-MGR=mgr lib/libbitblit.a lib/libmgr.a
+MGR=mgr
 
 # Compiler tools
 LANG=src/bin/ports/flex src/bin/ports/bison src/bin/ports/yacc lib/libfl.a
