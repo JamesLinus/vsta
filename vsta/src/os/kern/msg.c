@@ -542,11 +542,9 @@ msg_receive(port_t arg_port, struct msg *arg_msg)
 	 */
 	sm = port->p_hd;
 	port->p_hd = sm->m_next;
-#ifdef DEBUG
 	if (port->p_hd == 0) {
 		port->p_tl = 0;
 	}
-#endif
 #ifdef MSGTRACE
 	printf("msg_receive port 0x%x op 0x%x segs %d\n",
 		arg_port, sm->m_op, sm->m_nseg);
