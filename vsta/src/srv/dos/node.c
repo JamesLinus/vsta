@@ -2,9 +2,9 @@
  * node.c
  *	Handling for dir/file nodes
  */
-#include <dos/dos.h>
+#include "dos.h"
 #include <sys/assert.h>
-#include <lib/hash.h>
+#include <hash.h>
 
 /*
  * ref_node()

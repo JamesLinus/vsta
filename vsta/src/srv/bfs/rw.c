@@ -3,7 +3,7 @@
  *	Routines for operating on the data in a file
  */
 #include <sys/param.h>
-#include <bfs/bfs.h>
+#include "bfs.h"
 
 extern void *bget(), *malloc(), *bdata();
 extern char *strerror();

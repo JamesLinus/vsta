@@ -2,11 +2,10 @@
  * stat.c
  *	Do the stat function
  */
-#include <pipe/pipe.h>
+#include "pipe.h"
 #include <sys/param.h>
 #include <sys/perm.h>
 #include <sys/fs.h>
-#include <lib/llist.h>
 
 extern char *perm_print();
 

@@ -16,9 +16,8 @@
  * buffer.  So we'll try this, and come back and do it the other way
  * if it stinks.
  */
-#include <pipe/pipe.h>
-#include <lib/hash.h>
-#include <lib/llist.h>
+#include "pipe.h"
+#include <hash.h>
 #include <std.h>
 #include <sys/assert.h>
 

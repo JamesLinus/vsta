@@ -1,7 +1,11 @@
+/*
+ * main.c
+ *	Main handling loop and startup
+ */
 #include <sys/perm.h>
-#include <namer/namer.h>
-#include <bfs/bfs.h>
-#include <lib/hash.h>
+#include <sys/namer.h>
+#include "bfs.h"
+#include <hash.h>
 #include <stdio.h>
 #include <fcntl.h>
 #ifdef DEBUG

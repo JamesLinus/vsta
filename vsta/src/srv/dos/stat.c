@@ -7,7 +7,7 @@
  * were originally written by Bill Jolitz.
  */
 #include <sys/fs.h>
-#include <dos/dos.h>
+#include "dos.h"
 #include <std.h>
 #include <sys/param.h>
 

@@ -4,11 +4,11 @@
  *
  * We also lump the chmod/chown stuff here as well
  */
-#include <tmpfs/tmpfs.h>
+#include "tmpfs.h"
 #include <sys/param.h>
 #include <sys/perm.h>
 #include <sys/fs.h>
-#include <lib/llist.h>
+#include <llist.h>
 
 extern char *perm_print();
 

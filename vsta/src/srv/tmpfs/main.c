@@ -1,7 +1,11 @@
-#include <namer/namer.h>
-#include <tmpfs/tmpfs.h>
-#include <lib/hash.h>
-#include <lib/llist.h>
+/*
+ * main.c
+ *	Main handling loop and startup
+ */
+#include <sys/namer.h>
+#include "tmpfs.h"
+#include <hash.h>
+#include <llist.h>
 #include <stdio.h>
 #include <fcntl.h>
 #include <std.h>

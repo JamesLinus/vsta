@@ -2,8 +2,8 @@
  * block.c
  *	Routines for caching blocks out of our filesystem
  */
-#include <dos/dos.h>
-#include <lib/llist.h>
+#include "dos.h"
+#include <llist.h>
 #include <sys/assert.h>
 #include <std.h>
 

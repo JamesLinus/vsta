@@ -2,8 +2,8 @@
  * inode.c
  *	Routines for managing per-file information
  */
-#include <bfs/bfs.h>
-#include <lib/hash.h>
+#include "bfs.h"
+#include <hash.h>
 #include <sys/assert.h>
 extern void *malloc(), dir_map();
 

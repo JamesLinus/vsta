@@ -5,11 +5,11 @@
  * We also lump the chmod/chown stuff here as well
  */
 #define _NAMER_H_INTERNAL
-#include <namer/namer.h>
+#include <sys/namer.h>
 #include <sys/param.h>
 #include <sys/perm.h>
 #include <sys/fs.h>
-#include <lib/llist.h>
+#include <llist.h>
 
 extern char *perm_print();
 

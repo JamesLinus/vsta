@@ -2,11 +2,11 @@
  * main.c
  *	Main loop for message processing
  */
-#include <dos/dos.h>
+#include "dos.h"
 #include <sys/fs.h>
 #include <sys/perm.h>
-#include <namer/namer.h>
-#include <lib/hash.h>
+#include <sys/namer.h>
+#include <hash.h>
 #include <stdio.h>
 #include <fcntl.h>
 #include <std.h>

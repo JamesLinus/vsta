@@ -4,10 +4,10 @@
  */
 #define _NAMER_H_INTERNAL
 #include <sys/types.h>
-#include <namer/namer.h>
+#include <sys/namer.h>
 #include <sys/fs.h>
 #include <sys/assert.h>
-#include <lib/llist.h>
+#include <llist.h>
 
 extern void *malloc();
 

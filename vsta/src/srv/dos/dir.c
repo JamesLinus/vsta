@@ -3,10 +3,10 @@
  *	Routines for messing about with directories
  */
 #include <sys/fs.h>
-#include <dos/dos.h>
+#include "dos.h"
 #include <ctype.h>
 #include <std.h>
-#include <lib/hash.h>
+#include <hash.h>
 #include <time.h>
 #include <sys/assert.h>
 

@@ -17,7 +17,7 @@
  */
 #include <sys/fs.h>
 #include <fdl.h>
-#include <lib/hash.h>
+#include <hash.h>
 #include <std.h>
 #include <unistd.h>
 

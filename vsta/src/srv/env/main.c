@@ -8,8 +8,8 @@
  */
 #include <sys/perm.h>
 #include <sys/param.h>
-#include <env/env.h>
-#include <lib/hash.h>
+#include "env.h"
+#include <hash.h>
 #include <sys/fs.h>
 #include <sys/ports.h>
 #include <sys/types.h>

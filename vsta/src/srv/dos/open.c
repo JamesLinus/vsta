@@ -2,7 +2,7 @@
  * open.c
  *	Routines for opening, closing, creating  and deleting files
  */
-#include <dos/dos.h>
+#include "dos.h"
 #include <sys/fs.h>
 #include <sys/assert.h>
 #include <std.h>

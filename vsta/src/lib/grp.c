@@ -4,7 +4,7 @@
  */
 #include <grp.h>
 #include <stdio.h>
-#include <lib/hash.h>
+#include <hash.h>
 #include <std.h>
 #include <string.h>
 

@@ -21,7 +21,7 @@
  * leaving coalescing as an off-board user command which you can
  * inflict on a filesystem as needed.
  */
-#include <bfs/bfs.h>
+#include "bfs.h"
 #include <sys/assert.h>
 
 extern struct super *sblock;

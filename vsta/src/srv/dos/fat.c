@@ -7,7 +7,7 @@
  * All internal tables work in terms of a 16-bit FAT; 12-bit FATs
  * are converted as they are read and later written.
  */
-#include <dos/dos.h>
+#include "dos.h"
 #include <std.h>
 #include <sys/param.h>
 #include <sys/assert.h>

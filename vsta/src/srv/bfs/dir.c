@@ -8,7 +8,7 @@
  * entry to cross a block boundary.  These routines follow a
  * table which maps each directory slot into a block and offset.
  */
-#include <bfs/bfs.h>
+#include "bfs.h"
 #include <sys/assert.h>
 extern void *realloc(), *bget(), *bdata();
 

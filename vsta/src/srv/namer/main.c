@@ -10,8 +10,8 @@
 #define _NAMER_H_INTERNAL
 #include <sys/perm.h>
 #include <sys/param.h>
-#include <namer/namer.h>
-#include <lib/hash.h>
+#include <sys/namer.h>
+#include <hash.h>
 #include <sys/fs.h>
 #include <sys/ports.h>
 #include <sys/types.h>

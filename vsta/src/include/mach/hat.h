@@ -5,7 +5,7 @@
  *	Hardware-specific information pertaining to a vas
  */
 #include <mach/vm.h>
-#include <lib/rmap.h>
+#include <rmap.h>
 
 struct hatvas {
 	pte_t *h_vcr3;		/* CR3, in its raw form and as a vaddr */

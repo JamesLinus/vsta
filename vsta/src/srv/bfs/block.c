@@ -2,8 +2,8 @@
  * block.c
  *	Routines for caching blocks out of our filesystem
  */
-#include <bfs/bfs.h>
-#include <lib/llist.h>
+#include "bfs.h"
+#include <llist.h>
 #include <sys/assert.h>
 
 extern void *malloc();

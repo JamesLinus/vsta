@@ -1,8 +1,9 @@
 CC=gcc
 LD=ld
-INCS=-I../../include -I../..
+INCS=-I../../../include
 CFLAGS=$(INCS) -g
-LIBS=-L../../libc -L../../lib -lusr -lc
+LIBS=-L../../../libc -L../../../lib -lusr -lc
+CRT0=../../../libc/crt0.o
 
 .c.o:
 	$(CC) $(CFLAGS) -c $*.c
@@ -10,13 +11,13 @@ LIBS=-L../../libc -L../../lib -lusr -lc
 all: mkfs fsdb fsck
 
 fsck: fsck.o
-	$(LD) -o fsck ../../libc/crt0.o fsck.o $(LIBS)
+	$(LD) -o fsck $(CRT0) fsck.o $(LIBS)
 
 mkfs: mkfs.o
-	$(LD) -o mkfs ../../libc/crt0.o mkfs.o $(LIBS)
+	$(LD) -o mkfs $(CRT0) mkfs.o $(LIBS)
 
 fsdb: fsdb.o
-	$(LD) -o fsdb ../../libc/crt0.o fsdb.o $(LIBS)
+	$(LD) -o fsdb $(CRT0) fsdb.o $(LIBS)
 
 clean:
 	del *.o

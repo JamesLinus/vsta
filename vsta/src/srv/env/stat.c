@@ -4,11 +4,10 @@
  *
  * We also lump the chmod/chown stuff here as well
  */
-#include <env/env.h>
+#include "env.h"
 #include <sys/param.h>
 #include <sys/perm.h>
 #include <sys/fs.h>
-#include <lib/llist.h>
 
 extern char *perm_print();
 

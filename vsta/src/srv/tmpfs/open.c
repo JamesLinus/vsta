@@ -5,9 +5,9 @@
  * Note that we don't allow subdirectories for BFS, which simplifies
  * things.
  */
-#include <tmpfs/tmpfs.h>
-#include <lib/llist.h>
-#include <lib/hash.h>
+#include "tmpfs.h"
+#include <llist.h>
+#include <hash.h>
 #include <std.h>
 #include <sys/assert.h>
 

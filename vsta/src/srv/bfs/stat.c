@@ -2,7 +2,7 @@
  * stat.c
  *	Implement stat operations on an open file
  */
-#include <bfs/bfs.h>
+#include "bfs.h"
 #include <sys/param.h>
 
 extern char *strerror();

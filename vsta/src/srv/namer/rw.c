@@ -6,8 +6,8 @@
  * quite a bit.
  */
 #define _NAMER_H_INTERNAL
-#include <lib/llist.h>
-#include <namer/namer.h>
+#include <llist.h>
+#include <sys/namer.h>
 #include <sys/fs.h>
 
 extern void *malloc();

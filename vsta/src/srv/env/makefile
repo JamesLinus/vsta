@@ -1,8 +1,8 @@
 CC= gcc
 LD= ld
-INCS= -I../include -I..
+INCS= -I../../include
 CFLAGS= -DDEBUG $(INCS) -g
-LDFLAGS= -L../libc -L../lib
+LDFLAGS= -L../../libc -L../../lib
 OBJS= main.o open.o rw.o stat.o string.o node.o
 LIBS= -lc -lusr
 
@@ -11,7 +11,7 @@ all: env
 	$(CC) $(CFLAGS) -c $*.c
 
 env: $(OBJS)
-	$(LD) $(LDFLAGS) -o env ../libc/crt0srv.o $(OBJS) $(LIBS)
+	$(LD) $(LDFLAGS) -o env ../../libc/crt0srv.o $(OBJS) $(LIBS)
 
 clean:
 	del *.o

@@ -5,7 +5,7 @@
  * Note that we don't allow subdirectories for BFS, which simplifies
  * things.
  */
-#include <bfs/bfs.h>
+#include "bfs.h"
 #include <sys/assert.h>
 
 extern struct super *sblock;

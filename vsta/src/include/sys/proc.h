@@ -6,7 +6,7 @@
  */
 #include <sys/perm.h>
 #include <sys/param.h>
-#include <lib/llist.h>
+#include <llist.h>
 #include <sys/mutex.h>
 #include <sys/wait.h>
 

@@ -3,10 +3,10 @@
  *	Main function handler for swap I/O
  */
 #include <sys/perm.h>
-#include <namer/namer.h>
-#include <swap/swap.h>
-#include <lib/hash.h>
-#include <lib/alloc.h>
+#include <sys/namer.h>
+#include <sys/swap.h>
+#include <hash.h>
+#include <alloc.h>
 #include <sys/ports.h>
 #include <stdio.h>
 #include <std.h>

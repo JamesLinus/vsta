@@ -2,9 +2,8 @@
  * node.c
  *	Handling of nodes in filesystem
  */
-#include <env/env.h>
+#include "env.h"
 #include <std.h>
-#include <lib/llist.h>
 #include <sys/assert.h>
 #include <sys/fs.h>
 

@@ -4,8 +4,7 @@
  *
  * Our objects hold strings of up to a certain length, defined below.
  */
-#include <lib/llist.h>
-#include <env/env.h>
+#include "env.h"
 #include <sys/fs.h>
 #include <std.h>
 

@@ -16,7 +16,7 @@ int namer_register(char *, port_name);
 #include <sys/types.h>
 #include <sys/perm.h>
 #include <sys/param.h>
-#include <lib/llist.h>
+#include <llist.h>
 
 /*
  * An open file

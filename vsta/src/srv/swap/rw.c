@@ -5,7 +5,7 @@
  * Swap only support reads/writes of whole pages.
  */
 #include <sys/param.h>
-#include <swap/swap.h>
+#include <sys/swap.h>
 #include <std.h>
 
 extern struct swapmap *swapent();

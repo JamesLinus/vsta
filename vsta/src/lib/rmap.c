@@ -9,7 +9,7 @@
  * The list is kept in ascending order with all non-empty elements
  * first.
  */
-#include <lib/rmap.h>
+#include <rmap.h>
 #include <sys/assert.h>
 
 ulong lost_elems = 0L;	/* Diagnostic for space lost due to fragmentation */

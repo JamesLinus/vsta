@@ -1,8 +1,8 @@
 CC= gcc
 LD= ld
-INCS= -I../include -I..
+INCS= -I../../include
 CFLAGS= -DDEBUG $(INCS) -O
-LDFLAGS= -L../libc -L../lib
+LDFLAGS= -L../../libc -L../../lib
 OBJS= main.o open.o rw.o stat.o
 LIBS= -lusr -lc
 
@@ -11,7 +11,7 @@ all: namer
 	$(CC) $(CFLAGS) -c $*.c
 
 namer: $(OBJS)
-	$(LD) $(LDFLAGS) -o namer ../libc/crt0srv.o $(OBJS) $(LIBS)
+	$(LD) $(LDFLAGS) -o namer ../../libc/crt0srv.o $(OBJS) $(LIBS)
 
 clean:
 	del *.o

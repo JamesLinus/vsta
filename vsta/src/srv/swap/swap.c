@@ -12,12 +12,12 @@
  * virtual object will always reside on a single device.  This simplifies
  * the setup for I/O.
  */
-#include <swap/swap.h>
-#include <lib/rmap.h>
+#include <sys/swap.h>
+#include <rmap.h>
 #include <sys/assert.h>
 #include <sys/msg.h>
 #include <sys/seg.h>
-#include <lib/alloc.h>
+#include <alloc.h>
 #include <std.h>
 #include <mnttab.h>
 #include <fcntl.h>
@@ -166,6 +166,8 @@ swap_add(struct msg *m, struct file *f, uint len)
 	 * If there's no size specified, use the whole thing
 	 */
 	if (sa->s_len == 0) {
+		extern char *rstat();
+
 		slen = btop(atoi(rstat(p, "size")));
 		slen -= sa->s_off;
 	} else {

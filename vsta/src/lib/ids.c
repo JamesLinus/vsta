@@ -7,7 +7,7 @@
  * risky or not; time will tell.
  */
 #include <sys/perm.h>
-#include <lib/llist.h>
+#include <llist.h>
 #include <stdio.h>
 #include <std.h>
 #include <string.h>

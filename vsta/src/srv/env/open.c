@@ -3,10 +3,9 @@
  *	Routines for moving downwards in the hierarchy
  */
 #include <sys/types.h>
-#include <env/env.h>
+#include "env.h"
 #include <sys/fs.h>
 #include <sys/assert.h>
-#include <lib/llist.h>
 #include <std.h>
 
 /*

@@ -3,7 +3,7 @@
  *	A hashed lookup mechanism
  */
 #include <std.h>
-#include <lib/hash.h>
+#include <hash.h>
 
 /*
  * hashval()

@@ -2,8 +2,8 @@
  * stat.c
  *	Implement stat operations on the swap device
  */
-#include <swap/swap.h>
 #include <sys/param.h>
+#include <sys/swap.h>
 
 extern ulong total_swap, free_swap;
 

@@ -2,7 +2,7 @@
  * llist.c
  *	Routines for doing linked list operations
  */
-#include <lib/llist.h>
+#include <llist.h>
 
 /*
  * ll_init()

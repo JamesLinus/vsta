@@ -13,7 +13,7 @@
 #include <sys/msg.h>
 #include <sys/perm.h>
 #include <sys/param.h>
-#include <lib/llist.h>
+#include <llist.h>
 
 /*
  * An open file

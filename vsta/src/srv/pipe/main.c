@@ -1,13 +1,16 @@
-#include <pipe/pipe.h>
+/*
+ * main.c
+ *	Main processing loop
+ */
+#include "pipe.h"
 #ifdef DEBUG
 #include <sys/ports.h>
 #endif
-#include <lib/hash.h>
-#include <lib/llist.h>
+#include <hash.h>
 #include <stdio.h>
 #include <fcntl.h>
 #include <std.h>
-#include <namer/namer.h>
+#include <sys/namer.h>
 #include <sys/assert.h>
 
 #define NCACHE (16)	/* Roughly, # clients */

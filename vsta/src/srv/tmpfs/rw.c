@@ -2,9 +2,9 @@
  * rw.c
  *	Routines for operating on the data in a file
  */
-#include <tmpfs/tmpfs.h>
-#include <lib/hash.h>
-#include <lib/llist.h>
+#include "tmpfs.h"
+#include <hash.h>
+#include <llist.h>
 #include <std.h>
 
 /*

@@ -2,7 +2,7 @@
  * string.c
  *	Handling of struct string
  */
-#include <env/env.h>
+#include "env.h"
 #include <std.h>
 
 /*

@@ -14,7 +14,7 @@
 #include <sys/types.h>
 #include <sys/fs.h>
 #include <sys/perm.h>
-#include <lib/llist.h>
+#include <llist.h>
 
 /*
  * Structure of a pipe

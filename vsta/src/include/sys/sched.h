@@ -16,7 +16,7 @@
  */
 #include <sys/param.h>
 #include <sys/types.h>
-#include <lib/llist.h>
+#include <llist.h>
 
 /* Number of ticks allowed to run before having to go back into scheduler */
 #define RUN_TICKS (6)

@@ -1,7 +1,7 @@
 CC= gcc
 AS= as
 CPP= cpp
-INCS= -I../include -I..
+INCS= -I../include
 CFLAGS= $(INCS) -O -DDEBUG
 OBJS= start.o startsrv.o syscalls.o syscall.o \
 	mem.o io.o setjmp.o malloc.o \
