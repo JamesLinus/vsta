@@ -29,14 +29,14 @@ SRVOBJS= syscall.o malloc.o srvstr.o srvprnt.o srvopen.o srvfdl.o \
 	$(MACHOBJS)
 
 # Libraries to be build
-LIBS=libc.a libc_s.a ld.a libusr.a libtermcap.a libregex.a \
-	libm.a libsrv.a \
+LIBS=libc.a libc_s.a ld.a libusr.a libtermcap.a libregexp.a \
+	libm.a libsrv.a libregex.a \
 	$(MACHTARGS)
 
 # Databases for shared libraries
-DBS=ld.db libc.db libm/libm.db regexp/libregex.db term/libtermcap.db
-SHLIBIN=ld.tmp libc.tmp libm.tmp libregex.tmp libtermcap.tmp
-SHLIBS=ld.shl libc.shl libm.shl libregex.shl libtermcap.shl
+DBS=ld.db libc.db libm/libm.db regexp/libregexp.db term/libtermcap.db
+SHLIBIN=ld.tmp libc.tmp libm.tmp libregexp.tmp libtermcap.tmp
+SHLIBS=ld.shl libc.shl libm.shl libregexp.shl libtermcap.shl
 
 all: $(LIBS) crt0.o crt0srv.o mklibs
 
@@ -103,10 +103,10 @@ tgoto.o: term/tgoto.c
 tputs.o: term/tputs.c
 	$(CC) $(CFLAGS) -c term/tputs.c
 
-libregex.a: mkshlib libregex.tmp regexp/libregex.db
-	./mkshlib -s regexp/libregex.db
-libregex.tmp: regexp.o regsub.o regerror.o libc.a
-	$(LD) -r -o libregex.tmp regexp.o regsub.o regerror.o libc.a
+libregexp.a: mkshlib libregexp.tmp regexp/libregexp.db
+	./mkshlib -s regexp/libregexp.db
+libregexp.tmp: regexp.o regsub.o regerror.o libc.a
+	$(LD) -r -o libregexp.tmp regexp.o regsub.o regerror.o libc.a
 
 regexp.o: regexp/regexp.c
 	$(CC) $(CFLAGS) -c regexp/regexp.c
@@ -114,6 +114,20 @@ regsub.o: regexp/regsub.c
 	$(CC) $(CFLAGS) -c regexp/regsub.c
 regerror.o: regexp/regerror.c
 	$(CC) $(CFLAGS) -c regexp/regerror.c
+
+REGEX=regcomp.o regerr.o regexec.o regfree.o
+libregex.a: $(REGEX)
+	rm -f libregex.a
+	ar crs libregex.a $(REGEX)
+
+regcomp.o: regex/regcomp.c
+	$(CC) -Iregex $(CFLAGS) -c regex/regcomp.c
+regerr.o: regex/regerr.c
+	$(CC) -Iregex $(CFLAGS) -c regex/regerr.c
+regexec.o: regex/regexec.c
+	$(CC) -Iregex $(CFLAGS) -c regex/regexec.c
+regfree.o: regex/regfree.c
+	$(CC) -Iregex $(CFLAGS) -c regex/regfree.c
 
 libsrv.a: $(SRVOBJS)
 	rm -f libsrv.a
