@@ -191,7 +191,7 @@ msg_port(port_name arg_port, port_name *arg_portp)
  * the server.
  */
 port_t
-msg_connect(port_name arg_port, int arg_mode)
+msg_connect(port_name arg_port, uint arg_mode)
 {
 	struct proc *p = curthread->t_proc;
 	int slot;
@@ -204,6 +204,14 @@ msg_connect(port_name arg_port, int arg_mode)
 	 * Allocate a portref data structure, set it up
 	 */
 	pr = alloc_portref();
+
+	/*
+	 * Set up nodup flag now while it's safe
+	 */
+	if (arg_mode & ACC_NOCLONE) {
+		pr->p_flags |= PF_NODUP;
+		arg_mode &= ~ACC_NOCLONE;
+	}
 
 	/*
 	 * Allocate a system message, fill it in.

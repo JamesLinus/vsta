@@ -303,24 +303,33 @@ dup_port(struct portref *opr)
 /*
  * fork_ports()
  *	For each open portref, M_DUP it into the new structure
+ *
+ * Returns number actually dup'ed
  */
-void
+ulong
 fork_ports(sema_t *s, struct portref **old, struct portref **new, uint nport)
 {
-	int x;
+	uint x;
 	struct portref *pr;
+	ulong nopen = 0L;
 
 	for (x = 0; x < nport; ++x) {
 		if ((pr = old[x]) == 0) {
 			new[x] = 0;
 			continue;
 		}
+		if (pr->p_flags & PF_NODUP) {
+			continue;
+		}
 		p_sema(&pr->p_sema, PRIHI);
 		v_sema(s);
-		new[x] = dup_port(pr);
+		if (new[x] = dup_port(pr)) {
+			nopen += 1L;
+		}
 		p_sema(s, PRIHI);
 		v_sema(&pr->p_sema);
 	}
+	return(nopen);
 }
 
 /*

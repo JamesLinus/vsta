@@ -191,7 +191,7 @@ attach_pview(struct vas *vas, struct pview *pv)
  *	Create a ZFOD pset, add it to the named vas
  */
 void *
-alloc_zfod(struct vas *vas, uint pages)
+alloc_zfod(struct vas *vas, uint pages, uint prot)
 {
 	struct pset *ps;
 	struct pview *pv;
@@ -202,6 +202,7 @@ alloc_zfod(struct vas *vas, uint pages)
 	 */
 	ps = alloc_pset_zfod(pages);
 	pv = alloc_pview(ps);
+	pv->p_prot |= prot;
 
 	/* 
 	 * Try to attach.  If fails, throw them away.
@@ -270,6 +271,19 @@ fork_vas(struct vas *ovas, struct vas *vas)
 		}
 
 		/*
+		 * Advance our record of what we've processed in the vas
+		 */
+		vaddr = closest->p_vaddr;
+
+		/*
+		 * Skip it if it's marked as not for use of a fork()
+		 */
+		if (closest->p_prot & PROT_NOFORK) {
+			v_lock(&ovas->v_lock, SPL0_SAME);
+			continue;
+		}
+
+		/*
 		 * If found one, lock it.  Release vas.  Add a reference so
 		 * it won't go away while we're fiddling with it.  We must
 		 * duplicate the pview, since it might go away once we
@@ -277,7 +291,6 @@ fork_vas(struct vas *ovas, struct vas *vas)
 		 */
 		ps = closest->p_set;
 		pv2 = *closest;
-		vaddr = pv2.p_vaddr;
 		ref_pset(ps);
 		v_lock(&ovas->v_lock, SPL0_SAME);
 

@@ -298,12 +298,11 @@ fork_thread(voidfun f, ulong arg)
 	struct thread *t;
 	void *ustack;
 	pid_t npid;
-	extern void *alloc_zfod();
 
 	/*
 	 * Then get a user stack
 	 */
-	ustack = alloc_zfod(&p->p_vas, btop(UMINSTACK));
+	ustack = alloc_zfod(&p->p_vas, btop(UMINSTACK), PROT_NOFORK);
 	if (!ustack) {
 		return(err(ENOMEM));
 	}
@@ -431,8 +430,8 @@ fork(void)
 	fork_vas(&pold->p_vas, &pnew->p_vas);
 	pnew->p_runq = sched_node(pold->p_runq->s_up);
 	tnew->t_runq = sched_thread(pnew->p_runq, tnew);
-	fork_ports(&pold->p_sema, pold->p_open, pnew->p_open, PROCOPENS);
-	pnew->p_nopen = pold->p_nopen;
+	pnew->p_nopen = fork_ports(&pold->p_sema, pold->p_open,
+		pnew->p_open, PROCOPENS);
 	pnew->p_handler = pold->p_handler;
 	pnew->p_pgrp = pold->p_pgrp; join_pgrp(pold->p_pgrp, npid);
 	pnew->p_parent = pold->p_children; ref_exitgrp(pnew->p_parent);
