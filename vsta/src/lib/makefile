@@ -12,7 +12,7 @@ OBJS= syscalls.o syscall.o \
 	shell.o gnufuncs.o qsort.o float.o signal.o env.o fdmem.o \
 	perm.o random.o namer.o dir.o wait.o mktemp.o grp.o pwd.o \
 	pipe.o fdnull.o errno.o port.o syslog.o rename.o strsep.o \
-	bsearch.o strtol.o strtoul.o swab.o utime.o
+	bsearch.o strtol.o strtoul.o swab.o utime.o getline.o
 
 .c.o:
 	$(CC) $(CFLAGS) -c $*.c
@@ -23,6 +23,7 @@ LIBS=libc.a libc_s.a ld.a libusr.a libtermc.a libregex.a libpio.a libdpart.a
 # Databases for shared libraries
 DBS=ld.db libc.db
 SHLIBIN=ld.tmp libc.tmp
+SHLIBS=ld.shl libc.shl
 
 all: $(LIBS) crt0.o crt0srv.o
 
@@ -141,5 +142,6 @@ clean:
 clobber: clean
 	rm -f mklibs *.a *.shl
 
-install: all
+install: all mklibs
 	cp $(LIBS) crt0.o crt0srv.o ../lib
+	cp $(SHLIBS) ../lib
