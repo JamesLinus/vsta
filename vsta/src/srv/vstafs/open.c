@@ -38,12 +38,12 @@ partial_trunc(struct alloc *a, uint newsize)
 	}
 
 	/*
-	 * Consider last buffer extent with data, and resize
+	 * Resize extent, freeing trailing data
 	 */
-	topbase = (newsize & ~(EXTSIZ-1));
-	resize_buf(a->a_start + topbase, newsize - topbase, 0);
 	free_block(a->a_start + newsize, a->a_len - newsize);
 	a->a_len = newsize;
+	topbase = (newsize & ~(EXTSIZ-1));
+	resize_buf(a->a_start + topbase, newsize - topbase, 0);
 }
 
 /*
@@ -104,6 +104,7 @@ file_shrink(struct openfile *o, ulong len)
 			 */
 			if (idx == 0) {
 				fs = index_buf(b, 0, 1);
+				a = fs->fs_blks;
 			}
 
 			/*
@@ -643,6 +644,16 @@ vfs_close(struct file *f)
 	o = f->f_file;
 	ASSERT_DEBUG(o, "vfs_close: no openfile");
 	if (o->o_refs == 1) {
+		/*
+		 * Files are extended with a length which reflects
+		 * the extent pre-allocation.  On final close, we
+		 * trim this pre-allocated space back, and update
+		 * the file's length to indicate just the true
+		 * data.
+		 */
+		if (f->f_perm & ACC_WRITE) {
+			file_shrink(o, o->o_hiwrite);
+		}
 		sync();
 	}
 	deref_node(o);
