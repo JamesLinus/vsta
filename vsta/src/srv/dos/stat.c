@@ -301,7 +301,7 @@ dos_wstat(struct msg *m, struct file *f)
 		 * Convert to number, write to dir entry
 		 */
 		t = atoi(val);
-		dir_timestamp(f, t);
+		dir_timestamp(f->f_node, t);
 	} else if (!strcmp(field, "type")) {
 		if (dir_set_type(f, val)) {
 			msg_err(m->m_sender, EINVAL);

@@ -764,7 +764,7 @@ timestamp(struct directory *d, time_t t)
  * Just gets dir entry field and uses timestamp()
  */
 void
-dir_timestamp(struct file *f, time_t t)
+dir_timestamp(struct node *n, time_t t)
 {
 	struct directory *d;
 	void *handle;
@@ -772,7 +772,7 @@ dir_timestamp(struct file *f, time_t t)
 	/*
 	 * Access dir entry
 	 */
-	d = get_dirent(f->f_node->n_dir, f->f_node->n_slot, &handle);
+	d = get_dirent(n->n_dir, n->n_slot, &handle);
 	ASSERT_DEBUG(d, "dir_timestamp: lost handle");
 
 	/*
@@ -785,7 +785,7 @@ dir_timestamp(struct file *f, time_t t)
 	 */
 	ddirty(handle);
 	dfree(handle);
-	f->f_node->n_flags |= N_DIRTY;
+	n->n_flags |= N_DIRTY;
 }
 
 /*
