@@ -8,9 +8,9 @@
 #include <sys/assert.h>
 #include <sys/thread.h>
 #include <sys/percpu.h>
+#include <sys/sched.h>
 
 extern lock_t runq_lock;
-extern uint num_run;
 
 /*
  * p_lock()

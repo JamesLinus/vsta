@@ -20,7 +20,6 @@
 extern void setrun(), dup_stack();
 extern struct sched sched_root;
 extern lock_t runq_lock;
-extern uint num_run;
 
 ulong npid_free = (ulong)-1;	/* # PIDs free in pool */
 ulong pid_nextfree = 0L;	/* Next free PID number */

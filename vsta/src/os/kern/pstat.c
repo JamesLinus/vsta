@@ -9,12 +9,12 @@
 #include <sys/percpu.h>
 #include <sys/assert.h>
 #include <sys/fs.h>
+#include <sys/sched.h>
 
 extern sema_t pid_sema;
 extern struct proc *allprocs;
 extern uint size_base, size_ext;
 extern uint freemem;
-extern uint num_run;
 
 extern struct proc *pfind();
 extern void uptime();
