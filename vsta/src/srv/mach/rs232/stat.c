@@ -23,6 +23,8 @@ extern char uart_names[][RS232_UARTNAMEMAX];
 
 static char parity_names[5][5] = {"none", "even", "odd", "zero", "one"};
 uchar onlcr = 1;	/* Convert \n to \r\n on output */
+static int rows = 24,		/* Geometry */
+	cols = 80;
 
 /*
  * rs232_stat()
@@ -44,7 +46,7 @@ rs232_stat(struct msg *m, struct file *f)
 		"rxfifothr=%d\ntxfifothr=%d\noverruns=%D\n" \
 		"baud=%d\ndatabits=%d\nstopbits=%s\nparity=%s\n" \
 		"dsr=%d\ndtr=%d\ncts=%d\nrts=%d\ndcd=%d\nri=%d\n" \
-		"inbuf=%d\noutbuf=%d\nonlcr=%d\n",
+		"inbuf=%d\noutbuf=%d\nonlcr=%d\nrows=%d\ncols=%d\n",
 		accgen, perm_print(&rs232_prot),
 		rs232port_name, uart_names[uart],
 		iobase, irq,
@@ -53,7 +55,7 @@ rs232_stat(struct msg *m, struct file *f)
 		(stopbits == 1 ? "1" : (databits == 5 ? "1.5" : "2")),
 		parity_names[parity],
 		dsr, dtr, cts, rts, dcd, ri,
-		inbuf->f_cnt, outbuf->f_cnt, onlcr);
+		inbuf->f_cnt, outbuf->f_cnt, onlcr, rows, cols);
 	m->m_buf = buf;
 	m->m_arg = m->m_buflen = strlen(buf);
 	m->m_nseg = 1;
@@ -69,6 +71,7 @@ void
 rs232_wstat(struct msg *m, struct file *f)
 {
 	char *field, *val;
+	int t;
 
 	/*
 	 * See if common handling code can do it
@@ -175,8 +178,6 @@ rs232_wstat(struct msg *m, struct file *f)
 		/*
 		 * Set the UART receiver FIFO threshold
 		 */
-		int t;
-		
 		t = val ? atoi(val) : 0;
 		if (rs232_setrxfifo(t)) {
 			/*
@@ -185,6 +186,18 @@ rs232_wstat(struct msg *m, struct file *f)
 			msg_err(m->m_sender, EINVAL);
 			return;
 		}
+	} else if (!strcmp(field, "rows")) {
+		if (!val || (sscanf(val, "%d", &t) != 1)) {
+			msg_err(m->m_sender, EINVAL);
+			return;
+		}
+		rows = t;
+	} else if (!strcmp(field, "cols")) {
+		if (!val || (sscanf(val, "%d", &t) != 1)) {
+			msg_err(m->m_sender, EINVAL);
+			return;
+		}
+		cols = t;
 	} else {
 		/*
 		 * Not a field we support - fail!
