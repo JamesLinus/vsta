@@ -13,9 +13,9 @@ DEST=/dist
 LIB=lib/bison.hairy lib/bison.simple lib/crt0.o lib/crt0srv.o \
 	lib/ld.a lib/ld.shl lib/libc.a lib/libc.shl lib/libc_s.a \
 	lib/libcurses.a lib/libdpart.a lib/libg.a lib/libgcc.a \
-	lib/libm.a lib/libregex.a lib/libsrv.a lib/libtermcap.a \
+	lib/libm.a lib/libregexp.a lib/libsrv.a lib/libtermcap.a \
 	lib/libusr.a lib/termcap lib/units.lib lib/libtermcap.shl \
-	lib/libm.shl lib/libregex.shl
+	lib/libm.shl lib/libregexp.shl lib/libregex.a
 
 BIN=$(LAW) bin boot doc etc include $(LIB)
 
@@ -74,7 +74,7 @@ SMALL=src/bin/ports/small src/bin/ports/smalltalk-1.8.3
 GCC=src/bin/ports/gcc2 src/bin/ports/binutl2 src/bin/ports/gdb
 
 # MGR windowing system
-MGR=mgr lib/libbitbl.a lib/libmgr.a
+MGR=mgr lib/libbitblit.a lib/libmgr.a
 
 # Compiler tools
 LANG=src/bin/ports/flex src/bin/ports/bison src/bin/ports/yacc lib/libfl.a
