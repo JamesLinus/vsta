@@ -252,7 +252,8 @@ tmpfs_read(struct msg *m, struct file *f)
 {
 	uint nseg, cnt, lim, blk;
 	struct openfile *o;
-	char *blkp;
+	char *blkp, *tmpbuf = NULL;
+	seg_t *mp;
 
 	/*
 	 * Directory--only one is the root
@@ -330,10 +331,91 @@ tmpfs_read(struct msg *m, struct file *f)
 	}
 
 	/*
+	 * If we couldn't satisfy the read using our scatter/gather
+	 * allowance of buffers, use the last slot as a pointer to
+	 * a buffer which will hold all the necessary data.
+	 */
+	if (cnt < lim) {
+		uint tmpoff = 0;
+
+		/*
+		 * Get a buffer which can hold the last data of
+		 * the message segments already assembled, plus
+		 * all the data we haven't read in yet.
+		 */
+		mp = &m->m_seg[MSGSEGS-1];
+		tmpoff = mp->s_buflen;
+		tmpbuf = malloc(tmpoff + (lim - cnt));
+		if (tmpbuf == NULL) {
+			goto retshort;
+		}
+
+		/*
+		 * Copy in the current data
+		 */
+		bcopy(mp->s_buf, tmpbuf, tmpoff);
+
+		/*
+		 * Now bring in the rest of the data from the file
+		 */
+		while (cnt < lim) {
+			uint off, sz;
+
+			/*
+			 * Get next block of data.  We simulate sparse
+			 * files by using our pre-allocated source of
+			 * zeroes.
+			 */
+			blk = blknum(f->f_pos);
+			blkp = hash_lookup(o->o_blocks, blk);
+			if (blkp == 0) {
+				extern char *zeroes;
+
+				blkp = zeroes;
+			}
+
+			/*
+			 * Calculate how much of the block to add to
+			 * the message.
+			 */
+			blkoff(f->f_pos, &off, &sz);
+			if ((cnt+sz) > lim) {
+				sz = lim - cnt;
+			}
+
+			/*
+			 * Put into next message segment
+			 */
+			bcopy(blkp+off, tmpbuf+tmpoff, sz);
+
+			/*
+			 * Advance counter
+			 */
+			cnt += sz;
+			f->f_pos += sz;
+			tmpoff += sz;
+		}
+
+		/*
+		 * Point the last message segment into this buffer
+		 */
+		mp->s_buf = tmpbuf;
+		mp->s_buflen = tmpoff;
+	}
+
+	/*
 	 * Send back reply
 	 */
+retshort:
 	m->m_arg = cnt;
 	m->m_nseg = nseg;
 	m->m_arg1 = 0;
 	msg_reply(m->m_sender, m);
+
+	/*
+	 * Free our extra buffer if it's been used
+	 */
+	if (tmpbuf) {
+		free(tmpbuf);
+	}
 }
