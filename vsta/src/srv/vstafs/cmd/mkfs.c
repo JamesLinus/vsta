@@ -97,10 +97,11 @@ main(int argc, char **argv)
 		usage();
 	}
 	if (argc > 3) {
-		if (!strcmp(argv[1], "-p")) {
+		if (strcmp(argv[1], "-p")) {
 			usage();
 		}
 		prealloc = 1;
+		argv += 1;
 	}
 	if (sscanf(argv[2], "%ld", &nsec) != 1) {
 		printf("Bad <nsector>: %s\n", argv[2]);
