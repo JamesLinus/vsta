@@ -181,6 +181,7 @@ dpart_init(char *name, uint unit, char *secbuf,
 		p->p_off = s->ps_start;
 		p->p_extoffs = s->ps_start + ext_cur_offs;
 		p->p_len = s->ps_len;
+		p->p_type = s->ps_type;
 		if (cur_sec_num) {
 			/*
 			 * We're in an extended partition
