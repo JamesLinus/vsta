@@ -18,7 +18,7 @@ OBJS= syscall.o malloc.o \
 	pipe.o fdnull.o errno.o port.o syslog.o rename.o fnmatch.o \
 	bsearch.o strtol.o utime.o getline.o strftime.o mstring.o \
 	fdcall.o obsolete.o getpass.o rlimit.o pgrp.o select.o \
-	event.o err.o \
+	event.o err.o gethostname.o \
 	$(MACHOBJS)
 
 SRVOBJS= syscall.o malloc.o srvstr.o srvprnt.o srvopen.o srvfdl.o \
