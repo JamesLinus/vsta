@@ -72,7 +72,6 @@ struct portref {
 #define PS_CLOSING 6	/* M_DISCONNECT sent */
 
 #ifdef KERNEL
-STRUCT_REF(proc);
 extern struct portref *dup_port(struct portref *);
 extern void fork_ports(struct portref **, struct portref **, uint);
 extern struct portref *alloc_portref(void);

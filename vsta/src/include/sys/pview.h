@@ -28,9 +28,6 @@ struct pview {
 #define PROT_FORK (8)		/* View is in process of fork() */
 
 #ifdef KERNEL
-STRUCT_REF(pset);
-STRUCT_REF(vas);
-
 /*
  * Routines
  */
