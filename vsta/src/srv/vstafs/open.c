@@ -130,7 +130,11 @@ file_shrink(struct openfile *o, ulong len)
 	 * Flag buffer as dirty, update length
 	 */
 	dirty_buf(b);
-	o->o_len = fs->fs_len = len;
+	fs->fs_len = len;
+	o->o_len = btors(len);
+	if (o->o_hiwrite > len) {
+		o->o_hiwrite = len;
+	}
 	sync_buf(b);
 }
 
