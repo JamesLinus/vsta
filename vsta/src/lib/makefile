@@ -34,7 +34,7 @@ LIBS=libc.a libc_s.a ld.a libusr.a libtermcap.a libregex.a \
 	$(MACHTARGS)
 
 # Databases for shared libraries
-DBS=ld.db libc.db libm/libm.db libregex.db libtermcap.db
+DBS=ld.db libc.db libm/libm.db regexp/libregex.db term/libtermcap.db
 SHLIBIN=ld.tmp libc.tmp libm.tmp libregex.tmp libtermcap.tmp
 SHLIBS=ld.shl libc.shl libm.shl libregex.shl libtermcap.shl
 
@@ -89,8 +89,8 @@ libusr.a: $(USROBJS)
 	ar rs libusr.a $(USROBJS)
 
 TERMOBJS=termcap.o tgoto.o tputs.o
-libtermcap.a: mkshlib libtermcap.tmp libtermcap.db
-	./mkshlib -s libtermcap.db
+libtermcap.a: mkshlib libtermcap.tmp term/libtermcap.db
+	./mkshlib -s term/libtermcap.db
 libtermcap.tmp: $(TERMOBJS) libc.a
 	$(LD) -r -o libtermcap.tmp $(TERMOBJS) libc.a
 libtermcap_s.a: $(TERMOBJS)
@@ -103,8 +103,8 @@ tgoto.o: term/tgoto.c
 tputs.o: term/tputs.c
 	$(CC) $(CFLAGS) -c term/tputs.c
 
-libregex.a: mkshlib libregex.tmp libregex.db
-	./mkshlib -s libregex.db
+libregex.a: mkshlib libregex.tmp regexp/libregex.db
+	./mkshlib -s regexp/libregex.db
 libregex.tmp: regexp.o regsub.o regerror.o libc.a
 	$(LD) -r -o libregex.tmp regexp.o regsub.o regerror.o libc.a
 
