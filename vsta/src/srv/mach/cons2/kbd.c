@@ -262,6 +262,12 @@ send_sig(struct screen *s, char *event)
 		close(fd);
 	}
 	unbecome();
+
+	/*
+	 * Flush any typeahead
+	 */
+	s->s_tl = s->s_hd;
+	s->s_nbuf = 0;
 }
 
 /*
