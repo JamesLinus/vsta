@@ -139,7 +139,11 @@ attach_seg(struct vas *vas, struct seg *s)
 	 * Arrange a couple of fields the HAT might want
 	 */
 	pv = &s->s_pview;
-	pv->p_prot = PROT_RO;
+	if (vas->v_flags & VF_DMA) {
+		pv->p_prot = 0;
+	} else {
+		pv->p_prot = PROT_RO;
+	}
 	pv->p_vaddr = 0;		/* We don't care */
 
 	/*
