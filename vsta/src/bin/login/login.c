@@ -297,17 +297,17 @@ main(int argc, char **argv)
 		/*
 		 * Access named server, then open as input
 		 */
+		close(0);
 		p = path_open(in, ACC_READ);
 		if (p < 0) { perror(in); exit(1); }
-		close(0);
 		__fd_alloc(p);
 		
 		/*
 		 * Open stdout
 		 */
+		close(1);
 		p = path_open(out, ACC_WRITE);
 		if (p < 0) { perror(out); exit(1); }
-		close(1);
 		__fd_alloc(p);
 
 		/*
