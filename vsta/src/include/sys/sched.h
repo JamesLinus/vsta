@@ -69,6 +69,8 @@ extern struct sched *sched_thread(struct sched *, struct thread *),
 	*sched_node(struct sched *);
 extern void setrun( /* struct thread * */ ), swtch(void);
 extern void free_sched_node(struct sched *);
+
+extern volatile uint num_run;
 #endif
 
 extern int sched_op(int, int);
