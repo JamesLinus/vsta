@@ -73,6 +73,13 @@ struct stat {
 #define S_ISFIFO(m)	(((m) & S_IFMT) == S_IFIFO)
 
 /*
+ * Can't happen, but make porting easier
+ */
+#define S_ISUID (0)
+#define S_ISGID (0)
+#define S_ISVTX (0)
+
+/*
  * Function prototypes for POSIX that use the VSTa stat mechanism
  */
 extern int fstat(int fd, struct stat *s);
