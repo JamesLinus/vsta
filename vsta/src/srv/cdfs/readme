@@ -1,0 +1,101 @@
+
+		README for VSTa CDROM Filesystem
+
+
+Welcome to the CDROM Filesystem for VSTa.
+
+This file contains a short description of the VSTa CDROM filesystem,
+instructions for configuring the server, and a list of associated source
+files.
+
+Bits and pieces of the CDROM filesystem server were taken from the
+following sources: the VSTa wd server and the FreeBSD isofs filesystem
+(in particular, iso.h and isofs_rr.h).  In addition, "INSIDE THE ISO-9660
+FILESYSTEM FORMAT" (DDJ 12/92) by William Frederick Jolitz and Lynne Greer
+Jolitz and the Linux isofs filesystem sources were used as references.  The
+rest of the server was written from scratch by Mike Larson (larz@world.std.com).
+The following notice applies to all files in this distribution written by the
+author:
+
+
+    Copyright (C) 1993,1994  Michael A. Larson
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 1, or (at your option)
+    any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+
+Revision History
+----------------
+
+VSTa 1.3.2
+
+	Initial revision.
+
+
+CDROM Filesystem Introduction
+-----------------------------
+
+The VSTa CDROM Filesystem (CDFS) currently conforms to a subset of
+the ISO 9660 standard (see the TODO list below for omissions).
+
+CDFS reads blocks from a device server that supports CDROM devices
+(eg, the SCSI/CAM server).
+
+CDFS is started as follows. This can be done from the command line
+(assuming the user has sufficient privileges) or from the boot.lst
+file. If CDFS is started from the command line, it should be run
+in the background.
+
+	cdfs -p device_server:device_name fs/cdfs
+
+For example, assuming that the device server is SCSI/CAM and the
+device name is "sd2":
+
+	cdfs -p cam:sd2 fs/cdfs
+
+To actually mount a filesystem, use the following command:
+
+	mount fs/cdfs directory_name
+
+or from etc/fstab:
+
+	fs/cdfs directory_name
+
+"directory_name" is the name of an empty directory (eg., /cdfs).
+
+
+Source File Description
+-----------------------
+
+block.c			- block read/write functions. Adapted from
+			  dos/block.c.
+cdfs.h			- CDFS specific definitions + some things not
+			  in "iso.h".
+cdfsdir.c		- directory operations.
+cdfserro.c		- print/log CDFS error messages.
+cdfsmount.c		- read in the CDROM FS primary descriptor.
+cdfsopen.c		- open file processing.
+cdfsread.c		- file read operations.
+cdfstime.c		- time conversion functions.
+iso.h			- ISO 9660 definitions.
+isofs_rr.h		- Rock Ridge definitions.
+highsier.h		- High Sierra definitions.
+main.c			- main message processing loop + misc. utilities.
+
+
+TODO
+----
+
+Rock Ridge formatted CDROM's.
+
