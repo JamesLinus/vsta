@@ -8,7 +8,6 @@
 #include <std.h>
 #include <fcntl.h>
 
-char *errstr;			/* String for last error */
 static int cached = 0;		/* # blocks currently cached */
 
 /*
@@ -192,7 +191,7 @@ bjunk(struct block *b)
  *	Find block in cache or read from disk; return pointer
  *
  * On success, an opaque pointer is returned.  On error,
- * NULL is returned, and the error is recorded in "errstr".
+ * NULL is returned.
  * The new block has a reference added to it.
  */
 void *
@@ -206,13 +205,11 @@ bget(int blkno)
 		b = bnew(blkno);
 		if (lseek(blkdev, BOFF(blkno), 0) == -1) {
 			bjunk(b);
-			errstr = strerror();
 			return(0);
 		}
 		x = read(blkdev, b->b_data, BLOCKSIZE);
 		if (x != BLOCKSIZE) {
 			bjunk(b);
-			errstr = strerror();
 			return(0);
 		}
 	}
