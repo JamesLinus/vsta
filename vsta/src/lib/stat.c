@@ -170,6 +170,7 @@ fstat(int fd, struct stat *s)
 	char *sbuf, *p;
 	int mode;
 	port_t port;
+	dev_t dev;
 
 	if ((port = __fd_port(fd)) < 0) {
 		return(-1);
@@ -187,16 +188,23 @@ fstat(int fd, struct stat *s)
 	/*
 	 * Do translation of simple numeric fields
 	 */
-	F(st_dev, "dev", 0);
 	F(st_ino, "inode", 1);
 	F(st_nlink, "links", 1);
-	F(st_rdev, "dev", 0);
 	F(st_size, "size", 0);
 	F(st_atime, "atime", 0);
 	F(st_mtime, "mtime", 0);
 	F(st_ctime, "ctime", 0);
-	F(st_blksize, "block", NBPG);
-	F(st_blocks, "blocks", NBPG);
+	F(st_blksize, "block", 512);
+	F(st_blocks, "blocks",
+	  (s->st_size + s->st_blksize - 1) / s->st_blksize);
+
+	/*
+	 * Sort out device/node fields
+	 */
+	s->st_dev = 0;
+	F(st_rdev, "dev", 0);
+	dev = s->st_rdev;
+	s->st_rdev = makedev(dev, s->st_ino);
 
 	/*
 	 * Set UID/GID
@@ -219,7 +227,7 @@ fstat(int fd, struct stat *s)
 		mode = S_IFDIR;
 	} else if (!strncmp(p, "c\n", 2)) {
 		mode = S_IFCHR;
-	} else if (!strncmp(p, "b\n", 2)) {
+	} else if (!strncmp(p, "b\n", 2) || !strncmp(p, "s\n", 2)) {
 		mode = S_IFBLK;
 	} else if (!strncmp(p, "fifo\n", 5)) {
 		mode = S_IFIFO;
@@ -230,13 +238,13 @@ fstat(int fd, struct stat *s)
 	/*
 	 * Map the default access fields into "other"
 	 */
-	p = fieldval(sbuf, "perm");
+	p = fieldval(sbuf, "acc");
 	if (p) {
-		mode |= modes(field(p, 0));
-		mode |= modes(field(p, 1)) << 3;
-		mode |= modes(field(p, 2)) << 6;
+		mode |= modes(field(p, 0) >> 6);
+		mode |= (modes(field(p, 1)) >> 3) | ((mode & 0007) << 3);
+		mode |= modes(field(p, 2)) | ((mode & 0070) << 3);
 	} else {
-		mode |= ((S_IREAD|S_IWRITE) << 6);
+		mode |= ((S_IREAD|S_IWRITE));
 	}
 	s->st_mode = mode;
 	return(0);
