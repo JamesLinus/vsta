@@ -49,6 +49,7 @@ struct pdbg {
 #define PD_EVENT 4		/*  ...when receiving an event */
 #define PD_EXIT 8		/*  ...when exiting */
 #define PD_BPOINT 16		/*  ...breakpoint reached */
+#define PD_EXEC 32		/*  ...exec done (new addr space) */
 #define PD_CONNECTING 0x8000	/* Slave has connect in progress */
 
 /*

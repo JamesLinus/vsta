@@ -18,9 +18,18 @@
 int
 ptrace(pid_t pid, port_name name)
 {
-	struct proc *p;
+	struct proc *myproc, *p;
 	uint x;
 	extern struct proc *pfind();
+
+	/*
+	 * If pid == 0 && name == 0, this we return whether we're
+	 * being ptrace()'ed.
+	 */
+	myproc = curthread->t_proc;
+	if (!pid && !name) {
+		return(myproc->p_dbg.pd_name != 0);
+	}
 
 	/*
 	 * Find the process.  Bomb if he doesn't exist, or is
@@ -38,7 +47,7 @@ ptrace(pid_t pid, port_name name)
 	/*
 	 * See if we have the rights to do this
 	 */
-	x = perm_calc(curthread->t_proc->p_ids, PROCPERMS, &p->p_prot);
+	x = perm_calc(myproc->p_ids, PROCPERMS, &p->p_prot);
 	if (!(x & P_DEBUG)) {
 		return(err(EPERM));
 	}

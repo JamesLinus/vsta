@@ -337,6 +337,11 @@ exec(uint arg_port, struct mapfile *arg_map, void *arg)
 	 */
 	reset_uregs(t, (ulong)(m.m_entry));
 	set_execarg(t, arg);
+
+	/*
+	 * Pop out to debugger if so desired
+	 */
+	PTRACE_PENDING(p, PD_EXEC, 0);
 	return(0);
 }
 
