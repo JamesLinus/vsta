@@ -291,17 +291,23 @@ open(char *file, int mode, ...)
 		 * directory.
 		 */
 		if (r[0] && !q[0]) {
-			if ((q - mt->m_name) > len) {
-				len = q - mt->m_name;
-				match = mt;
+			/*
+			 * Don't allow, say, /vsta to match against /v in
+			 * the mount table.  Require that the mount
+			 * table entry /xyz match against /xyz/...
+			 */
+			if (q[0] == '/') {
+				if ((q - mt->m_name) > len) {
+					len = q - mt->m_name;
+					match = mt;
+				}
+				continue;
 			}
-			continue;
-		}
 
-		/*
-		 * Mismatch--ignore entry and continue scan
-		 */
-		if (*q != *r) {
+		} else if (*q != *r) {
+			/*
+			 * Mismatch--ignore entry and continue scan
+			 */
 			continue;
 		}
 
