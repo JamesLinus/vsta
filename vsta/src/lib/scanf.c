@@ -364,7 +364,7 @@ fscanf(FILE *fp, const char *fmt, ...)
  *	string input scan conversion
  */
 int
-sscanf(char *str, const char *fmt, ...)
+sscanf(const char *str, const char *fmt, ...)
 {
 	FILE *fp;
 	int fd, x;
@@ -410,7 +410,7 @@ vfscanf(FILE *fp, const char *fmt, va_list ap)
  *	string input scan conversion
  */
 int
-vsscanf(char *str, const char *fmt, va_list ap)
+vsscanf(const char *str, const char *fmt, va_list ap)
 {
 	FILE *fp;
 	int fd, x;

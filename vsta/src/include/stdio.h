@@ -111,10 +111,10 @@ extern int vprintf(const char *, va_list),
 	vsprintf(char *, const char *, va_list);
 extern int scanf(const char *, ...),
 	fscanf(FILE *, const char *, ...),
-	sscanf(char *, const char *, ...);
+	sscanf(const char *, const char *, ...);
 extern int vscanf(const char *, va_list),
 	vfscanf(FILE *, const char *, va_list),
-	vsscanf(char *, const char *, va_list);
+	vsscanf(const char *, const char *, va_list);
 extern FILE *tmpfile(void);
 extern FILE *popen(const char *, const char *);
 extern int pclose(FILE *);
