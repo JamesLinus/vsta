@@ -7,7 +7,7 @@
 #include <sys/types.h>
 
 struct aout {
-ulong
+unsigned long
 	a_info,		/* Random stuff, already checked */
 	a_text,		/* length of text in bytes */
 	a_data,		/* length of data in bytes */

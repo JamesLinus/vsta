@@ -63,10 +63,10 @@ struct nlist {
 		struct nlist *n_next;
 		long n_strx;
 	} n_un;
-	uchar n_type;
+	unsigned char n_type;
 	char n_other;
 	short n_desc;
-	ulong n_value;
+	unsigned long n_value;
 };
 
 /* Types of symbol entries */
@@ -88,11 +88,11 @@ struct nlist {
 
 struct relocation_info {
 	int r_address;
-	uint r_symbolnum:24;
-	uint r_pcrel:1;
-	uint r_length:2;
-	uint r_extern:1;
-	uint r_pad:4;
+	unsigned int r_symbolnum:24;
+	unsigned int r_pcrel:1;
+	unsigned int r_length:2;
+	unsigned int r_extern:1;
+	unsigned int r_pad:4;
 };
 
 #endif /* _NLIST_H */
