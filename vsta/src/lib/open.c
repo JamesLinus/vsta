@@ -417,6 +417,23 @@ do_home(char *in)
 }
 
 /*
+ * fdalloc()
+ *	Return fd for a port, and handle errors
+ */
+static int
+fdalloc(port_t newfile)
+{
+	int x;
+
+	x = __fd_alloc(newfile);
+	if (x < 0) {
+		msg_disconnect(newfile);
+		return(__seterr(ENOMEM));
+	}
+	return(x);
+}
+
+/*
  * open()
  *	Open a file
  */
@@ -428,13 +445,6 @@ open(const char *file, int mode, ...)
 	char buf[MAXPATH], *p, *home_buf;
 	struct mnttab *mt, *match = 0;
 	struct mntent *me;
-
-	/*
-	 * Before first mount, can't open anything!
-	 */
-	if (__mnttab == 0) {
-		return(__seterr(ESRCH));
-	}
 
 	/*
 	 * If O_CREAT, get mask.
@@ -469,11 +479,26 @@ open(const char *file, int mode, ...)
 	 * string might be const, and thus perhaps not writable.
 	 */
 	if (file[0] == '/') {
+		if (file[1] == '/') {
+			newfile = path_open(file + 2, mode);
+			if (newfile < 0) {
+				return(-1);
+			}
+			return(fdalloc(newfile));
+		}
 		strcpy(buf, file);
 	} else {
 		sprintf(buf, "%s/%s", __cwd, file);
 	}
 	p = buf;
+
+	/*
+	 * Before first mount, can't open anything!
+	 */
+	if (__mnttab == 0) {
+		return(__seterr(ESRCH));
+	}
+
 
 	/*
 	 * Free $HOME processing buffer now that we've used it
@@ -571,12 +596,7 @@ open(const char *file, int mode, ...)
 	for (me = match->m_entries; me; me = me->m_next) {
 		newfile = clone(me->m_port);
 		if (try_open(newfile, p, mask, mode) == 0) {
-			x = __fd_alloc(newfile);
-			if (x < 0) {
-				msg_disconnect(newfile);
-				return(__seterr(ENOMEM));
-			}
-			return(x);
+			return(fdalloc(newfile));
 		}
 		msg_disconnect(newfile);
 	}
