@@ -277,15 +277,10 @@ run(struct inittab *i)
 	}
 }
 
-main(void)
+main()
 {
 	port_t p;
 	port_name pn;
-
-	/*
-	 * Fix our name
-	 */
-	set_cmd("init");
 
 	/*
 	 * A moment (2.5 sec) to let servers establish their ports

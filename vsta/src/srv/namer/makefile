@@ -11,4 +11,4 @@ all: namer
 	$(CC) $(CFLAGS) -c $*.c
 
 namer: $(OBJS)
-	$(LD) $(LDFLAGS) -o namer ../libc/crt0.o $(OBJS) $(LIBS)
+	$(LD) $(LDFLAGS) -o namer ../libc/crt0srv.o $(OBJS) $(LIBS)

@@ -302,16 +302,9 @@ loop:
  * main()
  *	Startup of environment manager
  */
-main(int argc, char *argv[])
+main()
 {
 	port_t port;
-
-	/*
-	 * Set our name if we're standalone
-	 */
-	if (argc == 0) {
-		set_cmd("env");
-	}
 
 	/*
 	 * Allocate data structures we'll need

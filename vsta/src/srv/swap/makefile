@@ -9,4 +9,4 @@ LIBS= -L../libc -L../lib -lc -lusr
 	$(CC) $(CFLAGS) -c $*.c
 
 swap: $(OBJS)
-	$(LD) -o swap ../libc/crt0.o $(OBJS) $(LIBS)
+	$(LD) -o swap ../libc/crt0srv.o $(OBJS) $(LIBS)

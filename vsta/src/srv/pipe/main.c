@@ -197,28 +197,18 @@ loop:
 	goto loop;
 }
 
-main(int argc, char *argv[])
+main()
 {
 	port_name nm;
-
 #ifdef DEBUG
-	{
-		port_t kbd, cons;
+	port_t kbd, cons;
 
-		kbd = msg_connect(PORT_KBD, ACC_READ);
-		cons = msg_connect(PORT_CONS, ACC_WRITE);
-		(void)__fd_alloc(kbd);
-		(void)__fd_alloc(cons);
-		(void)__fd_alloc(cons);
-	}
+	kbd = msg_connect(PORT_KBD, ACC_READ);
+	cons = msg_connect(PORT_CONS, ACC_WRITE);
+	(void)__fd_alloc(kbd);
+	(void)__fd_alloc(cons);
+	(void)__fd_alloc(cons);
 #endif
-	/*
-	 * Set name for boot task
-	 */
-	if (argc == 0) {
-		set_cmd("pipe");
-	}
-
 	/*
 	 * Allocate data structures we'll need
 	 */

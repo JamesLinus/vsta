@@ -11,4 +11,4 @@ all: wd
 	$(CC) $(CFLAGS) -c $*.c
 
 wd: $(OBJS)
-	$(LD) $(LDFLAGS) -o wd ../libc/crt0.o $(OBJS) $(LIBS)
+	$(LD) $(LDFLAGS) -o wd ../libc/crt0srv.o $(OBJS) $(LIBS)

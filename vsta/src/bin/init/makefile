@@ -11,4 +11,4 @@ OBJS= init.o
 all: init
 
 init: $(OBJS)
-	$(LD) $(LDFLAGS) -e start -o init ../../libc/crt0.o $(OBJS) -lc
+	$(LD) $(LDFLAGS) -e start -o init ../../libc/crt0srv.o $(OBJS) -lc

@@ -11,4 +11,4 @@ LIBS= -lusr -lc
 	$(CC) $(CFLAGS) -c $*.c
 
 kbd: $(OBJS)
-	$(LD) $(LDFLAGS) -e start -o kbd ../libc/crt0.o $(OBJS) $(LIBS)
+	$(LD) $(LDFLAGS) -e start -o kbd ../libc/crt0srv.o $(OBJS) $(LIBS)

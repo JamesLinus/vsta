@@ -270,21 +270,6 @@ main(int argc, char *argv[])
 	int x;
 
 	/*
-	 * No arguments (not even program name!)--this is a boot
-	 * module.  Drop to the defaults.
-	 */
-	if (argc == 0) {
-		static char *my_argv[3];
-
-		my_argv[0] = "tmpfs";
-		my_argv[1] = "fs/tmp";
-		my_argv[2] = 0;
-		set_cmd("tmpfs");
-		argv = my_argv;
-		argc = 2;
-	}
-
-	/*
 	 * Check arguments
 	 */
 	if (argc != 2) {

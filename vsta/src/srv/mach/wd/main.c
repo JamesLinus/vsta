@@ -261,25 +261,17 @@ loop:
  * main()
  *	Startup of the WD hard disk server
  */
-main(int argc, char **argv)
+main()
 {
+#ifdef DEBUG
 	int scrn, kbd;
 
-#ifdef DEBUG
 	kbd = msg_connect(PORT_KBD, ACC_READ);
 	(void)__fd_alloc(kbd);
 	scrn = msg_connect(PORT_CONS, ACC_WRITE);
 	(void)__fd_alloc(scrn);
 	(void)__fd_alloc(scrn);
 #endif
-
-	/*
-	 * Our name, if not inherited from execv()
-	 */
-	if (argc == 0) {
-		(void)set_cmd("wd");
-	}
-
 	/*
 	 * Allocate handle->file hash table.  8 is just a guess
 	 * as to what we'll have to handle.

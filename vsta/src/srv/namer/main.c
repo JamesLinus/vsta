@@ -280,19 +280,12 @@ loop:
  * main()
  *	Startup of system namer
  */
-main(int argc, char *argv[])
+main()
 {
 	port_t port;
 	port_name blkname;
 	struct msg msg;
 	int chan, fd, x;
-
-	/*
-	 * Set name for boot
-	 */
-	if (argc == 0) {
-		set_cmd("namer");
-	}
 
 	/*
 	 * Allocate data structures we'll need

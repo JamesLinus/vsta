@@ -11,4 +11,4 @@ all: pipe
 	$(CC) $(CFLAGS) -c $*.c
 
 pipe: $(OBJS)
-	$(LD) $(LDFLAGS) -o pipe ../libc/crt0.o $(OBJS) $(LIBS)
+	$(LD) $(LDFLAGS) -o pipe ../libc/crt0srv.o $(OBJS) $(LIBS)

@@ -320,45 +320,17 @@ main(int argc, char *argv[])
 	port_t port;
 	port_name fsname;
 	struct msg msg;
-	int chan, fd, x, bootmod = 0;
-	int scrn, kbd;
+	int chan, fd, x;
 	char *namer_name;
-
 #ifdef DEBUG
+	int scrn, kbd;
+
 	kbd = msg_connect(PORT_KBD, ACC_READ);
 	(void)__fd_alloc(kbd);
 	scrn = msg_connect(PORT_CONS, ACC_WRITE);
 	(void)__fd_alloc(scrn);
 	(void)__fd_alloc(scrn);
 #endif
-
-	/*
-	 * No arguments (not even program name!)--this is a boot
-	 * module.  Drop to the defaults.
-	 */
-	if (argc == 0) {
-		static char *my_argv[6];
-
-		(void)set_cmd("dos");
-		my_argv[0] = "dos";
-		my_argv[1] = "-p";
-		my_argv[2] = "disk/wd";
-		my_argv[3] = "wd0_dos0";
-		/* my_argv[2] = "disk/fd";
-		my_argv[3] = "fd0"; */
-		my_argv[4] = "fs/dos";
-		my_argv[5] = 0;
-		argv = my_argv;
-		argc = 5;
-		bootmod = 1;
-
-		/*
-		 * To let the lower-level boot servers (disk driver
-		 * and namer server, in particular) to startup
-		 */
-		sleep(2);
-	}
-
 	/*
 	 * Check arguments
 	 */
@@ -371,6 +343,7 @@ main(int argc, char *argv[])
 		namer_name = argv[2];
 	} else if (argc == 5) {
 		port_name blkname;
+		int retries;
 
 		/*
 		 * Version of invocation where service is specified
@@ -378,14 +351,20 @@ main(int argc, char *argv[])
 		if (strcmp(argv[1], "-p")) {
 			usage();
 		}
-		blkname = namer_find(argv[2]);
-		if (blkname < 0) {
-			perror(argv[2]);
-			exit(1);
+		for (retries = 10; retries > 0; retries -= 1) {
+			port = -1;
+			blkname = namer_find(argv[2]);
+			if (blkname >= 0) {
+				port = msg_connect(blkname, ACC_READ|ACC_WRITE);
+			}
+			if (port < 0) {
+				sleep(1);
+			} else {
+				break;
+			}
 		}
-		port = msg_connect(blkname, ACC_READ|ACC_WRITE);
 		if (port < 0) {
-			perror("DOS blkdev");
+			printf("DOS: couldn't connect to block device.\n");
 			exit(1);
 		}
 		if (mountport("/mnt", port) < 0) {
@@ -439,13 +418,6 @@ main(int argc, char *argv[])
 	if (x < 0) {
 		fprintf(stderr, "DOS: can't register name: %s\n", namer_name);
 		exit(1);
-	}
-
-	/*
-	 * Boot module--also register as root filesystem
-	 */
-	if (bootmod) {
-		(void)namer_register("fs/root", fsname);
 	}
 
 	/*

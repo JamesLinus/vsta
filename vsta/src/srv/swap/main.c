@@ -247,19 +247,14 @@ loop:
 main()
 {
 #ifdef DEBUG
-	{ port_t kbd, cons;
-	  kbd = msg_connect(PORT_KBD, ACC_READ);
-	  __fd_alloc(kbd);
-	  cons = msg_connect(PORT_CONS, ACC_WRITE);
-	  __fd_alloc(cons);
-	  __fd_alloc(cons);
-	}
-#endif
-	/*
-	 * Our name, always
-	 */
-	(void)set_cmd("swap");
+	port_t kbd, cons;
 
+	kbd = msg_connect(PORT_KBD, ACC_READ);
+	__fd_alloc(kbd);
+	cons = msg_connect(PORT_CONS, ACC_WRITE);
+	__fd_alloc(cons);
+	__fd_alloc(cons);
+#endif
 	/*
 	 * Allocate data structures we'll need
 	 */

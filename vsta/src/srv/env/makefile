@@ -11,4 +11,4 @@ all: env
 	$(CC) $(CFLAGS) -c $*.c
 
 env: $(OBJS)
-	$(LD) $(LDFLAGS) -o env ../libc/crt0.o $(OBJS) $(LIBS)
+	$(LD) $(LDFLAGS) -o env ../libc/crt0srv.o $(OBJS) $(LIBS)
