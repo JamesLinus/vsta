@@ -14,6 +14,8 @@ OBJS= args.o basename.o cat.o changed.o chmod.o cp.o du.o dumpsect.o \
 
 include ../../makefile.all
 
+SHPROGS=hostname man more mt reboot shutdown
+
 rcsdo: rcsdo.o
 	$(LD) $(LDFLAGS) -o rcsdo $(CRT0) rcsdo.o -lc
 
@@ -155,4 +157,4 @@ dirname: dirname.o
 install: all
 	strip $(OUT)
 	cp $(OUT) $(ROOT)/bin
-	cp man.sh $(ROOT)/bin/man
+	for x in $(SHPROGS) ; do cp $$x.sh $(ROOT)/bin/$$x ; done
