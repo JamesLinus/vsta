@@ -5,6 +5,8 @@
 #include <sys/types.h>
 #include <sys/fs.h>
 
+extern pid_t _getid(int);
+
 char __err[ERRLEN];	/* Latest error string */
 
 /*
@@ -100,4 +102,24 @@ __seterr(char *p)
 	}
 	strcpy(__err, p);
 	return(-1);
+}
+
+/*
+ * getpid()/gettid()/getppid()
+ *	Get PID, TID, PPID
+ */
+pid_t
+getpid(void)
+{
+	return(_getid(0));
+}
+pid_t
+gettid(void)
+{
+	return(_getid(1));
+}
+pid_t
+getppid(void)
+{
+	return(_getid(2));
 }
