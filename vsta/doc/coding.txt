@@ -22,7 +22,7 @@ better", at least for C styles.
 	Read this article.  Believe it.  The rest of this is just
 some refinement of what he says.  This doesn't count as one of the
 10, because you shouldn't be writing C until you have read this.
-I have included it as "ten.doc" in the root of the distribution.
+I have included it as "ten.doc" in vsta/doc.
 
 1. Comments
 
