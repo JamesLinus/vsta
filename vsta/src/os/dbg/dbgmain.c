@@ -11,7 +11,7 @@ extern void dump_phys(), dump_virt(), dump_procs(), dump_pset(),
 	dump_pview(), dump_thread(), dump_ref(), reboot(), memleaks(),
 	dump_sysmsg(), dump_core();
 extern void dbg_inport(), dbg_outport();
-static void quit(), calc(), set(), set_mem();
+static void quit(), calc(), set(), set_mem(), help();
 extern int get_num();
 
 jmp_buf dbg_errjmp;		/* For aborting on error */
@@ -23,6 +23,7 @@ struct {
 	char *c_name;	/* Name of command */
 	voidfun c_fn;	/* Function to process the command */
 } cmdtab[] = {
+	"?", help,
 	"=", calc,
 	"btrace", trace,
 	"calc", calc,
@@ -30,6 +31,7 @@ struct {
 	"di", dump_instr,
 	"dp", dump_phys,
 	"dv", dump_virt,
+	"help", help,
 	"inport", dbg_inport,
 	"memleaks", memleaks,
 	"outport", dbg_outport,
@@ -178,7 +180,7 @@ do_cmd(char *str)
 		}
 	}
 	if (matches == 0) {
-		printf("No such command\n");
+		printf("No such command (? for help)\n");
 		return;
 	}
 	if (matches > 1) {
@@ -266,5 +268,32 @@ set(char *s)
 	}
 	*s = '\0'; ++s;
 	setsym(n, get_num(s));
+}
+
+/*
+ * help()
+ *	List all commands
+ */
+static void
+help(void)
+{
+	int x, col = 0, len;
+	
+	printf("Available commands:\n");
+	for (x = 0; cmdtab[x].c_name; ++x) {
+		len = strlen(cmdtab[x].c_name);
+		if ((col + len + 1) >= 72) {
+			printf("\n");
+			col = 0;
+		} else if (col > 0) {
+			col += 1;
+			printf(" ");
+		}
+		printf("%s", cmdtab[x].c_name);
+		col += len;
+	}
+	if (col > 0) {
+		printf("\n");
+	}
 }
 #endif /* KDB */
