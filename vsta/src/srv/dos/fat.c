@@ -20,11 +20,20 @@ static ushort *fat,	/* Our in-core FAT */
 static uint fatlen,	/* Length in FAT16 format */
 	fat12len;	/*  ...FAT12, if we're using FAT12 */
 static ushort *fatNFAT;
+static uchar *dirtymap;	/* Map of sectors which dirty FAT entries */
+static uint		/*  ...size of map */
+	dirtymapsize;
 uint clsize;		/* Size of cluster, in bytes */
 static int fat_dirty;	/* Flag that we need to flush the FAT */
 static uint nclust;	/* Total clusters on disk */
 ulong data0;		/* Byte offset for data block 0 (cluster 2) */
 uint dirents;		/* # directory entries */
+
+/*
+ * DIRTY()
+ *	Mark dirtymap at given position
+ */
+#define DIRTY(idx) (dirtymap[(idx*sizeof(ushort))/SECSZ] = 1)
 
 /*
  * fat12_fat16()
@@ -124,6 +133,14 @@ fat_init(void)
 	data0 *= SECSZ;
 
 	/*
+	 * Get map of dirty sectors in FAT
+	 */
+	dirtymapsize = roundup(nclust, SECSZ) / SECSZ;
+	dirtymap = malloc(dirtymapsize);
+	ASSERT(dirtymap, "fat_init: dirtymap");
+	bzero(dirtymap, dirtymapsize);
+
+	/*
 	 * Convert FAT-12 to FAT-16
 	 */
 	if (nclust < 4086) {
@@ -218,9 +235,11 @@ clust_setlen(struct clust *c, ulong newlen)
 			}
 #endif
 			fat[y] = 0;
+			DIRTY(y);
 		}
 		if (newclust > 0) {
-			fat[c->c_clust[newclust-1]] = FAT_EOF;
+			fat[y = c->c_clust[newclust-1]] = FAT_EOF;
+			DIRTY(y);
 		}
 		c->c_nclust = newclust;
 		fat_dirty = 1;
@@ -274,20 +293,23 @@ clust_setlen(struct clust *c, ulong newlen)
 	 * space.
 	 */
 	if (c->c_nclust > 0) {
-		fat[c->c_clust[c->c_nclust-1]] = c->c_clust[c->c_nclust];
+		fat[y = c->c_clust[c->c_nclust-1]] = c->c_clust[c->c_nclust];
+		DIRTY(y);
 	}
 
 	/*
 	 * Chain all the new clusters together
 	 */
 	for (x = c->c_nclust; x < newclust-1; ++x) {
-		fat[c->c_clust[x]] = c->c_clust[x+1];
+		fat[y = c->c_clust[x]] = c->c_clust[x+1];
+		DIRTY(y);
 	}
 
 	/*
 	 * Mark the EOF cluster for the last one
 	 */
-	fat[c->c_clust[newclust-1]] = FAT_EOF;
+	fat[y = c->c_clust[newclust-1]] = FAT_EOF;
+	DIRTY(y);
 	c->c_nclust = newclust;
 	fat_dirty = 1;
 	return(0);
@@ -364,6 +386,73 @@ free_clust(struct clust *c)
 }
 
 /*
+ * map_write()
+ *	Write a FAT16 using the dirtymap to minimize I/O
+ */
+static void
+map_write(void)
+{
+	int x, cnt, pass;
+	off_t off;
+
+	/*
+	 * There are two copies of the FAT, so do them iteratively
+	 */
+	for (pass = 0; pass <= 1; ++pass) {
+		/*
+		 * Calculate the offset once per pass
+		 */
+		off = pass*(long)fatlen;
+
+		/*
+		 * Walk across the dirty map, find the next dirty sector
+		 * of FAT information to write out.
+		 */
+		for (x = 0; x < dirtymapsize; ) {
+			/*
+			 * Not dirty.  Advance to next sector's worth.
+			 */
+			if (!dirtymap[x]) {
+				x += 1;
+				continue;
+			}
+
+			/*
+			 * Now find runs, so we can flush adjacent sectors
+			 * in a single operation.
+			 */
+			for (cnt = 1; ((x+cnt) < dirtymapsize) &&
+					dirtymap[x+cnt]; ++cnt) {
+				;
+			}
+
+			/*
+			 * Seek to the right place, and write the data
+			 */
+			lseek(blkdev, SECSZ + x*SECSZ + off, 0);
+			if (write(blkdev,
+					&fat[x*SECSZ/sizeof(ushort)],
+					SECSZ*cnt) != (SECSZ*cnt)) {
+				perror("fat16");
+				printf("Write of FAT16 #%d failed\n",
+					pass);
+				exit(1);
+			}
+
+			/*
+			 * Advance x
+			 */
+			x += cnt;
+		}
+	}
+
+	/*
+	 * Clear dirtymap--everything's been flushed successfully
+	 */
+	bzero(dirtymap, dirtymapsize);
+}
+
+/*
  * fat_sync()
  *	Sync out the FAT to disk
  *
@@ -387,6 +476,10 @@ fat_sync(void)
 	if (fat12) {
 		int x;
 
+		/*
+		 * FAT12--write whole thing.  FAT12 entries can span
+		 * sectors, so it needs its own loop. XXX
+		 */
 		fat16_fat12(fat, fat12, fatlen);
 		x = write(blkdev, fat12, fat12len);
 		if (x!= fat12len) {
@@ -400,13 +493,6 @@ fat_sync(void)
 			exit(1);
 		}
 	} else {
-		if (write(blkdev, fat, fatlen) != fatlen) {
-			printf("Write of FAT #1 failed\n");
-			exit(1);
-		}
-		if (write(blkdev, fat, fatlen) != fatlen) {
-			printf("Write of FAT #2 failed\n");
-			exit(1);
-		}
+		map_write();
 	}
 }
