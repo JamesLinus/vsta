@@ -247,6 +247,14 @@ hat_attach(struct pview *pv, void *vaddr)
 	uint pg;
 
 	/*
+	 * Don't let them scribble on the kernel's part of the
+	 * address space.
+	 */
+	if (vaddr && ((ulong)vaddr >= 0x80000000)) {
+		return(1);
+	}
+
+	/*
 	 * We don't allow others to consume our utility space
 	 */
 	if (vaddr) {
