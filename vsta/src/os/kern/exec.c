@@ -343,9 +343,9 @@ exec(uint arg_port, struct mapfile *arg_map, void *arg)
  *	Release a cached access to a port
  */
 static
-do_derefport(struct port *port, void *dummy)
+do_derefport(long keydummy, struct pset *ps, void *dummy)
 {
-	deref_port(port);
+	deref_pset(ps);
 }
 
 /*
