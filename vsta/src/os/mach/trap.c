@@ -132,11 +132,7 @@ page_fault(struct trapframe *f)
 	vas = curthread->t_proc->p_vas;
 	if (vas_fault(vas, l, f->errcode & EC_WRITE)) {
 		if (curthread->t_probe) {
-#ifdef DEBUG
-			printf("cpfail\n"); dbg_enter();
-#endif
-			ASSERT((f->ecs & 3) == PRIV_KERN,
-				"page_fault: probe from user");
+			ASSERT(!USERMODE(f), "page_fault: probe from user");
 			f->eip = (ulong)(curthread->t_probe);
 		} else {
 			/*
