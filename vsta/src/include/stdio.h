@@ -58,7 +58,7 @@ extern int fgetc(FILE *), fputc(int, FILE *);
  *	Put a char to a stream
  */
 #define putc(c, fp) (\
-	(((fp->f_flags & (_F_WRITE|_F_SETUP|_F_DIRTY)) != \
+	(((fp->f_flags & (_F_UNBUF|_F_WRITE|_F_SETUP|_F_DIRTY)) != \
 			(_F_WRITE|_F_SETUP)) || \
 			(fp->f_cnt >= fp->f_bufsz) || \
 			((fp->f_flags & _F_LINE) && (c == '\n'))) ? \
