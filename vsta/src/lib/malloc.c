@@ -434,9 +434,19 @@ realloc(void *mem, uint newsize)
 	 * actual size of the allocated block--so growth within the same
 	 * power of two (for small) or page count (for large) will succeed
 	 * here with great efficiency.
+	 *
+	 * If the size is "large" (> MAX_BUCKET) and the new size is half
+	 * as small or smaller, actually convert to a smaller amount of
+	 * memory.  Large buffers are munmap()'ed, which will free core
+	 * back to the system.
 	 */
  	if (newsize <= oldsize) {
-		return(mem);
+		if ((oldsize > (1 << MAX_BUCKET)) &&
+				(newsize <= (oldsize >> 1))) {
+			/* Fall into below for realloc */ ;
+		} else {
+			return(mem);
+		}
 	}
 
 	/*
@@ -447,7 +457,7 @@ realloc(void *mem, uint newsize)
 	if (newmem == 0) {
 		return(0);
 	}
-	bcopy(mem, newmem, oldsize);
+	bcopy(mem, newmem, (oldsize < newsize) ? oldsize : newsize);
 	free(mem);
 	return(newmem);
 }
