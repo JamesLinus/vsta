@@ -1,11 +1,6 @@
 /*
  * fat.c
- *	Routines for fiddling storage via the File Allocation Table
- *
- * The FAT is read into memory and kept there through the life of
- * the filesystem server, though it is periodically flushed to disk.
- * All internal tables work in terms of a 16-bit FAT; 12-bit FATs
- * are converted as they are read and later written.
+ *	Routines for FAT16 format
  */
 #include "dos.h"
 #include "fat.h"
