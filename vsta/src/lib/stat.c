@@ -151,13 +151,27 @@ field(char *str, int idx)
  *	Convert the <sys/fs.h> access bits into the stat.h ones
  */
 static int
-modes(int v)
+modes(uchar isdir, int v)
 {
 	int x = 0;
 
-	if (v & ACC_READ) x |= S_IREAD;
-	if (v & ACC_WRITE) x |= S_IWRITE;
-	if (v & ACC_EXEC) x |= S_IEXEC;
+	if (v & ACC_READ) {
+		x |= S_IREAD;
+
+		/*
+		 * If you can read a dir in VSTa, this is more or
+		 * less like executable permission in POSIX.
+		 */
+		if (isdir) {
+			x |= S_IEXEC;
+		}
+	}
+	if (v & ACC_WRITE) {
+		x |= S_IWRITE;
+	}
+	if (v & ACC_EXEC) {
+		x |= S_IEXEC;
+	}
 	return(x);
 }
 
@@ -172,6 +186,7 @@ fstat(int fd, struct stat *s)
 	int mode, aend;
 	port_t port;
 	dev_t dev;
+	uchar isdir = 0;
 
 	if ((port = __fd_port(fd)) < 0) {
 		return(-1);
@@ -232,6 +247,7 @@ fstat(int fd, struct stat *s)
 		mode = S_IFREG;
 	} else if (!strncmp(p, "d\n", 2)) {
 		mode = S_IFDIR;
+		isdir = 1;
 	} else if (!strncmp(p, "c\n", 2)) {
 		mode = S_IFCHR;
 	} else if (!strncmp(p, "b\n", 2) || !strncmp(p, "s\n", 2)) {
@@ -260,10 +276,12 @@ fstat(int fd, struct stat *s)
 			aend--;
 		}
 
-		mode |= (modes(field(p, 0)) >> 6);
-		mode |= ((aend >= 1) ? ((modes(field(p, aend - 1))) >> 3) : 0)
+		mode |= (modes(isdir, field(p, 0)) >> 6);
+		mode |= ((aend >= 1) ?
+			((modes(isdir, field(p, aend - 1))) >> 3) : 0)
 			| ((mode & 0007) << 3);
-		mode |= ((aend >= 0) ? modes(field(p, aend)) : 0)
+		mode |= ((aend >= 0) ?
+			modes(isdir, field(p, aend)) : 0)
 			| ((mode & 0070) << 3);
 	} else {
 		mode |= ((S_IREAD|S_IWRITE));
