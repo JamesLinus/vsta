@@ -14,11 +14,10 @@
 #include <fcntl.h>
 #include <syslog.h>
 
-static ushort *fat,	/* Our in-core FAT */
+static fat16_t *fat,	/* Our in-core FAT */
 	*fat12;		/*  ...12-bit version, if needed */
 static uint fatlen,	/* Length in FAT16 format */
 	fat12len;	/*  ...FAT12, if we're using FAT12 */
-static ushort *fatNFAT;
 static uchar *dirtymap;	/* Map of sectors with dirty FAT entries */
 static uint		/*  ...size of map */
 	dirtymapsize;
@@ -27,24 +26,25 @@ static int fat_dirty;	/* Flag that we need to flush the FAT */
 static uint nclust;	/* Total clusters on disk */
 ulong data0;		/* Byte offset for data block 0 (cluster 2) */
 uint dirents;		/* # directory entries */
-static ulong nxt_clust;	/* Where last cluster search left off */
+static claddr_t
+	nxt_clust;	/* Where last cluster search left off */
 
 /*
  * DIRTY()
  *	Mark dirtymap at given position
  */
-#define DIRTY(idx) (dirtymap[(idx*sizeof(ushort))/SECSZ] = 1)
+#define DIRTY(idx) (dirtymap[(idx * sizeof(fat16_t)) / SECSZ] = 1)
 
 /*
  * fat12_fat16()
  *	Convert from FAT12 to FAT16
  */
 static void
-fat12_fat16(ushort *fat12, ushort *fat16, uint len)
+fat12_fat16(fat16_t *fat12, fat16_t *fat16, uint len)
 {
 	uchar *from, *fatend;
 	uint x;
-	ushort *u = fat16;
+	fat16_t *u = fat16;
 
 	/*
 	 * Scan across, converting 1.5 bytes into 2 bytes
@@ -78,9 +78,9 @@ fat12_fat16(ushort *fat12, ushort *fat16, uint len)
  *	Convert back from FAT16 to FAT12 format
  */
 static void
-fat16_fat12(ushort *fat16, ushort *fat12, uint len)
+fat16_fat12(fat16_t *fat16, fat16_t *fat12, uint len)
 {
-	ushort *fatend;
+	fat16_t *fatend;
 	uint x;
 	uchar *dest;
 
@@ -88,7 +88,7 @@ fat16_fat12(ushort *fat16, ushort *fat12, uint len)
 	 * Scan across the FAT16's and assemble them back into
 	 * 12-bit format.
 	 */
-	fatend = (ushort *)(((char *)fat16) + len);
+	fatend = (fat16_t *)(((char *)fat16) + len);
 	dest = (uchar *)fat12;
 	while (fat16 < fatend) {
 		x = *fat16++;
@@ -139,7 +139,7 @@ fat_init(void)
 	/*
 	 * Get map of dirty sectors in FAT
 	 */
-	dirtymapsize = roundup(nclust*sizeof(ushort), SECSZ) / SECSZ;
+	dirtymapsize = roundup(nclust*sizeof(fat16_t), SECSZ) / SECSZ;
 	dirtymap = malloc(dirtymapsize);
 	ASSERT(dirtymap, "fat_init: dirtymap");
 	bzero(dirtymap, dirtymapsize);
@@ -178,7 +178,6 @@ fat_init(void)
 		perror("fat_init");
 		exit(1);
 	}
-	fatNFAT = fat + nclust;
 
 	/*
 	 * Seek to FAT table on disk, read into buffer
@@ -209,8 +208,8 @@ fat_init(void)
 int
 clust_setlen(struct clust *c, ulong newlen)
 {
-	uint newclust, clust_cnt, x, y;
-	ushort *ctmp;
+	uint newclust, clust_cnt, x;
+	claddr_t cl, *ctmp;
 
 	/*
 	 * Figure out how many clusters are needed now
@@ -230,12 +229,12 @@ clust_setlen(struct clust *c, ulong newlen)
 	if (c->c_nclust > newclust) {
 		nxt_clust = newclust;
 		for (x = newclust; x < c->c_nclust; ++x) {
-			y = c->c_clust[x];
+			cl = c->c_clust[x];
 #ifdef DEBUG
-			if ((y >= nclust) || (y < 2)) {
+			if ((cl >= nclust) || (cl < 2)) {
 				uint z;
 
-				syslog(LOG_ERR, "bad cluster 0x%x", y);
+				syslog(LOG_ERR, "bad cluster 0x%x", cl);
 				syslog(LOG_ERR, "clusters in file:");
 				for (z = 0; z < c->c_nclust; ++z) {
 					syslog(LOG_ERR, " %x", c->c_clust[z]);
@@ -243,12 +242,12 @@ clust_setlen(struct clust *c, ulong newlen)
 				ASSERT(0, "fat_setlen: bad clust");
 			}
 #endif
-			fat[y] = 0;
-			DIRTY(y);
+			fat[cl] = 0;
+			DIRTY(cl);
 		}
 		if (newclust > 0) {
-			fat[y = c->c_clust[newclust-1]] = FAT_EOF;
-			DIRTY(y);
+			fat[cl = c->c_clust[newclust-1]] = FAT_EOF;
+			DIRTY(cl);
 		}
 		c->c_nclust = newclust;
 		fat_dirty = 1;
@@ -261,20 +260,20 @@ clust_setlen(struct clust *c, ulong newlen)
 	 * when we bail after running out of space there's nothing which
 	 * needs to be undone.  The realloc()'ed c_clust is harmless.
 	 */
-	ctmp = realloc(c->c_clust, newclust * sizeof(ushort));
+	ctmp = realloc(c->c_clust, newclust * sizeof(claddr_t));
 	if (ctmp == 0) {
 		return(1);
 	}
 	c->c_clust = ctmp;
-	y = nxt_clust;
+	cl = nxt_clust;
 	clust_cnt = 0;
 	for (x = c->c_nclust; x < newclust; ++x) {
 		/*
 		 * Scan for next free cluster
 		 */
-		while ((clust_cnt++ < nclust) && fat[y]) {
-			if (++y >= nclust) {
-				y = 0;
+		while ((clust_cnt++ < nclust) && fat[cl]) {
+			if (++cl >= nclust) {
+				cl = 0;
 			}
 		}
 
@@ -288,7 +287,7 @@ clust_setlen(struct clust *c, ulong newlen)
 		/*
 		 * Tag where last search finished to save time
 		 */
-		nxt_clust = y + 1;
+		nxt_clust = cl + 1;
 		if (nxt_clust >= nclust) {
 			nxt_clust = 0;
 		}
@@ -296,14 +295,14 @@ clust_setlen(struct clust *c, ulong newlen)
 		/*
 		 * Sanity
 		 */
-		ASSERT_DEBUG((y >= 2) && (y < nclust),
+		ASSERT_DEBUG((cl >= 2) && (cl < nclust),
 			"clust_setlen: bad FAT");
 
 		/*
 		 * Otherwise add it to our array.  We will flag it
 		 * consumed soon.
 		 */
-		ctmp[x] = y++;
+		ctmp[x] = cl++;
 	}
 
 	/*
@@ -319,23 +318,23 @@ clust_setlen(struct clust *c, ulong newlen)
 	 * space.
 	 */
 	if (c->c_nclust > 0) {
-		fat[y = c->c_clust[c->c_nclust-1]] = c->c_clust[c->c_nclust];
-		DIRTY(y);
+		fat[cl = c->c_clust[c->c_nclust-1]] = c->c_clust[c->c_nclust];
+		DIRTY(cl);
 	}
 
 	/*
 	 * Chain all the new clusters together
 	 */
 	for (x = c->c_nclust; x < newclust-1; ++x) {
-		fat[y = c->c_clust[x]] = c->c_clust[x+1];
-		DIRTY(y);
+		fat[cl = c->c_clust[x]] = c->c_clust[x+1];
+		DIRTY(cl);
 	}
 
 	/*
 	 * Mark the EOF cluster for the last one
 	 */
-	fat[y = c->c_clust[newclust-1]] = FAT_EOF;
-	DIRTY(y);
+	fat[cl = c->c_clust[newclust-1]] = FAT_EOF;
+	DIRTY(cl);
 	c->c_nclust = newclust;
 	fat_dirty = 1;
 	return(0);
@@ -346,7 +345,7 @@ clust_setlen(struct clust *c, ulong newlen)
  *	Allocate a description of the given cluster chain
  */
 struct clust *
-alloc_clust(uint start)
+alloc_clust(fat16_t start)
 {
 	uint nclust = 1;
 	uint x;
@@ -380,7 +379,7 @@ alloc_clust(uint start)
 	/*
 	 * Allocate the description array
 	 */
-	c->c_clust = malloc(nclust * sizeof(ushort));
+	c->c_clust = malloc(nclust * sizeof(claddr_t));
 	if (c->c_clust == 0) {
 		return(0);
 	}
@@ -457,7 +456,7 @@ map_write(void)
 			 */
 			lseek(blkdev, SECSZ + x*SECSZ + off, 0);
 			if (write(blkdev,
-					&fat[x*SECSZ/sizeof(ushort)],
+					&fat[x*SECSZ/sizeof(fat16_t)],
 					SECSZ*cnt) != (SECSZ*cnt)) {
 				perror("fat16");
 				syslog(LOG_ERR, "write of FAT16 #%d failed",

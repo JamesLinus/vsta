@@ -19,14 +19,19 @@
 #define SECSZ (512)		/* Bytes in a sector */
 
 /*
+ * A FAT12/16 value
+ */
+typedef ushort fat16_t;
+
+/*
  * This represents the cluster allocation for a directory or file.
- * The c_clust field points to an array of unsigned short's which
+ * The c_clust field points to an array of claddr_t's which
  * are the clusters allocated.  It is malloc()'ed, and realloc()'ed
  * as needed to change storage allocation.
  */
-typedef ushort claddr;
+typedef uint claddr_t;
 struct clust {
-	claddr *c_clust;	/* Clusters allocated */
+	claddr_t *c_clust;	/* Clusters allocated */
 	uint c_nclust;		/* # entries in c_clust */
 };
 
@@ -207,7 +212,7 @@ extern void ref_node(struct node *),
  * Cluster handling routines
  */
 extern void clust_init(void);
-extern struct clust *alloc_clust(uint);
+extern struct clust *alloc_clust(fat16_t);
 extern void free_clust(struct clust *);
 extern void fat_sync(void);
 extern int clust_setlen(struct clust *, ulong);

@@ -225,7 +225,8 @@ dir_search(struct node *n, char *f1, char *f2, struct directory *dp)
 {
 	void *handle;
 	struct clust *c;
-	int cluster, x;
+	int x;
+	uint cluster;
 	struct directory *d;
 
 	/*
@@ -299,7 +300,7 @@ map_type(int dos_attr)
 static uint
 get_inum(struct node *dir, int idx)
 {
-	claddr a;
+	claddr_t a;
 
 	/*
 	 * Root isn't a "real" cluster, so just use 0 base on entry offset
