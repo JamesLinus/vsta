@@ -24,6 +24,60 @@ static struct map {
 };
 
 /*
+ * remote_path_open()
+ *	Connect to a remote proxy server and use it for our I/O
+ */
+static port_t
+remote_path_open(char *namer_path, char *remote, int mode)
+{
+	port_t p;
+	struct msg m;
+	char buf[128];
+
+	/*
+	 * Open a TCP socket to our destination in proxy mode
+	 */
+	p = path_open("net/inet:tcp/clone", ACC_READ | ACC_WRITE);
+	if (p < 0) {
+		return(-1);
+	}
+	(void)sprintf(buf, "dest=%s\n", remote);
+	if (wstat(p, buf) < 0) {
+		goto out;
+	}
+	if (wstat(p, "destsock=11223\n") < 0) {
+		goto out;
+	}
+	if (wstat(p, "conn=active\n") < 0) {
+		goto out;
+	}
+	if (wstat(p, "proxy=1\n") < 0) {
+		goto out;
+	}
+
+	/*
+	 * Our initial message specifies what to open
+	 */
+	m.m_op = FS_OPEN;
+	m.m_arg = mode;
+	m.m_buf = namer_path;
+	m.m_buflen = strlen(namer_path)+1;
+	m.m_nseg = 1;
+	m.m_arg1 = 0;
+	if (msg_send(p, &m) < 0) {
+		goto out;
+	}
+	return(p);
+
+out:
+	/*
+	 * Common error path
+	 */
+	(void)msg_disconnect(p);
+	return(-1);
+}
+
+/*
  * path_open()
  *	Open named path
  *
@@ -45,6 +99,15 @@ path_open(char *path_ro, int mode)
 		return(-1);
 	}
 	strcpy(path, path_ro);
+
+	/*
+	 * If this is a remote path, treat it specially
+	 */
+	path2 = strrchr(path, '@');
+	if (path2) {
+		*path2++ = '\0';
+		return(remote_path_open(path, path2, mode));
+	}
 
 	/*
 	 * If there's a path after the portname, split it off
