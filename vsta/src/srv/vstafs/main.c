@@ -6,6 +6,7 @@
 #include <sys/fs.h>
 #include <sys/perm.h>
 #include <sys/namer.h>
+#include <sys/syscall.h>
 #include <hash.h>
 #include <fcntl.h>
 #include <std.h>
