@@ -9,6 +9,10 @@
 #include <std.h>
 #include <mnttab.h>
 #include <fcntl.h>
+#include <alloc.h>
+
+#define MAXLINK (16)	/* Max levels of symlink to follow */
+#define MAXSYMLEN (128)	/*  ...max length of one element */
 
 static char default_wd[] = "/";
 
@@ -147,6 +151,93 @@ __dotdot(char *path)
 }
 
 /*
+ * follow_symlink()
+ *	Try to extract a symlink contents and build a new path
+ *
+ * Returns a new malloc()'ed  string containing the mapped path
+ */
+static char *
+follow_symlink(port_t port, char *file, char *p)
+{
+	struct msg m;
+	port_t port2;
+	int x, len;
+	char *newpath, *lenstr;
+
+	/*
+	 * Walk down a copy into the file so we don't lose
+	 * our place in the path.
+	 */
+	port2 = clone(port);
+	if (port2 < 0) {
+		return(0);
+	}
+	m.m_op = FS_OPEN;
+	m.m_buf = file;
+	m.m_buflen = strlen(file)+1;
+	m.m_nseg = 1;
+	m.m_arg = ACC_READ | ACC_SYM;
+	m.m_arg1 = 0;
+	x = msg_send(port2, &m);
+
+	/*
+	 * If we can't get it, bail
+	 */
+	if (x < 0) {
+		msg_disconnect(port2);
+		return(0);
+	}
+
+	/*
+	 * Calculate length, get a buffer to hold new path
+	 */
+	lenstr = rstat(port2, "size");
+	if (lenstr == 0) {
+		msg_disconnect(port2);
+		return(0);
+	}
+	len = atoi(lenstr);
+	if (len > MAXSYMLEN) {
+		msg_disconnect(port2);
+		return(0);
+	}
+	newpath = malloc(len + (p ? (strlen(p+1)) : 0) + 1);
+	if (newpath == 0) {
+		msg_disconnect(port2);
+		return(0);
+	}
+
+	/*
+	 * Read the contents
+	 */
+	m.m_op = FS_READ | M_READ;
+	m.m_nseg = 1;
+	m.m_buf = newpath;
+	m.m_arg = m.m_buflen = len;
+	m.m_arg1 = 0;
+	x = msg_send(port2, &m);
+	if (x < 0) {
+		free(newpath);
+		msg_disconnect(port2);
+		return(0);
+	}
+
+	/*
+	 * Tack on the remainder of the path
+	 */
+	if (p) {
+		sprintf(newpath+len, "/%s", p+1);
+	} else {
+		newpath[len] = '\0';
+	}
+
+	/*
+	 * There's your new path
+	 */
+	return(newpath);
+}
+
+/*
  * try_open()
  *	Given a root point and a path, try to walk into the mount
  *
@@ -157,7 +248,7 @@ try_open(port_t newfile, char *file, int mask, int mode)
 {
 	char *p;
 	struct msg m;
-	int x;
+	int x, nlink = 0;
 
 	/*
 	 * The mount point itself is a special case
@@ -170,6 +261,8 @@ try_open(port_t newfile, char *file, int mask, int mode)
 	 * Otherwise walk each element in the path
 	 */
 	do {
+		char *tmp;
+
 		/*
 		 * Find the next '/', or end of string
 		 */
@@ -182,6 +275,18 @@ try_open(port_t newfile, char *file, int mask, int mode)
 		}
 
 		/*
+		 * Map element to a getenv() of it if it  has
+		 * a "@" prefix.
+		 */
+		tmp = 0;
+		if (*file == '@') {
+			tmp = getenv(file+1);
+			if (tmp) {
+				file = tmp;
+			}
+		}
+
+		/*
 		 * Try to walk our file down to the new node
 		 */
 		m.m_op = FS_OPEN;
@@ -191,6 +296,35 @@ try_open(port_t newfile, char *file, int mask, int mode)
 		m.m_arg = p ? ACC_EXEC : mode;
 		m.m_arg1 = p ? 0 : mask;
 		x = msg_send(newfile, &m);
+		if (tmp) {
+			free(tmp);	/* Free env storage if any */
+		}
+
+		/*
+		 * If we encounter a symlink, see about following it
+		 */
+		if ((x < 0) && !strcmp(strerror(), ESYMLINK)) {
+			/*
+			 * Cap number of levels of symlink we'll follow
+			 */
+			if (nlink++ >= MAXLINK) {
+				__seterr(ELOOP);
+				return(1);
+			}
+
+			/*
+			 * Pull in contents of symlink, make that
+			 * our new path to lookup
+			 */
+			tmp = follow_symlink(newfile, file, p);
+			if (tmp) {
+				file = alloca(strlen(tmp)+1);
+				strcpy(file, tmp);
+				free(tmp);
+				continue;
+			}
+		}
+
 		if (p) {
 			*p++ = '/';	/* Restore path seperator */
 		}
