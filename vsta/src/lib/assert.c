@@ -12,7 +12,7 @@
 void
 assfail(const char *msg, const char *file, int line)
 {
-	if (__logopt) {
+	if (__get_logopt()) {
 		syslog(LOG_EMERG, "Assertion failed %s/%d: %s",
 			file, line, msg);
 	} else {

@@ -8,8 +8,18 @@
 #include <std.h>
 
 static char *id;	/* Name os process posting message */
-int __logopt;		/* Logging options */
+static int __logopt;	/* Logging options */
 static int logfacil;	/* Logging facility */
+
+/*
+ * __get_logopt()
+ *	Return current logging options
+ */
+int
+__get_logopt(void)
+{
+	return(__logopt);
+}
 
 /*
  * levelmsg()

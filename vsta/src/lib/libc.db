@@ -335,3 +335,4 @@ _ldexp
 _modf
 _strtod
 _frexp
+___get_logopt
