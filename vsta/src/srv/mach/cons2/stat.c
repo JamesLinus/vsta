@@ -8,11 +8,11 @@
 #include <sys/param.h>
 #include <sys/perm.h>
 #include <sys/fs.h>
+#include <std.h>
+#include <stdio.h>
 
-extern char *perm_print();
-
-extern struct prot cons_prot;
-extern int accgen;
+extern char *perm_print(struct prot *);
+extern int do_wstat(struct msg *, struct prot *, uint, char **, char **);
 
 /*
  * cons_stat()
@@ -23,9 +23,15 @@ cons_stat(struct msg *m, struct file *f)
 {
 	char buf[MAXSTAT];
 
-	sprintf(buf,
-	 "size=%d\ntype=c\nowner=0\ninode=0\nrows=%d\ncols=%d\ngen=%d\n",
-		ROWS*COLS, ROWS, COLS, accgen);
+	if (f->f_screen == ROOTDIR) {
+		sprintf(buf, "size=%d\ntype=d\nowner=0\ninode=0\n", NVTY);
+	} else {
+		struct screen *s = &screens[f->f_screen];
+
+		sprintf(buf,
+"size=%d\ntype=c\nowner=0\ninode=%d\nrows=%d\ncols=%d\ngen=%d\n",
+			s->s_nbuf, f->f_screen, ROWS, COLS, s->s_gen);
+	}
 	strcat(buf, perm_print(&cons_prot));
 	m->m_buf = buf;
 	m->m_buflen = strlen(buf);
@@ -42,6 +48,7 @@ void
 cons_wstat(struct msg *m, struct file *f)
 {
 	char *field, *val;
+	struct screen *s = &screens[f->f_screen];
 
 	/*
 	 * See if common handling code can do it
@@ -57,11 +64,13 @@ cons_wstat(struct msg *m, struct file *f)
 		 * Set access-generation field
 		 */
 		if (val) {
-			accgen = atoi(val);
+			s->s_gen = atoi(val);
 		} else {
-			accgen += 1;
+			s->s_gen += 1;
 		}
-		f->f_gen = accgen;
+		f->f_gen = s->s_gen;
+	} else if (!strcmp(field, "screen")) {
+		select_screen(atoi(val));
 	} else {
 		/*
 		 * Not a field we support...
