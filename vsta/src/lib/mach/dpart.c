@@ -16,6 +16,7 @@
 #include <sys/perm.h>
 #include <sys/assert.h>
 #include <mach/dpart.h>
+#include <std.h>
 
 /*
  * alloc_part_slot()
@@ -61,12 +62,13 @@ dpart_init_whole(char *name, uint unit, uint sec_size,
 	struct part *p;
 
 	if ((p = alloc_part_slot(&partition[WHOLE_DISK])) == NULL) {
-		return 0;
+		return(0);
 	}
 	p->p_val = 1;
 	p->p_off = 0;
 	p->p_len = sec_size;
 	sprintf(p->p_name, "%s%d", name, unit);
+	return(1);
 }
 
 /*
