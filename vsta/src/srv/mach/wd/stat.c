@@ -47,7 +47,7 @@ void
 wd_stat(struct msg *m, struct file *f)
 {
 	char buf[MAXSTAT];
-	uint size, node;
+	uint size, pextoffs, node;
 	char type;
 	struct prot *p;
 
@@ -55,6 +55,7 @@ wd_stat(struct msg *m, struct file *f)
 		size = NWD;
 		node = 0;
 		type = 'd';
+		pextoffs = 0;
 	} else {
 		uint part, unit;
 
@@ -68,10 +69,12 @@ wd_stat(struct msg *m, struct file *f)
 		}
 		size *= SECSZ;
 		type = 's';
+		pextoffs = disks[unit].d_parts[part]->p_extoffs;
 	}
 	p = find_prot(f->f_node);
 	sprintf(buf,
-	 "size=%d\ntype=%c\nowner=1/1\ninode=%d\n", size, type, node);
+		"size=%d\ntype=%c\nowner=1/1\ninode=%d\npextoffs=%d\n",
+		size, type, node, pextoffs);
 	strcat(buf, perm_print(p));
 	m->m_buf = buf;
 	m->m_buflen = strlen(buf);

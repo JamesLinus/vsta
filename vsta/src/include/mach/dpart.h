@@ -26,6 +26,7 @@ struct part {
 	char p_name[16];	/* Symbolic name */
 	ulong p_off;		/* Sector offset */
 	ulong p_len;		/*  ...length */
+	uint p_extoffs;		/*  ...from base ext partition */
 	int p_val;		/* Valid slot? */
 	struct prot p_prot;	/* Protection for partition */
 };

@@ -168,9 +168,14 @@ dpart_init(char *name, uint unit, char *secbuf,
 		 * Fill in off/len.  They're ignored if we don't
 		 * set p_val below.  Note that if we're currently in an
 		 * extended partition we need to add in a suitable offset
-		 * for the start of the extended partition
+		 * for the start of the extended partition.
+		 *
+		 * We use p->p_extoffs because OS/2 has a nasty quirk in it's
+		 * swap partition handler, and uses the "number of hidden
+		 * sectors" that most other FAT fs implementations ignore :-(
 		 */
 		p->p_off = s->ps_start;
+		p->p_extoffs = s->ps_start;
 		p->p_len = s->ps_len;
 		if (cur_sec_num) {
 			/*
