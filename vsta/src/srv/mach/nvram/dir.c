@@ -21,7 +21,7 @@
 struct fentries fe[MAX_INO] = {
   {"nvram", MAX_INO - 1},
   {"all", 0},
-  {"rtc", 8},
+  {"rtc", 7},
   {"cfg_fd0", 1},
   {"cfg_fd1", 1},
   {"cfg_wd0", 1},
