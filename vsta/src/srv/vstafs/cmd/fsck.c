@@ -15,6 +15,8 @@ static daddr_t max_blk;		/* Highest block # in filesystem */
 static char *freemap;		/* Bitmap of allocated blocks */
 static char *allocmap;		/*  ...of blocks in files */
 
+static int check_tree(daddr_t, char *);
+
 /*
  * get_sec()
  *	Return the named sector, maintain a little cache
@@ -446,6 +448,8 @@ printf("Error: directory %s has unaligned length %ld\n", name, fs.fs_len);
 				 */
 				if (d->fs_clstart &&
 						!(d->fs_name[0] & 0x80)) {
+					char *p;
+
 					/*
 					 * Check entry for sanity
 					 */
@@ -454,6 +458,20 @@ printf("Corrupt directory entry file %s position %ld\n",
 	name, idx - sizeof(struct fs_file));
 						return(1);
 					}
+
+					/*
+					 * Recurse to check the file
+					 */
+					p = malloc(strlen(name)+
+						strlen(d->fs_name)+2);
+					sprintf(p, "%s%s%s",
+						name,
+						name[1] ? "/" : "",
+						d->fs_name);
+					/* XXX offer to delete? */
+					(void)check_tree(d->fs_clstart, p);
+					free(p);
+					(void)get_sec(blk);
 				}
 				idx += sizeof(struct fs_dirent);
 				d += 1;
@@ -482,8 +500,6 @@ static int
 check_tree(daddr_t sec, char *name)
 {
 	struct fs_file *fs;
-
-	printf("Scan directory tree\n");
 
 	/*
 	 * Basic sanity check on starting sector
@@ -574,6 +590,7 @@ main(int argc, char **argv)
 	}
 	check_root();
 	check_freelist();
-	check_tree(ROOT_SEC, "/");
+	printf("Check directory tree\n");
+	(void)check_tree(ROOT_SEC, "/");
 	check_lostblocks();
 }
