@@ -715,16 +715,18 @@ msg_reply(long arg_who, struct msg *arg_msg)
 			p_lock(&port->p_lock, SPLHI);
 			ref_port(pr->p_port, newpr);
 			v_lock(&port->p_lock, SPL0);
+			v_lock(&pr->p_lock, SPL0); holding_pr = 0;
+			v_sema(&pr->p_iowait);
 			new_client(newpr);
 		} else {
 			*(pr->p_msg) = *sm;
 			sm->m_nseg = 0;		/* He has them now */
+			pr->p_state = PS_IODONE;
+			set_sema(&pr->p_svwait, 0);
+			v_sema(&pr->p_iowait);
+			p_sema_v_lock(&pr->p_svwait, PRIHI, &pr->p_lock);
+			holding_pr = 0;
 		}
-		pr->p_state = PS_IODONE;
-		set_sema(&pr->p_svwait, 0);
-		v_sema(&pr->p_iowait);
-		p_sema_v_lock(&pr->p_svwait, PRIHI, &pr->p_lock);
-		holding_pr = 0;
 		break;
 
 	/*
