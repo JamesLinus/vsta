@@ -1,5 +1,4 @@
-all:
-	: # Nothing to do
+include ../makefile.all
 
 clean:
 
