@@ -9,6 +9,7 @@
  * Values and macros relating to hardware pages
  */
 #define NBPG (4096)	/* # bytes in a page */
+#define NBBY (8)	/* # bits in a byte */
 #define PGSHIFT (12)	/* LOG2(NBPG) */
 #define ptob(x) ((ulong)(x) << PGSHIFT)
 #define btop(x) ((ulong)(x) >> PGSHIFT)
