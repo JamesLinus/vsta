@@ -154,6 +154,7 @@ run_readers(struct ioq *i)
 		dequeue_data(m, i);
 		ll_delete(f->f_q);
 		f->f_q = NULL;
+		f->f_selfs.sc_needsel = 1;
 	}
 }
 
@@ -225,6 +226,9 @@ ioq_read_data(struct file *f, struct ioq *i, struct msg *m)
 	if (i->ioq_nbuf) {
 		dequeue_data(m, i);
 		f->f_selfs.sc_needsel = 1;
+		if (i->ioq_nbuf > 0) {
+			sc_event(&f->f_selfs, ACC_READ);
+		}
 
 		/*
 		 * When we transition to empty buffer, wake up
