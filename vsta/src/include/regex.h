@@ -43,7 +43,7 @@
 #include <cdefs.h>
 
 /* types */
-typedef off_t regoff_t;
+typedef long regoff_t;
 
 typedef struct {
 	int re_magic;
