@@ -107,8 +107,7 @@ struct proc {
 		*p_open[PROCOPENS];
 	struct hash		/* Portrefs attached to our ports */
 		*p_prefs;
-	ushort p_nopen;		/*  ...# currently open */
-	ushort p_flags;		/* Miscellaneous flags */
+	ulong p_nopen;		/*  ...# currently open */
 	struct proc		/* Linked list of all processes */
 		*p_allnext, *p_allprev;
 	ulong p_sys, p_usr;	/* Cumulative time for all prev threads */
@@ -126,12 +125,6 @@ struct proc {
 		p_dbgr;		/*  valid if T_DEBUG active */
 #endif
 };
-
-/*
- * Bits in p_flags
- */
-#define PF_MOVED 0x1		/* Proc moved in allnext/allprev */
-				/* (i.e., is a pstat() user) */
 
 #ifdef KERNEL
 extern pid_t allocpid(void);
