@@ -13,7 +13,7 @@
 #include <mach/gdt.h>
 #include <sys/assert.h>
 
-extern void retuser();
+extern void retuser(), reload_dr(struct dbg_regs *);
 
 /*
  * dup_stack()
@@ -80,7 +80,32 @@ dup_stack(struct thread *old, struct thread *new, voidfun f)
 void
 resume(void)
 {
+	struct thread *t = curthread;
+	struct proc *p = t->t_proc;
 	extern struct tss *tss;
+
+#ifdef PROC_DEBUG
+	/*
+	 * If we've just switched from a debugged process, or we're
+	 * switching into a debugged process, fiddle the debug
+	 * registers.
+	 */
+	if ((cpu.pc_flags & CPU_DEBUG) || p->p_dbgr.dr7) {
+		/*
+		 * dr7 in a non-debugging process will be 0, so this
+		 * covers both cases.  We must mask against preemption
+		 * so that the debug registers match our flag.
+		 */
+		cli();
+		reload_dr(&p->p_dbgr);
+		if (p->p_dbgr.dr7) {
+			cpu.pc_flags |= CPU_DEBUG;
+		} else {
+			cpu.pc_flags &= ~CPU_DEBUG;
+		}
+		sti();
+	}
+#endif
 
 	/*
 	 * Make kernel stack come in on our own stack now.  This
@@ -89,17 +114,17 @@ resume(void)
 	 * XXX esp is overkill; only esp0 should ever be used.
 	 */
 	tss->esp0 = tss->esp = (ulong)
-		((char *)(curthread->t_kstack) + KSTACK_SIZE);
+		((char *)(t->t_kstack) + KSTACK_SIZE);
 
 	/*
 	 * Switch to root page tables for the new process
 	 */
-	set_cr3(curthread->t_proc->p_vas->v_hat.h_cr3);
+	set_cr3(p->p_vas->v_hat.h_cr3);
 
 	/*
 	 * Warp out to the context
 	 */
-	longjmp(curthread->t_kregs, 1);
+	longjmp(t->t_kregs, 1);
 }
 
 /*
@@ -247,9 +272,14 @@ set_break(ulong addr, int set)
 		/*
 		 * Clear it, and re-load our debug registers
 		 */
-		d->dr7 &= ~(3 << x);
+		d->dr7 &= ~(3 << (x*2));
 		d->dr[x] = 0;
+		cli();
 		reload_dr(d);
+		if (d->dr7 == 0) {
+			cpu.pc_flags &= ~CPU_DEBUG;
+		}
+		sti();
 		return(0);
 	}
 
@@ -272,9 +302,12 @@ set_break(ulong addr, int set)
 	/*
 	 * Set up, and put into hardware
 	 */
-	d->dr7 |= (3 << x);
+	d->dr7 |= (0x2 << (x*2));
 	d->dr[x] = addr;
+	cli();
 	reload_dr(d);
+	cpu.pc_flags |= CPU_DEBUG;
+	sti();
 	return(0);
 }
 
