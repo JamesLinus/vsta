@@ -3,7 +3,7 @@
 Things to do per release:
 
 1. Make sure vsta/doc/features.txt is up to date
-2. Check copyright year in /vsta/readme and /vsta/etc/motd
+2. Check copyright year in /vsta/README and /vsta/etc/motd
 3. Edit vsta/etc/banner
 4. cvs -n update 2>&1 | more
 5. "cd vsta/src" and "sh mkall.sh"
