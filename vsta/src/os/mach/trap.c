@@ -224,6 +224,7 @@ trap(ulong place_holder)
 		printf("Trap frame at 0x%x\n", f);
 		ASSERT(0, "trap: bad type");
 	}
+	ASSERT_DEBUG(cpu.pc_locks == 0, "trap: locks held");
 
 	/*
 	 * See if we should get off the CPU
