@@ -2,7 +2,7 @@
  * Filename:	main.c
  * Developed:	Dave Hudson <dave@humbug.demon.co.uk>
  * Originated:	Andy Valencia
- * Last Update: 3rd March 1994
+ * Last Update: 8th April 1994
  * Implemented:	GNU GCC version 2.5.7
  *
  * Description: Main message handling and startup routines for the bfs
@@ -28,8 +28,10 @@ struct super *sblock;		/* Our filesystem's superblock */
 void *shandle;			/*  ...handle for the block entry */
 static struct hash *filehash;	/* Handle->filehandle mapping */
 
-extern int valid_fname(char *, int);
+
+extern valid_fname(char *, int);
 extern port_t path_open(char *, int);
+
 
 /*
  * Protection for all BFS files: everybody can read, only
@@ -179,9 +181,10 @@ dup_client(struct msg *m, struct file *fold)
 static void
 dead_client(struct msg *m, struct file *f)
 {
-	extern void bfs_close();
-
 	(void)hash_delete(filehash, m->m_sender);
+	if (f->f_rename_id) {
+		cancel_rename(f);
+	}
 	bfs_close(f);
 	free(f);
 }
@@ -235,45 +238,66 @@ loop:
 	 */
 	f = hash_lookup(filehash, msg.m_sender);
 	switch (msg.m_op) {
-	case M_CONNECT:		/* New client */
+	case M_CONNECT :	/* New client */
 		new_client(&msg);
 		break;
-	case M_DISCONNECT:	/* Client done */
+		
+	case M_DISCONNECT :	/* Client done */
 		dead_client(&msg, f);
 		break;
-	case M_DUP:		/* File handle dup during exec() */
+		
+	case M_DUP :		/* File handle dup during exec() */
 		dup_client(&msg, f);
 		break;
-	case M_ABORT:		/* Aborted operation */
+
+	case M_ABORT :		/* Aborted operation */
 		/*
-		 * We're synchronous, so presumably the operation
+		 * Clear any pending renames
+		 */
+		if (f->f_rename_id) {
+			cancel_rename(f);
+		}
+
+		/*
+		 * We're synchronous, so presumably everything else
 		 * is all done and this abort is old news.
 		 */
 		msg_reply(msg.m_sender, &msg);
 		break;
-	case FS_OPEN:		/* Look up file from directory */
+
+	case FS_OPEN :		/* Look up file from directory */
 		if (!valid_fname(msg.m_buf, msg.m_buflen)) {
 			msg_err(msg.m_sender, EINVAL);
 			break;
 		}
 		bfs_open(&msg, f);
 		break;
-	case FS_READ:		/* Read file */
+
+	case FS_READ :		/* Read file */
 		bfs_read(&msg, f);
 		break;
-	case FS_WRITE:		/* Write file */
+
+	case FS_WRITE :		/* Write file */
 		bfs_write(&msg, f);
 		break;
-	case FS_SEEK:		/* Set new file position */
+		
+	case FS_SEEK :		/* Set new file position */
 		bfs_seek(&msg, f);
 		break;
-	case FS_REMOVE:		/* Get rid of a file */
+		
+	case FS_REMOVE :	/* Get rid of a file */
 		bfs_remove(&msg, f);
 		break;
-	case FS_STAT:		/* Tell about file */
+		
+	case FS_STAT :		/* Tell about file */
 		bfs_stat(&msg, f);
 		break;
-	default:		/* Unknown */
+		
+	case FS_RENAME :	/* Rename a file */
+		bfs_rename(&msg, f);
+		break;
+
+	default :		/* Unknown */
 		msg_err(msg.m_sender, EINVAL);
 		break;
 	}

@@ -2,16 +2,17 @@
  * Filename:	open.c
  * Developed:	Dave Hudson <dave@humbug.demon.co.uk>
  * Originated:	Andy Valencia
- * Last Update: 17th February 1994
+ * Last Update: 8th April 1994
  * Implemented:	GNU GCC version 2.5.7
  *
  * Description: Routines for opening, closing, creating  and deleting files
  *
- * Note that we don't allow subdirectories for BFS, which simplifies
+ * Note that we don't allow subdirectories for bfs, which simplifies
  * things.
  */
 
 
+#include <hash.h>
 #include <std.h>
 #include <stdio.h>
 #include <sys/assert.h>
@@ -19,7 +20,9 @@
 
 
 extern struct super *sblock;
-static int nwriters = 0;	/* # writers active */
+static int nwriters = 0;	/* Number of writers active */
+static struct hash *rename_pending = NULL;
+				/* Tabulate pending renames */
 
 
 /*
@@ -236,4 +239,142 @@ bfs_remove(struct msg *m, struct file *f)
 	 */
 	m->m_buflen = m->m_arg = m->m_arg1 = m->m_nseg = 0;
 	msg_reply(m->m_sender, m);
+}
+
+
+/*
+ * do_rename()
+ *	Actually perform the file rename
+ *
+ * This is much simpler than most fs's as we simply change the source inode's
+ * name field - we have no links or subdirectories to worry about!
+ */
+static char *
+do_rename(char *src, char *dest)
+{
+	struct inode *isrc, *idest;
+	
+	/*
+	 * Look up the entries
+	 */
+	if ((isrc = ino_lookup(src)) == NULL) {
+		/*
+		 * If we can't find the source file fail!
+		 */
+		return ESRCH;
+	}
+	if ((idest = ino_lookup(dest)) != NULL) {
+		/*
+		 * If the destination exists, remove the existing file
+		 */
+		blk_trunc(idest);
+		idest->i_name[0] = '\0';
+		ino_dirty(idest);
+		ino_clear(idest);
+	}
+	strncpy(isrc->i_name, dest, BFSNAMELEN);
+	isrc->i_name[BFSNAMELEN - 1] = '\0';
+	ino_dirty(isrc);
+
+	return NULL;
+}
+
+
+/*
+ * bfs_rename()
+ *	Rename a file
+ */
+void
+bfs_rename(struct msg *m, struct file *f)
+{
+	struct file *f2;
+	char *errstr;
+
+	/*
+	 * Sanity
+	 */
+	if ((m->m_arg1 == 0) || !valid_fname(m->m_buf, m->m_buflen)) {
+		msg_err(m->m_sender, EINVAL);
+		return;
+	}
+
+	/*
+	 * On first use, create the rename-pending hash
+	 */
+	if (rename_pending == 0) {
+		rename_pending = hash_alloc(16);
+		if (rename_pending == 0) {
+			msg_err(m->m_sender, strerror());
+			return;
+		}
+	}
+
+	/*
+	 * Phase 1--register the source of the rename
+	 */
+	if (m->m_arg == 0) {
+		/*
+		 * Transaction ID collision?
+		 */
+		if (hash_lookup(rename_pending, m->m_arg1)) {
+			msg_err(m->m_sender, EBUSY);
+			return;
+		}
+
+		/*
+		 * Insert in hash
+		 */
+		if (hash_insert(rename_pending, m->m_arg1, f)) {
+			msg_err(m->m_sender, strerror());
+			return;
+		}
+
+		/*
+		 * Flag open file as being involved in this
+		 * pending operation.
+		 */
+		f->f_rename_id = m->m_arg1;
+		f->f_rename_msg = *m;
+		return;
+	}
+
+	/*
+	 * Otherwise it's the completion
+	 */
+	f2 = hash_lookup(rename_pending, m->m_arg1);
+	if (f2 == 0) {
+		msg_err(m->m_sender, ESRCH);
+		return;
+	}
+	(void)hash_delete(rename_pending, m->m_arg1);
+
+	/*
+	 * Do our magic
+	 */
+	errstr = do_rename(f2->f_rename_msg.m_buf, m->m_buf);
+	if (errstr) {
+		msg_err(m->m_sender, errstr);
+		msg_err(f2->f_rename_msg.m_sender, errstr);
+	} else {
+		m->m_nseg = m->m_arg = m->m_arg1 = 0;
+		msg_reply(m->m_sender, m);
+		msg_reply(f2->f_rename_msg.m_sender, m);
+	}
+
+	/*
+	 * Clear state
+	 */
+	f2->f_rename_id = 0;
+}
+
+
+/*
+ * cancel_rename()
+ *	Cancel an ongoing file rename
+ */
+void
+cancel_rename(struct file *f)
+{
+	(void)hash_delete(rename_pending, f->f_rename_id);
+	f->f_rename_id = 0;
 }

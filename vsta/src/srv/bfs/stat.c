@@ -30,11 +30,12 @@ bfs_stat(struct msg *m, struct file *f)
 
 	i = f->f_inode;
 	sprintf(result,
-	 	"perm=1/1\nacc=5/0/2\nsize=%d\ntype=%c\nowner=0\ninode=%d\n",
+	 	"perm=1/1\nacc=5/0/2\nsize=%d\ntype=%c\nowner=0\n" \
+	 	"inode=%d\nctime=%u\nmtime=%u",
 		i->i_fsize, (i->i_num == ROOTINODE) ? 'd' : 'f',
-		i->i_num);
+		i->i_num, i->i_ctime, i->i_mtime);
 	sprintf(&result[strlen(result)],
-		"start blk=%d\nmgd blks=%d\ni_refs=%d\n",
+		"\nstart blk=%d\nmgd blks=%d\ni_refs=%d\n",
 		i->i_start, i->i_blocks, i->i_refs);
 	sprintf(&result[strlen(result)],
 		"prev=%d\nnext=%d\n",

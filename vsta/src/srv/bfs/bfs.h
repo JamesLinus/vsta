@@ -6,7 +6,7 @@
  * Filename:	bfs.h
  * Developed:	Dave Hudson <dave@humbug.demon.co.uk>
  * Originated:	Andy Valencia
- * Last Update: 11th February 1994
+ * Last Update: 8th April 1994
  * Implemented:	GNU GCC version 2.5.7
  *
  * Description: Data structures in boot filesystem
@@ -26,10 +26,11 @@
 
 
 #define BLOCKSIZE 1024		/* Size of blocks in filesystem */
-#define BFSNAMELEN 20		/* Max chars in filename (-1 for null) */
-#define SMAGIC 0x121314		/* Magic # to tell a BFS superblock */
-#define NCACHE 32		/* # blocks to cache in memory */
-#define MAXINODE 64		/* # inodes open at once */
+#define BFSNAMELEN 44		/* Max chars in filename (-1 for null) */
+#define SMAGIC 0x121314		/* Magic number to tell a BFS superblock */
+#define NCACHE 32		/* Number of blocks to cache in memory */
+#define MAXINODE 64		/* Number of inodes open at once */
+#define MINDATABLOCKS 16	/* Minimum number of data blocks in fs */
 #define ROOTINODE 0		/* Special inode number for root */
 #define I_FREE -1		/* Free inode reference */
 
@@ -48,6 +49,8 @@ struct dirent {
 	uint d_inum;		/* Inode number */
 	uint d_start;		/* First block in the file */
 	uint d_len;		/* Length of file in bytes */
+	uint d_ctime;		/* File creation time */
+	uint d_mtime;		/* Last modification time */
 	char d_name[BFSNAMELEN];
 				/* Name of file */
 };
@@ -81,6 +84,9 @@ struct file {
 	struct inode *f_inode;	/* Current inode */
 	uint f_pos;		/* Current file offset */
 	int f_write;		/* Flag if this open allowed to write */
+	long f_rename_id;	/* Transaction number for rename */
+	struct msg f_rename_msg;
+				/* Message for that rename transactions */
 };
 
 
@@ -99,6 +105,8 @@ struct inode {
 	uint i_prev;		/* Inode num for previous file in the fs */
 	uint i_dirblk;		/* FS block number for dir entry */
 	uint i_diroff;		/* Offest in dir block for dir entry */
+	uint i_ctime;		/* File creation time */
+	uint i_mtime;		/* File modification time */
 	char i_name[BFSNAMELEN];
 				/* Name of the file */
 };
@@ -137,6 +145,8 @@ extern int blk_alloc(struct inode *i, uint newsize);
 extern void bfs_open(struct msg *m, struct file *f);
 extern void bfs_close(struct file *f);
 extern void bfs_remove(struct msg *m, struct file *f);
+extern void bfs_rename(struct msg *m, struct file *f);
+extern void cancel_rename(struct file *f);
 
 
 /*
