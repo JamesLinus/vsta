@@ -4,6 +4,7 @@
  */
 #include <sys/mman.h>
 #include <sys/exec.h>
+#include <sys/fs.h>	/* For ENOEXEC */
 #include <fcntl.h>
 #include <std.h>
 #include <mach/aout.h>
@@ -33,10 +34,12 @@ execv(char *file, char **argv)
 	}
 
 	/*
-	 * Read the header
+	 * Read the header, verify its magic number
 	 */
-	if (read(fd, &a, sizeof(a)) != sizeof(a)) {
+	if ((read(fd, &a, sizeof(a)) != sizeof(a)) ||
+			((a.a_info & 0xFFFF) != 0413)) {
 		close(fd);
+		__seterr(ENOEXEC);
 		return(-1);
 	}
 
