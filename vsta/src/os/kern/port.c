@@ -273,7 +273,7 @@ struct portref *
 dup_port(struct portref *opr)
 {
 	struct portref *pr;
-	long args[2];
+	long args[3];
 
 	/*
 	 * Get our new proposed port, set it up
