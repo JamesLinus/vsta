@@ -18,6 +18,8 @@ static void
 	*bpoints[MAX_BPOINT];	/* Breakpoints set */
 static uint nbpoint = 0;	/*  ...how many in bpoints[] */
 static int ever_ran = 0;	/* Tell if first run */
+static int stepping = 0;	/* Stepping currently? */
+ulong why_stop;			/* Copy of flags for why we stopped */
 
 /*
  * sendhim()
@@ -77,6 +79,9 @@ sendhim(int op, ulong *args)
 			 */
 			break;
 
+		case PD_SLAVE:
+			why_stop = m.m_arg;
+			/* VVV fall into VVV */
 		default:
 			listening = 1;
 			break;
@@ -138,6 +143,57 @@ read_procmem(ulong addr, int size)
 }
 
 /*
+ * eventstr()
+ *	Return current event
+ */
+static char *
+eventstr(void)
+{
+	static char evstr[ERRLEN+2];
+	uint x;
+	ulong args[2];
+
+	for (x = 0; x < ERRLEN; ++x) {
+		args[0] = x;
+		args[1] = 0;
+		if (sendhim(PD_MEVENT, args) < 0) {
+			evstr[x] = '\0';
+			break;
+		}
+		evstr[x] = args[1];
+		if (evstr[x] == '\0') {
+			break;
+		}
+	}
+	if (evstr[0] == '\0') {
+		return(0);
+	}
+	return(evstr);
+}
+
+/*
+ * cur_event()
+ *	Print out why we're stopped
+ */
+static void
+cur_event(void)
+{
+	extern pid_t corepid;
+
+	printf("pid %ld stopped", corepid);
+	if (why_stop & PD_EVENT) {
+		printf(" at event: %s", eventstr());
+	} else if (why_stop & PD_BPOINT) {
+		if (!stepping) {
+			printf(" at breakpoint");
+		}
+	} else if (why_stop & PD_EXIT) {
+		printf(" while exiting");
+	}
+	printf("\n");
+}
+
+/*
  * run()
  *	Tell slave to run
  */
@@ -166,10 +222,12 @@ run(void)
 	if (sendhim(PD_RUN, args) < 0) {
 		printf("Error telling child to run\n");
 	}
+	why_stop = args[0];
 
 	/*
 	 * Show where he popped up
 	 */
+	cur_event();
 	show_here();
 }
 

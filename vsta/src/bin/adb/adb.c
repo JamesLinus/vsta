@@ -6,12 +6,15 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <setjmp.h>
+#include <std.h>
 #include "map.h"
+
+#define MAXARGS (8)	/* Max # args to :r command */
 
 extern char *getnum();
 extern void breakpoints(void *, int), dump_breakpoints(void);
 
-static pid_t corepid;	/* PID we debug, if any */
+pid_t corepid;		/* PID we debug, if any */
 port_t dbg_port;	/*  ...port we talk to him via */
 
 uint addr, count = 1;	/* Addr/count for each command */
@@ -229,11 +232,36 @@ dump_mem(char *p)
  *	Run a process from the named object file
  */
 static void
-start(void)
+start(char *args)
 {
 	pid_t pid;
 	port_name pn;
 	port_t p;
+	uint argc;
+	char *argv[MAXARGS+1];
+
+	/*
+	 * Build arg list
+	 */
+	SKIP(args);
+	argv[0] = objname;
+	argc = 1;
+	while (*args) {
+		char *q;
+
+		if (argc >= MAXARGS) {
+			printf("Too many arguments\n");
+			return;
+		}
+		argv[argc++] = args;
+		q = strchr(args, ' ');
+		if (q) {
+			*q++ = '\0';
+			args = q;
+			SKIP(args);
+		}
+	}
+	argv[argc] = 0;
 
 	/*
 	 * Launch a child.  We wait until our parent attaches.
@@ -257,7 +285,7 @@ start(void)
 		/*
 		 * Now run the named program
 		 */
-		execl(objname, objname, (char *)0);
+		execv(objname, argv);
 		_exit(1);
 	}
 
@@ -312,7 +340,7 @@ colon_cmds(char *p)
 			printf("Already running\n");
 			break;
 		}
-		start();
+		start(p+1);
 		break;
 	default:
 		printf("Unknown command: :%s\n", p);
