@@ -155,6 +155,10 @@ getppid(void)
 {
 	return(_getid(2));
 }
+
+/*
+ * mmap()
+ */
 void *
 mmap(void *vaddr, ulong len, int prot, int flags, int fd, ulong offset)
 {
@@ -162,4 +166,17 @@ mmap(void *vaddr, ulong len, int prot, int flags, int fd, ulong offset)
 
 	return(_mmap(vaddr, len, prot, flags,
 		fd ? __fd_port(fd) : 0, offset));
+}
+
+/*
+ * vfork()
+ *	Virtual memory efficient fork()
+ *
+ * Since we're already pretty efficient in this respect, we simply issue
+ * a fork() call!
+ */
+int
+vfork(void)
+{
+	return(fork());
 }
