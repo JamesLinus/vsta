@@ -3,9 +3,6 @@
  *	Main routines for test shell
  */
 #include <sys/types.h>
-#ifdef STAND
-#include <sys/ports.h>
-#endif
 #include <sys/fs.h>
 #include <stdio.h>
 #include <ctype.h>
@@ -616,15 +613,13 @@ do_cmd(str)
 main(void)
 {
 #ifdef STAND
-	{
-		port_t scrn, kbd;
+	port_t scrn, kbd;
 
-		kbd = msg_connect(PORT_KBD, ACC_READ);
-		(void)__fd_alloc(kbd);
-		scrn = msg_connect(PORT_CONS, ACC_WRITE);
-		(void)__fd_alloc(scrn);
-		(void)__fd_alloc(scrn);
-	}
+	kbd = path_open("CONS:0", ACC_READ);
+	(void)__fd_alloc(kbd);
+	scrn = path_open("CONS:0", ACC_WRITE);
+	(void)__fd_alloc(scrn);
+	(void)__fd_alloc(scrn);
 #endif
 
 	buf = malloc(NBPG);
