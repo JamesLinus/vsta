@@ -324,26 +324,26 @@ static void
 free_pending_secs(void)
 {
 	uint x;
-	daddr_t *dp;
+	struct alloc *a;
+	ulong freed = 0;
 
 	x = 0;
-	dp = fsroot->fs_freesecs;
-	while ((x < BASE_FREESECS) && fsroot->fs_freesecs[x]) {
-		if ((dp[0] > fsroot->fs_size) ||
-				((dp[0] + dp[1]) > fsroot->fs_size)) {
+	a = fsroot->fs_freesecs;
+	for (; (x < BASE_FREESECS) && a->a_start; ++x, ++a) {
+		if ((a->a_start > fsroot->fs_size) ||
+				((a->a_start + a->a_len) > fsroot->fs_size)) {
 			syslog(LOG_ERR, "Bad pending sectors: %U..%U\n",
-				dp[0], dp[0] + dp[1] - 1);
+				a->a_start, a->a_start + a->a_len - 1);
 			break;
 		}
-		free_block(dp[0], dp[1]);
-		x += 1;
-		dp += 2;
+		free_block(a->a_start, a->a_len);
+		freed += a->a_len;
 	}
 
 	/*
 	 * Clear pending blocks
 	 */
-	bzero(fsroot->fs_freesecs, sizeof(daddr_t) * 2 * BASE_FREESECS);
+	bzero(fsroot->fs_freesecs, sizeof(struct alloc) * BASE_FREESECS);
 	write_sec(BASE_SEC, fsroot);
 
 	/*
@@ -351,6 +351,7 @@ free_pending_secs(void)
 	 */
 	free(fsroot);
 	fsroot = 0;
+	syslog(LOG_INFO, "%U pending sectors freed", freed);
 }
 
 /*
@@ -480,6 +481,8 @@ main(int argc, char *argv[])
 	 */
 	if (fflag) {
 		free_pending_secs();
+	} else if (fsroot->fs_freesecs[0].a_start) {
+		syslog(LOG_INFO, "free sectors pending");
 	}
 
 	/*

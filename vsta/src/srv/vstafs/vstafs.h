@@ -35,6 +35,15 @@
 #define MAX(x, y) (((x) >= (y)) ? (x) : (y))
 
 /*
+ * The <start,len> pair describing file extents and contiguous
+ * chunks on the free list.
+ */
+struct alloc {
+	daddr_t a_start;	/* Starting sector # */
+	ulong a_len;		/* Length, in sectors */
+};
+
+/*
  * The first sector of a filesystem
  */
 #define BASE_SEC ((daddr_t)0)
@@ -43,9 +52,10 @@ struct fs {
 	ulong fs_size;		/* # sectors in filesystem */
 	ulong fs_extsize;	/* Contiguous space allocated on extension */
 	daddr_t fs_free;	/* Start of free list */
-	daddr_t fs_freesecs[0];	/* fsck freed sectors */
+	struct alloc
+		fs_freesecs[0];	/* fsck freed sectors */
 };
-#define BASE_FREESECS ((SECSZ - sizeof(struct fs)) / 2*sizeof(daddr_t))
+#define BASE_FREESECS ((SECSZ - sizeof(struct fs)) / sizeof(struct alloc))
 #define FS_MAGIC (0xDEADFACE)	/* Value for fs_magic */
 
 /*
@@ -57,15 +67,6 @@ struct fs {
  * Sector after is first block of free list entries
  */
 #define FREE_SEC ((daddr_t)2)
-
-/*
- * The <start,len> pair describing file extents and contiguous
- * chunks on the free list.
- */
-struct alloc {
-	daddr_t a_start;	/* Starting sector # */
-	ulong a_len;		/* Length, in sectors */
-};
 
 /*
  * A free list sector
