@@ -137,10 +137,10 @@ check_root(void)
 static int
 valid_block(daddr_t d)
 {
-	if (d <= FREE_SEC) {
+	if (d < ROOT_SEC) {
 		return(0);
 	}
-	if (d > max_blk) {
+	if (d > max_blk+1) {
 		return(0);
 	}
 	return(1);
