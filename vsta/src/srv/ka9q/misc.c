@@ -37,27 +37,6 @@ register char *s;
 	if((cp = index(s,'\n')) != NULLCHAR)
 		*cp = '\0';
 }
-/* Case-insensitive string comparison */
-strncasecmp(a,b,n)
-register char *a,*b;
-register int n;
-{
-	char a1,b1;
-
-	while(n-- != 0 && (a1 = *a++) != '\0' && (b1 = *b++) != '\0'){
-		if(a1 == b1)
-			continue;	/* No need to convert */
-		a1 = tolower(a1);
-		b1 = tolower(b1);
-		if(a1 == b1)
-			continue;	/* NOW they match! */
-		if(a1 > b1)
-			return 1;
-		if(a1 < b1)
-			return -1;
-	}
-	return 0;
-}
 
 int16
 get16(cp)
