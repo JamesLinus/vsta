@@ -860,19 +860,11 @@ rmdir(const char *olddir)
  * realpath()
  *	Fill in absolute path to file
  */
-int
-realpath(char *in, char *out)
+char *
+realpath(const char *in, char *out)
 {
 	char *p;
 	int len;
-
-	/*
-	 * Collapse "." and ".." elements
-	 */
-	strcpy(out, in);
-	if (__dotdot(out)) {
-		return(-1);
-	}
 
 	/*
 	 * Collapse ~/ and ~<name>/...
@@ -880,7 +872,7 @@ realpath(char *in, char *out)
 	if (out[0] == '~') {
 		p = do_home(out);
 		if (p == NULL) {
-			return(-1);
+			return(NULL);
 		}
 		strcpy(out, p);
 		free(p);
@@ -897,8 +889,16 @@ realpath(char *in, char *out)
 	}
 
 	/*
+	 * Collapse "." and ".." elements
+	 */
+	strcpy(out, in);
+	if (__dotdot(out)) {
+		return(NULL);
+	}
+
+	/*
 	 * Success
 	 */
-	return(0);
+	return(out);
 }
 #endif
