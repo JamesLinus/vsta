@@ -6,6 +6,16 @@
 #include <lib/hash.h>
 
 /*
+ * hashval()
+ *	Convert key into hash value
+ */
+static uint
+hashidx(ulong key, uint size)
+{
+	return((key ^ (key >> 2)) % size);
+}
+
+/*
  * hash_alloc()
  *	Allocate a hash data structure of the given hash size
  */
@@ -31,15 +41,16 @@ hash_alloc(int hashsize)
 hash_insert(struct hash *h, long key, void *val)
 {
 	struct hash_node *hn;
-	int idx;
+	uint idx;
 
 	if (!h) {
 		return(1);
 	}
-	idx = key % h->h_hashsize;
+	idx = hashidx(key, h->h_hashsize);
 	hn = malloc(sizeof(struct hash_node));
-	if (!hn)
+	if (!hn) {
 		return(1);
+	}
 	hn->h_key = key;
 	hn->h_data = val;
 	hn->h_next = h->h_hash[idx];
@@ -56,7 +67,7 @@ hash_insert(struct hash *h, long key, void *val)
 hash_delete(struct hash *h, long key)
 {
 	struct hash_node **hnp, *hn;
-	int idx;
+	uint idx;
 
 	if (!h) {
 		return(1);
@@ -68,7 +79,7 @@ hash_delete(struct hash *h, long key)
 	 * we find the node, patch out the current node and
 	 * free it.
 	 */
-	idx = key % h->h_hashsize;
+	idx = hashidx(key, h->h_hashsize);
 	hnp = &h->h_hash[idx];
 	hn = *hnp;
 	while (hn) {
@@ -90,7 +101,7 @@ hash_delete(struct hash *h, long key)
 void
 hash_dealloc(struct hash *h)
 {
-	int x;
+	uint x;
 	struct hash_node *hn, *hnn;
 
 	for (x = 0; x < h->h_hashsize; ++x) {
@@ -110,13 +121,16 @@ void *
 hash_lookup(struct hash *h, long key)
 {
 	struct hash_node *hn;
+	uint idx;
 
 	if (!h) {
 		return(0);
 	}
-	for (hn = h->h_hash[key % h->h_hashsize]; hn; hn = hn->h_next) {
-		if (hn->h_key == key)
+	idx = hashidx(key, h->h_hashsize);
+	for (hn = h->h_hash[idx]; hn; hn = hn->h_next) {
+		if (hn->h_key == key) {
 			return(hn->h_data);
+		}
 	}
 	return(0);
 }
