@@ -395,8 +395,8 @@ oflush()
 tabulate(line)
 	char line[];
 {
-	register char *cp;
-	register int b, t;
+	char *cp, c;
+	int b, t;
 
 	/*
 	 * Toss trailing blanks in the output line.
@@ -415,15 +415,16 @@ tabulate(line)
 	t = b >> 3;
 	b &= 07;
 	if (t > 0)
-		do
+		do {
 			putc('\t', stdout);
-		while (--t);
+		} while (--t);
 	if (b > 0)
-		do
+		do {
 			putc(' ', stdout);
-		while (--b);
-	while (*cp)
-		putc(*cp++, stdout);
+		} while (--b);
+	while (c = *cp++) {
+		putc(c, stdout);
+	}
 	putc('\n', stdout);
 }
 
