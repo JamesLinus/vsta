@@ -93,6 +93,8 @@ extern struct portref *find_portref(struct proc *, port_t),
 extern struct port *find_port(struct proc *, port_t),
 	*delete_port(struct proc *, port_t);
 extern void mmap_cleanup(struct port *);
+extern void ref_port(struct port *, struct portref *),
+	deref_port(struct port *, struct portref *);
 #endif
 
 #endif /* _PORT_H */
