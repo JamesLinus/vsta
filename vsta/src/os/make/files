@@ -5,7 +5,6 @@ mach:
 locore.s
 init.c
 mutex.c
-vm.c
 hat.c
 dbg.c
 isr.c
