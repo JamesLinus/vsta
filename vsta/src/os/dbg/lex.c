@@ -156,7 +156,7 @@ again:
 	/*
 	 * An "identifier"?
 	 */
-	if (isalpha(c)) {
+	if (isalpha(c) || (c == '_')) {
 		/*
 		 * Assemble a "word" out of the input stream, symbol table it
 		 */
