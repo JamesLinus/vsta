@@ -2,27 +2,8 @@
  * hash.c
  *	A hashed lookup mechanism
  */
-
-extern void *malloc();
-
-/*
- * This is the root of the hashed object.  You shouldn't monkey
- * with it directly.
- */
-struct hash {
-	int h_hashsize;		/* Width of h_hash array */
-	struct hash_node	/* Chains under each hash value */
-		*h_hash[1];
-};
-
-/*
- * Hash collision chains.  An internal data structure.
- */
-struct hash_node {
-	struct hash_node *h_next;	/* Next on hash chain */
-	long h_key;			/* Key for this node */
-	void *h_data;			/*  ...corresponding value */
-};
+#include <std.h>
+#include <lib/hash.h>
 
 /*
  * hash_alloc()
@@ -138,4 +119,41 @@ hash_lookup(struct hash *h, long key)
 			return(hn->h_data);
 	}
 	return(0);
+}
+
+/*
+ * hash_size()
+ *	Tell how many elements are stored in the hash
+ */
+uint
+hash_size(struct hash *h)
+{
+	uint x, cnt = 0;
+	struct hash_node *hn;
+
+	for (x = 0; x < h->h_hashsize; ++x) {
+		for (hn = h->h_hash[x]; hn; hn = hn->h_next) {
+			cnt += 1;
+		}
+	}
+	return(cnt);
+}
+
+/*
+ * hash_foreach()
+ *	Enumerate each entry in the hash, invoking a function
+ */
+void
+hash_foreach(struct hash *h, intfun f, void *arg)
+{
+	uint x;
+	struct hash_node *hn;
+
+	for (x = 0; x < h->h_hashsize; ++x) {
+		for (hn = h->h_hash[x]; hn; hn = hn->h_next) {
+			if ((*f)(hn->h_key, hn->h_data, arg)) {
+				return;
+			}
+		}
+	}
 }
