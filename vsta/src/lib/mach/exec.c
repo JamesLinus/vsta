@@ -45,6 +45,14 @@ execv(const char *file, char * const *argv)
 	}
 
 	/*
+	 * Get the port_t for this file, and close the FDL
+	 * state for the port so we don't try to preserve it in the new
+	 * executable (where exec() will steal it).
+	 */
+	port = __fd_port(fd);
+	_fdclose(fd);
+
+	/*
 	 * Fill in the mapfile description from the a.out header
 	 */
 	bzero(&mf, sizeof(mf));
@@ -99,7 +107,7 @@ execv(const char *file, char * const *argv)
 	args = p = mmap(0, plen, PROT_READ|PROT_WRITE,
 		MAP_ANON|MAP_SHARED|MAP_NODEST, 0, 0L);
 	if (p == 0) {
-		close(fd);
+		msg_disconnect(port);
 		return(-1);
 	}
 
@@ -136,16 +144,13 @@ execv(const char *file, char * const *argv)
 
 	/*
 	 * And our signal state
+	 */
 	 __signal_save(p);
 	 p += sig_len;
 
 	/*
-	 * Here we go!  Get the port_t for this file, and close the FDL
-	 * state for the port so we don't try to preserve it in the new
-	 * executable (where exec() has stolen it).
+	 * Here we go!
 	 */
-	port = __fd_port(fd);
-	_fdclose(fd);
 	return(exec(port, &mf, args));
 }
 
