@@ -148,9 +148,8 @@ struct file {
 	uint f_off;	/* Offset within current buffer */
 	ushort f_dir;	/* FS_READ, FS_WRITE */
 	ushort f_nseg;	/* # segments for I/O */
-	seg_t		/*  ...the segments */
-		f_seg[MSGSEGS];
-	off_t f_pos;		/* Offset into device */
+	void *f_buf;	/* Base of buffer for operation */
+	off_t f_pos;	/* Offset into device */
 };
 
 /*
