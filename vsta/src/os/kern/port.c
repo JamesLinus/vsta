@@ -318,7 +318,7 @@ fork_ports(sema_t *s, struct portref **old, struct portref **new, uint nport)
 			new[x] = 0;
 			continue;
 		}
-		if (pr->p_flags & PF_NODUP) {
+		if ((pr == PORT_RESERVED) || (pr->p_flags & PF_NODUP)) {
 			continue;
 		}
 		p_sema(&pr->p_sema, PRIHI);
