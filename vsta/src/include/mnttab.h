@@ -39,5 +39,6 @@ extern void init_mount(char *);
 extern ulong __mount_size(void);
 extern void __mount_save(char *);
 extern char *__mount_restore(char *);
+extern void __get_mntinfo(int *, struct mnttab *);
 
 #endif /* _MNTTAB_H */

@@ -9,10 +9,7 @@
  * macro; this saves code space at the expense of speed.
  */
 
-/*
- * The table
- */
-extern unsigned char __ctab[];
+extern const unsigned char *__get_ctab(void);
 
 /*
  * Bits in each slot
@@ -28,6 +25,13 @@ extern unsigned char __ctab[];
  * Macros
  */
 #ifndef _CT_NOMACS
+
+/*
+ * The table used.  Note that __ctab is queried via __get_ctab()
+ * during C startup, and placed here.
+ */
+extern const unsigned char *__ctab;
+
 #define __bits(c, b) (__ctab[(c) & 0x7F] & (b))
 #define isupper(c) __bits((c), _CT_UPPER)
 #define islower(c) __bits((c), _CT_LOWER)
