@@ -7,6 +7,7 @@
  */
 #include <sys/fs.h>
 #include <std.h>
+#include <unistd.h>
 #include <mnttab.h>
 #include <fcntl.h>
 #include <alloc.h>
@@ -37,6 +38,7 @@ mapmode(int mode)
 	if (mode & O_CREAT) m |= ACC_CREATE;
 	if (mode & O_DIR) m |= ACC_DIR;
 	if (mode & O_CHMOD) m |= ACC_CHMOD;
+	if (mode & O_APPEND) m |= ACC_APPEND;
 	return(m);
 }
 
@@ -449,7 +451,7 @@ fdalloc(port_t newfile)
 int
 open(const char *file, int mode, ...)
 {
-	int x, len, mask;
+	int x, len, mask, fd;
 	port_t newfile;
 	char buf[MAXPATH], *p, *home_buf;
 	struct mnttab *mt, *match = 0;
@@ -607,7 +609,33 @@ open(const char *file, int mode, ...)
 	for (me = match->m_entries; me; me = me->m_next) {
 		newfile = clone(me->m_port);
 		if (try_open(newfile, p, mask, mode) == 0) {
-			return(fdalloc(newfile));
+			/*
+			 * Get a file descriptor
+			 */
+			fd = fdalloc(newfile);
+			if (fd < 0) {
+				msg_disconnect(newfile);
+				return(-1);
+			}
+
+			/*
+			 * If it's an append to a file, move the file
+			 * position to the end here.  Filesystems which
+			 * truly implement O_APPEND will be doing the
+			 * equivalent on each I/O, but this lets legacy
+			 * filesystems behave correctly for most purposes.
+			 */
+			if (mode & ACC_APPEND) {
+				p = rstat(newfile, "size");
+				if (p) {
+					(void)lseek(fd, atoi(p), SEEK_SET);
+				}
+			}
+
+			/*
+			 * Here's your file
+			 */
+			return(fd);
 		}
 		msg_disconnect(newfile);
 	}
