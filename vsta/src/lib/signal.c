@@ -14,11 +14,10 @@
 static __voidfun sigs[_NSIG];
 
 /*
- * strtosig()
+ * __strtosig()
  *	Convert string into signal number
  */
-static
-strtosig(char *e)
+__strtosig(char *e)
 {
 #define MAP(s, e) if (!strcmp(#s, e)) {return(s);};
 	MAP(SIGINT, EINTR);
@@ -26,7 +25,7 @@ strtosig(char *e)
 	MAP(SIGKILL, EKILL);
 	MAP(SIGSEGV, EFAULT);
 #undef MAP
-	return(-1);
+	return(SIGINT);	/* Default */
 }
 
 /*
