@@ -273,8 +273,9 @@ char *prompt;
                 if (gl_tab_hook) {
 		    tmp = gl_pos;
 	            loc = gl_tab_hook(gl_buf, gl_strlen(gl_prompt), &tmp);
-	            if (loc >= 0 || tmp != gl_pos)
+	            if ((loc >= 0) || (loc == -2) || (tmp != gl_pos)) {
 	                gl_fixup(gl_prompt, loc, tmp);
+		    }
                 }
 		break;
 	      case '\013': gl_kill(gl_pos);			/* ^K */

@@ -10,6 +10,8 @@
 #include <stdlib.h>
 #include <dirent.h>
 #include <stat.h>
+#include <termios.h>
+#include <fcntl.h>
 #include "getline.h"
 
 /*
@@ -37,13 +39,28 @@ pos_match(char *s1, char *s2)
 int
 gl_tab_complete(char *buf, int offset, int *locp)
 {
-	/* Don't forget tab-tab to list completions */
 	int buflen = strlen(buf)+1;
 	char *file = malloc(buflen), *dir = malloc(buflen), *p, c, *start,
 		*longest;
-	int pos = *locp, len, unique = 1, uniquedir = 0;
+	int pos = *locp, len, unique = 1, uniquedir = 0, tabtab,
+		ncols = 80, nrows = 25, col = 0;
 	DIR *dp;
 	struct dirent *de;
+	static char *old_buf;
+	static int old_loc;
+
+	/*
+	 * If we re-enter this without changing buffer or position,
+	 * then we assume they typed tab-tab, and we'll arrange to
+	 * display possible completions.
+	 */
+	if (old_buf && !strcmp(old_buf, buf) && (old_loc == *locp)) {
+		tabtab = 1;
+		(void)tcgetsize(0, &nrows, &ncols);
+		(void)write(1, "\n", 1);
+	} else {
+		tabtab = 0;
+	}
 
 	/*
 	 * Extract the filename before the cursor
@@ -85,12 +102,32 @@ gl_tab_complete(char *buf, int offset, int *locp)
 	}
 	longest = NULL;
 	while ((de = readdir(dp))) {
-		int match = pos_match(de->d_name, file);
+		int match = pos_match(de->d_name, file),
+			namelen = strlen(de->d_name);
 
 		/*
 		 * This doesn't match what we've typed
 		 */
 		if (match < strlen(file)) {
+			continue;
+		}
+
+		/*
+		 * If we're only displaying possibilities,
+		 * display it and continue.
+		 */
+		if (tabtab) {
+			if ((col + 2 + namelen) >= ncols) {
+				(void)write(1, "\n", 1);
+				col = namelen;
+			} else {
+				if (col > 0) {
+					col += 1;
+					(void)write(1, " ", 1);
+				}
+				col += namelen;
+			}
+			(void)write(1, de->d_name, namelen);
 			continue;
 		}
 
@@ -154,7 +191,15 @@ gl_tab_complete(char *buf, int offset, int *locp)
 	 * All done... clean up
 	 */
 out:
+	if (tabtab && col) {		/* End trailing line */
+		(void)write(1, "\n", 1);
+	}
+	if (old_buf) {
+		free(old_buf);
+	}
+	old_buf = strdup(buf);		/* Record for tab-tab detection */
+	old_loc = *locp;
 	free(file);
 	free(dir);
-	return(pos);
+	return(tabtab ? -2 : pos);
 }
