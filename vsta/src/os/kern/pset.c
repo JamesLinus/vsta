@@ -513,6 +513,24 @@ dup_slots(struct pset *ops, struct pset *ps)
 }
 
 /*
+ * add_cowset()
+ *	Add a new pset to the list of COW sets under a master
+ */
+static void
+add_cowset(struct pset *psold, struct pset *ps)
+{
+	/*
+	 * Attach to the underlying pset
+	 */
+	ref_pset(psold);
+	p_lock(&psold->p_lock, SPL0);
+	ps->p_cowsets = psold->p_cowsets;
+	psold->p_cowsets = ps;
+	ps->p_cow = psold;
+	v_lock(&psold->p_lock, SPL0);
+}
+
+/*
  * copy_pset()
  *	Copy one pset into another
  *
@@ -547,13 +565,13 @@ copy_pset(struct pset *ops)
 		 * We are a new reference into the file.  Ask
 		 * the server for duplication.
 		 */
-		ps->p_pr = dup_port(ps->p_pr);
+		ps->p_pr = dup_port(ops->p_pr);
 		break;
 	case PT_COW:
 		/*
 		 * This is a new COW reference into the master pset
 		 */
-		ref_pset(ps->p_cow);
+		add_cowset(ops, ps);
 		break;
 	case PT_MEM:
 		/*
@@ -647,17 +665,8 @@ alloc_pset_cow(struct pset *psold, uint off, uint len)
 	ps->p_off = off;
 	ps->p_swapblk = swapblk;
 	ps->p_type = PT_COW;
-	ps->p_cow = psold;
 	ps->p_ops = &psop_cow;
-
-	/*
-	 * Attach to the underlying pset
-	 */
-	ref_pset(psold);
-	p_lock(&psold->p_lock, SPL0);
-	ps->p_cowsets = psold->p_cowsets;
-	psold->p_cowsets = ps;
-	v_lock(&psold->p_lock, SPL0);
+	add_cowset(psold, ps);
 
 	return(ps);
 }
