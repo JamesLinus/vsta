@@ -191,7 +191,10 @@ retry:
 	/*
 	 * kernmsg_send() does this for itself.  We hold the
 	 * semaphore, so we won't race with other I/O clients.
+	 * Since we have the lock, take this opportunity to
+	 * flag that this connection should never be dup'ed.
 	 */
+	pr->p_flags |= PF_NODUP;
 	v_lock(&pr->p_lock, SPL0);
 
 	/*
