@@ -1,0 +1,94 @@
+There are quite a number of files related to user accounts and
+their associated attributes.  This document gives a quick summary
+of what goes where, and does what.
+
+/vsta/etc/passwd
+
+The passwd file is the central database concerning user accounts.  A
+typical line in the passwd file looks like:
+
+vandys:*:1:0:Andy Valencia:usr.vandys:/vandys:vandys:/vsta/bin/sh
+
+The first field, "vandys", is the username.  This is what you enter
+to the login program.
+
+The second field, "*", is the password field.  Passwords are not
+actually stored in /vsta/etc/passwd, but rather in /vsta/etc/shadow.
+More on this below.
+
+The third field, "1", is the "user ID".  In UNIX, this would define
+what files you can access, but not so in VSTa.  Rather, in VSTa,
+the "UID" is simply that: an ID related to one particular logged
+in user.  It is used to answer questions like "who created this
+file?", but not "who can read this file?".
+
+The fourth field, "0", is the "group ID".  This ID indicates a
+specific group in /vsta/etc/group (documented below).  By being
+a member of a particular group, you get capabilities.  So a set
+of capabilities suitable for some particular group of accounts is
+described in /vsta/etc/group for a given group ID.  Then, each user
+account has the same group ID, and they all share those capabilities.
+
+The fifth field, "Andy Valencia", is simply a textual description of
+the person using the account.
+
+The sixth field, "usr.vandys", lists your initial capability.  The
+capability name is hierarchical, and is a reference to the numerical
+counterpart, looked up via /vsta/etc/ids.  So after you log in, your
+capabilities are the sum of this one, plus any additional ones granted
+due to your group ID.
+
+The seventh field, "/vandys", is your home directory.  $HOME gets set
+to this.
+
+The eighth field, "vandys", is your environment path.  Very much unlike
+UNIX, your environment is kept in an external server, which is global
+to the system.  A given user's environment variables exist under /env
+with the given name--/env/vandys, in this case.  Each variable shows
+up as a simple file within that directory.
+
+The ninth field, "/vsta/bin/sh", is your default shell.  $SHELL will be
+set to it, and after successful login this is what will be launched as
+your command interpreter.
+
+/vsta/etc/shadow
+
+The shadow file has the same format as the passwd file, but most of the
+fields are left empty.  The entry corresponding to passwd's example would
+be:
+
+vandys:glarfl:::::::
+
+Which simply encodes that user account "vandys" has the password "glarfl".
+The reason these two files exist is so that the shadow file can be
+given file permissions such that the average user can not read it.  The
+passwd file is left public so that programs like "ls" can convert user
+ID's to user names.
+
+/vsta/etc/ids
+
+ID's and capabilities are very central to protection in VSTa.  This file
+describes ID's, mapping from symbolic names to numbers.  The portion of
+the file concerning the "vandys" account (usr.vandys) is:
+
+usr:3
+	vandys:1
+	jtk:2
+
+So if you're "usr.vandys", numerically you're actually "3.1".  How are
+these used?  See the section "How do capabilities work?" in the file
+/vsta/doc/faq.
+
+/vsta/etc/group
+
+The group ID referenced in the passwd file picks a line from this
+file.  The line for "vandys"'s group (0) is:
+
+root:0:sys.sys
+
+This gives a name ("root") to group 0, and then lists capabilities
+which should be granted to any member of this group.  In this
+case, the single capability "sys.sys" is granted.  So for account
+"vandys", any file which could be accessed by either "usr.vandys"
+*or* by "sys.sys" will be accessible.  There can be zero or more
+capabilities (separated by further colons).
