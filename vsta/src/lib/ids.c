@@ -1,6 +1,6 @@
 /*
  * ids.c
- *	Routines for mapping using the /vsta/etc/ids file
+ *	Routines for mapping using the _PATH_IDS file
  *
  * This code assumes that tab-indented lines represent the
  * position under a parent.  I don't know if this is too
@@ -11,8 +11,7 @@
 #include <stdio.h>
 #include <std.h>
 #include <string.h>
-
-#define IDS "/vsta/etc/ids"
+#include <paths.h>
 
 /*
  * Nodes in our tree
@@ -90,7 +89,7 @@ getent(FILE *fp, char *name, ulong *num, uint *depthp)
 
 /*
  * read_tree2()
- *	Read IDS and build in-core representation
+ *	Read _PATH_IDS and build in-core representation
  */
 static void
 read_tree2(FILE *fp)
@@ -101,7 +100,7 @@ read_tree2(FILE *fp)
 	char name[NAMESZ];
 
 	/*
-	 * Initialize root of tree, open IDS file
+	 * Initialize root of tree, open _PATH_IDS file
 	 */
 	id_init(&root);
 	curn = &root;
@@ -166,14 +165,14 @@ read_tree2(FILE *fp)
 
 /*
  * read_tree()
- *	Open IDS, then call our routine to do the actual reading
+ *	Open _PATH_IDS, then call our routine to do the actual reading
  */
 static void
 read_tree(void)
 {
 	FILE *fp;
 
-	if ((fp = fopen(IDS, "r")) == 0) {
+	if ((fp = fopen(_PATH_IDS, "r")) == 0) {
 		return;
 	}
 	read_tree2(fp);
