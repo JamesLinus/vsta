@@ -6,8 +6,7 @@
 #include <llist.h>
 #include <sys/assert.h>
 #include <std.h>
-
-extern int blkdev;
+#include <fcntl.h>
 
 char *errstr;			/* String for last error */
 static int cached = 0;		/* # blocks currently cached */

@@ -70,6 +70,9 @@ struct file {
 	uint f_perm;		/* Things he can do */
 	ulong f_pos;		/* Byte position in file */
 	struct node *f_node;	/* Either a dosdir or a dosfile */
+	long f_rename_id;	/* Transaction # for rename() */
+	struct msg		/*  ...message for that transaction */
+		*f_rename_msg;
 };
 
 /*
@@ -166,8 +169,9 @@ extern void *bget(int), *bdata(void *), bdirty(void *);
 extern void binit(void), bsync(void), bfree(void *);
 
 /*
- * Directory stuff
+ * Other routines
  */
+extern int valid_fname(char *, int);
 extern struct node *dir_look(struct node *, char *),
 	*dir_newfile(struct file *, char *, int);
 extern int dir_empty(struct node *);
@@ -175,5 +179,23 @@ extern void dir_remove(struct node *);
 extern int dir_copy(struct node *, uint, struct directory *);
 extern void dir_setlen(struct node *);
 extern void root_sync(void), sync(void);
+extern void fat_init(void), binit(void), dir_init(void);
+extern void dos_open(struct msg *, struct file *),
+	dos_close(struct file *),
+	dos_rename(struct msg *, struct file *),
+	cancel_rename(struct file *),
+	dos_read(struct msg *, struct file *),
+	dos_write(struct msg *, struct file *),
+	dos_remove(struct msg *, struct file *),
+	dos_stat(struct msg *, struct file *),
+	dos_fid(struct msg *, struct file *);
+
+/*
+ * Global data
+ */
+extern int blkdev;
+extern struct boot bootb;
+extern uint dirents;
+extern struct node *rootdir;
 
 #endif /* _DOS_H */

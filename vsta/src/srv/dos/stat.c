@@ -8,9 +8,10 @@
  */
 #include <sys/fs.h>
 #include "dos.h"
-#include <std.h>
 #include <sys/param.h>
 #include <syslog.h>
+#include <stdio.h>
+#include <string.h>
 
 /*
  * ytos()
@@ -73,7 +74,6 @@ cvt_time(uint date, uint time)
 {
 	ulong sec;
 	uint leap, t, yd;
-	uint sa, s;
 	const uint dayst = 119,		/* Daylight savings, sort of */
 		dayen = 303;
 

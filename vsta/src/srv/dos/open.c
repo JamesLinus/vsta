@@ -6,8 +6,7 @@
 #include <sys/fs.h>
 #include <sys/assert.h>
 #include <std.h>
-
-extern struct node *rootdir;
+#include <sys/syscall.h>
 
 /*
  * move_file()
@@ -150,8 +149,6 @@ void
 dos_remove(struct msg *m, struct file *f)
 {
 	struct node *n;
-	void *handle;
-	struct directory *d;
 
 	/*
 	 * Need a buffer

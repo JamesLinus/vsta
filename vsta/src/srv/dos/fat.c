@@ -11,11 +11,9 @@
 #include <std.h>
 #include <sys/param.h>
 #include <sys/assert.h>
+#include <fcntl.h>
 #include <syslog.h>
 
-extern int blkdev;	/* Our disk */
-extern struct boot	/* Boot block */
-	bootb;
 static ushort *fat,	/* Our in-core FAT */
 	*fat12;		/*  ...12-bit version, if needed */
 static uint fatlen,	/* Length in FAT16 format */
@@ -203,6 +201,7 @@ fat_init(void)
  *
  * Returns 0 if it could be done; 1 if it failed.
  */
+int
 clust_setlen(struct clust *c, ulong newlen)
 {
 	uint newclust, x, y;
