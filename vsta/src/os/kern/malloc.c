@@ -61,9 +61,10 @@ malloc(uint size)
 
 	/*
 	 * For pages and larger, allocate memory in units of
-	 * pages.
+	 * pages. Power-of-two allocations, so > half page
+	 * also consumes a whole page.
 	 */
-	if (size >= NBPG) {
+	if (size > (NBPG/2)) {
 		int pgs;
 		void *mem;
 
