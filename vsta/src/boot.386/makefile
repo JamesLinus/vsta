@@ -1,4 +1,4 @@
-OBJS= main.obj ptes.obj seg.obj load.obj gdt.obj move.obj
+OBJS= main.obj ptes.obj seg.obj load.obj gdt.obj move.obj util.obj
 CC= bcc
 AS= tasm
 CFLAGS= -v -g1 -ml
@@ -11,9 +11,6 @@ ASFLAGS= -mx
 
 boot: $(OBJS)
 	$(CC) $(CFLAGS) -eboot.exe $(OBJS)
-
-move.asm: move.s
-	copy move.s move.asm
 
 clean:
 	rm -f *.obj boot
