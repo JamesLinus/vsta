@@ -262,16 +262,16 @@ idle_stack(void)
 inline static int
 on_idle_stack(void)
 {
-	extern void *id_stack, *id_bottom;
+	extern void *id_top;
 	int res;
 
 	__asm__ __volatile__ (
 		"	subl %0,%0\n"
-		"	cmpl $_id_stack,%%esp\n"
+		"	cmpl $_id_top,%%esp\n"
 		"	ja 1f\n"
 		"	incl %0\n"
 		"1:"
-		: "=a" (res)
+		: "=r" (res)
 		: /* No input */);
 	return(res);
 }
