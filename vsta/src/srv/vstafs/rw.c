@@ -122,7 +122,8 @@ file_grow(struct fs_file *fs, ulong newsize)
  * at this location.
  */
 struct buf *
-bmap(struct fs_file *fs, ulong pos, uint cnt, char **blkp, uint *stepp)
+bmap(struct buf *b_fs, struct fs_file *fs, ulong pos,
+	uint cnt, char **blkp, uint *stepp)
 {
 	struct alloc *a;
 	uint x;
@@ -133,7 +134,7 @@ bmap(struct fs_file *fs, ulong pos, uint cnt, char **blkp, uint *stepp)
 	/*
 	 * Grow file if needed
 	 */
-	if (pos > fs->fs_len) {
+	if ((pos + cnt) > fs->fs_len) {
 		/*
 		 * Calculate growth.  If more blocks are needed, get
 		 * them now.  Otherwise just fiddle the file length.
@@ -147,6 +148,8 @@ bmap(struct fs_file *fs, ulong pos, uint cnt, char **blkp, uint *stepp)
 		} else {
 			fs->fs_len = pos+cnt;
 		}
+		dirty_buf(b_fs);
+		sync_buf(b_fs);
 	}
 
 	/*
@@ -236,7 +239,7 @@ do_write(struct openfile *o, ulong pos, char *buf, uint cnt)
 		/*
 		 * Find appropriate extent
 		 */
-		b2 = bmap(fs, pos, cnt, &blkp, &step);
+		b2 = bmap(b, fs, pos, cnt, &blkp, &step);
 		if (!b2) {
 			result = 1;
 			break;
@@ -397,7 +400,7 @@ vfs_readdir(struct msg *m, struct file *f)
 		if (step < sizeof(struct fs_dirent)) {
 			char *p;
 
-			if (!bmap(fs, f->f_pos, len-bufcnt, &p, &step)) {
+			if (!bmap(b, fs, f->f_pos, len-bufcnt, &p, &step)) {
 				break;
 			}
 			ASSERT_DEBUG(step >= sizeof(*d),
@@ -512,7 +515,7 @@ vfs_read(struct msg *m, struct file *f)
 		/*
 		 * Get next block of data
 		 */
-		b2 = bufs[nseg] = bmap(fs, f->f_pos, lim-cnt, &p, &sz);
+		b2 = bufs[nseg] = bmap(b, fs, f->f_pos, lim-cnt, &p, &sz);
 		if (b2 == 0) {
 			break;
 		}
