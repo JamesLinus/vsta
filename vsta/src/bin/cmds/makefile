@@ -6,7 +6,7 @@ OBJS= args.o basename.o cat.o changed.o chmod.o cp.o du.o dumpsect.o \
 	echo.o fmt.o fstab.o id.o kill.o ls.o man.o mkdir.o \
 	mv.o printf.o ps.o purge.o pwd.o rcsdo.o rm.o rmdir.o \
 	sleep.o stat.o strings.o swapd.o test.o touch.o tput.o \
-	uname.o wc.o which.o xargs.o dump.o operator.o true.o \
+	uname.o wc.o which.o xargs.o dump.o operators.o true.o \
 	false.o whoami.o
 
 include ../../makefile.all
@@ -80,8 +80,8 @@ id: id.o
 cat: cat.o
 	$(LD) $(LDFLAGS) -o cat $(CRT0) cat.o -lc
 
-test: test.o operator.o
-	$(LD) $(LDFLAGS) -o test $(CRT0) test.o operator.o -lc
+test: test.o operators.o
+	$(LD) $(LDFLAGS) -o test $(CRT0) test.o operators.o -lc
 
 args: args.o
 	$(LD) $(LDFLAGS) -o args $(CRT0) args.o -lc
