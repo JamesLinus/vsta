@@ -18,4 +18,6 @@ fsdb: fsdb.o
 
 install: $(OUT)
 	strip $(OUT)
-	for x in $(OUT) ; do cp $x $(ROOT)/bin/$x_vfs ; done
+	cp fsck $(ROOT)/bin/fsck_vfs
+	cp mkfs $(ROOT)/bin/mkfs_vfs
+	cp fsdb $(ROOT)/bin/fsdb_vfs
