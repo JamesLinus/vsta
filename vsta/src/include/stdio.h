@@ -29,6 +29,7 @@ typedef struct __file {
 #define _F_UNBUF (32)		/* Flush after each put */
 #define _F_LINE (64)		/*  ...after each newline */
 #define _F_SETUP (128)		/* Buffers, etc. set up now */
+#define _F_UBUF (256)		/* User-provided buffer */
 
 /*
  * Smoke and mirrors
@@ -49,7 +50,9 @@ extern FILE __iob[3];
 /*
  * stdio routines
  */
-extern FILE *fopen(char *fname, char *mode);
+extern FILE *fopen(char *fname, char *mode),
+	*freopen(char *, char *, FILE *),
+	*fdopen(int, char *);
 extern int fclose(FILE *),
 	fread(void *, int, int, FILE *),
 	fwrite(void *, int, int, FILE *),
@@ -60,7 +63,8 @@ extern int fclose(FILE *),
 extern off_t fseek(FILE *, off_t, int), ftell(FILE *);
 extern char *gets(char *), *fgets(char *, int, FILE *);
 extern int puts(char *), fputs(char *, FILE *);
-extern void clearerr(FILE *), setbuf(FILE *, char *);
+extern void clearerr(FILE *), setbuf(FILE *, char *),
+	setbuffer(FILE *, char *, uint);
 
 /*
  * Miscellany
