@@ -68,10 +68,15 @@ ll_delete(struct llist *l)
 void
 ll_movehead(struct llist *head, struct llist *l)
 {
-	struct llist *l_back = l->l_back;
-	struct llist *l_forw = l->l_forw;
+	struct llist *l_back;
+	struct llist *l_forw;
 	struct llist *head_forw = head->l_forw;
 
+	if (head_forw == l) {
+		return;
+	}
+	l_back = l->l_back;
+	l_forw = l->l_forw;
 	l_back->l_forw = l_forw;
 	l_forw->l_back = l_back;
 	l->l_forw = head_forw;
