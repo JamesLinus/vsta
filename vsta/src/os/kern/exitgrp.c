@@ -109,7 +109,6 @@ post_exitgrp(struct exitgrp *e, struct proc *p, int code)
 {
 	struct exitst *es;
 
-	printf("post_exitgrp grp 0x%x code %d\n", e, code);
 	/*
 	 * Take a quick, unlocked look.  If it appears 0, it
 	 * can never change back.  We handle the case of it
@@ -159,7 +158,6 @@ wait_exitgrp(struct exitgrp *e)
 	struct exitst *es;
 
 	ASSERT_DEBUG(e->e_parent, "wait_exitgrp: !parent");
-	printf("wait_exitgrp grp 0x%x\n", e);
 retry:
 	p_lock(&e->e_lock, SPL0);
 
