@@ -12,3 +12,28 @@ Converted all servers to use syslog.
 Port of "vim" vi clone editor.
 Floppy driver now works.
 i387 FPU supported by kernel--library support still TBD.
+
+v1.3.3:
+
+/proc filesystem, ps(1) uses this, as does kill(1).
+Canonical ("line") input mode has command line editing and history.
+Stripped a.out format uses one less block, in general.
+Fixed ld(1) bug which broke code living in the last 32 bytes of
+	an a.out image.
+Add cc(1) compiler, based on lcc compiler.  Fast, simple, lousy
+	code generation.
+More support of read-only files in dos filesystem.
+Greatly improved stat(2) emulation.
+Major fixes in permission calculations.  Now works pretty much like
+	it was originally described.
+Fixed namer to allow logins (actually, access to fs/root entry
+	for shlib startup) from other than sys.sys capability.
+Performance tweaks for vstafs.
+Removed various dead code, added more pstat(2) support for kernel
+	config values.
+Added $s/$S to adb to allow incremental symbol table loading (so you
+	can "$s /vsta/lib/libc.shl" and get shlib symbols).
+Allow VM page stealing to be active before swap space is configured.
+	Only stealing of unmodified pages is possible, but this can
+	still be a help on smaller systems.
+Port of "rh" find(1)-like tool using C syntax.
