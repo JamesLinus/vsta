@@ -196,6 +196,7 @@ fstat(int fd, struct stat *s)
 	F(st_mtime, "mtime", 0);
 	F(st_ctime, "ctime", 0);
 	F(st_blksize, "block", NBPG);
+	F(st_blocks, "blocks", NBPG);
 
 	/*
 	 * Set UID/GID

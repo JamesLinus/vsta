@@ -110,6 +110,8 @@
  * mtime
  * atime
  * gen		Access generation--for protecting TTY's between sessions
+ * block	Bytes in a block used on device
+ * blocks	Actual blocks used by entry
  */
 
 /*
