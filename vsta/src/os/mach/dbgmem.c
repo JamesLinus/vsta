@@ -12,7 +12,7 @@
 #define MALLOC_INTERNAL
 #include <sys/malloc.h>
 #include "../mach/locore.h"
-#include "../mach/vm.h"
+#include "../mach/vminline.h"
 
 #define DBG_PAGES (4)
 #define VOFF (NBPG-1)

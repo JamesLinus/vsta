@@ -32,7 +32,7 @@
 #include <sys/percpu.h>
 #include <sys/malloc.h>
 #include "../mach/locore.h"
-#include "../mach/vm.h"
+#include "../mach/vminline.h"
 
 #define NRMAPSLOT (20)		/* # slots for our vaddr map */
 
