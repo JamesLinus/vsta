@@ -326,7 +326,7 @@ generate_stubs(void)
 	 */
 	do_system("cd /tmp; gcc -c sho*.[sc]");
 	unlink(curlib);
-	sprintf(buf, "ar -crs %s /tmp/sho*.o shlib.o syscalls.o", curlib);
+	sprintf(buf, "ar -crs %s /tmp/sho*.o shlib.o shcalls.o", curlib);
 	do_system(buf);
 
 	/*
