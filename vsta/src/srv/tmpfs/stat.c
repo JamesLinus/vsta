@@ -26,14 +26,6 @@ tmpfs_stat(struct msg *m, struct file *f)
 	struct openfile *o;
 
 	/*
-	 * Verify access
-	 */
-	if (!(f->f_perm & ACC_READ)) {
-		msg_err(m->m_sender, EPERM);
-		return;
-	}
-
-	/*
 	 * Calculate length
 	 */
 	o = f->f_file;
