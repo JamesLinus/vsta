@@ -1,0 +1,34 @@
+.ll 74
+.he 'exit(2)'VSTa Manual'exit(2)'
+.fo ''%''
+.sp 2
+.bd 1
+NAME
+.br
+.ti +6
+exit - terminate current thread
+.sp
+.bd 1
+SYNOPSIS
+.br
+.in +6
+.li 3
+#include <std.h>
+
+int exit(int status);
+.sp 1
+.in -6
+.bd 1
+DESCRIPTION
+.br
+.in +6
+The
+.ul 1
+exit()
+system call causes the current thread to terminate.
+If it is the last thread in the given process, the
+process itself terminates.  Process termination generally
+results in a status structure being queued to a
+parent process; see
+.ul 1
+waits(2).
