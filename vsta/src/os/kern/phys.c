@@ -128,6 +128,13 @@ page_wire(void *arg_va, void **arg_pa)
 			goto out;
 		}
 		ASSERT_DEBUG(pp->pp_flags & PP_V, "page_wire: lost page");
+
+		/*
+		 * We're not really attaching anything to the slot
+		 * yet, so don't hold the ref which the fillslot function
+		 * has generated.
+		 */
+		pp->pp_refs -= 1;
 	}
 
 	/*
