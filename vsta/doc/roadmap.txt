@@ -86,6 +86,9 @@ course, are not kept under RCS.
 	src/bin		Command source
 	src/lib		Library source
 
+	If your tree includes the 68030 Amiga port, you will also
+see mach.ami directories.
+
 3. Booting the kernel
 
 cd to the "/vsta/boot" subdir.
