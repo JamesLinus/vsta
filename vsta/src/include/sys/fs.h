@@ -41,13 +41,13 @@
 /*
  * Access modes
  */
-#define ACC_READ 0x4
-#define ACC_WRITE 0x2
-#define ACC_EXEC 0x1
-/* #define ACC_TRUNC 0x8	XXX does ACC_CREATE cover this? */
-#define ACC_CREATE 0x10
-#define ACC_DIR 0x20
-#define ACC_CHMOD 0x40
+#define ACC_EXEC	0x1
+#define ACC_WRITE	0x2
+#define ACC_READ	0x4
+#define ACC_SYM		0x8
+#define ACC_CREATE	0x10
+#define ACC_DIR		0x20
+#define ACC_CHMOD	0x40
 
 /*
  * Standard error strings
@@ -91,6 +91,8 @@
 #define EKILL "kill"
 #define EXDEV "cross dev"
 #define EISDIR "is dir"
+#define ESYMLINK "symlink"
+#define ELOOP "symlink loop"
 
 /*
  * A stat of an entry returns a set of strings with newlines
