@@ -13,6 +13,9 @@ char __err[ERRLEN] = "";	/* Latest error string */
 int _errno = 0;			/* Simulation for POSIX errno */
 int _old_errno = 0;		/* Last used value of the POSIX errno */
 int _err_sync = 0;		/* Used to sync errors in kernel and libc */
+#define NEXIT (32)		/* # atexit() entries permitted */
+static voidfun atexits[NEXIT];
+
 
 /*
  * msg_err()
@@ -55,13 +58,61 @@ notify(long pid, long tid, char *event)
 void volatile
 exit(int val)
 {
+	int x;
 	extern void volatile _exit(int);
 	extern void __allclose();
 
 	__allclose();
+	for (x = 0; x < NEXIT; ++x) {
+		voidfun f = atexits[x];
+		if (f) {
+			(*f)();
+		}
+	}
 	for (;;) {
 		_exit(val & 0xFF);
 	}
+}
+
+/*
+ * atexit()
+ *	Maintain list of things to do on our way out
+ */
+int
+atexit(voidfun f)
+{
+	int x, fidx = -1;
+	voidfun f2;
+
+	/*
+	 * Only put something on the list once
+	 */
+	for (x = 0; x < NEXIT; ++x) {
+		f2 = atexits[x];
+		if (f2 == f) {
+			return(0);
+		}
+
+		/*
+		 * Note a free slot
+		 */
+		if (!f2) {
+			fidx = x;
+		}
+	}
+
+	/*
+	 * No free slots--return an error
+	 */
+	if (fidx == -1) {
+		return(__seterr(ENOMEM));
+	}
+
+	/*
+	 * Record it and return success
+	 */
+	atexits[fidx] = f;
+	return(0);
 }
 
 /*

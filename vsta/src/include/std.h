@@ -46,6 +46,7 @@ extern unsigned long strtoul(const char *s, char **ptr, int base);
 extern int getdtablesize(void);
 extern int system(const char *);
 extern void yield(void);
+extern int atexit(voidfun);
 
 /*
  * GNU C has managed to change this one the last three times I moved

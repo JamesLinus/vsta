@@ -353,3 +353,4 @@ ___fd_iocount hidden
 __fork hidden
 _select
 ___fd_set_iocount hidden
+_atexit
