@@ -150,6 +150,13 @@ main (argc, argv)
 		}
 
 		/*
+		 * Ignore GNU C stuff
+		 */
+		if (!strncmp(name, "__gnu_compiled", 14)) {
+			continue;
+		}
+
+		/*
 		 * Create room for new element, add to newsyms
 		 */
 		newsize += sizeof(struct sym) + strlen(name);
