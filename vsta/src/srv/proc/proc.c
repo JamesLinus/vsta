@@ -397,10 +397,13 @@ kernel_stat(struct msg *m, struct file *f)
 {
 	char buf[MAXSTAT];
 
+	kernel_pstat(f);
 	sprintf(buf,
-		"nsize=1\ntype=f\nowner=0\ninode=%d\nperm=1\nacc=70/0\n",
-		INT_MAX);
-
+		"nsize=1\ntype=f\nowner=0\ninode=%d\nperm=1\nacc=70/0\n"
+		"mem=%u\nfree=%u\nnrun=%u\nuptime=%u\n",
+		INT_MAX,
+		f->f_kern.psk_memory, f->f_kern.psk_freemem,
+		f->f_kern.psk_runnable, f->f_kern.psk_uptime.t_sec);
 	m->m_buf = buf;
 	m->m_arg = m->m_buflen = strlen(buf);
 	m->m_nseg = 1;
