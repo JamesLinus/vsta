@@ -275,7 +275,7 @@ lock_buf(struct buf *b)
 void
 unlock_buf(struct buf *b)
 {
-	ASSERT(b->b_locks > 1, "unlock_buf: underflow");
+	ASSERT(b->b_locks > 0, "unlock_buf: underflow");
 	b->b_locks -= 1;
 }
 
