@@ -637,6 +637,14 @@ msg_disconnect(port_t arg_port)
 		 */
 		return(shut_server(port));
 	} else {
+#ifdef PROC_DEBUG
+		/*
+		 * Prevent miscreant from shutting our debug session
+		 */
+		if (p->p_dbg.pd_name && (arg_port == p->p_dbg.pd_port)) {
+			return(err(EINVAL));
+		}
+#endif
 		/*
 		 * Get the portref, or error.  The slot is now deleted from
 		 * the "open ports" list in the proc.
