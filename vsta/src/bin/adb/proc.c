@@ -18,7 +18,7 @@ extern struct map coremap;
 static int
 sendhim(int op, ulong *args)
 {
-	struct msg m;
+	static struct msg m;
 	int x;
 	static int connected = 0,	/* Have seen MSG_CONNECT */
 		listening = 0;		/* Is currently listening to us */
