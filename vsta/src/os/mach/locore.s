@@ -74,6 +74,16 @@ _header:
 	 */
 	movl	$_id_stack,%esp
 	movl	$_id_stack,%ebp
+
+	/*
+	 * Set our machine flags to something reasonable
+	 */
+	pushfl
+	popl	%eax
+	andl	$~(F_DF|F_IOPL|F_NT|F_RF|F_VM),%eax
+	pushl	%eax
+	popfl
+
 	call	_main
 	hlt
 

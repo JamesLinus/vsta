@@ -52,6 +52,8 @@ main(int argc, char **argv)
 	CONST(GDT_KTEXT);
 	CONST(CR0_EM);
 	CONST(CR0_TS);
+	CONST(F_DF); CONST(F_IOPL); CONST(F_NT);
+	CONST(F_RF); CONST(F_VM);
 
 	/*
 	 * Fields in a jmp_buf
