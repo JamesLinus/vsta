@@ -1,4 +1,4 @@
-#ifdef DEBUG
+#ifdef KDB
 /*
  * mem.c
  *	Routines for examining memory (or an image thereof)
@@ -128,4 +128,4 @@ maploc(ulong off, uint size, int phys)
 	}
 	return(dbg_utl + (off & VOFF));
 }
-#endif
+#endif /* KDB */

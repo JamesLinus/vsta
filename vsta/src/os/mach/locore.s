@@ -14,6 +14,8 @@ _free_pfn: .space	4	/* PFN of first free page beyond data */
 _size_base: .space	4	/* # pages of base (< 640K) memory */
 _size_ext:  .space	4	/*  ... extended (> 1M) memory */
 _boot_pfn:  .space	4	/* PFN of first boot task */
+mainretmsg:
+		.asciz	"main returned"
 
 /*
  * Entered through 32-bit task gate constructed in 16-bit mode
@@ -23,7 +25,7 @@ _boot_pfn:  .space	4	/* PFN of first boot task */
  * we must switch it down to a proper stack.
  */
 	.text
-	.globl	_start,_main,_dbg_enter
+	.globl	_start,_main
 _start:
 #define GETP(var) popl %eax ; movl %eax,_##var
 	GETP(free_pfn)
@@ -39,7 +41,9 @@ _start:
 	movl	$_id_stack,%ebp
 	call	_main
 1:
-	call	_dbg_enter
+	.globl	_panic
+	pushl	$mainretmsg
+	call	_panic
 	jmp	1b
 
 /*

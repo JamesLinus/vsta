@@ -1,4 +1,4 @@
-#ifdef DEBUG
+#ifdef KDB
 /*
  * A standard lexical analyzer
  */
@@ -254,4 +254,4 @@ donum(startc)
 	yylval = atoi(buf);
 	return (INT);
 }
-#endif
+#endif /* KDB */

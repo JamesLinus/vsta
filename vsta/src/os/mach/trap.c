@@ -25,7 +25,7 @@ struct gate *idt;	/* Our IDT for VSTa */
 struct segment *gdt;	/*  ...and GDT */
 struct tss *tss;	/*  ...and TSS */
 
-#ifdef DEBUG
+#ifdef KDB
 /* This can be helpful sometimes while debugging */
 struct trapframe *dbg_trap_frame;
 ulong dbg_fault_addr;
@@ -150,7 +150,7 @@ trap(ulong place_holder)
 	int kern_mode;
 	extern void check_events(), syscall();
 
-#ifdef DEBUG
+#ifdef KDB
 	dbg_trap_frame = f;
 #endif
 	/*

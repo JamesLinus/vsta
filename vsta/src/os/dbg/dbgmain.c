@@ -1,4 +1,4 @@
-#ifdef DEBUG
+#ifdef KDB
 /*
  * crash.c
  *	Main routine for crash program
@@ -248,4 +248,4 @@ set(s)
 	*s = '\0'; ++s;
 	setsym(n, get_num(s));
 }
-#endif
+#endif /* KDB */

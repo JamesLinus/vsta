@@ -74,7 +74,7 @@ struct syscall {
 static
 do_dbg_enter(void)
 {
-#ifdef DEBUG
+#if defined(DEBUG) && defined(KDB)
 	dbg_enter();
 	return(0);
 #else

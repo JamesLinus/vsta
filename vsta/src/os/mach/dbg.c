@@ -5,8 +5,10 @@
  * Hard-wired to talk out the COM1 serial port at 9600 baud.  Does
  * not use interrupts.
  */
+#ifdef KDB
 static char buf[80];		/* Typing buffer */
 static int dbg_init = 0;
+#endif
 static int col = 0;		/* When to wrap */
 
 /*
@@ -55,18 +57,6 @@ rs232_putc(int c)
 }
 
 /*
- * rs232_getc()
- *	Busy-wait and return next character
- */
-static
-rs232_getc(void)
-{
-	while ((inportb(LINESTAT) & 1) == 0)
-		;
-	return(inportb(DATA) & 0x7F);
-}
-
-/*
  * putchar()
  *	Write a character to the debugger port
  *
@@ -85,6 +75,19 @@ putchar(int c)
 		}
 	}
 	rs232_putc(c);
+}
+
+#ifdef KDB
+/*
+ * rs232_getc()
+ *	Busy-wait and return next character
+ */
+static
+rs232_getc(void)
+{
+	while ((inportb(LINESTAT) & 1) == 0)
+		;
+	return(inportb(DATA) & 0x7F);
 }
 
 /*
@@ -148,3 +151,4 @@ dbg_enter(void)
 	printf("[Kernel debugger]\n");
 	dbg_main();
 }
+#endif /* KDB */

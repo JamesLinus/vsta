@@ -1,4 +1,4 @@
-#ifdef DEBUG
+#ifdef KDB
 /*
  * names.c
  *	Stuff for keeping a namelist within the kernel image
@@ -178,4 +178,4 @@ symloc(loc)
 	return(buf);
 }
 
-#endif /* DEBUG */
+#endif /* KDB */

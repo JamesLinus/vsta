@@ -1,4 +1,4 @@
-#ifdef DEBUG
+#ifdef KDB
 /*
  * trace.c
  *	Routines to do stack backtraces
@@ -190,4 +190,4 @@ trapframe(char *p)
 	printf("esp 0x%x:0x%x ebp 0x%x eflags 0x%x\n",
 		f->ess, f->esp, f->ebp, f->eflags);
 }
-#endif
+#endif /* KDB */

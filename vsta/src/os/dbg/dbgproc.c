@@ -1,4 +1,4 @@
-#ifdef DEBUG
+#ifdef KDB
 /*
  * proc.c
  *	Routines to dump out processes
@@ -229,4 +229,4 @@ dump_thread(char *p)
 	dump_thread2(t, 0);
 }
 
-#endif /* DEBUG */
+#endif /* KDB */

@@ -1,4 +1,4 @@
-#ifdef DEBUG
+#ifdef KDB
 /* 
  * disasm.c
  *	Disassembly of i386 opcodes
@@ -1391,4 +1391,4 @@ db_disasm(loc, altfmt)
 	printf("\n");
 	return (loc);
 }
-#endif
+#endif /* KDB */

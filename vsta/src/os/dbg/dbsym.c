@@ -3,7 +3,7 @@
  * Hacked for VSTa by Andy Valencia (jtk@netcom.com).  This file is
  * still in the public domain.
  */
-#ifdef DEBUG
+#ifdef KDB
 #include <stdio.h>
 #include <aout.h>
 #include <dbg/dbg.h>
@@ -222,7 +222,7 @@ main (argc, argv)
 	return(0);
 }
 
-#else /* !DEBUG */
+#else /* !KDB */
 
 /*
  * When not debugging, no need to stuff symbols into kernel
@@ -232,4 +232,4 @@ main()
 	return(0);
 }
 
-#endif
+#endif /* KDB */

@@ -1,4 +1,4 @@
-#ifdef DEBUG
+#ifdef KDB
 /*
  * dump.c
  *	Dump memory in various formats
@@ -479,4 +479,4 @@ dump_ref(char *p)
 		prstate(pr->p_state),
 		pr->p_msg, pr->p_next, pr->p_prev, &pr->p_segs);
 }
-#endif
+#endif /* KDB */

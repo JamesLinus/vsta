@@ -11,7 +11,7 @@
 
 #define NUMBUF (16)	/* Buffer size for numbers */
 
-extern void dbg_enter(), putchar();
+extern void putchar();
 void strcpy();
 
 /*
@@ -148,7 +148,15 @@ panic(char *msg, int arg1, ...)
 	puts(buf);
 	printf("\n", 0);
 	for (;;) {
+#ifdef KDB
+		extern void dbg_enter();
+
 		dbg_enter();
+#else
+		extern void nop();
+
+		nop();
+#endif
 	}
 }
 

@@ -2,7 +2,7 @@
  * dbgio.c
  *	I/O port access
  */
-#if defined(DEBUG) || defined(KDB)
+#ifdef KDB
 extern char *strchr();
 
 /*
@@ -41,4 +41,4 @@ dbg_outport(char *p)
 	printf("0x%x <- 0x%x\n", x, y);
 }
 
-#endif /* DEBUG|KDB */
+#endif /* KDB */
