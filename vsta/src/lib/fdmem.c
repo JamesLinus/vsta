@@ -6,7 +6,7 @@
  * do this using IOSTRG in the buffered file layer, but FDL seems well-
  * suited for it in VSTa, so we'll try it this way.
  */
-#include <sys/types.h>
+#include <sys/fs.h>
 #include <std.h>
 #include <unistd.h>
 #include <fdl.h>
@@ -15,15 +15,31 @@
  * State kept on an active buffer
  */
 struct state {
-	char *s_buf;	/* Buffer, viewed as bytes */
-	uint s_len;	/* # bytes */
+	char *s_buf;		/* Buffer, viewed as bytes */
+	uint s_len;		/* # bytes */
+	uint s_hd, s_tl,	/* Head/tail of circular consumption */
+		s_cnt;		/*  ...amount in ring */
+	uint s_mybuf;		/* Flag that we malloc()'ed the buf */
 };
+
+/*
+ * next()
+ *	Advance to next index value, with circular wrap
+ */
+inline static uint
+next(uint oldidx, struct state *s)
+{
+	if (oldidx >= s->s_len) {
+		return(0);
+	}
+	return(oldidx+1);
+}
 
 /*
  * mem_read()
  *	Read bytes from position
  */
-static
+static int
 mem_read(struct port *port, void *buf, uint nbyte)
 {
 	uint cnt;
@@ -32,12 +48,12 @@ mem_read(struct port *port, void *buf, uint nbyte)
 
 	cnt = 0;
 	p = buf;
-	while (nbyte && (port->p_pos < s->s_len)) {
-		*p = (s->s_buf)[port->p_pos];
-		p += 1;
-		port->p_pos += 1;
+	while (nbyte && s->s_cnt) {
+		*p++ = (s->s_buf)[s->s_tl];
+		s->s_tl = next(s->s_tl, s);
 		cnt += 1;
 		nbyte -= 1;
+		s->s_cnt -= 1;
 	}
 	return(cnt);
 }
@@ -46,7 +62,7 @@ mem_read(struct port *port, void *buf, uint nbyte)
  * mem_write()
  *	Write onto memory buffer
  */
-static
+static int
 mem_write(struct port *port, void *buf, uint nbyte)
 {
 	uint cnt;
@@ -55,42 +71,30 @@ mem_write(struct port *port, void *buf, uint nbyte)
 
 	cnt = 0;
 	p = buf;
-	while (nbyte && (port->p_pos < s->s_len)) {
-		(s->s_buf)[port->p_pos] = *p;
-		p += 1;
-		port->p_pos += 1;
+	while (nbyte && (s->s_cnt < s->s_len)) {
+
+		/*
+		 * Store byte and advance
+		 */
+		(s->s_buf)[s->s_hd] = *p++;
+		s->s_hd = next(s->s_hd, s);
 		cnt += 1;
 		nbyte -= 1;
 	}
+	return(cnt);
 }
 
 /*
  * mem_seek()
  *	Set position in buffer
+ *
+ * An error, since it's a circular memory buffer with no absolute
+ * position.
  */
 static
 mem_seek(struct port *port, off_t off, int whence)
 {
-	off_t l;
-	struct state *s;
-
-	switch (whence) {
-	case SEEK_SET:
-		l = off;
-		break;
-	case SEEK_CUR:
-		l = port->p_pos + off;
-		break;
-	case SEEK_END:
-		s = port->p_data;
-		l = s->s_len;
-		l += off;
-		break;
-	default:
-		return(-1);
-	}
-	port->p_pos = l;
-	return(l);
+	return(__seterr(EINVAL));
 }
 
 /*
@@ -100,7 +104,12 @@ mem_seek(struct port *port, off_t off, int whence)
 static
 mem_close(struct port *port)
 {
-	free(port->p_data);
+	struct state *s = port->p_data;
+
+	if (s->s_mybuf) {
+		free(s->s_buf);
+	}
+	free(s);
 	return(0);
 }
 
@@ -108,6 +117,7 @@ mem_close(struct port *port)
  * fdmem()
  *	Given memory range, open file descriptor view onto the memory
  */
+int
 fdmem(void *buf, uint len)
 {
 	int fd;
@@ -141,9 +151,26 @@ fdmem(void *buf, uint len)
 	p->p_close = mem_close;
 
 	/*
-	 * Record state for this kind of FD
+	 * Record state for this kind of FD.  Note that we set up
+	 * head/tail so they can reflect both a full and an empty
+	 * buffer.  mybuf is 0 for either case, so that failed
+	 * malloc()'s can clean up through the close() vector
+	 * correctly.
 	 */
 	p->p_data = s;
+	s->s_mybuf = 0;
+	if (buf == 0) {
+		buf = malloc(len);
+		if (buf == 0) {
+			close(fd);
+			return(-1);
+		}
+		s->s_mybuf = 1;
+		s->s_cnt = 0;
+	} else {
+		s->s_cnt = len;
+	}
+	s->s_hd = s->s_tl = 0;
 	s->s_buf = buf;
 	s->s_len = len;
 	return(fd);
