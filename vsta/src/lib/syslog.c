@@ -22,7 +22,7 @@ levelmsg(int level)
 	case LOG_ALERT: return("alert");
 	case LOG_CRIT: return("critical");
 	case LOG_ERR: return("error");
-	case LOG_WARNING: return("warnings");
+	case LOG_WARNING: return("warning");
 	case LOG_NOTICE: return("notice");
 	case LOG_INFO: return("info");
 	case LOG_DEBUG: return("debug");
@@ -52,6 +52,9 @@ syslog(int level, char *msg, ...)
 	sprintf(buf + strlen(buf), msg,
 		ARG(msg, 1), ARG(msg, 2), ARG(msg, 3),
 		ARG(msg, 4), ARG(msg, 5), ARG(msg, 6));
+	if (buf[strlen(buf)-1] != '\n') {
+		strcat(buf, "\n");
+	}
 	write(fd, buf, strlen(buf));
 	close(fd);
 }
