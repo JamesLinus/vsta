@@ -278,3 +278,4 @@ _gl_tab_hook hidden
 _sched_op
 _getuid
 _getgid
+__fdclose hidden
