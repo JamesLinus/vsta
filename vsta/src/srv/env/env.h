@@ -75,8 +75,7 @@ extern void env_open(struct msg *, struct file *),
 	env_write(struct msg *, struct file *, uint),
 	env_remove(struct msg *, struct file *),
 	env_stat(struct msg *, struct file *),
-	env_wstat(struct msg *, struct file *),
-	env_seek(struct msg *, struct file *);
+	env_wstat(struct msg *, struct file *);
 extern struct node *alloc_node(struct file *),
 	*clone_node(struct node *);
 extern void ref_node(struct node *), deref_node(struct node *),
