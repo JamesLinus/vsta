@@ -89,3 +89,7 @@ In fork() the portref array is mutexed across the entire dup_port()
 	old portref array and attempting to get portrefs through the
 	usual interface.  This shares more code, and considerably narrows
 	the time for which the proc sema must be held.
+
+Add a flag for pviews to tell if they should be copied/inherited on
+	a fork().  Make sure transient pviews from msg_receive()'s
+	are *not* inherited.
