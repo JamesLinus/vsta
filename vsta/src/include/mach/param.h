@@ -17,6 +17,6 @@
 /*
  * How often our clock "ticks"
  */
-#define HZ (100)
+#define HZ (18)
 
 #endif /* _MACHPARAM_H */
