@@ -47,6 +47,7 @@ phys.c
 exec.c
 exitgrp.c
 ptrace.c
+pstat.c
 
 dbg:
 dbgmain.c

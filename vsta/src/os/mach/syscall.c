@@ -18,8 +18,6 @@
 
 static int do_dbg_enter();
 
-/* #define SYSCALLTRACE /* */
-
 extern int msg_port(), msg_connect(), msg_accept(), msg_send(),
 	msg_receive(), msg_reply(), msg_disconnect(), msg_err();
 extern int do_exit(), fork(), fork_thread(), enable_io(), enable_isr(),
@@ -27,7 +25,7 @@ extern int do_exit(), fork(), fork_thread(), enable_io(), enable_isr(),
 extern int page_wire(), page_release(), enable_dma(), time_get(),
 	time_sleep(), exec(), waits(), perm_ctl(), set_swapdev(),
 	run_qio(), set_cmd(), pageout(), getid(), unhash(),
-	time_set(), ptrace(), nop(), msg_portname();
+	time_set(), ptrace(), nop(), msg_portname(), pstat();
 
 struct syscall {
 	intfun s_fun;
@@ -73,6 +71,11 @@ struct syscall {
 	{nop, 1},
 #endif
 	{msg_portname, 1},			/* 35 */
+#ifdef PSTAT
+	{pstat, 3},				/* 36 */
+#else
+	{nop, 1},
+#endif
 };
 #define NSYSCALL (sizeof(syscalls) / sizeof(struct syscall))
 #define MAXARGS (6)
@@ -145,16 +148,6 @@ syscall(struct trapframe *f)
 	 */
 	f->eflags &= ~F_CF;
 
-#ifdef SYSCALLTRACE
-	{ int x;
-	  printf("%d: syscall %d (", curthread->t_pid, callnum);
-	  for (x = 0; x < s->s_narg; ++x) {
-	    printf(" 0x%x", args[x]);
-	  }
-	  printf(" )\n");
-	}
-#endif
-
 	/*
 	 * Interrupted system calls vector here
 	 */
@@ -194,11 +187,4 @@ syscall(struct trapframe *f)
 	default:
 		ASSERT(0, "syscall: bad s_narg");
 	}
-#ifdef SYSCALLTRACE
-	printf("%d:  --call %d returns 0x%x",
-		curthread->t_pid, callnum, f->eax);
-	printf(" / %s\n", (curthread->t_err[0]) ?
-		curthread->t_err : "<none>");
-	/* dbg_enter(); /* */
-#endif
 }
