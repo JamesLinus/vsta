@@ -19,11 +19,10 @@
 #include <sys/port.h>
 #include <sys/thread.h>
 #include <sys/assert.h>
+#include <sys/malloc.h>
 #include <hash.h>
 
-/* #define MSGTRACE /* */
-
-extern void *malloc(), free(), free_seg(), ref_port(), deref_port();
+extern void free_seg(), ref_port(), deref_port();
 extern struct portref *find_portref();
 extern struct port *find_port();
 extern struct seg *make_seg();
@@ -254,7 +253,7 @@ msg_send(port_t arg_port, struct msg *arg_msg)
 	/*
 	 * Get message body
 	 */
-	m = malloc(sizeof(struct msg));
+	m = MALLOC(sizeof(struct msg), MT_MSG);
 	if (copyin(arg_msg, m, sizeof(struct msg))) {
 		error = err(EFAULT);
 		goto out;
@@ -271,19 +270,15 @@ msg_send(port_t arg_port, struct msg *arg_msg)
 	 */
 	if ((m->m_op & 0xFFF) < M_RESVD) {
 		if ((m->m_op & 0xFFF) != M_TIME) {
-			free(m);
+			FREE(m, MT_MSG);
 			return(err(EINVAL));
 		}
 	}
-#ifdef MSGTRACE
-	printf("msg_send port 0x%x op 0x%x segs %d\n",
-		arg_port, m->m_op, m->m_nseg);
-#endif
 
 	/*
 	 * Construct a system message
 	 */
-	sm = malloc(sizeof(struct sysmsg));
+	sm = MALLOC(sizeof(struct sysmsg), MT_SYSMSG);
 	if (m_to_sm(p->p_vas, m, sm)) {
 		error = -1;
 		goto out;
@@ -326,7 +321,7 @@ msg_send(port_t arg_port, struct msg *arg_msg)
 		 * message before we take the lock, in case we need
 		 * it.
 		 */
-		sm2 = malloc(sizeof(struct sysmsg));
+		sm2 = MALLOC(sizeof(struct sysmsg), MT_SYSMSG);
 		p_lock(&pr->p_lock, SPL0);
 
 		/*
@@ -362,7 +357,7 @@ msg_send(port_t arg_port, struct msg *arg_msg)
 			printf("Port 0x%x, state %d\n", pr, pr->p_state);
 			ASSERT(0, "msg_send: illegal PS state");
 		}
-		free(sm2);
+		FREE(sm2, MT_SYSMSG);
 
 		/*
 		 * Done with I/O on port.  Return error.
@@ -378,9 +373,6 @@ msg_send(port_t arg_port, struct msg *arg_msg)
 		error = err(sm->m_err);
 		goto out;
 	}
-#ifdef MSGTRACE
-	printf("  ...send receives nseg %d\n", sm->m_nseg);
-#endif
 
 	if (sm->m_nseg) {
 		struct segref segrefs;
@@ -432,13 +424,13 @@ out:
 		v_sema(&pr->p_sema);
 	}
 	if (m) {
-		free(m);
+		FREE(m, MT_MSG);
 	}
 	if (sm) {
 		if (sm->m_nseg) {
 			freesegs(sm);
 		}
-		free(sm);
+		FREE(sm, MT_SYSMSG);
 	}
 	return(error);
 }
@@ -545,10 +537,7 @@ msg_receive(port_t arg_port, struct msg *arg_msg)
 	if (port->p_hd == 0) {
 		port->p_tl = 0;
 	}
-#ifdef MSGTRACE
-	printf("msg_receive port 0x%x op 0x%x segs %d\n",
-		arg_port, sm->m_op, sm->m_nseg);
-#endif
+
 	/*
 	 * With lock held, at SPLHI, check for M_ISR.  These are
 	 * special messages we handle carefully to avoid losing
@@ -622,7 +611,7 @@ msg_receive(port_t arg_port, struct msg *arg_msg)
 	 * We now have a message, and are running under an address space
 	 * into which we now may want to map the parts of the message.
 	 */
-	m = malloc(sizeof(struct msg));
+	m = MALLOC(sizeof(struct msg), MT_MSG);
 	if (sm->m_nseg) {
 		error = mapsegs(p, sm, &pr->p_segs);
 		if (error == -1) {
@@ -645,7 +634,7 @@ out:
 	}
 	v_sema(&port->p_sema);
 	if (m) {
-		free(m);
+		FREE(m, MT_MSG);
 	}
 	if (sm && sm->m_nseg) {
 		freesegs(sm);
@@ -670,16 +659,12 @@ msg_reply(long arg_who, struct msg *arg_msg)
 	/*
 	 * Get a copy of the user's reply message
 	 */
-	m = malloc(sizeof(struct msg));
+	m = MALLOC(sizeof(struct msg), MT_MSG);
 	if (copyin(arg_msg, m, sizeof(struct msg))) {
-		free(m);
+		FREE(m, MT_MSG);
 		return(err(EFAULT));
 	}
-#ifdef MSGTRACE
-	printf("msg_reply port 0x%x op 0x%x segs %d\n",
-		arg_who, m->m_op, m->m_nseg);
-#endif
-	sm = malloc(sizeof(struct sysmsg));
+	sm = MALLOC(sizeof(struct sysmsg), MT_SYSMSG);
 
 	/*
 	 * Try to map segments into sysmsg format
@@ -737,8 +722,19 @@ msg_reply(long arg_who, struct msg *arg_msg)
 			v_sema(&pr->p_iowait);
 			new_client(newpr);
 		} else {
-			*(pr->p_msg) = *sm;
-			sm->m_nseg = 0;		/* He has them now */
+			struct sysmsg smtmp;
+
+			/*
+			 * Take his segments (if any) and give him
+			 * ours.  We'll clean his up below.
+			 */
+			smtmp = *(pr->p_msg);
+			*(pr->p_msg) = *sm;	
+			*sm = smtmp;
+
+			/*
+			 * Let him run
+			 */
 			pr->p_state = PS_IODONE;
 			set_sema(&pr->p_svwait, 0);
 			v_sema(&pr->p_iowait);
@@ -781,13 +777,13 @@ out:
 		v_lock(&pr->p_lock, SPL0);
 	}
 	if (m) {
-		free(m);
+		FREE(m, MT_MSG);
 	}
 	if (sm) {
 		if (sm->m_nseg) {
 			freesegs(sm);
 		}
-		free(sm);
+		FREE(sm, MT_SYSMSG);
 	}
 	return(error);
 }
