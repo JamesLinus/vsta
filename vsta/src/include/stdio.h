@@ -51,8 +51,8 @@ extern FILE __iob[3];
  */
 extern FILE *fopen(char *fname, char *mode);
 extern int fclose(FILE *),
-	fread(void *buf, int size, int nelem, FILE *f),
-	fwrite(void *buf, int size, int nelem, FILE *f),
+	fread(void *, int, int, FILE *),
+	fwrite(void *, int, int, FILE *),
 	feof(FILE *), ferror(FILE *),
 	getc(FILE *), putc(int, FILE *),
 	fgetc(FILE *), fputc(int, FILE *),
