@@ -89,10 +89,10 @@ putc(char c, FILE *fp)
 /*
  * Pre-allocated stdio structs
  */
-extern FILE (*__iob)[];
-#define stdin (&__iob[0])
-#define stdout (&__iob[1])
-#define stderr (&__iob[2])
+extern FILE *__iob, *__get_iob();
+#define stdin (__iob)
+#define stdout (__iob+1)
+#define stderr (__iob+2)
 
 /*
  * stdio routines
