@@ -17,10 +17,10 @@
 
 #define K (1024)
 
-extern void init_trap();
+/* a.out header is part of first page of text */
+#define KERN_AOUT_HDR ((struct aout *)0x1000)
 
-extern char end[],	/* Where heap starts */
-	etext[];	/* End of text */
+extern void init_trap();
 
 char *mem_map_base;	/* Base of P->V mapping area */
 char *heap,		/* Physical heap used during bootup */
@@ -187,13 +187,19 @@ init_machdep(void)
 	}
 
 	/*
-	 * Build entry 1--map of data
+	 * Build entry 1--map of data.  Data always starts at 4 Mb
+	 * virtual, but its actual contents is merely the next physical
+	 * page after the end of text.  This is calculated as one
+	 * page for the invalid NULL page, the size of the a.out header
+	 * (which resides just before text), and the size of text
+	 * itself.
 	 */
 	pt = (pte_t *)heap; heap += NBPG;
 	cr3[L1PT_DATA] = (ulong)pt | PT_V|PT_W;
 	bzero(pt, NBPG);
-	x = btorp(etext);
-	for (y = 0; x < btorp(end); ++x,++y) {
+	x = btorp(NBPG + sizeof(struct aout) + KERN_AOUT_HDR->a_text);
+	pgs = btorp(KERN_AOUT_HDR->a_data + KERN_AOUT_HDR->a_bss);
+	for (y = 0; y < pgs; ++x,++y) {
 		pt[y] = (x << PT_PFNSHIFT) | PT_V|PT_W;
 	}
 
