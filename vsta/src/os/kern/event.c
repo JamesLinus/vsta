@@ -364,10 +364,13 @@ struct pgrp *
 alloc_pgrp(void)
 {
 	struct pgrp *pg;
+	uint len;
 
 	pg = malloc(sizeof(struct pgrp));
 	pg->pg_nmember = 0;
-	pg->pg_members = malloc(PG_GROWTH * sizeof(ulong));
+	len = PG_GROWTH * sizeof(ulong);
+	pg->pg_members = malloc(len);
+	bzero(pg->pg_members, len);
 	pg->pg_nelem = PG_GROWTH;
 	init_sema(&pg->pg_sema);
 	return(pg);
