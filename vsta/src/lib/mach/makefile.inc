@@ -4,7 +4,7 @@
 #
 
 # Objects to be contributed to libc.a
-MACHOBJS=io.o mem.o misc.o setjmp.o gnufuncs.o exec.o syscalls.o
+MACHOBJS=io.o mem.o misc.o setjmp.o gnufuncs.o exec.o syscalls.o floats.o
 
 # Extra targets to be built
 MACHTARGS=libdpart.a
@@ -30,6 +30,8 @@ lock.o:	mach/lock.s
 	$(CPP) mach/lock.s /tmp/lock.st
 	$(AS) -o lock.o /tmp/lock.st
 	rm -f /tmp/lock.st
+floats.o: mach/floats.s
+	$(AS) -o floats.o mach/floats.s
 
 # crt0, standard version and one with boot server support
 crt0.o: mach/crt0.s
