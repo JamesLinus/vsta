@@ -327,6 +327,12 @@ tcsetattr(int fd, int flag, struct termios *t)
 			(t->c_lflag & (ISIG | ICANON)) == (ISIG | ICANON));
 		(void)wstat(port->p_port, buf);
 	}
+	if ((t->c_lflag & (ONLCR | ICANON)) !=
+			(tty_state.c_lflag & (ONLCR | ICANON))) {
+		sprintf(buf, "ocrnl=%d\n",
+			(t->c_lflag & (ONLCR | ICANON)) == (ONLCR | ICANON));
+		(void)wstat(port->p_port, buf);
+	}
 	bcopy(t, &tty_state, sizeof(tty_state));
 	return(0);
 }
@@ -406,11 +412,11 @@ tcgetsize(int fd, int *rowsp, int *colsp)
 	}
 	p = rstat(port, "rows");
 	if (!p || (sscanf(p, "%d", &rows) != 1)) {
-		return(-1);
+		return(__seterr(ENOTSUP));
 	}
 	p = rstat(port, "cols");
 	if (!p || (sscanf(p, "%d", &cols) != 1)) {
-		return(-1);
+		return(__seterr(ENOTSUP));
 	}
 	*rowsp = rows;
 	*colsp = cols;
