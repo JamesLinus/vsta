@@ -497,6 +497,7 @@ create_conn(struct tcp_port *t)
 	ll_init(&c->t_readers);
 	ll_init(&c->t_writers);
 	c->t_port = t;
+	c->t_conn = idx;
 
 	return(c);
 }
@@ -695,11 +696,9 @@ inetfs_state(struct tcb *tcb, char old, char new)
 		if (tcb->flags & CLONE) {
 			c2 = create_conn(c->t_port);
 			c2->t_tcb = tcb;
-			c2->t_conn = c->t_conn;
 			tcb->user = c2;
-		} else {
-			cleario(&c->t_writers, 0);
 		}
+		cleario(&c->t_writers, 0);
 		break;
 
 	case FINWAIT1:
@@ -808,7 +807,7 @@ inetfs_conn(struct msg *m, struct client *cl, char *val)
 	/*
 	 * Don't permit if connection already initiated
 	 */
-	if (t->t_maxconn > 0) {
+	if ((t->t_maxconn > 0) && (mode != TCP_SERVER)) {
 		msg_err(m->m_sender, EBUSY);
 		return;
 	}
@@ -817,7 +816,6 @@ inetfs_conn(struct msg *m, struct client *cl, char *val)
 	 * Get tcp_conn first
 	 */
 	c = create_conn(t);
-	c->t_conn = cl->c_pos;
 
 	/*
 	 * Request connection, with upcall connections
