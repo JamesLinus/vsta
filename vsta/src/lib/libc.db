@@ -394,3 +394,5 @@ _gethostname
 ___fd_clone hidden
 _fork_env hidden
 _clone_mount hidden
+_killpg
+_fd_rstat

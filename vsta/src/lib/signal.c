@@ -787,7 +787,7 @@ sigsuspend(sigset_t *set)
 }
 
 /*
- * kill
+ * kill()
  *	Send signal to a process
  */
 int
@@ -1124,4 +1124,14 @@ strsignal(int sig)
 	case SIGBUS: return("SIGBUS");
 	default: return("Unknown");
 	}
+}
+
+/*
+ * killpg()
+ *	Send signal to process group of PID
+ */
+int
+killpg(pid_t pid, int sig)
+{
+	return(kill2(pid, -1, sig));
 }
