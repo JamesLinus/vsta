@@ -214,7 +214,7 @@ void
 free(void *mem)
 {
 	struct page *page;
-	int pg, x;
+	uint pg, x;
 	struct freehead *f;
 	struct bucket *b;
 	char *p;
@@ -239,13 +239,22 @@ free(void *mem)
 	p_lock(&b->b_lock, SPL0);
 
 	/*
+	 * Free chunk to bucket
+	 */
+	f = mem;
+	f->f_forw = b->b_mem.f_forw;
+	f->f_back = &b->b_mem;
+	b->b_mem.f_forw->f_back = f;
+	b->b_mem.f_forw = f;
+	b->b_elems += 1;
+
+	/*
 	 * Update count.  If all elements in page are free, take
-	 * back the page.  It might be good to see if this leaves the
-	 * bucket empty.  I suspect that fragmentation of page use
-	 * will usually make this check superfluous.
+	 * back the page.  We will never do this if it would leave
+	 * the bucket empty.
 	 */
 	page->p_out -= 1;
-	if (page->p_out == 0) {
+	if ((page->p_out == 0) && (b->b_elems > (NBPG / b->b_size))) {
 		char *p;
 
 		/*
@@ -253,7 +262,7 @@ free(void *mem)
 		 * As we built our free list doubly-linked, we can
 		 * then do an in-place removal.
 		 */
-		p = (char *)((ulong)mem & (NBPG-1));
+		p = (char *)((ulong)mem & ~(NBPG-1));
 		for (x = 0; x < NBPG; x += b->b_size) {
 			f = (struct freehead *)(p + x);
 			f->f_back->f_forw = f->f_forw;
@@ -266,15 +275,6 @@ free(void *mem)
 		return;
 	}
 
-	/*
-	 * Free chunk to bucket
-	 */
-	f = mem;
-	f->f_forw = b->b_mem.f_forw;
-	f->f_back = &b->b_mem;
-	b->b_mem.f_forw->f_back = f;
-	b->b_mem.f_forw = f;
-	b->b_elems += 1;
 	v_lock(&b->b_lock, SPL0);
 }
 
