@@ -7,37 +7,43 @@ LIBS= -lc
 .c.o:
 	$(CC) $(CFLAGS) -c $*.c
 
-all: test args cat id ls swapd rm cp sleep mkdir
+all: test args cat id ls swapd rm cp sleep mkdir pwd kill
+
+pwd: pwd.o
+	$(LD) $(LDFLAGS) -o pwd ../../libc/crt0.o pwd.o -lc
+
+kill: kill.o
+	$(LD) $(LDFLAGS) -o kill ../../libc/crt0.o kill.o -lc
 
 mkdir: mkdir.o
-	$(LD) $(LDFLAGS) -e start -o mkdir ../../libc/crt0.o mkdir.o -lc
+	$(LD) $(LDFLAGS) -o mkdir ../../libc/crt0.o mkdir.o -lc
 
 sleep: sleep.o
-	$(LD) $(LDFLAGS) -e start -o sleep ../../libc/crt0.o sleep.o -lc
+	$(LD) $(LDFLAGS) -o sleep ../../libc/crt0.o sleep.o -lc
 
 cp: cp.o
-	$(LD) $(LDFLAGS) -e start -o cp ../../libc/crt0.o cp.o -lc
+	$(LD) $(LDFLAGS) -o cp ../../libc/crt0.o cp.o -lc
 
 rm: rm.o
-	$(LD) $(LDFLAGS) -e start -o rm ../../libc/crt0.o rm.o -lc
+	$(LD) $(LDFLAGS) -o rm ../../libc/crt0.o rm.o -lc
 
 swapd: swapd.o
-	$(LD) $(LDFLAGS) -e start -o swapd ../../libc/crt0.o swapd.o -lc
+	$(LD) $(LDFLAGS) -o swapd ../../libc/crt0.o swapd.o -lc
 
 ls: ls.o
-	$(LD) $(LDFLAGS) -e start -o ls ../../libc/crt0.o ls.o -lusr -lc
+	$(LD) $(LDFLAGS) -o ls ../../libc/crt0.o ls.o -lusr -lc
 
 id: id.o
-	$(LD) $(LDFLAGS) -e start -o id ../../libc/crt0.o id.o -lc
+	$(LD) $(LDFLAGS) -o id ../../libc/crt0.o id.o -lc
 
 cat: cat.o
-	$(LD) $(LDFLAGS) -e start -o cat ../../libc/crt0.o cat.o -lc
+	$(LD) $(LDFLAGS) -o cat ../../libc/crt0.o cat.o -lc
 
 test: test.o
-	$(LD) $(LDFLAGS) -e start -o test ../../libc/crt0.o test.o -lc
+	$(LD) $(LDFLAGS) -o test ../../libc/crt0.o test.o -lc
 
 args: args.o
-	$(LD) $(LDFLAGS) -e start -o args ../../libc/crt0.o args.o -lc
+	$(LD) $(LDFLAGS) -o args ../../libc/crt0.o args.o -lc
 
 clean:
 	del *.o
@@ -51,3 +57,5 @@ clean:
 	del cp
 	del mkdir
 	del sleep
+	del pwd
+	del kill
