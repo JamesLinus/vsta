@@ -27,7 +27,7 @@ BIN=$(LAW) bin boot doc etc include $(LIB)
 SRCSRV=src/srv/bfs src/srv/cdfs src/srv/devnull src/srv/dos \
 	src/srv/env src/srv/mach src/srv/namer src/srv/pipe \
 	src/srv/proc src/srv/sema src/srv/swap src/srv/tmpfs \
-	src/srv/vstafs src/srv/tick src/srv/selfs
+	src/srv/vstafs src/srv/tick src/srv/selfs src/srv/pty
 
 # Core source distribution
 SRC=$(LAW) mkdist.mk src/makefile.all \
@@ -111,7 +111,7 @@ CONTRIB=src/contrib/rd src/contrib/consexp
 # Default: make a distribution
 dist: bindist srcdist make txt sh ed fun bc gzip sc small gcc \
 	mgrdist lang net python diff account graphics sim misc \
-	srccvs misclang
+	srccvs misclang contrib
 
 # Create backup
 backup: srcdist make txt sh ed fun bc gzip sc small gcc \
