@@ -12,10 +12,11 @@ typedef void (*cmdfun)(char *);
 
 static int fd;		/* fd and port for file we're accessing */
 static port_t port;
+static FILE *tmpf;
 
 static void my_read(char *), my_stat(char *), my_write(char *),
 	my_wstat(char *), my_exit(char *);
-static void dump_s(char *, uint), my_sleep(char *);
+static void dump_s(char *, uint), my_sleep(char *), my_dot(char *);
 
 /*
  * Table of commands
@@ -24,6 +25,7 @@ static struct {
 	char *c_name;	/* Name of command */
 	cmdfun c_fn;	/* Function to process the command */
 } cmdtab[] = {
+	".", my_dot,
 	"exit", my_exit,
 	"read", my_read,
 	"sleep", my_sleep,
@@ -121,6 +123,15 @@ my_write(char *p)
 
 	if (!p) {
 		return;
+	}
+
+	/*
+	 * Concatenate a newline unless it's "-n"
+	 */
+	if (!strncmp(p, "-n ", 3)) {
+		p += 3;
+	} else {
+		strcat(p, "\n");
 	}
 
 	/*
@@ -229,6 +240,23 @@ my_cmd(char *str)
 	(*cmdtab[match].c_fn)(p ? p+1 : p);
 }
 
+/*
+ * my_dot()
+ *	Source a file
+ */
+static void
+my_dot(char *p)
+{
+	if (!p || !*p) {
+		return;
+	}
+	if (tmpf) {
+		printf("Can't nest\n");
+		return;
+	}
+	tmpf = fopen(p, "r");
+}
+
 int
 main(int argc, char **argv)
 {
@@ -260,8 +288,18 @@ main(int argc, char **argv)
 	 * Command loop
 	 */
 	for (;;) {
-		printf("->"); fflush(stdout);
-		gets(buf);
+		if (tmpf) {
+			if (fgets(buf, sizeof(buf), tmpf) == 0) {
+				fclose(tmpf);
+				tmpf = 0;
+				continue;
+			}
+			buf[strlen(buf)-1] = '\0';
+		} else {
+			printf("->");
+			fflush(stdout);
+			gets(buf);
+		}
 		if (buf[0] == '\0') {
 			continue;
 		}
