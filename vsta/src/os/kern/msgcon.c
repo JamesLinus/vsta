@@ -75,9 +75,9 @@ deref_port(struct port *port, struct portref *pr)
 			ASSERT(!blocked_sema(&port->p_wait),
 				"deref_port: waiters");
 			port->p_refs = 0;
-			sm = port->p_hd;
-			if (sm != 0) {
-				ASSERT(sm->m_op == M_ISR,
+			for (sm = port->p_hd; sm; sm = sm->m_next) {
+				ASSERT((sm->m_op == M_ISR) ||
+					(sm->m_op == M_CONNECT),
 					"deref_port: messages");
 			}
 		}
