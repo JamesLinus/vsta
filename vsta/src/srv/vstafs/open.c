@@ -9,6 +9,96 @@
 #include <sys/assert.h>
 
 /*
+ * file_shrink()
+ *	Trim a file down to the specified length
+ *
+ * Does not handle freeing of actual fs_file data.
+ */
+static void
+file_shrink(struct openfile *o, ulong len)
+{
+	struct fs_file *fs;
+	struct buf *b;
+	ulong pos;
+	uint idx, y;
+	struct alloc *a;
+
+	ASSERT_DEBUG(len >= sizeof(struct fs_file), "file_shrink: too small");
+
+	/*
+	 * Get file, apply sanity checks
+	 */
+	fs = getfs(o, &b);
+	ASSERT(fs, "file_shrink: can't map file");
+	ASSERT_DEBUG(len <= fs->fs_len, "file_shrink: grow");
+
+	/*
+	 * Scan the extents
+	 */
+	pos = 0;
+	a = fs->fs_blks;
+	for (idx = 0; idx < fs->fs_nblk; ++idx,++a) {
+		ulong npos;
+
+		/*
+		 * Continue loop while offset is below
+		 */
+		npos = pos + stob(a->a_len);
+		if (npos <= len) {
+			pos = npos;
+			continue;
+		}
+
+		/*
+		 * Trim extent if it's partially truncated
+		 */
+		y = btors(len - pos);
+		if (y > 0) {
+			/*
+			 * Reconfigure any buffer, free excess storage.
+			 */
+			if (a->a_len > EXTSIZ) {
+				inval_buf(a->a_start + EXTSIZ,
+					a->a_len - EXTSIZ);
+			}
+			resize_buf(a->a_start, y, 0);
+			free_block(a->a_start + y, a->a_len - y);
+			a->a_len = y;
+
+			/*
+			 * If this was extent 0, our buffer data
+			 * might move on the resize.  Re-access
+			 * it.
+			 */
+			fs = index_buf(b, 0, 1);
+
+			/*
+			 * This extent is finished, advance to next
+			 */
+			a += 1;
+			idx += 1;
+		}
+
+		/*
+		 * Now dump the remaining extents
+		 */
+		for (y = idx; y < fs->fs_nblk; ++y,++a) {
+			inval_buf(a->a_start, a->a_len);
+			free_block(a->a_start, a->a_len);
+		}
+		fs->fs_nblk = idx;
+		break;
+	}
+
+	/*
+	 * Flag buffer as dirty, update length
+	 */
+	dirty_buf(b);
+	o->o_len = fs->fs_len = len;
+	sync_buf(b);
+}
+
+/*
  * getfs()
  *	Given openfile, return pointer to its fs_file
  *
@@ -39,9 +129,9 @@ getfs(struct openfile *o, struct buf **bp)
  * findent()
  *	Given a buffer-full of fs_dirent's, look up a filename
  *
- * Returns a pointer to an openfile on success, 0 on failure.
+ * Returns a pointer to a dirent on success, 0 on failure.
  */
-static struct openfile *
+static struct fs_dirent *
 findent(struct fs_dirent *d, uint nent, char *name)
 {
 	for ( ; nent > 0; ++d,--nent) {
@@ -67,10 +157,9 @@ findent(struct fs_dirent *d, uint nent, char *name)
 		}
 
 		/*
-		 * Found it!  Let our node layer take it, and return the
-		 * result.
+		 * Return matching dir entry
 		 */
-		return(get_node(d->fs_clstart));
+		return(d);
 	}
 	return(0);
 }
@@ -84,7 +173,8 @@ findent(struct fs_dirent *d, uint nent, char *name)
  * "b" is assumed locked on entry; will remain locked in this routine.
  */
 static struct openfile *
-dir_lookup(struct buf *b, struct fs_file *fs, char *name)
+dir_lookup(struct buf *b, struct fs_file *fs, char *name,
+	struct fs_dirent **dep, struct buf **bp)
 {
 	struct buf *b2;
 	uint extent;
@@ -101,7 +191,6 @@ dir_lookup(struct buf *b, struct fs_file *fs, char *name)
 		 */
 		for (x = 0; x < a->a_len; x += EXTSIZ) {
 			struct fs_dirent *d;
-			struct openfile *o;
 
 			/*
 			 * Figure out size of next buffer-full
@@ -132,8 +221,22 @@ dir_lookup(struct buf *b, struct fs_file *fs, char *name)
 			/*
 			 * Look for our filename
 			 */
-			o = findent(d, len/sizeof(struct fs_dirent), name);
-			if (o) {
+			d = findent(d, len/sizeof(struct fs_dirent), name);
+			if (d) {
+				struct openfile *o;
+
+				/*
+				 * Found it.  Get node, and fill in
+				 * our information.
+				 */
+				o = get_node(d->fs_clstart);
+				if (!o) {
+					return(0);
+				}
+				if (dep) {
+					*dep = d;
+					*bp = b2;
+				}
 				return(o);
 			}
 		}
@@ -231,8 +334,8 @@ create_file(struct file *f, uint type)
 static void
 uncreate_file(struct openfile *o)
 {
-	int x;
-	struct fs_file *fs, fshold;
+	struct fs_file *fs;
+	struct alloc *a;
 
 	ASSERT(o->o_refs == 1, "uncreate_file: refs");
 
@@ -241,36 +344,20 @@ uncreate_file(struct openfile *o)
 	 */
 	fs = getfs(o, 0);
 	ASSERT(fs, "uncreate_file: buffer access failed");
-	fshold = *fs;
 
 	/*
-	 * Free all allocated blocks, then free openfile itself.  Note we
-	 * work our way from the top down, so we hit the buffer containing
-	 * the file structure itself last.
+	 * Dump all but the fs_file
 	 */
-	for (x = fshold.fs_nblk-1; x >= 0; --x) {
-		struct alloc *a = &fshold.fs_blks[x];
-		uint y;
+	file_shrink(o, sizeof(struct fs_file));
 
-		/*
-		 * Invalidate out any buffers associated with
-		 * the file's data.
-		 */
-		for (y = 0; y < a->a_len; y += EXTSIZ) {
-			ulong len;
-
-			len = a->a_len - y;
-			if (len > EXTSIZ)
-				len = EXTSIZ;
-			inval_buf(a->a_start + y, (uint)y);
-		}
-
-		/*
-		 * Now release the physical storage
-		 */
-		free_block(a->a_start, a->a_len);
-	}
-	free(o);
+	/*
+	 * Dump the file header, and free the openfile
+	 */
+	a = &fs->fs_blks[0];
+	ASSERT_DEBUG(a->a_len == 1, "uncreate_file: too many left");
+	free_block(a->a_start, 1);
+	inval_buf(a->a_start, 1);
+	deref_node(o);
 }
 
 /*
@@ -439,7 +526,7 @@ vfs_open(struct msg *m, struct file *f)
 	 * Look up name, make sure "fs" stays valid
 	 */
 	lock_buf(b);
-	o = dir_lookup(b, fs, m->m_buf);
+	o = dir_lookup(b, fs, m->m_buf, 0, 0);
 	unlock_buf(b);
 
 	/*
@@ -454,6 +541,14 @@ vfs_open(struct msg *m, struct file *f)
 	 * If it's a new file, allocate the entry now.
 	 */
 	if (!o) {
+		/*
+		 * Allowed?
+		 */
+		if ((f->f_perm & (ACC_WRITE|ACC_CHMOD)) == 0) {
+			msg_err(m->m_sender, EPERM);
+			return;
+		}
+
 		/*
 		 * Failure?
 		 */
@@ -480,6 +575,7 @@ vfs_open(struct msg *m, struct file *f)
 	 */
 	x = perm_calc(f->f_perms, f->f_nperm, &fs->fs_prot);
 	if ((m->m_arg & x) != m->m_arg) {
+		deref_node(o);
 		msg_err(m->m_sender, EPERM);
 		return;
 	}
@@ -488,21 +584,13 @@ vfs_open(struct msg *m, struct file *f)
 	 * If they wanted it truncated, do it now
 	 */
 	if (m->m_arg & ACC_CREATE) {
-		struct openfile *o2;
-
-		/*
-		 * Much easier to just allocate a new initial file, and
-		 * slam it onto the existintg open file description.
-		 */
-		o2 = create_file(f, (m->m_arg & ACC_DIR) ? FT_DIR : FT_FILE);
-		uncreate_file(o);
-		*o = *o2;
+		file_shrink(o, sizeof(struct fs_file));
 	}
 
 	/*
 	 * Move to this file
 	 */
-	f->f_file = o; ref_node(o);
+	f->f_file = o;
 	f->f_perm = m->m_arg | (x & ACC_CHMOD);
 	m->m_nseg = m->m_arg = m->m_arg1 = 0;
 	msg_reply(m->m_sender, m);
@@ -532,15 +620,16 @@ vfs_close(struct file *f)
 void
 vfs_remove(struct msg *m, struct file *f)
 {
-	struct buf *b;
+	struct buf *b, *b2;
 	struct fs_file *fs;
 	struct openfile *o;
 	uint x;
+	struct fs_dirent *de;
 
 	/*
 	 * Look at file structure
 	 */
-	fs = getfs(o, &b);
+	fs = getfs(f->f_file, &b);
 	if (fs == 0) {
 		msg_err(m->m_sender, strerror());
 		return;
@@ -558,7 +647,7 @@ vfs_remove(struct msg *m, struct file *f)
 	 * Look up entry.  Bail if no such file.
 	 */
 	lock_buf(b);
-	o = dir_lookup(b, fs, m->m_buf);
+	o = dir_lookup(b, fs, m->m_buf, &de, &b2);
 	unlock_buf(b);
 	if (o == 0) {
 		msg_err(m->m_sender, ESRCH);
@@ -583,8 +672,9 @@ vfs_remove(struct msg *m, struct file *f)
 	}
 
 	/*
-	 * Zap the blocks
+	 * Zap the dir entry, then blocks
 	 */
+	de->fs_name[0] |= 0x80; dirty_buf(b2); sync_buf(b2);
 	uncreate_file(o);
 
 	/*
