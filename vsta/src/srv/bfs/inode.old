@@ -5,7 +5,6 @@
 #include <bfs/bfs.h>
 #include <lib/hash.h>
 #include <sys/assert.h>
-extern int blkdev;
 extern void *malloc(), dir_map();
 
 static int cur_inode = 0;	/* Current in-core inodes */
