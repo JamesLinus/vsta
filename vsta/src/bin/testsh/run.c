@@ -122,7 +122,7 @@ run(char *p)
 	} else {
 		for (;;) {
 			e.e_pid = 0;
-			x = waits(&e);
+			x = waits(&e, 1);
 			if (e.e_pid == 0) {
 				perror("waits");
 				break;

@@ -223,7 +223,7 @@ do_wait(void)
 	 * Wait for child.  If none, pause a sec, then fall out
 	 * so our caller can perhaps do something new.
 	 */
-	if (waits(&w) < 0) {
+	if (waits(&w, 1) < 0) {
 		sleep(1);
 		return;
 	}
