@@ -104,7 +104,7 @@ static void
 run(char *p)
 {
 	char *q, **argv;
-	int x = 1;
+	int x = 1, bg = 0;
 	int pid;
 
 	if (!p || !p[0]) {
@@ -124,6 +124,10 @@ run(char *p)
 			*q++ = '\0';
 		}
 	}
+	if (!strcmp(argv[x-1], "&")) {
+		bg = 1;
+		x -= 1;
+	}
 	argv[x] = 0;
 	pid = fork();
 	if (pid == 0) {
@@ -131,8 +135,13 @@ run(char *p)
 		perror(p);
 		printf("Error code: %d\n", x);
 	}
-	x = waits((void *)0);
-	printf("pid %d leaves status of %d\n", pid, x);
+	if (bg) {
+		printf("%d &\n", pid);
+	} else {
+		x = waits((void *)0);
+		printf("pid %d leaves status of %d\n", pid, x);
+	}
+	free(argv);
 }
 
 /*
