@@ -278,7 +278,7 @@ again:		m.m_op = FS_READ;
 eth_attach(int argc, char **argv)
 {
 	struct interface *if_eth;
-	int i, dig[6];
+	int ethfd, i, dig[6];
 	char *macaddr;
 
 	/*
@@ -310,13 +310,14 @@ eth_attach(int argc, char **argv)
 	if_eth->raw = eth_raw;
 	if_eth->recv = eth_recv;
 	if_eth->stop = eth_stop;
-	ethport = open(argv[3], O_RDWR);
-	if (ethport < 0) {
+	ethfd = open(argv[3], O_RDWR);
+	if (ethfd < 0) {
 		perror (argv[3]);
 		free(if_eth->name);
 		free(if_eth);
 		return(-1);
 	}
+	ethport = __fd_port(ethfd);
 
 	/*
 	 * Extract MAC address from driver
