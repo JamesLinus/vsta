@@ -576,6 +576,9 @@ dir_newfile(struct file *f, char *file, int isdir)
 	ochar0 = dir->name[0];	/* In case we have to undo this */
 	bcopy(f1, dir->name, sizeof(dir->name));
 	bcopy(f2, dir->ext, sizeof(dir->ext));
+	dir->attr = 0;
+	dir->start = 0;
+	dir->size = 0;
 
 	/*
 	 * Have to allocate an empty directory (., ..) for directories
@@ -624,7 +627,9 @@ out:
 			root_dirty = 1;
 		}
 	}
-	bfree(dirhandle);
+	if (dirhandle) {
+		bfree(dirhandle);
+	}
 	if (error) {
 		return(0);
 	}
@@ -668,4 +673,74 @@ dir_copy(struct node *n, uint pos, struct directory *dp)
 	 * Return error indication
 	 */
 	return(d == 0);
+}
+
+/*
+ * dir_setlen()
+ *	Move the length attribute from the node into the dir entry
+ *
+ * Used on last close to update the directory entry.  It's not worth
+ * scribbling the directory block in the interim.
+ */
+void
+dir_setlen(struct node *n)
+{
+	struct directory *d;
+	void *handle;
+	struct clust *c = n->n_clust;
+
+	/*
+	 * Non-issue unless it's a file
+	 */
+	if (n->n_type != T_FILE) {
+		return;
+	}
+
+	/*
+	 * Get pointer to slot
+	 */
+	d = get_dirent(n->n_dir, n->n_slot, &handle);
+	ASSERT(d, "dir_setlen: lost dir entry");
+
+	/*
+	 * Update it, mark the block dirty, and return
+	 */
+	d->size = n->n_len;
+	if (c->c_nclust) {
+		ASSERT_DEBUG(d->size, "dir_setlen: len !clust");
+		d->start = c->c_clust[0];
+	} else {
+		ASSERT_DEBUG(d->size == 0, "dir_setlen: !len clust");
+		d->start = 0;
+	}
+	if (handle) {
+		bdirty(handle);
+		bfree(handle);
+	} else {
+		root_dirty = 1;
+	}
+}
+
+/*
+ * root_sync()
+ *	If root directory is modified, flush to disk
+ */
+void
+root_sync(void)
+{
+	int x;
+
+	if (!root_dirty) {
+		return;
+	}
+	lseek(blkdev,
+		(bootb.nrsvsect+(bootb.nfat * bootb.fatlen))*(ulong)SECSZ,
+		0);
+	x = write(blkdev, rootdirents, rootsize);
+	if (x != rootsize) {
+		printf("root_sync: write failed, err '%s', value 0x%x\n",
+			strerror(), x);
+		exit(1);
+	}
+	root_dirty = 0;
 }
