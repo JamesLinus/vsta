@@ -56,6 +56,7 @@
 #define EMATH "math"
 #define EILL "ill instr"
 #define EKILL "kill"
+#define EBADF "bad file"
 
 /*
  * A stat of an entry returns a set of strings with newlines
