@@ -477,6 +477,8 @@ io_server(struct tnserv *tn)
 				syslog(LOG_NOTICE,
 					"IO server: all clients done");
 				notify(0, tn->tn_tcp_tid, "kill");
+				(void)wstat(tn->tn_write,
+					"conn=disconnect\n");
 				_exit(1);
 			}
 			break;
