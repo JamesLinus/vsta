@@ -351,6 +351,19 @@ long	path_id;
 }
 
 /*
+ * touch - Strobe a read/modify/write reference to ensure the
+ * page is valid & mapped
+ */
+static void
+touch(volatile void *va)
+{
+	volatile char c, *cp = va;
+
+	c = *cp;
+	*cp = c;
+}
+
+/*
  * sim154x_mk_sg_list - build a 154X style scatter/gather list. Allocate
  * bounce buffers for pages with physical addresses greater than 16MB.
  */
@@ -363,7 +376,7 @@ int	index;
 	struct	sim154x_sg_elem *adp_sg_list;
 	struct	sim154x_bounce_info *bounce_info;
 	int	unsigned *addr_map;
-	void	*va;
+	void	*va, *bounceva;
 	long	length;
 	uint32	pa;
 	int	cam_sg_count, i, adp_sg_length;
@@ -387,10 +400,12 @@ int	index;
 	adp_sg_info->sg_count = 0;
 
 	for(i = 0; i < cam_sg_count; i++, cam_sg_list++) {
-	    bounce_info->uva = va = cam_sg_list->sg_address;
+	    va = cam_sg_list->sg_address;
 	    length = cam_sg_list->sg_length;
 	    while(length > 0) {
-		if(cam_page_wire(va, (void **)&pa, (int *)addr_map)
+		touch(va);
+		bounce_info->uva = va;
+		if(cam_page_wire(va, (void **)&pa, (int *)addr_map, 0)
 				!= CAM_SUCCESS) {
 			cam_error(0, myname, "can't wire I/O buffer");
 			(void)sim154x_rm_sg_list(ccb, adaptor, index);
@@ -407,23 +422,30 @@ int	index;
 				(void)sim154x_rm_sg_list(ccb, adaptor, index);
 				return(CAM_ENOMEM);
 			}
-			if((va = cam_alloc_mem(NBPG, NULL, NBPG)) == NULL) {
+			if((bounceva = cam_alloc_mem(NBPG,
+					NULL, NBPG)) == NULL) {
 				cam_error(0, myname, "memory allocation error");
 				(void)sim154x_rm_sg_list(ccb, adaptor, index);
 				return(CAM_ENOMEM);
 			}
-			if(cam_page_wire(va, (void **)&pa, (int *)addr_map)
-					!= CAM_SUCCESS) {
+			touch(bounceva);
+			if(cam_page_wire(bounceva, (void **)&pa,
+					(int *)addr_map, 1) != CAM_SUCCESS) {
 				cam_error(0, myname, "can't wire I/O buffer");
 				(void)sim154x_rm_sg_list(ccb, adaptor, index);
 				return(CAM_ENOMEM);
 			}
-			bounce_info->bva = va;
-		} else
+			bounce_info->bva = bounceva;
+		} else {
 			bounce_info->bva = NULL;
+		}
 /*
  * Determine the transfer length for this segment.
  * Fill in the segment's length and physical address.
+ * Note that we continue to use "va" even if we're using a bounce
+ *  buffer.  This is because it's only the page offset aspect
+ *  which is used, which works for either the original page or
+ *  the bounce buffer one.
  */
 		adp_sg_length = NBPG - ((unsigned int)va & (NBPG - 1));
 		if(adp_sg_length > length)
@@ -985,8 +1007,9 @@ struct	sim_driver *sdp;
  * Wire down and determine the physical address for the adaptors
  * array.
  */
+	touch(sim154x_adaptors);
 	if(cam_page_wire(sim154x_adaptors, (void **)&sim154x_adaptors_pa,
-	                 &sim154x_adaptors_handle) != CAM_SUCCESS) {
+	                 &sim154x_adaptors_handle, 1) != CAM_SUCCESS) {
 		cam_error(0, myname, "can't wire down adaptors structure");
 		return;
 	}

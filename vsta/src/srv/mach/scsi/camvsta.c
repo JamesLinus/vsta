@@ -23,8 +23,6 @@ struct	q_header cam_msgq;
 #ifdef	__STDC__
 int	enable_isr(port_t port, int irq);
 int	enable_io(int low, int high);
-int	page_wire(void *va, void **pa);
-int	page_release(uint handle);
 int	__msleep(uint msecs);
 #endif
 
@@ -117,11 +115,11 @@ long	cam_enable_isr(int intr, long arg, void (*handler)())
  * Cam_page_wire - wire down the page associated with the input
  * virtual and return the corresponding physical address.
  */
-long	cam_page_wire(void *va, void **pa, int *handle)
+long	cam_page_wire(void *va, void **pa, int *handle, int base16M)
 {
 	static	char *myname = "cam_page_wire";
 
-	if((*handle = page_wire(va, pa)) < 0) {
+	if((*handle = page_wire(va, pa, base16M ? WIRE_16M : 0)) < 0) {
 		cam_error(CAM_PRINT_SYSERR, myname, "page wire error");
 		return(CAM_EIO);
 	}

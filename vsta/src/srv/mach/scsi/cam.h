@@ -661,7 +661,7 @@ void	*cam_alloc_mem(size_t size, void *ptr, unsigned int align);
 void	cam_free_mem(void *ptr, unsigned int align);
 long	cam_enable_io(int low, int high);
 long	cam_enable_isr(int intr, long arg, void (*handler)());
-long	cam_page_wire(void *va, void **pa, int *handle);
+long	cam_page_wire(void *va, void **pa, int *handle, int base16M);
 long	cam_page_release(int handle);
 void	cam_sleep(int sec);
 void	cam_msleep(int ms);
