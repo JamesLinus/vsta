@@ -19,11 +19,6 @@
 #define SECSZ (512)		/* Bytes in a sector */
 
 /*
- * A FAT12/16 value
- */
-typedef ushort fat16_t;
-
-/*
  * This represents the cluster allocation for a directory or file.
  * The c_clust field points to an array of claddr_t's which
  * are the clusters allocated.  It is malloc()'ed, and realloc()'ed
@@ -191,15 +186,6 @@ extern uint clsize;
 #define BOFF(clnum) (((clnum) - 2) * CLSIZE + data0)
 
 /*
- * Values for FAT slots.  These are FAT16 values; FAT12 values are
- * mapped into these.
- */
-#define FAT_RESERVED (0xFFF0)	/* Start of reserved value range */
-#define FAT_DEFECT (0xFFF7)	/* Cluster w. defective block */
-#define FAT_EOF (0xFFF8)	/* Start of EOF range */
-#define FAT_END (0xFFFF)	/* End of reserved range */
-
-/*
  * Node handling routines
  */
 extern void rw_init(void);
@@ -212,11 +198,11 @@ extern void ref_node(struct node *),
  * Cluster handling routines
  */
 extern void clust_init(void);
-extern struct clust *alloc_clust(fat16_t);
+extern struct clust *alloc_clust(struct directory *);
 extern void free_clust(struct clust *);
 extern void fat_sync(void);
 extern int clust_setlen(struct clust *, ulong);
-extern uint get_clust(struct clust *, uint);
+extern claddr_t get_clust(struct clust *, uint);
 
 /*
  * Other routines

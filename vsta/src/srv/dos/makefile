@@ -3,7 +3,7 @@ LD= ld
 INCS= -I../../../include
 CFLAGS= -Wall -DDEBUG $(INCS) -O
 LDFLAGS= -L../../lib
-OBJS= main.o fat.o node.o dir.o open.o rw.o stat.o
+OBJS= main.o fat.o node.o dir.o open.o rw.o stat.o fat16.o fat12.o
 LIBS= -lsrv
 
 all: dos
@@ -11,6 +11,7 @@ all: dos
 	$(CC) $(CFLAGS) -c $*.c
 
 dos: $(OBJS)
+	rm -f dos
 	$(LD) $(LDFLAGS) -o dos ../../lib/crt0srv.o $(OBJS) $(LIBS)
 
 clean:

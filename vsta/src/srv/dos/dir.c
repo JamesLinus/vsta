@@ -389,7 +389,7 @@ dir_look(struct node *n, char *file)
 		free(n2);
 		return(0);
 	}
-	n2->n_clust = alloc_clust(d.start);
+	n2->n_clust = alloc_clust(&d);
 	if (n2->n_clust == 0) {
 		free(n2);
 		return(0);
