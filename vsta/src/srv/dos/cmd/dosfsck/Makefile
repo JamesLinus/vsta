@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-g
+CFLAGS=-O
 OBJECTS = boot.o check.o common.o dosfsck.o fat.o file.o vsta_io.o lfn.o
 LIBS=-lusr
 
