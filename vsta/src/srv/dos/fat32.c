@@ -19,6 +19,24 @@
 #define FAT_END (0xFFFFFFFF)		/* End of reserved range */
 
 /*
+ * Contents of FAT32 filesystem information sector
+ */
+static struct fat32_info {
+	ulong signature0;	/* Magic number 0 */
+	uchar filler[0x1e0];
+	ulong signature1;	/* Magic number 1 */
+	ulong free;		/* Free clusters in filesystem */
+	ulong last;		/* Last location allocated from */
+} info;
+static uint infobase;		/* Sector addr of info sector */
+
+/*
+ * Values for the signature[01] fields
+ */
+#define INFOSECT_SIGNATURE0 0x41615252
+#define INFOSECT_SIGNATURE1 0x61417272
+
+/*
  * Format of our FAT entries
  */
 typedef ulong fat32_t;
@@ -93,6 +111,37 @@ fat32_init(void)
 			fatlen);
 		exit(1);
 	}
+
+	/*
+	 * If there's an info sector, get it, too
+	 */
+	infobase = bootb.u.fat32.infoSector;
+	if (infobase != 0xFFFF) {
+		/*
+		 * Read in the sector
+		 */
+		lseek(blkdev, infobase * SECSZ, 0);
+		if (read(blkdev, &info, sizeof(info)) != sizeof(info)) {
+			syslog(LOG_ERR,
+				"read (%d bytes) of info sector failed",
+				sizeof(info));
+			exit(1);
+		}
+
+		/*
+		 * Sanity check
+		 */
+		if ((info.signature0 != INFOSECT_SIGNATURE0) ||
+				(info.signature1 != INFOSECT_SIGNATURE1)) {
+			syslog(LOG_WARNING, "corrupt info sector");
+			infobase = 0;
+		}
+	} else {
+		/*
+		 * Map 0xFFFF onto 0 (info sector not active)
+		 */
+		infobase = 0;
+	}
 }
 
 /*
@@ -129,6 +178,7 @@ fat32_setlen(struct clust *c, uint newclust)
 			fat[cl] = 0;
 			DIRTY(cl);
 		}
+		info.free += (c->c_nclust - newclust);
 		if (newclust > 0) {
 			fat[cl = c->c_clust[newclust-1]] = FAT_EOF;
 			DIRTY(cl);
@@ -213,6 +263,11 @@ fat32_setlen(struct clust *c, uint newclust)
 		fat[cl = c->c_clust[x]] = c->c_clust[x+1];
 		DIRTY(cl);
 	}
+
+	/*
+	 * Update free list count
+	 */
+	info.free -= (newclust - c->c_nclust);
 
 	/*
 	 * Mark the EOF cluster for the last one
@@ -332,6 +387,25 @@ fat32_sync(void)
 	 * Clear dirtymap--everything's been flushed successfully
 	 */
 	bzero(dirtymap, dirtymapsize);
+
+	/*
+	 * Update info sector, if present
+	 */
+	if (infobase) {
+		/*
+		 * Copy over our rotor for allocation attempt starting point
+		 */
+		info.last = nxt_clust;
+
+		/*
+		 * Write the info sector
+		 */
+		lseek(blkdev, infobase * SECSZ, 0);
+		if (write(blkdev, &info, sizeof(info)) != sizeof(info)) {
+			syslog(LOG_ERR, "write of info sector failed");
+			exit(1);
+		}
+	}
 }
 
 /*
