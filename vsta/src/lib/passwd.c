@@ -16,6 +16,94 @@ extern void parse_perm();
 #define DEFENV "/env"
 
 /*
+ * load_groups()
+ *	Given GID, perhaps add some more abilities
+ */
+static void
+load_groups(struct uinfo *u)
+{
+	FILE *fp;
+	char buf[128];
+	char *p;
+	int nperm = 1;
+
+	/*
+	 * Read group file
+	 */
+	if ((fp = fopen(GROUP, "r")) == 0) {
+		return;
+	}
+	while (fgets(buf, sizeof(buf), fp)) {
+		/*
+		 * Leave if there's no more slots to fill
+		 */
+		if (nperm >= PROCPERMS) {
+			break;
+		}
+
+		/*
+		 * Get rid of trailing \n, skip to GID field
+		 */
+		buf[strlen(buf)-1] = '\0';
+		p = strchr(buf, ':');
+		if (p == 0) {
+			break;
+		}
+		++p;
+
+		/*
+		 * Compare GID to our own GID
+		 */
+		if (atoi(p) != u->u_gid) {
+			continue;
+		}
+
+		/*
+		 * Match.  Move to first of n ability fields
+		 */
+		p = strchr(p, ':');
+		if (p == 0) {
+			break;
+		}
+		++p;
+
+		/*
+		 * While there are more fields, add them to the user
+		 */
+		while (p && *p) {
+			char *q;
+
+			/*
+			 * Null-terminate current, record next
+			 */
+			q = strchr(p, ':');
+			if (q) {
+				*q++ = '\0';
+			}
+
+			/*
+			 * Parse permission into struct
+			 */
+			parse_perm(&u->u_perms[nperm], p);
+			u->u_perms[nperm].perm_uid = u->u_uid;
+
+			/*
+			 * Advance to next
+			 */
+			nperm += 1;
+			p = q;
+		}
+
+		/*
+		 * Assume there's only one entry for a given
+		 * GID.
+		 */
+		break;
+	}
+	fclose(fp);
+}
+
+/*
  * fillin()
  *	Given account record, fill in uinfo struct
  */
@@ -90,8 +178,10 @@ fillin(char *rec, struct uinfo *u)
 	}
 
 	/*
-	 * XXX add more perms based on group
+	 * If there are further groups to be added because of
+	 * GID, add them here.
 	 */
+	load_groups(u);
 
 	/*
 	 * Parse home
