@@ -1,0 +1,112 @@
+#
+# Sample boot menu configuration file
+#
+
+# Timeout here...
+# timeout = 30
+
+# For booting Mach (getting kernel from floppy)
+# title=          Utah Mach4 multiboot
+# root=   (hd0,2)
+# pause=My test!!
+# kernel= (fd0)/boot/kernel root=hd0s3
+# module= (fd0)/boot/bootstrap
+
+# For booting FreeBSD (getting kernel from floppy)
+# title=          FreeBSD 2.2-SNAP
+# root=   (hd0,2)
+# kernel= (fd0)/kernel
+
+# For booting the GNU HURD (getting kernel from floppy)
+# title=          GNU HURD
+# root=   (hd0,a)
+# kernel= /boot/kernel root=hd0a
+# module= /boot/serverboot
+
+# For booting OS/2  (test, I have no OS/2 to test for!)
+# title=          OS/2
+# root=           (hd0,1)
+# makeactive
+# chainloader=    /boot/chain.os2
+# This is similar to "chainload", but loads a specific file
+
+# For booting Microdreck stuff
+title=          Boot Win95
+root=           (0x80,0)
+makeactive
+chainloader=	+1
+
+#
+# For booting VSTa
+#  The "modules=" statements below configure the booting system
+#
+title=          VSTa boot
+root=           (hd0,0)
+kernel=         /vsta/boot/vsta
+
+# The modules used to boot
+# If you edit these, be sure to refer to "VSTa debug" below, where
+#  you must edit them again.
+
+# The console driver
+# cons -color		(default)
+# or cons -mono		- For MGA text screen location
+module= /vsta/boot/cons
+
+# The name to port # mapper
+module= /vsta/boot/namer
+
+# The WD (ST-506 & IDE) driver
+#
+# Very likely you will not have to change this.  The default here
+# is "readp", which reads the parameters from the IDE interface.
+#
+module= /vsta/boot/wd d0:readp
+# or wd d0:cmos		- For CMOS parameter setup
+# wd d0:cmos d1:cmos	- For two drives
+# wd d0:cmos d1:readp	-  ...any combination, as needed
+#		- D0 from CMOS, D1 from controller
+# wd d0:<cyls>:<heads>:<sec/track>
+#		- Manual setup; hand-specify the parameters
+
+# Adaptec 1542b/c SCSI disk support
+# You will almost certainly also want to read ../src/srv/mach/scsi/readme
+# module= /vsta/boot/cam
+
+# The swap driver.  It handles management of multiple swap partitions.
+# Uncomment this only if you have taken care of setting up the VSTa
+# swapping feature.
+#
+# module= /vsta/boot/swap
+
+# The first DOS filesystem
+module= /vsta/boot/dos -p disk/wd:wd0_dos0 fs/root
+# This mounts the first DOS partition on the first WD drive, and
+#  advertises it (via namer) as the root filesystem for the system.
+
+# A VSTa filesystem as root
+# Use this only if you have previously set up a vstafs filesystem.
+# module= /vsta/boot/vstafs //disk/wd:wd0_bfs0 fs/root
+
+# The only program not a server in this file
+module= /vsta/boot/init
+# This reads the /vsta/etc/inittab and fires off most of the usual cruft
+#  needed to boot.
+
+#
+# For booting a freshly built VSTa
+#
+title=          VSTa debug
+root=           (hd0,0)
+kernel=         /vsta/src/os/make/vsta
+#
+# These are commented in the "VSTa boot" section above, and should be
+#  identical to what you selected there.  You may, of course, edit
+#  the paths to point at newly built modules in their vsta/src/...
+#  location.
+#
+module= /vsta/boot/cons
+module= /vsta/boot/namer
+module= /vsta/boot/wd d0:readp
+module= /vsta/boot/dos -p disk/wd:wd0_dos0 fs/root
+module= /vsta/boot/init

@@ -1,0 +1,10 @@
+This directory previously held a boot loader "boot.exe" which
+ran from under DOS and used the "boot.lst" configuration file.
+VSTa is now Multiboot compliant, and the preferred boot loader
+is "GRUB" (GRand Unified Bootloader).  This directory contains
+a kernel usable from GRUB, as well as the other server executables
+needed to boot VSTa.  See vsta/doc/roadmap.txt for more details
+on configuring GRUB with VSTa.
+
+					Andy Valencia
+					September, 1997
