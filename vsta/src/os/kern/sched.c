@@ -155,45 +155,47 @@ pick_run(struct sched *root)
 	 * Walk our way down the tree
 	 */
 	for (;;) {
-		struct sched *srun, *pick;
+		struct sched *pick;
+		uint sum, nrun;
 
 		/*
-		 * Scan children.  We record the first node which is
-		 * runnable; we also use a simple random number to see
-		 * if the node's priority has been "hit" yet.
+		 * Scan children.  We do this in two passes (ick?).
+		 * In the first, we sum up all the pending priorities;
+		 * in the second, we pick out the lucky winner to be
+		 * run.
 		 */
-		srun = pick = 0;
+		pick = 0;
+		nrun = sum = 0;
 		s2 = s;
 		do {
 			if (s2->s_nrun) {
-				if (!srun) {
-					srun = s2;
-				}
-				if ((random() & PRIO_MASK) < s2->s_prio) {
-					pick = s2;
-					break;
-				}
+				pick = s2;
+				sum += s2->s_prio;
+				nrun += 1;
 			}
 			s2 = s2->s_hd;
 		} while (s2 != s);
+		ASSERT_DEBUG(nrun > 0, "pick_run: !sum");
 
 		/*
-		 * If we didn't pick anyone, use first runnable node
+		 * If there was only one choice, run with it.  Otherwise,
+		 * roll the dice and pick one statistically.
 		 */
-		if (!pick) {
-			ASSERT_DEBUG(srun, "pick_run: no srun");
-			pick = srun;
+		if (nrun > 1) {
+			sum = random() % sum;
+			s2 = s;
+			do {
+				if (s2->s_nrun) {
+					pick = s2;
+					if (s2->s_prio >= sum) {
+						break;
+					}
+					sum -= s2->s_prio;
+				}
+				s2 = s2->s_hd;
+			} while (s2 != s);
 		}
-
-		/*
-		 * Move the starting point for the search of this level.
-		 * This will tend to "even out" pick_run scans.  Our
-		 * "s_up" guy points down into a circular list, so we can
-		 * simply move his pointer to another node in the circle.
-		 */
-		if (s != root) {
-			s->s_up->s_down = pick->s_hd;
-		}
+		ASSERT_DEBUG(pick, "pick_run: !pick");
 
 		/*
 		 * Advance down tree to this node.  Done when we find
