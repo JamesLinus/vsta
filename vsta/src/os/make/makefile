@@ -74,8 +74,8 @@ qio.o: ../kern/qio.c
 pset_fod.o: ../kern/pset_fod.c
 	$(CC) $(CFLAGS) -c ../kern/pset_fod.c
 
-pset_zfo.o: ../kern/pset_zfo.c
-	$(CC) $(CFLAGS) -c ../kern/pset_zfo.c
+pset_zfod.o: ../kern/pset_zfod.c
+	$(CC) $(CFLAGS) -c ../kern/pset_zfod.c
 
 pset_mem.o: ../kern/pset_mem.c
 	$(CC) $(CFLAGS) -c ../kern/pset_mem.c
@@ -143,7 +143,7 @@ dbgproc.o: ../dbg/dbgproc.c
 OBJS=$(MACHOBJS) \
 	main.o vm_fault.o vm_steal.o vm_page.o malloc.o misc.o \
 	vas.o pset.o msg.o msgcon.o msgkern.o seg.o \
-	port.o atl.o qio.o pset_fod.o pset_zfo.o \
+	port.o atl.o qio.o pset_fod.o pset_zfod.o \
 	pset_mem.o pset_cow.o vm_swap.o sched.o rand.o \
 	proc.o pview.o xclock.o event.o mmap.o phys.o \
 	exec.o exitgrp.o ptrace.o pstat.o dbgmain.o \
