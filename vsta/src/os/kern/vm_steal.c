@@ -96,6 +96,7 @@ unvirt(struct perpage *pp)
 				(char *)pv->p_vaddr + ptob(a->a_idx));
 			*ap = an;
 			FREE(a, MT_ATL);
+			ASSERT_DEBUG(pp->pp_refs > 0, "unvirt: underflow");
 			pp->pp_refs -= 1;
 		}
 	}
@@ -236,6 +237,13 @@ do_hand(struct core *c, int trouble, intfun steal)
 		return;
 	}
 	slot_held = 1;
+
+	/*
+	 * The core pointer to a pset should point to the *master*
+	 * pset for copy-on-write situations.
+	 */
+	ASSERT_DEBUG((pp->pp_flags & PP_COW) == 0,
+		"do_hand: cow in set_core");
 
 	/*
 	 * If this is the target for COW psets, several assumptions
