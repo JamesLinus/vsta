@@ -44,3 +44,5 @@ clean:
 	del args
 	del swapd
 	del id
+	del rm
+	del cp
