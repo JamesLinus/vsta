@@ -446,7 +446,9 @@ out1:
 	/*
 	 * Clean up and return success/failure
 	 */
-	v_sema(&pr->p_svwait);
+	if (sm.sm_msg.m_nseg) {
+		v_sema(&pr->p_svwait);
+	}
 	v_sema(&pr->p_sema);
 
 out2:
@@ -761,12 +763,21 @@ msg_reply(long arg_who, struct msg *arg_msg)
 			pr->p_msg = 0;
 
 			/*
-			 * Let him run
+			 * Let him run.  We interlock with him if we
+			 * have handed segments for him to consume;
+			 * otherwise, just release him and return.
 			 */
 			pr->p_state = PS_IODONE;
-			set_sema(&pr->p_svwait, 0);
-			v_sema(&pr->p_iowait);
-			p_sema_v_lock(&pr->p_svwait, PRIHI, &pr->p_lock);
+			if (om->sm_nseg) {
+				set_sema(&pr->p_svwait, 0);
+				v_sema(&pr->p_iowait);
+				p_sema_v_lock(&pr->p_svwait,
+					PRIHI, &pr->p_lock);
+			} else {
+				v_sema(&pr->p_iowait);
+				v_lock(&pr->p_lock, SPL0_SAME);
+			}
+			return(0);
 
 			/*
 			 * As we have no segments now we can take an
