@@ -209,7 +209,9 @@ queue_io(struct floppy *fl, struct msg *m, struct file *f)
 	f->f_dir = m->m_op;
 	f->f_off = 0;
 	if ((f->f_list = ll_insert(&waiters, f)) == 0) {
-		free(f->f_buf);
+		if (f->f_local) {
+			free(f->f_buf);
+		}
 		msg_err(m->m_sender, ENOMEM);
 		return(1);
 	}
