@@ -30,8 +30,6 @@ ulong pid_nextfree = 0L;	/* Next free PID number */
 struct proc *allprocs = 0;	/* List of all procs */
 sema_t pid_sema;		/* Mutex for PID pool and proc lists */
 
-uint nthread;			/* # threads currently in existence */
-
 struct hash *pid_hash;		/* Mapping PID->proc */
 
 /*
@@ -305,14 +303,6 @@ fork_thread(voidfun f)
 	extern void *alloc_zfod();
 
 	/*
-	 * Do an unlocked increment of the thread count.  The limit
-	 * is thus approximate; worth it for a faster thread launch?
-	 */
-	if (nthread >= NPROC) {
-		return(err(ENOMEM));
-	}
-
-	/*
 	 * Then get a user stack
 	 */
 	ustack = alloc_zfod(p->p_vas, btop(UMINSTACK));
@@ -364,11 +354,6 @@ fork_thread(voidfun f)
 	t->t_next = p->p_threads;
 	p->p_threads = t;
 	v_sema(&p->p_sema);
-
-	/*
-	 * He's for real now
-	 */
-	ATOMIC_INC(&nthread);
 
 	/*
 	 * Set him running
@@ -471,11 +456,6 @@ fork(void)
 	hash_insert(pid_hash, npid, pnew);
 	add_proclist(pnew);
 	v_sema(&pid_sema);
-
-	/*
-	 * Now he's real
-	 */
-	ATOMIC_INC(&nthread);
 
 	/*
 	 * Leave him runnable
@@ -661,7 +641,6 @@ do_exit(int code)
 	 */
 	FREE(curthread, MT_THREAD);
 	curthread = 0;
-	ATOMIC_DEC(&nthread);
 	p_lock_fast(&runq_lock, SPLHI);
 	PREEMPT_OK();	/* Can't preempt now with runq_lock held */
 	for (;;) {
