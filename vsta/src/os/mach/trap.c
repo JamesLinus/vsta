@@ -532,11 +532,6 @@ sendev(struct thread *t, char *ev)
 	 */
 	p = t->t_proc;
 	if (!p->p_handler || !strcmp(ev, EKILL)) {
-#ifdef DEBUG
-		printf("tid %d dies on unhandled event: %s\n",
-			t->t_pid, ev);
-		dbg_enter();
-#endif
 		strcpy(p->p_event, ev);
 		do_exit(_W_EV);
 	}
