@@ -241,7 +241,12 @@ non_canon(struct termios *t, TTYBUF *fp, struct port *port)
 		 */
 		m.m_op = FS_READ|M_READ;
 		m.m_buf = fp->f_buf;
-		m.m_arg = m.m_buflen = BUFSIZ;
+		if (t->c_cc[VMIN] == 0) {
+			m.m_arg = 0;
+		} else {
+			m.m_arg = BUFSIZ;
+		}
+		m.m_buflen = BUFSIZ;
 		m.m_nseg = 1;
 		m.m_arg1 = 0;
 		x = msg_send(port->p_port, &m);
