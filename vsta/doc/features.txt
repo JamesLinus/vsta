@@ -108,3 +108,14 @@ Floating point support
 popen/pclose
 funopen/fropen/fwopen
 Ports of sc, bc, Tiny Smalltalk
+
+1.5.2
+vstafs fsck will now repair damage (not just find it)
+vstafs now uses ABC
+namer entries are cleared when the registering server exits
+added "purge" command to clean up old entries in vstafs 
+	versioning filesystem.
+Prototype of proxyd for doing proxy VSTa messages over TCP/IP
+A couple really painful MGR bugs fixed; it's now usable
+Taught various commands about window sizing (ls, editors, less, termcap)
+ar won't croak vstafs (edge case, renaming on top of active file)
