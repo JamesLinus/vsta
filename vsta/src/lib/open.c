@@ -53,13 +53,13 @@ __dotdot(char *path)
 	 * Map elements into vector
 	 */
 	while (p = strchr(p, '/')) {
-		*p = '\0';
+		*p++ = '\0';
 		nelem += 1;
 		elems = realloc(elems, nelem*sizeof(char *));
 		if (!elems) {
 			return(1);
 		}
-		p = elems[nelem-1] = p+1;
+		elems[nelem-1] = p;
 	}
 
 	/*
@@ -68,9 +68,9 @@ __dotdot(char *path)
 	x = 0;
 	while (x < nelem) {
 		/*
-		 * Wipe out "." elements
+		 * Wipe out "." and empty ("//") elements
 		 */
-		if (!strcmp(elems[x], ".")) {
+		if (!elems[x][0] || !strcmp(elems[x], ".")) {
 			had_dot = 1;
 			nelem -= 1;
 			bcopy(elems+x+1, elems+x,
@@ -116,17 +116,25 @@ __dotdot(char *path)
 	}
 
 	/*
-	 * Rebuild path.  path[0] is already '\0' because of the requirement
-	 * that all paths to __dotdot() be absolute and thus the first '/' was
-	 * written to \0 by the first loop of this routine.
+	 * If no elements, always provide "/"
 	 */
-	for (x = 0; x < nelem; ++x) {
-		int len;
-
+	if (nelem < 1) {
 		*path++ = '/';
-		len = strlen(elems[x]);
-		bcopy(elems[x], path, len);
-		path += len;
+	} else {
+		/*
+		 * Rebuild path.  path[0] is already '\0' because of
+		 * the requirement that all paths to __dotdot() be
+		 * absolute and thus the first '/' was written to \0
+		 * by the first loop of this routine.
+		 */
+		for (x = 0; x < nelem; ++x) {
+			int len;
+
+			*path++ = '/';
+			len = strlen(elems[x]);
+			bcopy(elems[x], path, len);
+			path += len;
+		}
 	}
 	*path = '\0';
 
