@@ -9,7 +9,7 @@ CRT0=../../lib/crt0.o
 	$(CC) $(CFLAGS) -c $*.c
 
 PROGS=test args cat id ls swapd rm cp sleep mkdir pwd kill mv stat \
-	dumpsect man fstab rmdir touch strings xargs echo du chmod \
+	dumpsect man fstab rmdir touch strings xargs echo du \
 	tput basename uname fmt purge wc printf ps
 
 all: $(PROGS)
