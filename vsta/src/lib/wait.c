@@ -100,11 +100,23 @@ wait(int *ip)
 	 */
 	if (ep = pendhd) {
 		pendhd = ep->e_next;
-		e = *ep;
+		bcopy(ep, &e, sizeof(e));
 	} else {
 		x = waits(&e, 1);
 		if (x < 0) {
-			return(-1);
+			/*
+			 * If our SIGCHLD thread picked up a completion
+			 * for us, return that.
+			 * TBD: The current libc is not up to snuff for
+			 *  letting this sigchild watcher thread play
+			 *  down here.
+			 */
+			if (ep = pendhd) {
+				pendhd = ep->e_next;
+				bcopy(ep, &e, sizeof(e));
+			} else {
+				return(-1);
+			}
 		}
 	}
 
@@ -228,7 +240,12 @@ wait_child(void)
 	struct exitst e;
 
 	while (waits(&e, 1) < 0) {
-		/* Do nothing */ ;
+		/*
+		 * There are no children to wait() for right now,
+		 * but our main thread could certainly fork() new
+		 * ones in the future.  Sleep and retry.
+		 */
+		__msleep(250);
 	}
 	queue(&e);
 }
