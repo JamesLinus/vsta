@@ -159,7 +159,7 @@ proc_size(struct proc *p)
 static void
 dump_proc(struct proc *p, int brief)
 {
-	int x;
+	int x, top;
 
 	printf("%d %s  size: %d\n", p->p_pid, p->p_cmd, proc_size(p));
 	if (brief) {
@@ -176,12 +176,21 @@ dump_proc(struct proc *p, int brief)
 	for (x = 0; x < PROCPORTS; ++x) {
 		if (p->p_ports[x]) {
 			printf(" %x", p->p_ports[x]);
+		} else {
+			printf(" -");
 		}
 	}
 	printf("\n open:");
-	for (x = 0; x < PROCOPENS; ++x) {
+	for (top = PROCOPENS-1; top >= 0; top--) {
+		if (p->p_open[top]) {
+			break;
+		}
+	}
+	for (x = 0; x <= top; ++x) {
 		if (p->p_open[x]) {
 			printf(" %x", p->p_open[x]);
+		} else {
+			printf(" -");
 		}
 	}
 	printf("\n prot: "); dump_prot(&p->p_prot);
