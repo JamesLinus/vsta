@@ -3,6 +3,11 @@
  * proc.c
  *	Routines to dump out processes
  */
+#include <sys/vas.h>
+#include <sys/pview.h>
+#include <sys/pset.h>
+#include <sys/assert.h>
+#include "../kern/pset.h"
 #include <sys/proc.h>
 #include <sys/thread.h>
 #include <mach/setjmp.h>
@@ -117,6 +122,36 @@ dump_ids(struct perm *perms)
 }
 
 /*
+ * proc_size()
+ *	Return count of pages in process
+ *
+ * This is only an approximation, since a single pset can be
+ * viewed from many pviews, but it still gives you an idea
+ * of the overall virtual size of a process (good for looking
+ * for memory leaks).
+ */
+static uint
+proc_size(struct proc *p)
+{
+	struct vas *vas = &p->p_vas;
+	struct pview *pv;
+	struct pset *ps;
+	struct perpage *pp;
+	uint total = 0, x;
+
+	for (pv = vas->v_views; pv; pv = pv->p_next) {
+		ps = pv->p_set;
+		for (x = 0; x < pv->p_len; ++x) {
+			pp = find_pp(ps, pv->p_off + x);
+			if (pp->pp_flags & PP_V) {
+				total += 1;
+			}
+		}
+	}
+	return(total);
+}
+
+/*
  * dump_proc()
  *	Dump a proc structure
  */
@@ -125,7 +160,7 @@ dump_proc(struct proc *p, int brief)
 {
 	int x;
 
-	printf("%d %s\n", p->p_pid, p->p_cmd);
+	printf("%d %s  size: %d\n", p->p_pid, p->p_cmd, proc_size(p));
 	if (brief) {
 		return;
 	}
