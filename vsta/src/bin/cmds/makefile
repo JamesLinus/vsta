@@ -65,7 +65,7 @@ ls: ls.o
 	$(LD) $(LDFLAGS) -o ls $(CRT0) ls.o -lusr -lc
 
 id: id.o
-	$(LD) $(LDFLAGS) -o id $(CRT0) id.o -lc
+	$(LD) $(LDFLAGS) -o id $(CRT0) id.o -lusr -lc
 
 cat: cat.o
 	$(LD) $(LDFLAGS) -o cat $(CRT0) cat.o -lc
