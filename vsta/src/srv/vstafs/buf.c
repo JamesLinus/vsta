@@ -53,10 +53,10 @@ age_buf(void)
 	 */
 	for (l = allbufs.l_back; l != &allbufs; l = l->l_back) {
 		/*
-		 * Only skip if BUSY
+		 * Only skip if wired
 		 */
 		b = l->l_data;
-		if (b->b_flags & B_BUSY) {
+		if (b->b_locks) {
 			continue;
 		}
 
@@ -263,8 +263,8 @@ dirty_buf(struct buf *b)
 void
 lock_buf(struct buf *b)
 {
-	ASSERT(!(b->b_flags & B_BUSY), "lock_buf: locked");
-	b->b_flags |= B_BUSY;
+	b->b_locks += 1;
+	ASSERT(b->b_locks > 0, "lock_buf: overflow");
 }
 
 /*
@@ -274,8 +274,8 @@ lock_buf(struct buf *b)
 void
 unlock_buf(struct buf *b)
 {
-	ASSERT(b->b_flags & B_BUSY, "unlock_buf: unlocked");
-	b->b_flags &= ~B_BUSY;
+	ASSERT(b->b_locks > 1, "unlock_buf: underflow");
+	b->b_locks -= 1;
 }
 
 /*

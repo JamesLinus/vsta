@@ -17,12 +17,12 @@ struct buf {
 	daddr_t b_start;	/* Starting sector # */
 	uint b_nsec;		/*  ...# SECSZ units contained */
 	uint b_flags;		/* Flags */
+	uint b_locks;		/* Count of locks on buf */
 };
 
 /*
  * Bits in b_flags
  */
-#define B_BUSY 1		/* Buffer is in use */
 #define B_DIRTY 2		/* Buffer needs to be written to disk */
 
 /*
