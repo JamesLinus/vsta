@@ -38,5 +38,10 @@ net:	$(OBJS)
 
 clean:
 	rm -f *.o
+
 clobber: clean
 	rm -f net net.debug
+
+install: net
+	strip net
+	cp net ../../bin/net

@@ -19,3 +19,7 @@ clean:
 
 clobber: clean
 	rm -f ne
+
+install: ne
+	strip ne
+	cp ne ../../../boot/ne
