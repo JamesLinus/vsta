@@ -281,17 +281,33 @@ select(uint nfd, fd_set *rfds, fd_set *wfds, fd_set *efds, struct timeval *t)
 
 	/*
 	 * We're finally ready to rumble.  Post a read for wakeup events.
-	 * TBD: honor the timeout... arg1?  Careful on restart.
 	 */
 	count = 0;
 retry:	m.m_op = FS_READ | M_READ;
 	m.m_buf = events;
 	m.m_arg = m.m_buflen = sizeof(events);
-	m.m_arg1 = 0;
+	m.m_arg1 = (t->tv_sec * 1000) + (t->tv_usec / 1000);
 	m.m_nseg = 1;
 	x = msg_send(selfs_port, &m);
 	if (x < 0) {
 		return(-1);
+	}
+
+	/*
+	 * A return with length 0 means a timeout.  Clear all the
+	 * descriptor masks.
+	 */
+	if (x == 0) {
+		if (rfds) {
+			zero(rfds, nfd);
+		}
+		if (wfds) {
+			zero(wfds, nfd);
+		}
+		if (efds) {
+			zero(efds, nfd);
+		}
+		return(0);
 	}
 
 	/*
