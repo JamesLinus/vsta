@@ -10,7 +10,9 @@
 #include <stdio.h>
 #include <signal.h>
 
+#ifndef SRV
 extern void fork_env(void);
+#endif
 
 /*
  * We initialize these here and offer them to C library users
@@ -138,6 +140,7 @@ noargs:
 	__ctab = __get_ctab();
 	__iob  = __get_iob();
 
+#ifndef SRV
 	/*
 	 * Break our association with existing process-private
 	 * environment variables; we will see the current ones
@@ -145,4 +148,5 @@ noargs:
 	 * space from here (as is appropriate for a new process).
 	 */
 	fork_env();
+#endif
 }
