@@ -37,4 +37,5 @@ ENTRY(time_get, S_TIME_GET)
 ENTRY(time_sleep, S_TIME_SLEEP)
 ENTRY(dbg_enter, S_DBG_ENTER)
 ENTRY(exec, S_EXEC)
+ENTRY(waits, S_WAITS)
 

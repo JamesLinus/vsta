@@ -29,6 +29,7 @@
 #define S_TIME_SLEEP 22
 #define S_DBG_ENTER 23
 #define S_EXEC 24
-#define S_HIGH S_EXEC
+#define S_WAITS 25
+#define S_HIGH S_WAITS
 
 #endif /* _SYSCALL_H */
