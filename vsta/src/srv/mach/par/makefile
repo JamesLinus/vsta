@@ -4,10 +4,10 @@ OUT=par
 include ../../../makefile.all
 
 par: $(OBJS)
-	$(LD) -o par $(CRT0) $(OBJS) $(LIBS) -lusr -lc
+	$(LD) $(LDFLAGS) -o par $(CRT0) $(OBJS) $(LIBS) -lusr -lc
 
 lpcp: lpcp.o
-	$(LD) -o lpcp $(CRT0) lpcp.o $(LIBS) -lc
+	$(LD) $(LDFLAGS) -o lpcp $(CRT0) lpcp.o $(LIBS) -lc
 
 install: par
 	strip par

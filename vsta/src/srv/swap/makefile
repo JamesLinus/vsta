@@ -5,7 +5,7 @@ OUT=swap
 include ../../makefile.all
 
 swap: $(OBJS)
-	$(LD) -o swap $(CRT0SRV) $(OBJS) -lusr -lsrv
+	$(LD) $(LDFLAGS) -o swap $(CRT0SRV) $(OBJS) -lusr -lsrv
 
 install: swap
 	strip swap
