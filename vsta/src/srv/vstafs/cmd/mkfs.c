@@ -36,10 +36,11 @@ write_root(void)
 {
 	struct fs_file *fs = secbuf;
 
+	bzero(fs, SECSZ);
 	fseek(fp, (off_t)ROOT_SEC*SECSZ, 0);
 	fs->fs_prev = 0;
 	fs->fs_rev = 1;
-	fs->fs_len = sizeof(struct fs_file);
+	fs->fs_len = SECSZ;
 	fs->fs_type = FT_DIR;
 	fs->fs_nlink = 1;
 	fs->fs_prot.prot_len = 2;
