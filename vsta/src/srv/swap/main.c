@@ -9,10 +9,10 @@
 #include <lib/alloc.h>
 #include <sys/ports.h>
 #include <stdio.h>
+#include <std.h>
 
 extern void swap_rw(), swap_stat(), swapinit(), swap_alloc(), swap_free(),
 	swap_add();
-extern char *strerror();
 
 port_t rootport;	/* Port we receive contacts through */
 static struct hash	/* Handle->filehandle mapping */
@@ -55,20 +55,11 @@ new_client(struct msg *m, uint len)
 	struct file *f;
 	struct perm *perms;
 	int uperms, nperms;
-	char *buf;
 
 	/*
 	 * See if they're OK to access
 	 */
-	if ((buf = alloca(len)) == 0) {
-		msg_err(m->m_sender, ENOMEM);
-		return;
-	}
-	if (seg_copyin(m->m_seg, m->m_nseg, buf, len) != len) {
-		msg_err(m->m_sender, EINVAL);
-		return;
-	}
-	perms = (struct perm *)buf;
+	perms = (struct perm *)m->m_buf;
 	nperms = len/sizeof(struct perm);
 	uperms = perm_calc(perms, nperms, &swap_prot);
 	if ((uperms & m->m_arg) != uperms) {
@@ -108,21 +99,11 @@ new_client(struct msg *m, uint len)
 /*
  * dup_client()
  *	Duplicate current file access onto new session
- *
- * This is more of a Plan9 clone operation.  The intent is
- * to not share a struct file, so that when you walk it down
- * a level or seek it, you don't affect the thing you cloned
- * off from.
- *
- * This is a kernel-generated message; the m_sender is the
- * current user; m_arg specifies a handle which will be used
- * if we complete the operation with success.
  */
 static void
 dup_client(struct msg *m, struct file *fold)
 {
 	struct file *f;
-	extern void iref();
 
 	/*
 	 * Get data structure
@@ -196,8 +177,8 @@ loop:
 	/*
 	 * Has to fit in one buf
 	 */
-	if (msg.m_nseg != 1) {
-		msg_error(msg.m_sender, EINVAL);
+	if (msg.m_nseg > 1) {
+		msg_err(msg.m_sender, EINVAL);
 		goto loop;
 	}
 
@@ -220,6 +201,7 @@ loop:
 		 * We're synchronous, so presumably the operation
 		 * is all done and this abort is old news.
 		 */
+		msg.m_nseg = msg.m_arg = msg.m_arg1 = 0;
 		msg_reply(msg.m_sender, &msg);
 		break;
 	case FS_ABSREAD:	/* Set position, then read */
@@ -265,6 +247,15 @@ loop:
  */
 main(int argc, char *argv[])
 {
+#ifdef DEBUG
+	{ port_t kbd, cons;
+	  kbd = msg_connect(PORT_KBD, ACC_READ);
+	  __fd_alloc(kbd);
+	  cons = msg_connect(PORT_CONS, ACC_WRITE);
+	  __fd_alloc(cons);
+	  __fd_alloc(cons);
+	}
+#endif
 	/*
 	 * Allocate data structures we'll need
 	 */
