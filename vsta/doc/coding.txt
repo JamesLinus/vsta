@@ -114,7 +114,7 @@ that "w" in there at the same time, wouldn't it?
 6. ANSI prototypes
 
 	Use ANSI prototypes where possible.  The one major
-exception is anonymous struct pointers.  Imagine a header
+pain is anonymous struct pointers.  Imagine a header
 which uses an anonymous pointer (i.e., they know the name
 of the struct they're pointing to, but they don't know
 the definitions of the struct.)  gcc will complain about
@@ -123,14 +123,8 @@ such a prototype:
 extern void my_func(struct foob *);
 
 unless he has already seen "struct foob" at level 0 (global).
-In my opinion (and I am well outside industry consensus, and
-am aware of that) it is better to leave out the prototype than
-to make this .h #include the one which defines "struct foob".
-Basically, I prefer to limit scope of knowledge more than I
-want prototypes for all function calls.
 
-There are workarounds, and most of them suck.  If you use
-one of these workarounds, I will probably accept your code.
+The workaround of choice is to use STRUCT_REF in <sys/types.h>.
 
 7. ANSI void *
 
