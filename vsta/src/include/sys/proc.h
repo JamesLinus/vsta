@@ -59,10 +59,12 @@ struct pdbg {
 #define PD_RUN 301		/* Run */
 #define PD_STEP 302		/* Run one instruction, then break */
 #define PD_BREAK 303		/* Set/clear breakpoint */
-#define PD_REGS 304		/* Get/put registers */
-#define PD_MASK 305		/* Set mask */
-#define PD_RDMEM 306		/* Read memory */
-#define PD_WRMEM 307		/*  ...write */
+#define PD_RDREG 304		/* Read registers */
+#define PD_WRREG 305		/*  ...write */
+#define PD_MASK 306		/* Set mask */
+#define PD_RDMEM 307		/* Read memory */
+#define PD_WRMEM 308		/*  ...write */
+#define PD_MEVENT 309		/* Read/write event */
 
 /*
  * Handy macro for checking if we should drop into debug slave
