@@ -118,7 +118,7 @@ request(void)
 int
 rename(char *src, char *dest)
 {
-	int err;
+	int err, tries = 0;
 	char *p;
 	port_name srcname, destname;
 
@@ -146,16 +146,25 @@ rename(char *src, char *dest)
 	 * Launch a thread to start the request.  We will do the
 	 * matching rename.
 	 */
-	if (tfork(request, 0) < 0) {
+again:	if (tfork(request, 0) < 0) {
 		return(-1);
 	} else {
-		__msleep(10);	/* Let'em get set */
+		__msleep(20);	/* Let'em get set */
 	}
 
 	/*
 	 * Now connect with the destination
 	 */
 	if (msg(destfd, FS_RENAME, 1, destent)) {
+		/*
+		 * If it's a transient failure (usually, the server
+		 * needs to flush a reference from the page cache),
+		 * wait a bit and try, try again.
+		 */
+		if (!strcmp(strerror(), EAGAIN) && (tries++ < 10)) {
+			__msleep(20);
+			goto again;
+		}
 		err = -1;
 		goto out;
 	}
