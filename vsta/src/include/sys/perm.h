@@ -9,6 +9,7 @@
 struct perm {
 	unsigned char perm_len;		/* # slots valid */
 	unsigned char perm_id[PERMLEN];	/* Permission values */
+	unsigned long perm_uid;		/* UID for this ability */
 };
 
 struct prot {
