@@ -54,7 +54,7 @@ struct cmds Dcmds[] = {
 	"dropserver",	dodropds,	0, 0, NULLCHAR,
 	"suffix",	dosuffix,	0, 0, NULLCHAR,
 	"trace",	dodtrace,	0, 0, NULLCHAR,
-	NULLCHAR,	NULLFP,		0, 0, "domain subcommands: addserver dropserver suffix trace",
+	NULLCHAR,	NULLFP,		0, "domain subcommands: addserver dropserver suffix trace", NULLCHAR
 };
 int
 dodtrace(argc,argv)
@@ -354,6 +354,26 @@ char *name;
 	return result;
 }
 
+/* Tell if given string is num.num.num.num format
+ */
+static int
+is_dotnum(char *p)
+{
+	for (;;) {
+		if (!isdigit(*p))
+			return(0);
+		while (isdigit(*p)) {
+			++p;
+		}
+		if (*p == '\0') {
+			return(1);
+		}
+		if (*p++ != '.') {
+			return(0);
+		}
+	}
+}
+
 /* Main entry point for domain name -> address resolution. Returns 0 if
  * name is definitely not valid.
  */
@@ -375,6 +395,9 @@ char *name;
 
 	if(*name == '[')
 		return aton(name + 1);
+	if (is_dotnum(name)) {
+		return aton(name);
+	}
 
 	if(strchr(name,'.') == NULLCHAR && Dsuffix != NULLCHAR){
 		/* Append default suffix */
@@ -412,7 +435,9 @@ char *name;
 		time(&starttime);
 		/* Wait for something to happen */
 		for (;;) {
-			keep_things_going();
+			extern void yield(void);
+
+			yield();
 			if (Dsignal)
 				break;
 			time(&now);

@@ -53,13 +53,18 @@ v_lock(lock_t *p)
  */
 static pid_t netpid,	/* Ethernet interface */
 	conspid,	/* Controlling console */
-	timepid;	/* Timing events */
-			/* XXX TBD: serve TCP sockets, maybe UDP */
-static char kbchar;	/* Current char available to kbread() */
+	timepid,	/* Timing events */
+	curtid;		/* Current thread holding ka9q_lock */
 static lock_t		/* Mutex among threads */
 	ka9q_lock;
+static uint nbg;	/* # of background threads from yield() */
 
-extern void mainloop(void);
+/*
+ * Typeahead for console, a circular list
+ */
+static uchar kbchars[32];
+static uint nkbchar, kbhd, kbtl;
+
 extern int32 next_tick(void);
 extern char *startup, *config, *userfile, *Dfile, *hosts, *mailspool;
 extern char *mailqdir, *mailqueue, *routeqdir, *alias, *netexe;
@@ -262,6 +267,34 @@ sysreset()
 }
 
 /*
+ * do_mainloop()
+ *	Call mainloop(), handle yield()'ed threads on return
+ */
+static void
+do_mainloop(void)
+{
+	pid_t mytid = gettid();
+	extern void mainloop(void);
+
+	/*
+	 * Record our thread as holding the lock, and run the loop
+	 */
+	curtid = mytid;
+	mainloop();
+
+	/*
+	 * We yield()'ed under mainloop() somewhere, and thus are
+	 * no longer a needed thread.  Exit.
+	 */
+	if (curtid != mytid) {
+		nbg -= 1;
+		v_lock(&ka9q_lock);
+		_exit(0);
+	}
+	curtid = 0;
+}
+
+/*
  * timechange()
  *	Handler "kicked" when a new time event is registered
  *
@@ -314,7 +347,7 @@ timewatcher(void)
 		if (target > 0) {
 			tick(target);
 		}
-		mainloop();
+		do_mainloop();
 		target = next_tick();
 		v_lock(&ka9q_lock);
 
@@ -362,7 +395,7 @@ netwatcher(void)
 	for (;;) {
 		eth_recv_daemon();
 		p_lock(&ka9q_lock);
-		mainloop();
+		do_mainloop();
 		v_lock(&ka9q_lock);
 	}
 }
@@ -393,8 +426,14 @@ conswatcher(void)
 
 		if (read(0, &c, sizeof(c)) == sizeof(c)) {
 			p_lock(&ka9q_lock);
-			kbchar = c;
-			mainloop();
+			if (nkbchar < sizeof(kbchars)) {
+				kbchars[kbhd++] = c;
+				if (kbhd >= sizeof(kbchars)) {
+					kbhd = 0;
+				}
+				nkbchar += 1;
+			}
+			do_mainloop();
 			v_lock(&ka9q_lock);
 		} else {
 			sleep(1);
@@ -430,18 +469,20 @@ eihalt()
 
 /*
  * kbread()
- *	Return next character from keyboard, or -1
+ *	Return next character from keyboard FIFO, or -1
  */
 kbread()
 {
 	int c;
 
-	if (kbchar) {
-		c = kbchar;
-		kbchar = 0;
-	} else {
-		c = -1;
+	if ((nbg > 0) || (nkbchar == 0)) {
+		return(-1);
 	}
+	c = kbchars[kbtl++];
+	if (kbtl >= sizeof(kbchars)) {
+		kbtl = 0;
+	}
+	nkbchar -= 1;
 	return(c);
 }
 
@@ -702,4 +743,55 @@ iostop()
 	gun(netpid);
 	gun(conspid);
 	gun(timepid);
+}
+
+/*
+ * yield()
+ *	Release thread of control
+ *
+ * This is called from the misbegotten places in the ka9q code where
+ * a spinloop wants to run, waiting for action.  This routine tfork()'s
+ * a new thread to take over this thread's old duties, then iteratively
+ * sleep()'s and returns, allowing the spin loop to wait.  When this
+ * thread returns back out of mainloop(), it is destroyed.
+ */
+void
+yield(void)
+{
+	int match = 0;
+	pid_t mytid = gettid();
+
+	/*
+	 * If this thread corresponds to one of our official ones,
+	 * launch a new instance of it.
+	 */
+	if (mytid == netpid) {
+		netpid = tfork(netwatcher);
+		match = 1;
+	} else if (mytid == conspid) {
+		conspid = tfork(conswatcher);
+		match = 1;
+	} else if (mytid == timepid) {
+		timepid = tfork(timewatcher);
+		match = 1;
+	} 
+
+	/*
+	 * Release the mutex if we were the holder of it
+	 */
+	if (match) {
+		curtid = 0;
+		nbg += 1;
+		v_lock(&ka9q_lock);
+	}
+
+	/*
+	 * Pause
+	 */
+	__msleep(100);
+
+	/*
+	 * Take mutex back, and run again
+	 */
+	p_lock(&ka9q_lock);
 }
