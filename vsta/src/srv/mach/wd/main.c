@@ -261,7 +261,9 @@ loop:
  * main()
  *	Startup of the WD hard disk server
  */
-main()
+main(argc, argv)
+	int argc;
+	char **argv;
 {
 #ifdef DEBUG
 	int scrn, kbd;
@@ -304,7 +306,7 @@ main()
 	/*
 	 * Init our data structures.
 	 */
-	wd_init();
+	wd_init(argc, argv);
 	rw_init();
 
 	/*
