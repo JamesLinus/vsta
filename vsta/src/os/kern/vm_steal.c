@@ -39,6 +39,9 @@ extern struct portref *swapdev;
 #define CONTAINS(base, cnt, num) \
 	(((num) >= (base)) && ((num) < ((base)+(cnt))))
 
+/* Entries to avoid */
+#define BAD(c) ((c)->c_flags & (C_SYS|C_BAD|C_WIRED))
+
 ulong failed_qios = 0L;		/* Number pushes which failed */
 
 /*
@@ -146,13 +149,18 @@ do_hand(struct core *c, int trouble, intfun steal)
 {
 	struct pset *ps;
 	struct perpage *pp;
-	uint idx;
+	uint idx, pgidx;
 	extern void iodone_unlock();
 
 	/*
 	 * Lock physical page.  Point to the master pset.
 	 */
-	if (clock_page(c-core)) {
+	pgidx = c-core;
+	if (clock_page(pgidx)) {
+		return;
+	}
+	if (BAD(c)) {
+		unlock_page(pgidx);
 		return;
 	}
 	ps = c->c_pset;
@@ -165,7 +173,7 @@ do_hand(struct core *c, int trouble, intfun steal)
 	pp = find_pp(ps, idx);
 	if (clock_slot(ps, pp)) {
 		v_lock(&ps->p_lock, SPL0);
-		unlock_page(c-core);
+		unlock_page(pgidx);
 		return;
 	}
 
@@ -222,7 +230,7 @@ do_hand(struct core *c, int trouble, intfun steal)
 	}
 out:
 	unlock_slot(ps, pp);
-	unlock_page(c-core);
+	unlock_page(pgidx);
 }
 
 /*
@@ -260,7 +268,7 @@ pageout(void)
 	/*
 	 * Skip to first usable page, also record top
 	 */
-	for (base = core; !(base->c_flags & (C_SYS|C_BAD)); ++base)
+	for (base = core; !BAD(base); ++base)
 		;
 	top = coreNCORE;
 
