@@ -22,7 +22,8 @@ struct thread {
 	struct sched *t_runq;	/* Node in scheduling tree */
 	uchar t_runticks;	/* # ticks left for this proc to run */
 	uchar t_state;		/* State of process (see below) */
-	ushort t_flags;		/* Misc. flags */
+	uchar t_flags;		/* Misc. flags */
+	uchar t_oink;		/* # times we ate our whole CPU quanta */
 	struct thread		/* Run queue list */
 		*t_hd, *t_tl,
 		*t_next;	/* List of threads under a process */
@@ -63,6 +64,12 @@ struct thread {
 #define TS_RUN (2)		/* Thread waiting for CPU */
 #define TS_ONPROC (3)		/* Thread running */
 #define TS_DEAD (4)		/* Thread dead/dying */
+
+/*
+ * Max value for t_oink.  This changes how much memory we will keep
+ * of high CPU usage.
+ */
+#define T_MAX_OINK (32)
 
 #ifdef KERNEL
 extern void dup_stack(struct thread *, struct thread *, voidfun);
