@@ -3,6 +3,8 @@
  *	Routines for printing permission/protection structures
  */
 #include <sys/perm.h>
+#include <std.h>
+#include <string.h>
 
 /*
  * perm_print()
@@ -72,4 +74,52 @@ perm_set(unsigned char *field, char *val)
 	 * Return # fields filled in
 	 */
 	return(nfield);
+}
+
+/*
+ * parse_perm()
+ *	Parse a numeric dotted string into a struct perm
+ *
+ * Also handles names from /vsta/etc/ids.
+ */
+void
+parse_perm(struct perm *p, char *s)
+{
+	int len;
+	char *sn;
+
+	/*
+	 * Special case--no digits, Mr. Superuser
+	 */
+	if (*s == '\0') {
+		p->perm_len = 0;
+		return;
+	}
+
+	/*
+	 * Parse dot-separated numbers
+	 */
+	len = 0;
+	while (s) {
+		/*
+		 * Find end of field, null-terminate if needed
+		 */
+		sn = strchr(s, '.');
+		if (sn) {
+			*sn++ = '\0';
+		}
+
+		/*
+		 * Parse number or id from ids file
+		 */
+		if (isdigit(s[0])) {
+			p->perm_id[len] = atoi(s);
+		} else {
+			p->perm_id[len] =
+				look_id(s, p->perm_id, len);
+		}
+		len += 1;
+		s = sn;
+	}
+	p->perm_len = len;
 }
