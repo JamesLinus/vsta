@@ -144,7 +144,7 @@ struct tcb {
 	int32 srtt;		/* Smoothed round trip time, milliseconds */
 	int32 mdev;		/* Mean deviation, milliseconds */
 
-	char *user;		/* User parameter (e.g., for mapping to an
+	void *user;		/* User parameter (e.g., for mapping to an
 				 * application control block
 				 */
 };
