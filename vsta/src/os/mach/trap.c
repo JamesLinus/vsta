@@ -181,11 +181,6 @@ trap(ulong place_holder)
 		ASSERT_DEBUG(curthread, "trap: user !curthread");
 		ASSERT_DEBUG(curthread->t_uregs == 0, "trap: nested user");
 		curthread->t_uregs = f;
-	} else {
-		/*
-		 * Make trap type distinct for kernel
-		 */
-		f->traptype |= T_KERNEL;
 	}
 
 	/*
@@ -194,14 +189,42 @@ trap(ulong place_holder)
 	 */
 	if (f->traptype == T_SYSCALL) {
 		syscall(f);
+	} else if (kern_mode) {
+		/*
+		 * We break out kernel versus user traps
+		 * to encode switch tables densely and allow
+		 * greater optimization.  This is the kernel
+		 * table.
+		 */
+		switch (f->traptype) {
+		case T_PGFLT:
+			page_fault(f);
+			break;
+		case T_DIV:
+			ASSERT(0, "trap: kernel divide error");
+#ifdef DEBUG
+		case T_DEBUG:
+		case T_BPT:
+			printf("trap: kernel debug\n");
+			dbg_enter();
+			break;
+#endif
+		case T_387:
+		case T_NPX:
+			ASSERT(0, "trap: FP used in kernel");
+
+		default:
+			printf("Trap frame in kern at 0x%x\n", f);
+			ASSERT(0, "trap: bad type");
+		}
+	/*
+	 * This is the user table of trap types (except system calls,
+	 * handled before all this).
+	 */
 	} else switch (f->traptype) {
-	case T_PGFLT|T_KERNEL:
 	case T_PGFLT:
 		page_fault(f);
 		break;
-
-	case T_DIV|T_KERNEL:
-		ASSERT(0, "trap: kernel divide error");
 
 	case T_387:
 		if (cpu.pc_flags & CPU_FP) {
@@ -233,13 +256,6 @@ trap(ulong place_holder)
 		selfsig(EMATH);
 		break;
 
-#ifdef DEBUG
-	case T_DEBUG|T_KERNEL:
-	case T_BPT|T_KERNEL:
-		printf("trap: kernel debug\n");
-		dbg_enter();
-		break;
-#endif
 	case T_DEBUG:
 	case T_BPT:
 #ifdef PROC_DEBUG
@@ -251,12 +267,6 @@ trap(ulong place_holder)
 	case T_INSTR:
 		selfsig(EILL);
 		break;
-
-	case T_387|T_KERNEL:
-	case T_NPX|T_KERNEL:
-		ASSERT(0, "trap: FP used in kernel");
-
-	/* case T_DFAULT|T_KERNEL: XXX stack red zones? */
 
 	case T_DFAULT:
 	case T_INVTSS:
