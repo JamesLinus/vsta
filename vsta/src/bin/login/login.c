@@ -268,12 +268,13 @@ init_tty(void)
 
 main(int argc, char **argv)
 {
+	extern port_t path_open(char *, int);
+
 	/*
 	 * Optionally let them specify device(s)
 	 */
 	if (argc > 1) {
 		char *in, *out;
-		port_name pn;
 		port_t p;
 
 		/*
@@ -289,9 +290,7 @@ main(int argc, char **argv)
 		/*
 		 * Access named server, then open as input
 		 */
-		pn = namer_find(in);
-		if (pn < 0) { perror(in); exit(1); }
-		p = msg_connect(pn, ACC_READ);
+		p = path_open(in, ACC_READ);
 		if (p < 0) { perror(in); exit(1); }
 		close(0);
 		__fd_alloc(p);
@@ -299,9 +298,7 @@ main(int argc, char **argv)
 		/*
 		 * Open stdout
 		 */
-		pn = namer_find(out);
-		if (pn < 0) { perror(out); exit(1); }
-		p = msg_connect(pn, ACC_WRITE);
+		p = path_open(out, ACC_WRITE);
 		if (p < 0) { perror(out); exit(1); }
 		close(1);
 		__fd_alloc(p);
