@@ -25,6 +25,7 @@ load_screen(struct screen *s)
 {
 	bcopy(s->s_img, hw_screen, SCREENMEM);
 	set_screen(hw_screen, s->s_pos);
+	s->s_curimg = hw_screen;
 	cursor();
 }
 
@@ -36,7 +37,6 @@ void
 save_screen(struct screen *s)
 {
 	bcopy(hw_screen, s->s_img, SCREENMEM);
-	s->s_pos = cur-top;
 }
 
 /*

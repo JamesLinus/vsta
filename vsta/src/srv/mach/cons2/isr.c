@@ -84,9 +84,11 @@ key_event(uchar c)
 #endif
 
 	/*
-	 * Hand off straight data now
+	 * Hand off straight data now.  The keyboard always enters
+	 * data for the virtual screen currently being displayed
+	 * on the hardware screen.
 	 */
-	kbd_enqueue(&screens[curscreen], (uint)ch);
+	kbd_enqueue(&screens[hwscreen], (uint)ch);
 }
 
 /*

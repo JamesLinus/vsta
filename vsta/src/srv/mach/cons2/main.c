@@ -254,7 +254,7 @@ switch_screen(uint new)
 void
 select_screen(uint new)
 {
-	struct screen *sold = &screens[curscreen],
+	struct screen *sold = &screens[hwscreen],
 		*snew = &screens[new];
 
 	/*
@@ -262,9 +262,14 @@ select_screen(uint new)
 	 * bother switching to the current (it's a no-op anyway).  Bounce
 	 * attempts to switch to an unconfigured screen.
 	 */
-	if ((new >= NVTY) || (snew->s_img == 0) || (new == curscreen)) {
+	if ((new >= NVTY) || (snew->s_img == 0) || (hwscreen == new)) {
 		return;
 	}
+
+	/*
+	 * Save cursor position for curscreen
+	 */
+	save_screen_pos(&screens[curscreen]);
 
 	/*
 	 * Dump HW image into curscreen, and set curscreen to start
@@ -278,7 +283,6 @@ select_screen(uint new)
 	 */
 	curscreen = hwscreen = new;
 	load_screen(snew);
-	snew->s_curimg = hw_screen;
 }
 
 /*
@@ -420,17 +424,6 @@ loop:
 		break;
 
 	case FS_WRITE:		/* Write file */
-
-		/*
-		 * We redirect writes to ROOTDIR into screen #0.  This
-		 * is just for compatibility with logging messages during
-		 * bootup.
-		 */
-		if (f->f_screen == ROOTDIR) {
-			msg_err(msg.m_sender, EINVAL);
-			break;
-		}
-
 		/*
 		 * If this is I/O to a different display than was
 		 * last rendered via write_string(), tell it to switch

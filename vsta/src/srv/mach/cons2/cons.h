@@ -104,6 +104,6 @@ extern char *hw_screen;
 extern struct prot cons_prot;
 extern struct screen screens[];
 extern uint accgen;
-extern uint curscreen;
+extern uint curscreen, hwscreen;
 
 #endif /* _SCREEN_H */
