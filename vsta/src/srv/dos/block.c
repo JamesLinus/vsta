@@ -168,6 +168,7 @@ bdirty(void *bp)
 {
 	struct block *b = bp;
 
+	ASSERT_DEBUG(b, "bdirty: NULL");
 	ASSERT_DEBUG(b->b_refs > 0, "bdirty: no ref");
 	b->b_flags |= B_DIRTY;
 }
