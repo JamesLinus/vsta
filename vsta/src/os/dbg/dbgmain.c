@@ -8,7 +8,7 @@
 
 extern void dump_phys(), dump_virt(), dump_procs(), dump_pset(),
 	dump_instr(), trace(), trapframe(), dump_vas(), dump_port(),
-	dump_pview(), dump_thread();
+	dump_pview(), dump_thread(), dump_ref();
 extern void dbg_inport(), dbg_outport();
 static void quit(), calc(), set(), set_mem();
 extern int get_num();
@@ -35,6 +35,7 @@ struct {
 	"pset", dump_pset,
 	"pview", dump_pview,
 	"quit", quit,
+	"ref", dump_ref,
 	"set", set,
 	"tframe", trapframe,
 	"thread", dump_thread,

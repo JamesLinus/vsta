@@ -432,7 +432,51 @@ dump_port(char *p)
 	printf("hd 0x%x tl 0x%x p_sema 0x%x p_wait 0x%x flags 0x%x\n",
 		port->p_hd, port->p_tl, &port->p_sema, &port->p_wait,
 		port->p_flags);
-	printf("refs %d\n", port->p_refs);
+	printf("refs 0x%x\n", port->p_refs);
 }
 
+/*
+ * prstate()
+ *	Convert portref's state into string
+ */
+static char *
+prstate(int x)
+{
+	switch (x) {
+	case PS_IOWAIT:
+		return("iowait");
+	case PS_IODONE:
+		return("iodone");
+	case PS_ABWAIT:
+		return("abwait");
+	case PS_ABDONE:
+		return("abdone");
+	case PS_OPENING:
+		return("opening");
+	case PS_CLOSING:
+		return("closing");
+	default:
+		return("???");
+	}
+}
+
+/*
+ * dump_ref()
+ *	Dump out a portref
+ */
+void
+dump_ref(char *p)
+{
+	struct portref *pr;
+
+	if (!p || !p[0] || !(pr = (struct portref *)get_num(p))) {
+		printf("Bad addr\n");
+		return;
+	}
+	printf("port 0x%x lock 0x%x iowait 0x%x svwait 0x%x\n",
+		pr->p_port, &pr->p_lock, &pr->p_iowait, &pr->p_svwait);
+	printf(" state %s sysmsg 0x%x next/prev 0x%x/0x%x segs 0x%x\n",
+		prstate(pr->p_state),
+		pr->p_msg, pr->p_next, pr->p_prev, &pr->p_segs);
+}
 #endif
