@@ -81,6 +81,9 @@ do_dir(DIR *d)
 			}
 			continue;
 		}
+		if (rflag) {
+			continue;
+		}
 
 		/*
 		 * Flag as changed if writable.  Skip the leading
