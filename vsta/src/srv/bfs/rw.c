@@ -41,6 +41,7 @@ do_write(int startblk, int pos, char *buf, int cnt)
 		if (!handle)
 			return 1;
 		memcpy(bdata(handle)+boff, buf+x, step);
+		pos += step;
 		bdirty(handle);
 		bfree(handle);
 
@@ -270,6 +271,7 @@ bfs_read(struct msg *m, struct file *f)
 			return;
 		}
 		memcpy(buf+x, bdata(handle)+boff, step);
+		f->f_pos += step;
 		bfree(handle);
 
 		/*
@@ -287,5 +289,4 @@ bfs_read(struct msg *m, struct file *f)
 	m->m_arg1 = 0;
 	msg_reply(m->m_sender, m);
 	free(buf);
-	f->f_pos += cnt;
 }
