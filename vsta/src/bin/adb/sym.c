@@ -125,7 +125,7 @@ rdsym(char *name)
 		 * Map everything to have one less leading '_'
 		 */
 		if (name[0] == '_') {
-			sp->n_un.n_strx += 1;
+			name += 1;
 		}
 
 		/*
