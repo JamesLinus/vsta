@@ -30,7 +30,7 @@ mmap(void *addr, ulong len, int prot, int flags,
 	port_t port, ulong offset)
 {
 	struct proc *p = curthread->t_proc;
-	struct vas *vas = p->p_vas;
+	struct vas *vas = &p->p_vas;
 	struct pview *pv;
 	struct pset *ps;
 	void *vaddr;
@@ -163,7 +163,7 @@ mmap(void *addr, ulong len, int prot, int flags,
 int
 munmap(void *vaddr, ulong len)
 {
-	struct vas *vas = curthread->t_proc->p_vas;
+	struct vas *vas = &curthread->t_proc->p_vas;
 	struct pview *pv;
 	struct pset *ps;
 

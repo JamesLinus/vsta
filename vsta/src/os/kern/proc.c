@@ -143,12 +143,10 @@ bootproc(struct boot_task *b)
 	/*
 	 * The vas for the proc
 	 */
-	vas = MALLOC(sizeof(struct vas), MT_VAS);
-	vas->v_views = 0;
+	vas = &p->p_vas;
 	vas->v_flags = VF_MEMLOCK | VF_BOOT;
 	init_lock(&vas->v_lock);
 	hat_initvas(vas);
-	p->p_vas = vas;
 
 	/*
 	 * The views of text and data (and BSS)
@@ -305,7 +303,7 @@ fork_thread(voidfun f, ulong arg)
 	/*
 	 * Then get a user stack
 	 */
-	ustack = alloc_zfod(p->p_vas, btop(UMINSTACK));
+	ustack = alloc_zfod(&p->p_vas, btop(UMINSTACK));
 	if (!ustack) {
 		return(err(ENOMEM));
 	}
@@ -393,7 +391,6 @@ fork(void)
 	struct thread *tnew, *told = curthread;
 	struct proc *pold = told->t_proc, *pnew;
 	pid_t npid;
-	extern struct vas *fork_vas();
 
 	/*
 	 * Check thread limit here
@@ -431,7 +428,7 @@ fork(void)
 	init_sema(&pnew->p_sema);
 	pnew->p_prot = pold->p_prot;
 	pnew->p_threads = tnew;
-	pnew->p_vas = fork_vas(tnew, pold->p_vas);
+	fork_vas(&pold->p_vas, &pnew->p_vas);
 	pnew->p_runq = sched_node(pold->p_runq->s_up);
 	tnew->t_runq = sched_thread(pnew->p_runq, tnew);
 	fork_ports(&pold->p_sema, pold->p_open, pnew->p_open, PROCOPENS);
@@ -510,10 +507,10 @@ free_proc(struct proc *p)
 	/*
 	 * Clean our our vas
 	 */
-	if (p->p_vas->v_flags & VF_DMA) {
+	if (p->p_vas.v_flags & VF_DMA) {
 		pages_release(p);
 	}
-	free_vas(p->p_vas);
+	free_vas(&p->p_vas);
 
 	/*
 	 * Release proc storage
@@ -581,10 +578,10 @@ do_exit(int code)
 	 * of the vas.
 	 */
 	if (!last) {
-		remove_pview(p->p_vas, t->t_ustack);
+		remove_pview(&p->p_vas, t->t_ustack);
 	} else {
 #ifdef DEBUG
-		if (p->p_vas->v_flags & VF_BOOT) {
+		if (p->p_vas.v_flags & VF_BOOT) {
 			printf("Boot process %d dies\n", p->p_pid);
 			dbg_enter();
 		}

@@ -161,17 +161,17 @@ exec(uint arg_port, struct mapfile *arg_map, void *arg)
 	/*
 	 * Tear down most of our vas
 	 */
-	discard_vas(p->p_vas);
+	discard_vas(&p->p_vas);
 
 	/*
 	 * Add back a minimal stack
 	 */
-	add_minstack(p->p_vas);
+	add_minstack(&p->p_vas);
 
 	/*
 	 * Put in the views of the file
 	 */
-	add_views(p->p_vas, pr, &m);
+	add_views(&p->p_vas, pr, &m);
 
 	/*
 	 * Flush our own handle to the port; the views we added

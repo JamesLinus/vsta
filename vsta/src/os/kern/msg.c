@@ -83,7 +83,7 @@ mapsegs(struct proc *p, struct sysmsg *sm, struct segref *segref)
 
 	for (x = 0; x < sm->sm_nseg; ++x) {
 		s = sm->sm_seg[x];
-		if (attach_seg(p->p_vas, s)) {
+		if (attach_seg(&p->p_vas, s)) {
 			uint y;
 
 			for (y = 0; y < x; ++y) {
@@ -229,7 +229,7 @@ msg_send(port_t arg_port, struct msg *arg_msg)
 	/*
 	 * Construct a system message
 	 */
-	if (m_to_sm(p->p_vas, &sm)) {
+	if (m_to_sm(&p->p_vas, &sm)) {
 		error = -1;
 		goto out2;
 	}
@@ -609,7 +609,7 @@ msg_reply(long arg_who, struct msg *arg_msg)
 	/*
 	 * Try to map segments into sysmsg format
 	 */
-	if (m_to_sm(p->p_vas, &sm)) {
+	if (m_to_sm(&p->p_vas, &sm)) {
 		error = -1;
 		goto out;
 	}

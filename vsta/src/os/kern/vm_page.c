@@ -49,7 +49,6 @@ static sema_t core_semas[NC_SEMA];
 uint
 alloc_page(void)
 {
-	struct thread *t = curthread;
 	struct core *c;
 
 	p_lock_fast(&mem_lock, SPL0);
@@ -187,6 +186,8 @@ init_page(void)
 	 */
 	init_lock(&vmap_lock);
 	init_sema(&vmap_sema); set_sema(&vmap_sema, 0);
+	init_sema(&mem_sema);
+	init_lock(&mem_lock);
 
 	/*
 	 * Initialize each of the core_semas to allow one person through

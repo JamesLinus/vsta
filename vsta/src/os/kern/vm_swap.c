@@ -46,7 +46,7 @@ seg_physcopy(struct sysmsg *sm, uint pfn)
 	uint x, y, nbyte, cnt;
 	char *p;
 	struct seg *s;
-	struct vas *vas = curthread->t_proc->p_vas;
+	struct vas *vas = &curthread->t_proc->p_vas;
 
 	p = (char *)ptov(ptob(pfn));
 	nbyte = NBPG;

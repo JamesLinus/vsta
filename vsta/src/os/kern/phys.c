@@ -87,7 +87,7 @@ page_wire(void *arg_va, void **arg_pa)
 	/*
 	 * Allowed?
 	 */
-	if ((p->p_vas->v_flags & VF_DMA) == 0) {
+	if ((p->p_vas.v_flags & VF_DMA) == 0) {
 		return(err(EPERM));
 	}
 
@@ -107,7 +107,7 @@ page_wire(void *arg_va, void **arg_pa)
 	/*
 	 * Look up virtual address
 	 */
-	pv = find_pview(p->p_vas, arg_va);
+	pv = find_pview(&p->p_vas, arg_va);
 	if (!pv) {
 		error = err(EINVAL);
 		goto out;
@@ -255,6 +255,6 @@ enable_dma(void)
 	if (!issys()) {
 		return(-1);
 	}
-	curthread->t_proc->p_vas->v_flags |= VF_DMA;
+	curthread->t_proc->p_vas.v_flags |= VF_DMA;
 	return(0);
 }

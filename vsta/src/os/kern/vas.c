@@ -153,7 +153,6 @@ free_vas(struct vas *vas)
 		remove_pview(vas, vas->v_views->p_vaddr);
 	}
 	hat_freevas(vas);
-	FREE(vas, MT_VAS);
 }
 
 /*
@@ -224,20 +223,17 @@ alloc_zfod(struct vas *vas, uint pages)
  * enough for in-core dirty pages, but we must also bring in
  * pages on swap in order to make a copy.
  */
-struct vas *
-fork_vas(struct thread *t, struct vas *ovas)
+void
+fork_vas(struct vas *ovas, struct vas *vas)
 {
-	struct vas *vas;
 	char *vaddr = 0;
 	struct pview *closest;
 	struct pview pv2;
 
 	/*
-	 * Set initial fields.
+	 * Set initial fields.  Assume that the new vas has been
+	 * bzero()'ed.
 	 */
-	vas = MALLOC(sizeof(struct vas), MT_VAS);
-	vas->v_views = 0;
-	vas->v_flags = 0;
 	init_lock(&vas->v_lock);
 	hat_initvas(vas);
 
@@ -317,8 +313,6 @@ fork_vas(struct thread *t, struct vas *ovas)
 	 * Let hat handle any final details of duplication
 	 */
 	hat_fork(ovas, vas);
-
-	return(vas);
 }
 
 /*
