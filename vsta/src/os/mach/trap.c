@@ -130,7 +130,9 @@ page_fault(struct trapframe *f)
 	if (vas_fault(curthread->t_proc->p_vas, l,
 			f->errcode & EC_WRITE)) {
 		if (curthread->t_probe) {
-			printf("cpfail\n");
+#ifdef DEBUG
+			printf("cpfail\n"); dbg_enter();
+#endif
 			ASSERT((f->ecs & 3) == PRIV_KERN,
 				"page_fault: probe from user");
 			f->eip = (ulong)(curthread->t_probe);
@@ -228,14 +230,14 @@ trap(ulong place_holder)
 	ASSERT_DEBUG(cpu.pc_locks == 0, "trap: locks held");
 
 	/*
-	 * See if we should get off the CPU
-	 */
-	check_preempt();
-
-	/*
 	 * See if we should handle any events
 	 */
 	check_events();
+
+	/*
+	 * See if we should get off the CPU
+	 */
+	check_preempt();
 
 	/*
 	 * Clear uregs if nesting back to user
