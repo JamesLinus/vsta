@@ -488,6 +488,9 @@ cmdloop(void)
 	case '=':
 		print_val(p);
 		break;
+	case '!':
+		system(p);
+		break;
 	default:
 		printf("Unknown modifier: '%c'\n", c);
 		break;
