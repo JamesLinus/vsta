@@ -3,10 +3,14 @@
  *	Test harness for interacting with /inet filesystem
  */
 #include <sys/fs.h>
+#include <sys/syscall.h>
 #include <stdio.h>
 #include <fcntl.h>
 #include <ctype.h>
 #include <string.h>
+#include <std.h>
+
+extern port_t path_open(), __fd_port();
 
 typedef void (*cmdfun)(char *);
 
@@ -17,7 +21,7 @@ static FILE *tmpf;
 static void my_read(char *), my_stat(char *), my_write(char *),
 	my_wstat(char *), my_exit(char *);
 static void dump_s(char *, uint), my_sleep(char *), my_dot(char *),
-	my_term(char *);
+	my_term(char *), my_open(char *);
 
 /*
  * Table of commands
@@ -28,6 +32,7 @@ static struct {
 } cmdtab[] = {
 	".", my_dot,
 	"exit", my_exit,
+	"open", my_open,
 	"quit", my_exit,
 	"read", my_read,
 	"sleep", my_sleep,
@@ -37,6 +42,31 @@ static struct {
 	"wstat", my_wstat,
 	0, 0
 };
+
+/*
+ * my_open()
+ *	Generate a proxyd-type FS_OPEN request
+ */
+static void
+my_open(char *path)
+{
+	struct msg m;
+	int x;
+
+	x = wstat(port, "proxy=1\n");
+	if (x < 0) {
+		printf("Can't set proxy mode\n");
+		return;
+	}
+	m.m_op = FS_OPEN;
+	m.m_arg = ACC_READ | ACC_WRITE;
+	m.m_buf = path;
+	m.m_buflen = strlen(path)+1;
+	m.m_nseg = 1;
+	m.m_arg1 = 0;
+	x = msg_send(port, &m);
+	printf("FS_OPEN returns %d\n", x);
+}
 
 /*
  * reader()
@@ -362,7 +392,9 @@ main(int argc, char **argv)
 		} else {
 			printf("->");
 			fflush(stdout);
-			gets(buf);
+			if (gets(buf) == 0) {
+				exit(0);
+			}
 		}
 		if (buf[0] == '\0') {
 			continue;
