@@ -16,6 +16,7 @@ SECTIONS {
 	}
 	.bss . : {
 		*(.bss)
+		*(COMMON)
 		__end = . ;
 	}
 }
