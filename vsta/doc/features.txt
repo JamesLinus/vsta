@@ -38,3 +38,23 @@ Allow VM page stealing to be active before swap space is configured.
 	still be a help on smaller systems.
 Port of "rh" find(1)-like tool using C syntax.
 Add ~ and ~user processing for open()
+
+v1.4.0:
+
+Significant work by Dave Hudson on performance.  Also a new malloc()
+	which allows fast inline allocation for most common cases.
+Source reorganization; a src/ subdirectory now holds the source.  Long
+	promised, finally delivered.
+New syscall convention using registers
+Add "include" directive to make
+Organize source and makefiles to support multiple architectures
+Added source for 68030 Amiga port
+Per-page TLB flushing where available
+DOS filesystem performance tweaks
+tfork() passes argument now
+Lots of new C library functions
+/dev/null server now supports an "always full" switch--useful for testing
+Added xargs, echo, strings
+vstafs: fix up how directories are grown
+Cleanup of pset data structure and routines
+Cleanup of adb, add :n to step over procedure calls
