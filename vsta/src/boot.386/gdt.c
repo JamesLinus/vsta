@@ -3,6 +3,7 @@
  *	Stuff for setting up a boot GDT
  */
 #include <memory.h>
+#include <dos.h>
 #include "boot.h"
 #include "gdt.h"
 #include "../mach/tss.h"
@@ -118,6 +119,26 @@ setup_gdt(void)
 	s->seg_base2 = (l >> 24) & 0xFF;
 }
 
+
+/*
+ * Ports in NVRAM from PC
+ */
+#define BASELO 0x15	/* Base memory registers */
+#define BASEHI 0x16
+#define EXTLO 0x17	/*  ...extended */
+#define EXTHI 0x18
+
+/*
+ * nvread()
+ *	Read a value from NVRAM
+ */
+static
+nvread(int port)
+{
+	outportb(0x70, port & 0xFF);
+	return(inportb(0x71) & 0xFF);
+}
+
 /*
  * set_args32()
  *	Set args to boot task now that all memory use is known
@@ -125,8 +146,17 @@ setup_gdt(void)
 void
 set_args32(void)
 {
+	int base, ext;
+
+	/*
+	 * Get base and extended memory in K.  We'll scale to longword
+	 * byte units as we assign to the array.
+	 */
+	base = nvread(BASELO) | (nvread(BASEHI) << 8);
+	ext = nvread(EXTLO) | (nvread(EXTHI) << 8);
+
 	args32[0] = (pbase - basemem) / NBPG;
-	args32[1] = 3L*M;
-	args32[2] = 640L*K;
+	args32[1] = 1024L * ext;
+	args32[2] = 1024L * base;
 	args32[3] = (bootbase - basemem) / NBPG;
 }
