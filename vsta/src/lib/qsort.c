@@ -5,45 +5,40 @@
  * Based on technology:
  * Copyright (c) 1980, 1983 The Regents of the University of California.
  * All rights reserved.
+ *
+ * Our own version of the system qsort routine which is faster by an
+ * average of 25%, with lows and highs of 10% and 50%.
+ *
+ * The THRESHold below is the insertion sort threshold, and has been
+ * adjusted for records of size 48 bytes.  The MTHREShold is where we
+ * stop finding a better median.
  */
+#define	THRESH 4		/* threshold for insertion */
+#define	MTHRESH	6		/* threshold for median */
+
+static int (*qcmp)();		/* the comparison routine */
+static int qsz;			/* size of each record */
+static int thresh;		/* THRESHold in chars */
+static int mthresh;		/* MTHRESHold in chars */
+
+static int qst();
 
 /*
- * qsort.c:
- * Our own version of the system qsort routine which is faster by an average
- * of 25%, with lows and highs of 10% and 50%.
- * The THRESHold below is the insertion sort threshold, and has been adjusted
- * for records of size 48 bytes.
- * The MTHREShold is where we stop finding a better median.
- */
-#define		THRESH		4		/* threshold for insertion */
-#define		MTHRESH		6		/* threshold for median */
-
-static  int		(*qcmp)();		/* the comparison routine */
-static  int		qsz;			/* size of each record */
-static  int		thresh;			/* THRESHold in chars */
-static  int		mthresh;		/* MTHRESHold in chars */
-
-static	int		qst();
-
-/*
- * qsort:
+ * qsort()
+ *
  * First, set up some global parameters for qst to share.  Then, quicksort
  * with qst(), and then a cleanup insertion sort ourselves.  Sound simple?
  * It's not...
  */
-
 void
-qsort(base, n, size, compar)
-	void	*base;
-	int	n;
-	unsigned	size;
-	int	(*compar)(void*,void*);
+qsort(void *base, int n, unsigned int size, int (*compar)(void *, void *))
 {
 	register char c, *i, *j, *lo, *hi;
 	char *min, *max;
 
-	if (n <= 1)
+	if (n <= 1) {
 		return;
+	}
 	qsz = size;
 	qcmp = compar;
 	thresh = qsz * THRESH;
@@ -61,9 +56,11 @@ qsort(base, n, size, compar)
 	 * the first THRESH elements (or the first n if n < THRESH), finding
 	 * the min, and swapping it into the first position.
 	 */
-	for (j = lo = base; (lo += qsz) < hi; )
-		if (qcmp(j, lo) > 0)
+	for (j = lo = base; (lo += qsz) < hi;) {
+		if (qcmp(j, lo) > 0) {
 			j = lo;
+		}
+	}
 	if (j != base) {
 		/* swap j into place */
 		for (i = base, hi = base + qsz; i < hi; ) {
@@ -85,8 +82,9 @@ qsort(base, n, size, compar)
 		if ((hi += qsz) != min) {
 			for (lo = min + qsz; --lo >= min; ) {
 				c = *lo;
-				for (i = j = lo; (j -= qsz) >= hi; i = j)
+				for (i = j = lo; (j -= qsz) >= hi; i = j) {
 					*i = *j;
+				}
 				*i = c;
 			}
 		}
@@ -94,7 +92,8 @@ qsort(base, n, size, compar)
 }
 
 /*
- * qst:
+ * qst()
+ *
  * Do a quicksort
  * First, find the median element, and put that one in the first place as the
  * discriminator.  (This "median" is just the median of the first, last and
@@ -107,10 +106,8 @@ qsort(base, n, size, compar)
  * All data swaps are done in-line, which is space-losing but time-saving.
  * (And there are only three places where this is done).
  */
-
-static
-qst(base, max)
-	char *base, *max;
+static int
+qst(char *base, char *max)
 {
 	register char c, *i, *j, *jj;
 	register int ii;
@@ -134,8 +131,9 @@ qst(base, max)
 			if (qcmp(j, (tmp = max - qsz)) > 0) {
 				/* switch to first loser */
 				j = (j == jj ? i : jj);
-				if (qcmp(j, tmp) < 0)
+				if (qcmp(j, tmp) < 0) {
 					j = tmp;
+				}
 			}
 			if (j != i) {
 				ii = qsz;
@@ -150,8 +148,9 @@ qst(base, max)
 		 * Semi-standard quicksort partitioning/swapping
 		 */
 		for (i = base, j = max - qsz; ; ) {
-			while (i < mid && qcmp(i, mid) <= 0)
+			while (i < mid && qcmp(i, mid) <= 0) {
 				i += qsz;
+			}
 			while (j > mid) {
 				if (qcmp(mid, j) <= 0) {
 					j -= qsz;
@@ -195,13 +194,15 @@ qst(base, max)
 		 */
 		i = (j = mid) + qsz;
 		if ((lo = j - base) <= (hi = max - i)) {
-			if (lo >= thresh)
+			if (lo >= thresh) {
 				qst(base, j);
+			}
 			base = i;
 			lo = hi;
 		} else {
-			if (hi >= thresh)
+			if (hi >= thresh) {
 				qst(i, max);
+			}
 			max = j;
 		}
 	} while (lo >= thresh);
