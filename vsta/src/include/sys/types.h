@@ -31,6 +31,17 @@ typedef int (*intfun)();
 /*
  * For talking about a structure without knowing its definition
  */
-#define STRUCT_REF(type) typedef struct type __##type##_;
+#define STRUCT_REF(type) typedef struct type __##type##_
+
+/*
+ * These are structures who are accessed in this way
+ */
+STRUCT_REF(proc);
+STRUCT_REF(thread);
+STRUCT_REF(vas);
+STRUCT_REF(pset);
+STRUCT_REF(pview);
+STRUCT_REF(prot);
+STRUCT_REF(perm);
 
 #endif /* _TYPES_H */
