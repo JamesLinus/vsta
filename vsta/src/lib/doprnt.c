@@ -3,8 +3,7 @@
  *	text buffer formatting code
  *
  * This code has been modified for use with VSTa, and now formats a string
- * buffer instead of an output file.  Floating point support is only
- * available if FLOAT_SUPPORT is defined.
+ * buffer instead of an output file.
  */
 
 /*
@@ -30,10 +29,9 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <ctype.h>
-
-#ifdef FLOAT_SUPPORT
+#include <float.h>
 #include <math.h>
-#include <ieeefp.h>
+#include <mach/ieeefp.h>
 
 #define	MAXEXP DBL_MAX_10_EXP
 #define	MAXFRACT DBL_DIG
@@ -41,9 +39,6 @@
 #define	DEFPREC	(FLT_DIG + 1)
 #define	DEFLPREC (DBL_DIG + 1)
 #define	BUF (MAXEXP + MAXFRACT + 1)
-#else
-#define BUF 128
-#endif /* FLOAT_SUPPORT */
 
 #define ARG(basetype) \
 	_ulong = flags & LONGINT ? va_arg(argp, long basetype) : \
@@ -61,13 +56,11 @@
 #define	ZEROPAD		0x20	/* zero (as opposed to blank) pad */
 #define	HEXPREFIX	0x40	/* add 0x or 0X prefix */
 
-#ifdef FLOAT_SUPPORT
 static char *round(double, int *, char *, char *, char, char *);
 static char *exponent(char *, int, uchar);
 static int isspecial(double, char *, char *);
 extern double modf(double, double *);
 static int cvt(double, int, int, char *, uchar, char *, char *);
-#endif
 
 /*
  * doprnt()
@@ -81,9 +74,7 @@ __doprnt(char *obuf, const char *fmt0, va_list argp)
 	int cnt;		/* return value accumulator */
 	int n;			/* random handy integer */
 	char *t;		/* buffer pointer */
-#ifdef FLOAT_SUPPORT
 	double _double;		/* double precision arguments %[eEfgG] */
-#endif
 	ulong _ulong;		/* integer arguments %[diouxX] */
 	int base;		/* base for [diouxX] conversion */
 	int dprec;		/* decimal precision in [diouxX] */
@@ -208,7 +199,6 @@ rflag:		switch (*++fmt) {
 			}
 			base = 10;
 			goto number;
-#ifdef FLOAT_SUPPORT
 		case 'e':
 		case 'E':
 		case 'f':
@@ -255,7 +245,6 @@ rflag:		switch (*++fmt) {
 			}
 			t = *buf ? buf : buf + 1;
 			goto pforw;
-#endif /* FLOAT_SUPPORT */
 		case 'n':
 			if (flags & LONGINT) {
 				*va_arg(argp, long *) = cnt;
@@ -490,7 +479,6 @@ pforw:
 	 */
 }
 
-#ifdef FLOAT_SUPPORT
 static char *
 round(double fract, int *exp, char *start, char *end, char ch, char *signp)
 {
@@ -579,7 +567,7 @@ isspecial(double d, char *bufp, char *signp)
 	} else {
 		(void)strcpy(bufp, "Inf");
 	}
-	*signp = isneg(d) ? '-' : '+';
+	*signp = (d < 0) ? '-' : '+';
 
 	return(3);
 }
@@ -805,4 +793,3 @@ eformat:	if (expcnt) {
 	}
 	return(t - startp);
 }
-#endif /* FLOAT_SUPPORT */

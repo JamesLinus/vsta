@@ -10,8 +10,8 @@
  * to charge for this stuff I think I'm OK, but he should get credit
  * where it's due.
  */
+#include <sys/types.h>
 
-#ifdef FLOAT_SUPPORT
 /*
  * strtod()
  *	Convert string to double, advance string pointer
@@ -137,11 +137,32 @@ ldexp(double v, int e)
 	return(v);
 }
 
-#else /* dummy out--no FLOAT_SUPPORT */
+int
+finite(double x)
+{
+	static const unsigned short mexp = 0x7f80;
 
-/*
- * GCC 1.X seems to choke on an entirely empty file... sigh
- */
-static int x;
+        return( (*((short *) &x ) & mexp ) != mexp );
+}
 
-#endif /* FLOAT_SUPPORT */
+int
+isnan(double d)
+{
+        register struct IEEEdp {
+                uint manl : 32;
+                uint manh : 20;
+                uint  exp : 11;
+                uint sign :  1;
+        } *p = (struct IEEEdp *)&d;
+
+        return ((p->exp == 2047) && (p->manh || p->manl));
+}
+
+double
+fabs(double d)
+{
+	if (d < 0.0) {
+		return(-d);
+	}
+	return(d);
+}
