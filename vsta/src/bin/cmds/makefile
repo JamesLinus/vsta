@@ -13,9 +13,12 @@ CRT0=../../lib/crt0.o
 #
 PROGS=test args cat id ls swapd rm cp sleep mkdir pwd kill mv stat \
 	dumpsect man fstab rmdir touch strings xargs echo du chmod \
-	tput basename
+	tput basename uname
 
 all: $(PROGS)
+
+uname: uname.o
+	$(LD) $(LDFLAGS) -o uname $(CRT0) uname.o -lc
 
 basename: basename.o
 	$(LD) $(LDFLAGS) -o basename $(CRT0) basename.o -lc
