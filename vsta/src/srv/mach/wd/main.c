@@ -164,7 +164,7 @@ loop:
 	 */
 	x = msg_receive(wdport, &msg);
 	if (x < 0) {
-		syslog(LOG_ERR, "wd: msg_receive");
+		syslog(LOG_ERR, "msg_receive");
 		goto loop;
 	}
 
@@ -270,12 +270,17 @@ main(argc, argv)
 	int i;
 
 	/*
+	 * Initialize syslog
+	 */
+	openlog("wd", LOG_PID, LOG_DAEMON);
+
+	/*
 	 * Allocate handle->file hash table.  8 is just a guess
 	 * as to what we'll have to handle.
 	 */
         filehash = hash_alloc(8);
 	if (filehash == 0) {
-		syslog(LOG_ERR, "wd: file hash");
+		syslog(LOG_ERR, "file hash");
 		exit(1);
         }
 
@@ -286,7 +291,7 @@ main(argc, argv)
 	 * consume a channel.
 	 */
 	if (enable_dma(0) < 0) {
-		syslog(LOG_ERR, "wd: DMA");
+		syslog(LOG_ERR, "DMA");
 		exit(1);
 	}
 
@@ -294,7 +299,7 @@ main(argc, argv)
 	 * Enable I/O for the needed range
 	 */
 	if (enable_io(WD_LOW, WD_HIGH) < 0) {
-		syslog(LOG_ERR, "wd: I/O");
+		syslog(LOG_ERR, "I/O");
 		exit(1);
 	}
 
@@ -313,7 +318,7 @@ main(argc, argv)
 	 * Register as WD hard drive
 	 */
 	if (namer_register("disk/wd", wdname) < 0) {
-		syslog(LOG_ERR, "wd: can't register name\n");
+		syslog(LOG_ERR, "can't register name\n");
 		exit(1);
 	}
 
@@ -321,7 +326,7 @@ main(argc, argv)
 	 * Tell system about our I/O vector
 	 */
 	if (enable_isr(wdport, WD_IRQ)) {
-		syslog(LOG_ERR, "wd: IRQ attach");
+		syslog(LOG_ERR, "IRQ attach");
 		exit(1);
 	}
 

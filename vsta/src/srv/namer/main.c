@@ -25,7 +25,6 @@ extern char *strerror();
 #define BUFSIZE (NAMESZ*3)	/* That should be enough */
 
 port_t namerport;	/* Port we receive contacts through */
-char namer_sysmsg[] = "namer (NAMER):";
 
 static struct hash *filehash;
 static struct node rootnode;
@@ -289,6 +288,11 @@ main()
 	int chan, fd, x;
 
 	/*
+	 * Initialize syslog
+	 */
+	openlog("namer", LOG_PID, LOG_DAEMON);
+
+	/*
 	 * Allocate data structures we'll need
 	 */
         filehash = hash_alloc(16);
@@ -313,7 +317,7 @@ main()
 	 */
 	namerport = msg_port(PORT_NAMER, 0);
 	if (x < 0) {
-		syslog(LOG_ERR, "%s can't register name", namer_sysmsg);
+		syslog(LOG_ERR, "can't register name");
 		exit(1);
 	}
 

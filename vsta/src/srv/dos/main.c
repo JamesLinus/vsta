@@ -17,7 +17,6 @@ port_t rootport;		/* Port we receive contacts through */
 char *secbuf;			/* A sector buffer */
 struct boot bootb;		/* Image of boot sector */
 static struct hash *filehash;	/* Handle->filehandle mapping */
-char dos_sysmsg[7 + NAMESZ];	/* Syslog message prefix */
 
 extern port_t path_open(char *, int);
 extern int __fd_alloc(port_t);
@@ -316,21 +315,6 @@ usage(void)
 }
 
 /*
- * create_sysmsg()
- *	Create the first part of any syslog message
- */
-static void
-create_sysmsg(char *namer_name)
-{
-	strcpy(dos_sysmsg, "dos (");
-	strncpy(&dos_sysmsg[5], namer_name, 16);
-	if (strlen(namer_name) >= NAMESZ) {
-		dos_sysmsg[5 + NAMESZ - 1] = '\0';
-	}
-	strcat(dos_sysmsg, "):");
-}
-
-/*
  * main()
  *	Startup of a DOS filesystem
  *
@@ -346,27 +330,27 @@ main(int argc, char *argv[])
 	char *namer_name = 0;
 
 	/*
+	 * Initialize syslog
+	 */
+	openlog("dos", LOG_PID, LOG_DAEMON);
+
+	/*
 	 * Check arguments
 	 */
 	if (argc == 3) {
 		namer_name = argv[2];
-		create_sysmsg(namer_name);
-		
 		blkdev = open(argv[1], O_RDWR);
 		if (blkdev < 0) {
-			syslog(LOG_ERR, "%s unable to open '%s'",
-				dos_sysmsg, argv[1]);
+			syslog(LOG_ERR, "unable to open '%s'", argv[1]);
 			exit(1);
 		}
 	} else if (argc == 4) {
 		int retries;
 
-		namer_name = argv[3];
-		create_sysmsg(namer_name);
-
 		/*
 		 * Version of invocation where service is specified
 		 */
+		namer_name = argv[3];
 		if (strcmp(argv[1], "-p")) {
 			usage();
 		}
@@ -379,9 +363,7 @@ main(int argc, char *argv[])
 			}
 		}
 		if (port < 0) {
-			syslog(LOG_ERR,
-				"%s couldn't connect to block device",
-				dos_sysmsg);
+			syslog(LOG_ERR, "couldn't connect to block device");
 			exit(1);
 		}
 		blkdev = __fd_alloc(port);
@@ -412,7 +394,7 @@ main(int argc, char *argv[])
 		exit(1);
 	}
 	if (read(blkdev, secbuf, SECSZ) != SECSZ) {
-		syslog(LOG_ERR, "%s can't read dos boot block", dos_sysmsg);
+		syslog(LOG_ERR, "can't read dos boot block");
 		exit(1);
 	}
 	bcopy(secbuf, &bootb, sizeof(bootb));
@@ -424,8 +406,7 @@ main(int argc, char *argv[])
 	rootport = msg_port((port_name)0, &fsname);
 	x = namer_register(namer_name, fsname);
 	if (x < 0) {
-		syslog(LOG_ERR, "%s can't register name: %s\n",
-			dos_sysmsg, namer_name);
+		syslog(LOG_ERR, "can't register name: %s\n", namer_name);
 		exit(1);
 	}
 
@@ -439,7 +420,7 @@ main(int argc, char *argv[])
 	/*
 	 * Start serving requests for the filesystem
 	 */
-	syslog(LOG_INFO, "%s filesystem established", dos_sysmsg);
+	syslog(LOG_INFO, "filesystem established");
 	dos_main();
 	return(0);
 }

@@ -15,8 +15,6 @@
 #include "par.h"
 #include "par_port.h"
 
-extern volatile void exit(int error);
-
 static struct hash *filehash;	/* Map session->context structure */
 
 static port_t lp_port;		/* Port we receive contacts through */
@@ -24,7 +22,6 @@ uint accgen = 0;		/* Generation counter for access */
 struct par_port printer;	/* the printer "object" */
 int timeout = 30;		/* number of seconds before a write is
 				   aborted */
-char par_sysmsg[7 + NAMESZ];
 
 /*
  * Protection for port; starts out with access for all.  sys can
@@ -156,7 +153,7 @@ check_gen(struct msg *m, struct file *f)
  * par_main()
  *	Endless loop to receive and serve requests
  */
-static volatile void
+static void
 par_main()
 {
 	struct msg msg;
@@ -168,7 +165,7 @@ loop:
 	 */
 	x = msg_receive(lp_port, &msg);
 	if (x < 0) {
-		syslog(LOG_ERR, "%s msg_receive", par_sysmsg);
+		syslog(LOG_ERR, "msg_receive");
 		goto loop;
 	}
 
@@ -231,38 +228,27 @@ loop:
  * usage()
  *	Tell how to use
  */
-static volatile void
+static void
 usage(void)
 {
 	puts("usage: par <par0|par1|par2> <name>");
 	exit(1);
 }
 
-/*
- * create_sysmsg()
- *	Create the first part of any syslog message
- */
-static void
-create_sysmsg(char *namer_name)
-{
-	strcpy(par_sysmsg, "par (");
-	strncpy(&par_sysmsg[5], namer_name, 16);
-	if (strlen(namer_name) >= NAMESZ) {
-		par_sysmsg[5 + NAMESZ - 1] = '\0';
-	}
-	strcat(par_sysmsg, "):");
-}
-
-int main(int argc, char *argv[])
+int
+main(int argc, char *argv[])
 {
 	port_name n;
 	int status;
 
+	/*
+	 * Initialize syslog
+	 */
+	openlog("parallel", LOG_PID, LOG_DAEMON);
+
 	if (argc != 3) {
 		usage();
 	}
-
-	create_sysmsg(argv[2]);
 
 	if (!strcmp(argv[1], "par0") || (argv[1][0] == '0')) {
 		status = par_init(&printer, 0);
@@ -274,7 +260,7 @@ int main(int argc, char *argv[])
 		usage();
 	}
 	if (status) {
-		syslog(LOG_ERR, "%s can't get I/O permissions", par_sysmsg);
+		syslog(LOG_ERR, "can't get I/O permissions");
 		exit(1);
 	}
 	par_reset(&printer);
@@ -285,14 +271,13 @@ int main(int argc, char *argv[])
 	 */
 	filehash = hash_alloc(16);
 	if (filehash == 0) {
-		syslog(LOG_ERR, "%s file hash not allocated", par_sysmsg);
+		syslog(LOG_ERR, "file hash not allocated");
 		exit(1);
 	}
 
 	lp_port = msg_port((port_name)0, &n);
 	if (namer_register(argv[2], n) < 0) {
-		syslog(LOG_ERR, "%s unable to register name '%s'",
-		       par_sysmsg, argv[2]);
+		syslog(LOG_ERR, "unable to register name '%s'", argv[2]);
 		exit(1);
 	}
 

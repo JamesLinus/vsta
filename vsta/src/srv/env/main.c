@@ -21,7 +21,6 @@ port_t envport;	/* Port we receive contacts through */
 
 static struct hash *filehash;
 struct node rootnode;
-char env_sysmsg[] = "env (ENV):";
 
 /*
  * Default protection for system-defined names; anybody can read,
@@ -235,7 +234,7 @@ loop:
 	 */
 	x = msg_receive(envport, &msg);
 	if (x < 0) {
-		syslog(LOG_ERR, "%s msg_receive", env_sysmsg);
+		syslog(LOG_ERR, "msg_receive");
 		goto loop;
 	}
 
@@ -307,11 +306,16 @@ loop:
 main()
 {
 	/*
+	 * Initialize syslog
+	 */
+	openlog("env", LOG_PID, LOG_DAEMON);
+
+	/*
 	 * Allocate data structures we'll need
 	 */
         filehash = hash_alloc(16);
 	if (filehash == 0) {
-		syslog(LOG_ERR, "%s file hash not allocated", env_sysmsg);
+		syslog(LOG_ERR, "file hash not allocated");
 		exit(1);
         }
 
@@ -331,11 +335,11 @@ main()
 	 */
 	envport = msg_port(PORT_ENV, 0);
 	if (envport < 0) {
-		syslog(LOG_ERR, "%s can't register name", env_sysmsg);
+		syslog(LOG_ERR, "can't register name");
 		exit(1);
 	}
 
-	syslog(LOG_INFO, "%s environment manager started", env_sysmsg);
+	syslog(LOG_INFO, "environment manager started");
 
 	/*
 	 * Start serving requests for the filesystem

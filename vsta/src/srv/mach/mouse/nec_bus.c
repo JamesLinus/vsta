@@ -268,21 +268,19 @@ pc98_bus_initialise(int argc, char **argv)
     * when it's there or not, but it is often insuccessful....
     */
    if (enable_io(PC98_MOUSE_LOW_PORT, PC98_MOUSE_HIGH_PORT) < 0) {
-      syslog(LOG_ERR, "%s unable to enable I/O ports for mouse", mouse_sysmsg);
+      syslog(LOG_ERR, "unable to enable I/O ports for mouse");
       return (-1);
    }
    outportb(PC98_MOUSE_MODE_PORT, 0x93); /* initialise */
    outportb(PC98_MOUSE_MODE_PORT, 0x9);  /* disable interrupts */
    outportb(PC98_MOUSE_WPORT_C, 0x10);   /* HC = 0 */
    if (inportb(PC98_MOUSE_RPORT_C) & 0x80 != 0) {
-      syslog(LOG_ERR, "%s pc98_bus_initialise - mouse not connected",
-             mouse_sysmsg);
+      syslog(LOG_ERR, "pc98_bus_initialise - mouse not connected");
       return (-1);
    }
    outportb(PC98_MOUSE_WPORT_C, 0x90);   /* HC = 1 */
    if (inportb(PC98_MOUSE_RPORT_C) & 0x80 == 0) {
-      syslog(LOG_ERR, "%s pc98_bus_initialise - mouse not connected",
-             mouse_sysmsg);
+      syslog(LOG_ERR, "pc98_bus_initialise - mouse not connected");
       return (-1);
    }
    outportb(PC98_MOUSE_WPORT_C, 0x10);

@@ -28,9 +28,6 @@ static uint nclust;	/* Total clusters on disk */
 ulong data0;		/* Byte offset for data block 0 (cluster 2) */
 uint dirents;		/* # directory entries */
 
-extern char		/* String used as a prefix in syslog calls */
-	dos_sysmsg[];
-	
 /*
  * DIRTY()
  *	Mark dirtymap at given position
@@ -184,15 +181,15 @@ fat_init(void)
 	lseek(blkdev, 1 * SECSZ, 0);
 	if (fat12) {
 		if (read(blkdev, fat12, fat12len) != fat12len) {
-			syslog(LOG_ERR, "%s read (%d bytes) of FAT12 failed",
-				dos_sysmsg, fat12len);
+			syslog(LOG_ERR, "read (%d bytes) of FAT12 failed",
+				fat12len);
 			exit(1);
 		}
 		fat12_fat16(fat12, fat, fat12len);
 	} else {
 		if (read(blkdev, fat, fatlen) != fatlen) {
-			syslog(LOG_ERR, "%s read (%d bytes) of FAT failed",
-				dos_sysmsg, fatlen);
+			syslog(LOG_ERR, "read (%d bytes) of FAT failed",
+				fatlen);
 			exit(1);
 		}
 	}
@@ -232,13 +229,10 @@ clust_setlen(struct clust *c, ulong newlen)
 			if ((y >= nclust) || (y < 2)) {
 				uint z;
 
-				syslog(LOG_ERR, "%s bad cluster 0x%x",
-					dos_sysmsg, y);
-				syslog(LOG_ERR, "%s clusters in file:",
-					dos_sysmsg);
+				syslog(LOG_ERR, "bad cluster 0x%x", y);
+				syslog(LOG_ERR, "clusters in file:");
 				for (z = 0; z < c->c_nclust; ++z) {
-					syslog(LOG_ERR, "%s  %x",
-						dos_sysmsg, c->c_clust[z]);
+					syslog(LOG_ERR, " %x", c->c_clust[z]);
 				}
 				ASSERT(0, "fat_setlen: bad clust");
 			}
@@ -443,8 +437,8 @@ map_write(void)
 					&fat[x*SECSZ/sizeof(ushort)],
 					SECSZ*cnt) != (SECSZ*cnt)) {
 				perror("fat16");
-				syslog(LOG_ERR, "%s write of FAT16 #%d failed",
-					dos_sysmsg, pass);
+				syslog(LOG_ERR, "write of FAT16 #%d failed",
+					pass);
 				exit(1);
 			}
 
@@ -494,15 +488,12 @@ fat_sync(void)
 		x = write(blkdev, fat12, fat12len);
 		if (x!= fat12len) {
 			perror("fat12");
-			syslog(LOG_ERR,
-				"%s write of FAT12 #1 failed, ret %d",
-				dos_sysmsg, x);
+			syslog(LOG_ERR, "write of FAT12 #1 failed, ret %d", x);
 			exit(1);
 		}
 		if (write(blkdev, fat12, fat12len) != fat12len) {
 			perror("fat12");
-			syslog(LOG_ERR,
-				"%s write of FAT12 #2 failed", dos_sysmsg);
+			syslog(LOG_ERR, "write of FAT12 #2 failed");
 			exit(1);
 		}
 		fat_dirty = 0;

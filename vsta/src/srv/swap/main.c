@@ -16,7 +16,6 @@ extern void swap_rw(), swap_stat(), swapinit(), swap_alloc(), swap_free(),
 	swap_add();
 
 port_t rootport;	/* Port we receive contacts through */
-char swap_sysmsg[] = "swap (SWAP):";
 static struct hash	/* Handle->filehandle mapping */
 	*filehash;
 
@@ -172,7 +171,7 @@ loop:
 	 */
 	x = msg_receive(rootport, &msg);
 	if (x < 0) {
-		syslog(LOG_ERR, "%s msg_receive", swap_sysmsg);
+		syslog(LOG_ERR, "msg_receive");
 		goto loop;
 	}
 
@@ -249,11 +248,16 @@ loop:
 main()
 {
 	/*
+	 * Initialize syslog
+	 */
+	openlog("swap", LOG_PID, LOG_DAEMON);
+
+	/*
 	 * Allocate data structures we'll need
 	 */
         filehash = hash_alloc(16);
 	if (filehash == 0) {
-		syslog(LOG_ERR, "%s file hash", swap_sysmsg);
+		syslog(LOG_ERR, "file hash");
 		exit(1);
         }
 	swapinit();
@@ -263,7 +267,7 @@ main()
 	 */
 	rootport = msg_port(PORT_SWAP, 0);
 	if (rootport < 0) {
-		syslog(LOG_ERR, "%s can't register name", swap_sysmsg);
+		syslog(LOG_ERR, "can't register name");
 		exit(1);
 	}
 

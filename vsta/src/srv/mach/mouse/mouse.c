@@ -142,7 +142,7 @@ mouse_write(struct msg * m, struct file * f)
 	 }
 	 break;
       default:
-	 syslog(LOG_ERR,"%s bad operation specified", mouse_sysmsg);
+	 syslog(LOG_ERR,"bad operation specified");
 	 msg_err(m->m_sender, EINVAL);
 	 return;
       };
@@ -150,7 +150,7 @@ mouse_write(struct msg * m, struct file * f)
       m->m_arg = temp.buffer_size;
       msg_reply(m->m_sender, m);
    } else {
-      syslog(LOG_ERR, "%s got a bad data set", mouse_sysmsg);
+      syslog(LOG_ERR, "got a bad data set");
       msg_err(m->m_sender, EINVAL);
    }
 }
@@ -172,7 +172,7 @@ mouse_initialise(int argc, char **argv) {
       }
    }
    if (param == -1) {
-      syslog(LOG_ERR, "%s no mouse type specified - exiting", mouse_sysmsg);
+      syslog(LOG_ERR, "no mouse type specified - exiting");
       exit(1);
    }
    /*
@@ -183,16 +183,15 @@ mouse_initialise(int argc, char **argv) {
          break;
    }
    if (mouse_drivers[loop].driver_initialise == NULL) {
-      syslog(LOG_ERR, "%s no driver for \"%s\" type mouse - exiting",
-             mouse_sysmsg, argv[param]);
+      syslog(LOG_ERR, "no driver for '%s' type mouse - exiting", argv[param]);
       exit(1);
    }
    mouse_data.type_id = loop;
 
    /* Initialise the driver */
    if ((*mouse_drivers[loop].driver_initialise) (argc, argv) == -1) {
-      syslog(LOG_ERR, "%s unable to initialise \"%s\" driver - exiting\n",
-             mouse_sysmsg, argv[param]);
+      syslog(LOG_ERR, "unable to initialise '%s' driver - exiting\n",
+             argv[param]);
       exit(1);
    }
 }

@@ -15,7 +15,6 @@
 
 extern struct par_port printer;
 extern int timeout;
-extern char par_sysmsg[];
 
 /*
  * wait_printer()
@@ -39,17 +38,15 @@ wait_printer(void)
 		switch (par_isready(&printer)) {
 		case P_OK:
 			if (notified) {
-				syslog(LOG_INFO, "%s parallel port ok",
-				       par_sysmsg);
+				syslog(LOG_INFO, "parallel port ok");
 			}
 			return P_OK;
 		case P_ERROR:
 			if (!notified) {
 				notified = 1;
 				if (!printer.quiet) {
-					syslog(LOG_WARNING, "%s %s",
-					       par_sysmsg,
-					       printer.last_error);
+					syslog(LOG_WARNING,
+						printer.last_error);
 				}
 			}
 			break;
@@ -58,8 +55,7 @@ wait_printer(void)
 		}
 		if ((time(NULL) - tstart) > timeout) {
 			if (!printer.quiet) {
-				syslog(LOG_ERR, "%s parallel port timed out",
-				       par_sysmsg);
+				syslog(LOG_ERR, "parallel port timed out");
 			}
 			return P_TIMEOUT;
 		}

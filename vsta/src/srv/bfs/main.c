@@ -27,7 +27,6 @@ port_t rootport;		/* Port we receive contacts through */
 struct super *sblock;		/* Our filesystem's superblock */
 void *shandle;			/*  ...handle for the block entry */
 static struct hash *filehash;	/* Handle->filehandle mapping */
-char bfs_sysmsg[7 + NAMESZ];	/* Syslog message prefix */
 
 
 extern valid_fname(char *, int);
@@ -209,7 +208,7 @@ loop:
 	 */
 	x = msg_receive(rootport, &msg);
 	if (x < 0) {
-		syslog(LOG_ERR, "%s msg_receive", bfs_sysmsg);
+		syslog(LOG_ERR, "msg_receive");
 		goto loop;
 	}
 
@@ -326,23 +325,6 @@ usage(void)
 	exit(1);
 }
 
-
-/*
- * create_sysmsg()
- *	Create the first part of any syslog message
- */
-static void
-create_sysmsg(char *namer_name)
-{
-	strcpy(bfs_sysmsg, "bfs (");
-	strncpy(&bfs_sysmsg[5], namer_name, 16);
-	if (strlen(namer_name) >= NAMESZ) {
-		bfs_sysmsg[5 + NAMESZ - 1] = '\0';
-	}
-	strcat(bfs_sysmsg, "):");
-}
-
-
 /*
  * main()
  *	Startup of a boot filesystem
@@ -359,27 +341,28 @@ main(int argc, char *argv[])
 	char *namer_name;
 
 	/*
+	 * Initialize syslog
+	 */
+	openlog("bfs", LOG_PID, LOG_DAEMON);
+
+	/*
 	 * Check arguments
 	 */
 	if (argc == 3) {
 		namer_name = argv[2];
-		create_sysmsg(namer_name);
 
 		blkdev = open(argv[1], O_RDWR);
 		if (blkdev < 0) {
-			syslog(LOG_ERR, "%s %s %s", bfs_sysmsg,
-			       argv[1], strerror());
+			syslog(LOG_ERR, "%s %s", argv[1], strerror());
 			exit(1);
 		}
 	} else if (argc == 4) {
 		int retries;
 
-		namer_name = argv[3];
-		create_sysmsg(namer_name);
-
 		/*
 		 * Version of invocation where service is specified
 		 */
+		namer_name = argv[3];
 		if (strcmp(argv[1], "-p")) {
 			usage();
 		}
@@ -392,15 +375,13 @@ main(int argc, char *argv[])
 			}
 		}
 		if (port < 0) {
-			syslog(LOG_ERR,
-			       "%s couldn't connect to block device %s",
-			       bfs_sysmsg, argv[2]);
+			syslog(LOG_ERR, "couldn't connect to block device %s",
+			       argv[2]);
 			exit(1);
 		}
 		blkdev = __fd_alloc(port);
 		if (blkdev < 0) {
-			syslog(LOG_ERR, "%s %s %s", bfs_sysmsg,
-			       argv[2], strerror());
+			syslog(LOG_ERR, "%s %s", argv[2], strerror());
 			exit(1);
 		}
 	} else {
@@ -412,8 +393,7 @@ main(int argc, char *argv[])
 	 */
         filehash = hash_alloc(NCACHE / 4);
 	if (filehash == 0) {
-		syslog(LOG_ERR, "%s file hash allocation failed",
-		       bfs_sysmsg);
+		syslog(LOG_ERR, "file hash allocation failed");
 		exit(1);
         }
 
@@ -428,14 +408,12 @@ main(int argc, char *argv[])
 	 */
 	shandle = bget(0);
 	if (!shandle) {
-		syslog(LOG_ERR, "%s superblock read failed for %s",
-		       bfs_sysmsg, argv[1]);
+		syslog(LOG_ERR, "superblock read failed for %s", argv[1]);
 		exit(1);
 	}
 	sblock = bdata(shandle);
 	if (sblock->s_magic != SMAGIC) {
-		syslog(LOG_ERR, "%s bad superblock on %s",
-		       bfs_sysmsg, argv[1]);
+		syslog(LOG_ERR, "bad superblock on %s", argv[1]);
 		exit(1);
 	}
 
@@ -452,12 +430,11 @@ main(int argc, char *argv[])
 	rootport = msg_port((port_name)0, &fsname);
 	x = namer_register(namer_name, fsname);
 	if (x < 0) {
-		syslog(LOG_ERR, "%s can't register with namer",
-		       bfs_sysmsg);
+		syslog(LOG_ERR, "can't register with namer");
 		exit(1);
 	}
 
-	syslog(LOG_INFO, "%s filesystem established", bfs_sysmsg);
+	syslog(LOG_INFO, "filesystem established");
 
 	/*
 	 * Start serving requests for the filesystem

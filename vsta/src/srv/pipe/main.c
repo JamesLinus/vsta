@@ -21,7 +21,6 @@ static struct hash	/* Map of all active users */
 port_t rootport;	/* Port we receive contacts through */
 struct llist		/* All files in filesystem */
 	files;
-char pipe_sysmsg[] = "pipe (fs/pipe):";
 
 /*
  * new_client()
@@ -151,7 +150,7 @@ loop:
 	 */
 	x = msg_receive(rootport, &msg);
 	if (x < 0) {
-		syslog(LOG_ERR, "%s msg_receive", pipe_sysmsg);
+		syslog(LOG_ERR, "msg_receive");
 		goto loop;
 	}
 
@@ -204,11 +203,16 @@ main()
 	port_name nm;
 
 	/*
+	 * Initialize syslog
+	 */
+	openlog("pipe", LOG_PID, LOG_DAEMON);
+
+	/*
 	 * Allocate data structures we'll need
 	 */
         filehash = hash_alloc(NCACHE/4);
 	if (filehash == 0) {
-		syslog(LOG_ERR, "%s file hash not allocated", pipe_sysmsg);
+		syslog(LOG_ERR, "file hash not allocated");
 		exit(1);
         }
 	ll_init(&files);
@@ -218,7 +222,7 @@ main()
 	 */
 	rootport = msg_port(0, &nm);
 	if (rootport < 0) {
-		syslog(LOG_ERR, "%s can't establish port", pipe_sysmsg);
+		syslog(LOG_ERR, "can't establish port");
 		exit(1);
 	}
 
@@ -226,11 +230,11 @@ main()
 	 * Register port name
 	 */
 	if (namer_register("fs/pipe", nm) < 0) {
-		syslog(LOG_ERR, "%s unable to register name", pipe_sysmsg);
+		syslog(LOG_ERR, "unable to register name");
 		exit(1);
 	}
 
-	syslog(LOG_INFO, "%s pipe filesystem started", pipe_sysmsg);
+	syslog(LOG_INFO, "pipe filesystem started");
 
 	/*
 	 * Start serving requests for the filesystem

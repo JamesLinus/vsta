@@ -28,7 +28,6 @@ uchar cts;			/* Status of CTS control line */
 uchar rts;			/* Status of RTS control line */
 uchar dcd;			/* Status of DCD (RLSD) control line */
 uchar ri;			/* Status of RI control line */
-char rs232_sysmsg[9 + NAMESZ];	/* Syslog message prefix */
 
 /*
  * Protection for port; starts out with access for all.  sys can
@@ -186,7 +185,7 @@ loop:
 	 */
 	x = msg_receive(rs232port, &msg);
 	if (x < 0) {
-		syslog(LOG_ERR, "%s msg_receive", rs232_sysmsg);
+		syslog(LOG_ERR, "msg_receive");
 		goto loop;
 	}
 
@@ -379,8 +378,6 @@ parse_options(int argc, char **argv)
 			"rs232: no namer entry specified - aborting\n");
 		exit(1);
 	}
-
-	sprintf(rs232_sysmsg, "rs232 (%s):", rs232_name);
 }
 
 /*
@@ -403,7 +400,7 @@ main(int argc, char **argv)
 	 */
         filehash = hash_alloc(16);
 	if (filehash == 0) {
-		syslog(LOG_ERR, "%s file hash not allocated", rs232_sysmsg);
+		syslog(LOG_ERR, "file hash not allocated");
 		exit(1);
         }
 
@@ -416,7 +413,7 @@ main(int argc, char **argv)
 	 * Enable I/O for the needed range
 	 */
 	if (enable_io(iobase, RS232_HIGH(iobase)) < 0) {
-		syslog(LOG_ERR, "%s I/O permissions", rs232_sysmsg);
+		syslog(LOG_ERR, "I/O permissions");
 		exit(1);
 	}
 
@@ -425,8 +422,7 @@ main(int argc, char **argv)
 	 */
 	rs232port = msg_port((port_name)0, &n);
 	if (namer_register(rs232_name, n) < 0) {
-		syslog(LOG_ERR, "%s namer registry of '%s'",
-			rs232_sysmsg, rs232_name);
+		syslog(LOG_ERR, "namer registry of '%s'", rs232_name);
 		exit(1);
 	}
 
@@ -434,7 +430,7 @@ main(int argc, char **argv)
 	 * Tell system about our I/O vector
 	 */
 	if (enable_isr(rs232port, irq)) {
-		syslog(LOG_ERR, "%s IRQ %d allocation", rs232_sysmsg, irq);
+		syslog(LOG_ERR, "IRQ %d allocation", irq);
 		exit(1);
 	}
 
@@ -447,8 +443,7 @@ main(int argc, char **argv)
 	rs232_parity(PARITY_NONE);
 	rs232_enable();
 
-	syslog(LOG_INFO, "%s established (IRQ %d, I/O base 0x%x)",
-		rs232_sysmsg, irq, iobase);
+	syslog(LOG_INFO, "established (IRQ %d, I/O base 0x%x)", irq, iobase);
 
 	/*
 	 * Start serving requests for the filesystem

@@ -402,8 +402,7 @@ ibm_serial_parse_args(int argc, char **argv)
       }
       ibm_serial_port = path_open(argv[4], ACC_READ|ACC_WRITE|ACC_CHMOD);
       if (ibm_serial_port < 0) {
-	 syslog(LOG_ERR, "%s unable to get connection to '%s'",
-	 	mouse_sysmsg, argv[4]);
+	 syslog(LOG_ERR, "unable to get connection to '%s'", argv[4]);
 	 exit(1);
       }
       arg_st = 5;
@@ -415,8 +414,7 @@ ibm_serial_parse_args(int argc, char **argv)
 
       fd = open(argv[3], O_RDWR);
       if (fd < 0) {
-	 syslog(LOG_ERR, "%s unable to open path to '%s'",
-	 	mouse_sysmsg, argv[3]);
+	 syslog(LOG_ERR, "unable to open path to '%s'", argv[3]);
 	 exit(1);
       }
       ibm_serial_port = __fd_port(fd);
@@ -506,7 +504,7 @@ ibm_serial_initialise(int argc, char **argv)
 
    ibm_serial_buffer = (uchar *)malloc(IBM_SERIAL_BUFSIZ);
    if (!ibm_serial_buffer) {
-      syslog(LOG_ERR, "%s unable to allocate data buffer", mouse_sysmsg);
+      syslog(LOG_ERR, "unable to allocate data buffer");
       exit(1);
    }
 
@@ -519,7 +517,7 @@ ibm_serial_initialise(int argc, char **argv)
    mouse_data.enable_interrupts = FALSE;
    ibm_serial_update_period(mouse_data.update_frequency);
 
-   syslog(LOG_INFO, "%s serial mouse installed", mouse_sysmsg);
+   syslog(LOG_INFO, "serial mouse installed");
 
    return (0);
 }

@@ -308,7 +308,7 @@ ps2aux_initialise(int argc, char **argv)
    for (loop = 1; loop < argc; loop++ ) {
       if (strcmp(argv[loop], "-x_size") == 0) {
 	 if (++loop == argc) {
-	    syslog(LOG_ERR, "%s bad -x_size parameter", mouse_sysmsg);
+	    syslog(LOG_ERR, "bad -x_size parameter");
 	    break;
 	 }
 	 mouse_data.pointer_data.x = atoi(argv[loop]) / 2;
@@ -316,7 +316,7 @@ ps2aux_initialise(int argc, char **argv)
       }
       if (strcmp(argv[loop], "-y_size") == 0) {
 	 if (++loop == argc) {
-	    syslog(LOG_ERR, "%s bad -y_size parameter", mouse_sysmsg);
+	    syslog(LOG_ERR, "bad -y_size parameter");
 	    break;
 	 }
 	 mouse_data.pointer_data.y = atoi(argv[loop]) / 2;
@@ -329,7 +329,7 @@ ps2aux_initialise(int argc, char **argv)
     */
    rbuffer = (struct ps2aux_rbuffer *)malloc(sizeof(struct ps2aux_rbuffer));
    if (!rbuffer) {
-      syslog(LOG_ERR, "%s unable to allocate ring buffer", mouse_sysmsg);
+      syslog(LOG_ERR, "unable to allocate ring buffer");
       return(-1);
    }
 
@@ -337,7 +337,7 @@ ps2aux_initialise(int argc, char **argv)
     * Get our hardware ports
     */
    if (enable_io(PS2AUX_LOW_PORT, PS2AUX_HIGH_PORT) < 0) {
-      syslog(LOG_ERR, "%s unable to enable I/O ports for mouse", mouse_sysmsg);
+      syslog(LOG_ERR, "unable to enable I/O ports for mouse");
       return(-1);
    }
 
@@ -364,6 +364,6 @@ ps2aux_initialise(int argc, char **argv)
    ps2aux_write_device(PS2AUX_ENABLE_DEVICE);
    ps2aux_write_command(PS2AUX_ENABLE_INTERRUPTS);
 
-   syslog(LOG_INFO, "%s PS/2 mouse detected and installed", mouse_sysmsg);
+   syslog(LOG_INFO, "PS/2 mouse detected and installed");
    return (0);
 }

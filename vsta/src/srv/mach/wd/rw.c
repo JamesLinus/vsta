@@ -307,7 +307,7 @@ rw_readpartitions(int unit)
 	if (secbuf == NULL) {
 		secbuf = malloc(SECSZ * 2);
 		if (secbuf == NULL) {
-			syslog(LOG_ERR, "wd: sector buffer");
+			syslog(LOG_ERR, "sector buffer");
 			return;
 		}
 		secbuf = (char *)roundup((long)secbuf, SECSZ);

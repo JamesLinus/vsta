@@ -88,20 +88,23 @@ main()
 	int x;
 
 	/*
+	 * Initialize syslog
+	 */
+	openlog("devnull", LOG_PID, LOG_DAEMON);
+
+	/*
 	 * Last check is that we can register with the given name.
 	 */
 	rootport = msg_port((port_name)0, &fsname);
 	x = namer_register("null", fsname);
 	if (x < 0) {
-		syslog(LOG_ERR,
-		       "null (null): unable to register with namer");
+		syslog(LOG_ERR, "unable to register with namer");
 		exit(1);
 	}
-
-	syslog(LOG_INFO, "null (null): null device started");
 
 	/*
 	 * Start serving requests for the filesystem
 	 */
+	syslog(LOG_INFO, "null device started");
 	devnull_main(rootport);
 }

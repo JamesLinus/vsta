@@ -20,7 +20,6 @@ int blkdev;		/* Device this FS is mounted upon */
 port_t rootport;	/* Port we receive contacts through */
 static struct hash	/* Handle->filehandle mapping */
 	*filehash;
-char vfs_sysmsg[10 + NAMESZ];
 
 /*
  * This "open" file just sits around as an easy way to talk about
@@ -186,7 +185,7 @@ loop:
 	 */
 	x = msg_receive(rootport, &msg);
 	if (x < 0) {
-		syslog(LOG_ERR, "%s msg_receive", vfs_sysmsg);
+		syslog(LOG_ERR, "msg_receive");
 		goto loop;
 	}
 
@@ -279,21 +278,6 @@ usage(void)
 }
 
 /*
- * create_sysmsg()
- *	Create the first part of any syslog message
- */
-static void
-create_sysmsg(char *namer_name)
-{
-	strcpy(vfs_sysmsg, "vstafs (");
-	strncpy(&vfs_sysmsg[8], namer_name, 16);
-	if (strlen(namer_name) >= NAMESZ) {
-		vfs_sysmsg[8 + NAMESZ - 1] = '\0';
-	}
-	strcat(vfs_sysmsg, "):");
-}
-
-/*
  * verify_root()
  *	Read in root sector and apply a sanity check
  *
@@ -311,18 +295,17 @@ verify_root(void)
 	 */
 	secbuf = malloc(SECSZ);
 	if (secbuf == 0) {
-		syslog(LOG_ERR, "%s secbuf not allocated", vfs_sysmsg);
+		syslog(LOG_ERR, "secbuf not allocated");
 		exit(1);
 	}
 	read_sec(BASE_SEC, secbuf);
 	fsroot = (struct fs *)secbuf;
 	if (fsroot->fs_magic != FS_MAGIC) {
-		syslog(LOG_ERR, "%s bad magic number on filesystem",
-			vfs_sysmsg);
+		syslog(LOG_ERR, "bad magic number on filesystem");
 		exit(1);
 	}
 	free(secbuf);
-	syslog(LOG_INFO, "%s  %ld sectors", vfs_sysmsg, fsroot->fs_size);
+	syslog(LOG_INFO, "%ld sectors", fsroot->fs_size);
 }
 
 /*
@@ -337,15 +320,18 @@ main(int argc, char *argv[])
 	char *namer_name;
 
 	/*
+	 * Initialize syslog
+	 */
+	openlog("vstafs", LOG_PID, LOG_DAEMON);
+
+	/*
 	 * Check arguments
 	 */
 	if (argc == 3) {
 		namer_name = argv[2];
-		create_sysmsg(namer_name);
 		blkdev = open(argv[1], O_RDWR);
 		if (blkdev < 0) {
-			syslog(LOG_ERR, "%s %s %s", vfs_sysmsg,
-				argv[1], strerror());
+			syslog(LOG_ERR, "%s %s", argv[1], strerror());
 			exit(1);
 		}
 	} else if (argc == 4) {
@@ -354,12 +340,10 @@ main(int argc, char *argv[])
 		extern int __fd_alloc(port_t);
 		extern port_t path_open(char *, int);
 
-		namer_name = argv[3];
-		create_sysmsg(namer_name);
-
 		/*
 		 * Version of invocation where service is specified
 		 */
+		namer_name = argv[3];
 		if (strcmp(argv[1], "-p")) {
 			usage();
 		}
@@ -372,9 +356,7 @@ main(int argc, char *argv[])
 			}
 		}
 		if (port < 0) {
-			syslog(LOG_ERR,
-			 	"%s couldn't connect to block device",
-			 	vfs_sysmsg);
+			syslog(LOG_ERR, "couldn't connect to block device");
 			exit(1);
 		}
 		blkdev = __fd_alloc(port);
@@ -391,7 +373,7 @@ main(int argc, char *argv[])
 	 */
         filehash = hash_alloc(NCACHE/4);
 	if (filehash == 0) {
-		syslog(LOG_ERR, "%s file hash not allocated", vfs_sysmsg);
+		syslog(LOG_ERR, "file hash not allocated");
 		exit(1);
         }
 
@@ -406,8 +388,7 @@ main(int argc, char *argv[])
 	rootport = msg_port((port_name)0, &fsname);
 	x = namer_register(namer_name, fsname);
 	if (x < 0) {
-		syslog(LOG_ERR, "%s can't register name '%s'",
-			vfs_sysmsg, namer_name);
+		syslog(LOG_ERR, "can't register name '%s'", namer_name);
 		exit(1);
 	}
 

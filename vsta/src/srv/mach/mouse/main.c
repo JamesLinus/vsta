@@ -24,8 +24,6 @@ struct hash *mouse_hash;                 /* Map session->context structure   */
 port_t       mouse_port;                 /* Port we receive contacts through */
 port_name    mouse_name;                 /* Name for out port                */
 uint         mouse_accgen;               /* generation access count          */
-char	     mouse_sysmsg[]              /* Syslog message prefix            */
-   = "mouse (srv/mouse)";
 struct prot  mouse_prot = {              /* mouse protection                 */
    1,
    ACC_READ | ACC_WRITE,
@@ -165,7 +163,7 @@ loop:
     */
    x = msg_receive(mouse_port, &msg);
    if (x < 0) {
-      syslog(LOG_ERR, "%s msg_receive", mouse_sysmsg);
+      syslog(LOG_ERR, "msg_receive");
       goto loop;
    }
    /*
@@ -229,6 +227,11 @@ int
 main(int argc, char **argv)
 {
    /*
+    * Initialize syslog
+    */
+   openlog("mouse", LOG_PID, LOG_DAEMON);
+
+   /*
     *  Allocate handle->file hash table.
     */
    mouse_hash = hash_alloc(16);
@@ -243,7 +246,7 @@ main(int argc, char **argv)
     */
    mouse_port = msg_port((port_name) 0, &mouse_name);
    if (namer_register("srv/mouse", mouse_name) < 0) {
-      syslog(LOG_ERR, "%s can't register name", mouse_sysmsg);
+      syslog(LOG_ERR, "can't register name");
       exit(1);
    }
 
@@ -252,19 +255,17 @@ main(int argc, char **argv)
     */
    if (mouse_data.enable_interrupts) {
       if (enable_isr(mouse_port, mouse_data.irq_number)) {
-         syslog(LOG_ERR, "%s unable to get IRQ line", mouse_sysmsg);
+         syslog(LOG_ERR, "unable to get IRQ line");
          exit(1);
       }
    } else {
       if (mouse_data.functions.mouse_poller_entry_point != NULL) {
          if (tfork(mouse_data.functions.mouse_poller_entry_point) == -1) {
-           syslog(LOG_ERR, "%s unable to fork poller thread - exiting",
-                  mouse_sysmsg);
+           syslog(LOG_ERR, "unable to fork poller thread - exiting");
            exit(1);
          }
       } else {
-         syslog(LOG_INFO, "%s no interrupt or polling installed",
-                mouse_sysmsg);
+         syslog(LOG_INFO, "no interrupt or polling installed");
       }
    }
 

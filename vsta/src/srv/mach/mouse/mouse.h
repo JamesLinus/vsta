@@ -72,7 +72,6 @@ extern struct prot mouse_prot;
 extern port_t      mouse_port;  /* Port we receive contacts through */
 extern port_name   mouse_name;  /* Name for out port */
 extern uint        mouse_accgen;
-extern char	   mouse_sysmsg[];
 
 /* mouse.c */
 extern mouse_data_t  mouse_data;

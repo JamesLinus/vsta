@@ -13,8 +13,6 @@
 #include <stdio.h>
 #include <string.h>
 
-extern char dos_sysmsg[];	/* String used as a prefix in syslog calls */
-
 /*
  * ytos()
  *	convert years to seconds (from 1990)
@@ -26,8 +24,7 @@ ytos(uint y)
 	ulong ret;
 
 	if (y < 1990) {
-		syslog(LOG_WARNING, "%s year %d is less than 1990!\n",
-			dos_sysmsg, y);
+		syslog(LOG_WARNING, "year %d is less than 1990!\n", y);
 	}
 	ret = 0;
 	for (i = 1990; i < y; i++) {

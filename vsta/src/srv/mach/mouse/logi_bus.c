@@ -150,7 +150,7 @@ logitech_bus_initialise(int argc, char **argv)
    for(loop=1; loop<argc; loop++){
       if(strcmp(argv[loop],"-x_size") == 0){
 	 if(++loop == argc){
-	    syslog(LOG_ERR, "%s bad -x_size parameter", mouse_sysmsg);
+	    syslog(LOG_ERR, "bad -x_size parameter");
 	    break;
 	 }
 	 mouse_data.pointer_data.x   = atoi(argv[loop])/2;
@@ -158,7 +158,7 @@ logitech_bus_initialise(int argc, char **argv)
       }
       if(strcmp(argv[loop],"-y_size") == 0){
 	 if(++loop == argc){
-	    syslog(LOG_ERR, "%s bad -y_size parameter", mouse_sysmsg);
+	    syslog(LOG_ERR, "bad -y_size parameter");
 	    break;
 	 }
 	 mouse_data.pointer_data.y   = atoi(argv[loop])/2;
@@ -170,7 +170,7 @@ logitech_bus_initialise(int argc, char **argv)
     * Get our hardware ports.
     */
    if (enable_io(LOGITECH_LOW_PORT, LOGITECH_HIGH_PORT) < 0) {
-      syslog(LOG_ERR, "%s unable to enable I/O ports for mouse", mouse_sysmsg);
+      syslog(LOG_ERR, "unable to enable I/O ports for mouse");
       return (-1);
    }
 
@@ -194,7 +194,6 @@ logitech_bus_initialise(int argc, char **argv)
    outportb(LOGITECH_BUS_CONFIG_PORT, LOGITECH_BUS_CONFIG_BYTE);
    LOGITECH_BUS_INT_ON();
 
-   syslog(LOG_INFO, "%s Logitech bus mouse detected and installed",
-          mouse_sysmsg);
+   syslog(LOG_INFO, "Logitech bus mouse detected and installed");
    return (0);
 }

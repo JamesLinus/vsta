@@ -35,8 +35,8 @@ do_read(void *buf, uint nbyte)
 #ifdef DEBUG
 	if (x != nbyte) {
 		perror("read");
-		syslog(LOG_ERR, "%s read(%d, %x, %d) returns %d",
-			vfs_sysmsg, blkdev, (uint)buf, nbyte, x);
+		syslog(LOG_ERR, "read(%d, %x, %d) returns %d",
+			blkdev, (uint)buf, nbyte, x);
 	}
 #endif
 	ASSERT(x == nbyte, "do_read: I/O failed");
@@ -50,8 +50,8 @@ do_write(void *buf, uint nbyte)
 #ifdef DEBUG
 	if (x != nbyte) {
 		perror("write");
-		syslog(LOG_ERR, "%s write(%d, %x, %d) returns %d\n",
-			vfs_sysmsg, blkdev, (uint)buf, nbyte, x);
+		syslog(LOG_ERR, "write(%d, %x, %d) returns %d\n",
+			blkdev, (uint)buf, nbyte, x);
 	}
 #endif
 	ASSERT(x == nbyte, "do_write: I/O failed");
@@ -65,8 +65,8 @@ do_lseek(off_t off)
 #ifdef DEBUG
 	if (o != off) {
 		perror("lseek");
-		syslog(LOG_ERR, "%s lseek(%d, %ld) returns %ld\n",
-			vfs_sysmsg, blkdev, off, o);
+		syslog(LOG_ERR, "lseek(%d, %ld) returns %ld\n",
+			blkdev, off, o);
 	}
 #endif
 	ASSERT(o == off, "do_lseek: seek failed");

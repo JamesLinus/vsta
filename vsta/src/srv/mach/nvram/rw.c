@@ -34,9 +34,6 @@
 int nvram_bytes;		/* Number of bytes of NVRAM */
 static uchar *nvram_buffer;	/* Buffer for NVRAM data transfers */
 
-extern char nvram_sysmsg[];
-
-
 /*
  * do_readbyte()
  *	Read a byte from the NVRAM
@@ -154,8 +151,7 @@ retry_rw_all:
         /*
          * Have we tried too many times?  Flag fault if yes!
          */
-        syslog(LOG_ERR, "%s %s 'all' timed out",
-               nvram_sysmsg, (reading ? "read" : "write"));
+        syslog(LOG_ERR, "%s 'all' timed out", (reading ? "read" : "write"));
         return 1;
       } else {
         goto retry_rw_all;
@@ -197,8 +193,7 @@ retry_rw_rtc:
         /*
          * Have we tried too many times?  Flag fault if yes!
          */
-        syslog(LOG_ERR, "%s %s 'rtc' timed out",
-               nvram_sysmsg, (reading ? "read" : "write"));
+        syslog(LOG_ERR, "%s 'rtc' timed out", (reading ? "read" : "write"));
         return 1;
       } else {
         goto retry_rw_rtc;
@@ -474,11 +469,11 @@ void nvram_init(void)
    */
   if ((nvram_buffer = (uchar *)malloc(sizeof(uchar) 
   				      * MAX_NVRAM_BYTES)) == NULL) {
-    syslog(LOG_ERR, "%s failed to allocate transfer buffer", nvram_sysmsg);
+    syslog(LOG_ERR, "failed to allocate transfer buffer");
     exit(1);
   }
 
-  syslog(LOG_INFO, "%s handling %d bytes", nvram_sysmsg, nvram_bytes);
+  syslog(LOG_INFO, "handling %d bytes", nvram_bytes);
 }
 
 

@@ -104,7 +104,7 @@ wd_init(int argc, char **argv)
 	 * Ask him if he's OK
 	 */
 	if (wd_cmd(WDC_DIAG) < 0) {
-		syslog(LOG_ERR, "wd: controller fails diagnostic\n");
+		syslog(LOG_ERR, "controller fails diagnostic\n");
 		exit(1);
 	}
 	inportb(WD_PORT+WD_ERROR);
@@ -130,7 +130,7 @@ wd_init(int argc, char **argv)
 		 * Sanity check command line format
 		 */
 		if (argv[x][0] != 'd') {
-			syslog(LOG_ERR, "wd: bad arg: %s\n", argv[x]);
+			syslog(LOG_ERR, "bad arg: %s\n", argv[x]);
 			continue;
 		}
 
@@ -139,7 +139,7 @@ wd_init(int argc, char **argv)
 		 */
 		unit = argv[x][1] - '0';
 		if (unit >= NWD) {
-			syslog(LOG_ERR, "wd: bad drive: %s\n", argv[x]);
+			syslog(LOG_ERR, "bad drive: %s\n", argv[x]);
 			continue;
 		}
 
@@ -147,7 +147,7 @@ wd_init(int argc, char **argv)
 		 * Verify colon and argument
 		 */
 		if ((argv[x][2] != ':') || !argv[x][3]) {
-			syslog(LOG_ERR, "wd: bad arg: %s\n", argv[x]);
+			syslog(LOG_ERR, "bad arg: %s\n", argv[x]);
 			continue;
 		}
 
@@ -167,7 +167,7 @@ wd_init(int argc, char **argv)
 			const uint m = 1024*1024;
 
 			syslog(LOG_INFO,
-"wd%d: %d.%dM - %d heads, %d cylinders, %d sectors\n",
+"unit %d: %d.%dM - %d heads, %d cylinders, %d sectors\n",
 	unit, s / m, (s % m) / (m/10),
 	parm[unit].w_tracks, parm[unit].w_cyls, parm[unit].w_secpertrk);
 			found_first = 1;
@@ -177,7 +177,7 @@ wd_init(int argc, char **argv)
 		}
 	}
 	if (!found_first) {
-		syslog(LOG_ERR, "wd: no units found, exiting.\n");
+		syslog(LOG_ERR, "no units found, exiting.\n");
 		exit(1);
 	}
 }
@@ -317,7 +317,7 @@ wd_isr(void)
 	if (stat & WDS_ERROR) {
 		void *v;
 
-		syslog(LOG_ERR, "wd: hard error unit %d sector %d error=0x%x\n",
+		syslog(LOG_ERR, "hard error unit %d sector %d error=0x%x\n",
 		       cur_unit, cur_sec, inportb(WD_PORT+WD_ERROR));
 		v = busy;
 		busy = 0;
@@ -514,7 +514,8 @@ wd_parseparms(int unit, char *parms)
 
 	if (sscanf(parms, "%d:%d:%d", &w->w_cyls, &w->w_tracks,
 			&w->w_secpertrk) != 3) {
-		syslog(LOG_ERR, "wd%d: bad parameters: %s\n", parms);
+		syslog(LOG_ERR, "unit %d: bad parameters: %s\n",
+			unit, parms);
 		return;
 	}
 	w->w_secpercyl = w->w_tracks * w->w_secpertrk;
@@ -554,8 +555,7 @@ wd_cmos(int unit)
 	 * NVRAM only handles two
 	 */
 	if (unit > 1) {
-		syslog(LOG_ERR,
-		       "wd%d: only 0 and 1 have CMOS information\n", unit);
+		syslog(LOG_ERR, "unit %d: no CMOS information\n", unit);
 		return;
 	}
 
