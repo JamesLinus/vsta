@@ -64,6 +64,37 @@ do_write(struct clust *c, uint pos, char *buf, uint cnt)
 }
 
 /*
+ * write_zero()
+ *	Fill in zeroes when new write position is beyond old EOF
+ */
+static void
+write_zero(struct node *n, ulong oldlen, ulong newlen)
+{
+	char zero[1024];
+	ulong count = newlen - oldlen, step;
+
+	/*
+	 * Here's the zeroes we'll drop down
+	 */
+	bzero(zero, sizeof(zero));
+
+	/*
+	 * Write in zeroes one buffer full at a time until we've
+	 * caught up with our new file end.
+	 */
+	while (count > 0) {
+		if (count < sizeof(zero)) {
+			step = count;
+		} else {
+			step = sizeof(zero);
+		}
+		(void)do_write(n->n_clust, oldlen, zero, step);
+		oldlen += step;
+		count -= step;
+	}
+}
+
+/*
  * dos_write()
  *	Write to an open file
  */
@@ -71,7 +102,7 @@ void
 dos_write(struct msg *m, struct file *f)
 {
 	struct node *n = f->f_node;
-	ulong newlen;
+	ulong newlen, oldlen;
 
 	/*
 	 * Can only write to a true file, and only if open for writing.
@@ -87,12 +118,20 @@ dos_write(struct msg *m, struct file *f)
 	 * an existing file.
 	 */
 	newlen = f->f_pos + m->m_buflen;
-	if (newlen > n->n_len) {
+	oldlen = n->n_len;
+	if (newlen > oldlen) {
+		/*
+		 * Grow the size of the file to encompass the
+		 * starting position for this write.  Make sure
+		 * the initial contents is zero.  The DOS filesystem
+		 * is *not* very efficient with sparse files....
+		 */
 		if (clust_setlen(n->n_clust, newlen)) {
 			msg_err(m->m_sender, ENOSPC);
 			return;
 		}
 		n->n_len = newlen;
+		write_zero(n, oldlen, newlen);
 	}
 	n->n_flags |= N_DIRTY;
 
