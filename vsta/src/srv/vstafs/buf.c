@@ -208,6 +208,13 @@ resize_buf(daddr_t d, uint newsize, int fill)
 #endif
 
 	/*
+	 * Resize to current size is a no-op
+	 */
+	if (newsize == b->b_nsec) {
+		return(0);
+	}
+
+	/*
 	 * Get the buffer space
 	 */
 	ASSERT_DEBUG(!(fill && (newsize < b->b_nsec)),
