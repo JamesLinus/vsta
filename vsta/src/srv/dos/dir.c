@@ -22,7 +22,21 @@ struct hash *dirhash;		/* Maps dirs to nodes */
 static struct hash
 	*rename_pending;	/* Tabulate pending renames */
 
-static void timestamp(struct directory *d);
+/*
+ * dirty()
+ *	Mark a handle dirty
+ *
+ * Handles case of null handle, which means root
+ */
+static void
+dirty(void *handle)
+{
+	if (handle) {
+		bdirty(handle);
+	} else {
+		root_dirty = 1;
+	}
+}
 
 /*
  * dir_init()
@@ -453,11 +467,9 @@ dir_remove(struct node *n)
 	 * dirty.  Special case (of course) for root.
 	 */
 	d->name[0] = 0xe5;
+	dirty(handle);
 	if (handle) {
-		bdirty(handle);
 		bfree(handle);
-	} else {
-		root_dirty = 1;
 	}
 
 	/*
@@ -590,7 +602,7 @@ dir_newfile(struct file *f, char *file, int isdir)
 	dir->attr = 0;
 	dir->start = 0;
 	dir->size = 0;
-	timestamp(dir);
+	timestamp(dir, 0);
 
 	/*
 	 * Have to allocate an empty directory (., ..) for directories
@@ -620,12 +632,12 @@ dir_newfile(struct file *f, char *file, int isdir)
 		bcopy("   ", d->ext, sizeof(d->ext));
 		dir->attr = d->attr = DA_DIR|DA_ARCHIVE;
 		dir->start = d->start = c->c_clust[0];
-		timestamp(dir);
+		timestamp(dir, 0);
 		++d;
 		bcopy("..      ", d->name, sizeof(d->name));
 		bcopy("   ", d->ext, sizeof(d->ext));
 		d->attr = DA_DIR|DA_ARCHIVE;
-		timestamp(dir);
+		timestamp(dir, 0);
 		if (n == rootdir) {
 			d->start = 0;
 		} else {
@@ -638,11 +650,7 @@ out:
 	if (error) {
 		dir->name[0] = ochar0;
 	} else {
-		if (dirhandle) {
-			bdirty(dirhandle);
-		} else {
-			root_dirty = 1;
-		}
+		dirty(dirhandle);
 	}
 	if (dirhandle) {
 		bfree(dirhandle);
@@ -701,19 +709,20 @@ dir_copy(struct node *n, uint pos, struct directory *dp)
  * timestamp()
  *	Mark current date/time onto given dir entry
  */
-static void
-timestamp(struct directory *d)
+void
+timestamp(struct directory *d, time_t t)
 {
-	time_t t;
 	struct tm *tm;
 
-	/*
-	 * Get date/time from system, convert to struct tm so we
-	 * can pick apart day, month, etc.  Just zero date/time
-	 * if we can't get it.
-	 */
-	t = 0;
-	(void)time(&t);
+	if (t == 0) {
+		/*
+		 * Get date/time from system, convert to struct tm so we
+		 * can pick apart day, month, etc.  Just zero date/time
+		 * if we can't get it.
+		 */
+		t = 0;
+		(void)time(&t);
+	}
 	tm = localtime(&t);
 	if (!t || !tm || (tm->tm_year < 80)) {
 		d->date = 0;
@@ -728,6 +737,38 @@ timestamp(struct directory *d)
 		(tm->tm_sec >> 1);
 	d->date = ((tm->tm_year - 80) << 9) |
 		((tm->tm_mon + 1) << 5) | tm->tm_mday;
+}
+
+/*
+ * dir_timestamp()
+ *	Set timestamp on a file
+ *
+ * Just gets dir entry field and uses timestamp()
+ */
+void
+dir_timestamp(struct file *f, time_t t)
+{
+	struct directory *d;
+	void *handle;
+
+	/*
+	 * Access dir entry
+	 */
+	d = get_dirent(f->f_node->n_dir, f->f_node->n_slot, &handle);
+	ASSERT_DEBUG(d, "dir_timestamp: lost handle");
+
+	/*
+	 * Stamp it with the requested time
+	 */
+	timestamp(d, t);
+
+	/*
+	 * Mark it modified
+	 */
+	dirty(handle);
+	if (handle) {
+		bfree(handle);
+	}
 }
 
 /*
@@ -761,7 +802,7 @@ dir_setlen(struct node *n)
 	 * Update it, mark the block dirty, and return
 	 */
 	d->size = n->n_len;
-	timestamp(d);
+	timestamp(d, 0);
 	if (c->c_nclust) {
 		ASSERT_DEBUG(d->size, "dir_setlen: !len clust");
 		d->start = c->c_clust[0];
@@ -769,11 +810,9 @@ dir_setlen(struct node *n)
 		ASSERT_DEBUG(d->size == 0, "dir_setlen: len !clust");
 		d->start = 0;
 	}
+	dirty(handle);
 	if (handle) {
-		bdirty(handle);
 		bfree(handle);
-	} else {
-		root_dirty = 1;
 	}
 }
 
@@ -948,17 +987,13 @@ do_rename(struct file *fsrc, char *src, struct file *fdest, char *dest)
 	 * Mark dir blocks containing entries as dirty.  Root dir
 	 * has a NULL handle; root_dirty gets flagged instead.
 	 */
+	dirty(handsrc);
 	if (handsrc) {
-		bdirty(handsrc);
 		bfree(handsrc);
-	} else {
-		root_dirty = 1;
 	}
+	dirty(handdest);
 	if (handdest) {
-		bdirty(handdest);
 		bfree(handdest);
-	} else {
-		root_dirty = 1;
 	}
 
 	/*

@@ -12,6 +12,9 @@
 #include <syslog.h>
 #include <stdio.h>
 #include <string.h>
+#include <std.h>
+
+extern struct prot dos_prot;
 
 /*
  * ytos()
@@ -74,10 +77,6 @@ cvt_time(uint date, uint time)
 {
 	ulong sec;
 	uint leap, t, yd;
-#ifdef XXX
-	const uint dayst = 119,		/* Daylight savings, sort of */
-		dayen = 303;
-#endif
 
 	sec = (date >> 9) + 1980;
 	leap = !(sec % 4); sec = ytos(sec);			/* year */
@@ -88,13 +87,6 @@ cvt_time(uint date, uint time)
 	sec += ((time >> 5) & 0x3F) * 60;			/* minutes */
 	sec += ((time & 0x1F) << 1);				/* seconds */
 
-#ifdef XXX
-	/* Convert to daylight saving */
-	yd = yd / (24*60*60);
-	if ((yd >= dayst) && ( yd <= dayen)) {
-		sec -= 60*60;
-	}
-#endif
 	return(sec);
 }
 
@@ -215,5 +207,46 @@ dos_fid(struct msg *m, struct file *f)
 	m->m_arg = inum(n);
 	m->m_arg1 = btop(isize(n));
 	m->m_nseg = 0;
+	msg_reply(m->m_sender, m);
+}
+
+/*
+ * dos_wstat()
+ *	Write status of DOS file
+ *
+ * We support setting of modification time only, plus the usual
+ * shared code to set access to the filesystem.
+ */
+void
+dos_wstat(struct msg *m, struct file *f)
+{
+	char *field, *val;
+
+	/*
+	 * Common wstat handling code
+	 */
+	if (do_wstat(m, &dos_prot, f->f_perm, &field, &val) == 0) {
+		return;
+	}
+	if (!strcmp(field, "atime") || !strcmp(field, "mtime")) {
+		time_t t;
+
+		/*
+		 * Convert to number, write to dir entry
+		 */
+		t = atoi(val);
+		dir_timestamp(f, t);
+	} else {
+		/*
+		 * Unsupported operation
+		 */
+		msg_err(m->m_sender, EINVAL);
+		return;
+	}
+
+	/*
+	 * Return success
+	 */
+	m->m_buflen = m->m_nseg = m->m_arg = m->m_arg1 = 0;
 	msg_reply(m->m_sender, m);
 }

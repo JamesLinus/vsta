@@ -14,6 +14,7 @@
  */
 #include <sys/types.h>
 #include <sys/msg.h>
+#include <time.h>
 
 #define SECSZ (512)		/* Bytes in a sector */
 
@@ -185,7 +186,10 @@ extern void dos_open(struct msg *, struct file *),
 	dos_write(struct msg *, struct file *),
 	dos_remove(struct msg *, struct file *),
 	dos_stat(struct msg *, struct file *),
+	dos_wstat(struct msg *, struct file *),
 	dos_fid(struct msg *, struct file *);
+extern void timestamp(struct directory *, time_t),
+	dir_timestamp(struct file *, time_t);
 
 /*
  * Global data

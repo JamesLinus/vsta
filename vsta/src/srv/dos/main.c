@@ -23,13 +23,13 @@ extern int __fd_alloc(port_t);
 
 /*
  * Protection for all DOSFS files: everybody can read, only
- * group 1.2 (sys.sys) can write.
+ * group 1.2 (sys.sys) can write and chmod.
  */
-static struct prot dos_prot = {
+struct prot dos_prot = {
 	2,
 	ACC_READ|ACC_EXEC,
 	{1,		1},
-	{0,		ACC_WRITE}
+	{0,		ACC_WRITE|ACC_CHMOD}
 };
 
 /*
@@ -280,6 +280,9 @@ loop:
 		break;
 	case FS_STAT:		/* Tell about file */
 		dos_stat(&msg, f);
+		break;
+	case FS_WSTAT:		/* Set file status */
+		dos_wstat(&msg, f);
 		break;
 	case FS_FID:		/* File ID */
 		dos_fid(&msg, f);
