@@ -320,3 +320,4 @@ __fdclose hidden
 _fchmod
 ___map_errno hidden
 _setsid
+___fieldval

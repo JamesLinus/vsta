@@ -9,11 +9,11 @@
 #include <fcntl.h>
 
 /*
- * fieldval()
+ * __fieldval()
  *	Given "statbuf" format buffer, extract a field value
  */
-static char *
-fieldval(char *statbuf, char *field)
+char *
+__fieldval(char *statbuf, char *field)
 {
 	int len;
 	char *p, *pn;
@@ -81,7 +81,7 @@ rstat(port_t fd, char *field)
 	/*
 	 * Hunt for named field
 	 */
-	p = fieldval(statbuf, field);
+	p = __fieldval(statbuf, field);
 	if (p == 0) {
 		return(0);
 	}
@@ -181,7 +181,7 @@ fstat(int fd, struct stat *s)
 	}
 
 #define F(stfield, name, defvalue) \
-	p = fieldval(sbuf, name); \
+	p = __fieldval(sbuf, name); \
 	if (p) s->stfield = atoi(p); \
 	else s->stfield = defvalue;
 
@@ -209,7 +209,7 @@ fstat(int fd, struct stat *s)
 	/*
 	 * Set UID/GID
 	 */
-	p = fieldval(sbuf, "owner");
+	p = __fieldval(sbuf, "owner");
 	if (p) {
 		s->st_uid = field(p, 0);
 		if (s->st_uid == -1) {
@@ -226,7 +226,7 @@ fstat(int fd, struct stat *s)
 	/*
 	 * Decode "type"
 	 */
-	p = fieldval(sbuf, "type");
+	p = __fieldval(sbuf, "type");
 	if (!p) {
 		mode = S_IFREG;
 	} else if (!strncmp(p, "d\n", 2)) {
@@ -248,7 +248,7 @@ fstat(int fd, struct stat *s)
 	 * arbitrarily decide that the group corresponds to someone who's
 	 * ID matches to the penultimate position.
 	 */
-	p = fieldval(sbuf, "acc");
+	p = __fieldval(sbuf, "acc");
 	if (p) {
 		/*
 		 * We need to determine how long the access rights info
