@@ -43,18 +43,18 @@ all: $(LIBS) crt0.o crt0srv.o mklibs
 # Statically linkable version of libc
 libc_s.a: $(OBJS) $(CRT)
 	rm -f libc_s.a
-	ar rsv libc_s.a $(OBJS) $(CRT)
+	ar rs libc_s.a $(OBJS) $(CRT)
 
 
 # All shared libraries must be processed at once, as mkshlib assigns
 # addresses as it processes each.
-mklibs: mkshlib $(SHLIBIN) shlib.o
+mklibs: mkshlib $(SHLIBIN)
 	./mkshlib -l $(DBS)
 	rm -f mklibs
 	touch mklibs
 
 # Utility for creating shared libraries
-mkshlib: crt0.o mkshlib.o libc_s.a
+mkshlib: crt0.o mkshlib.o libc_s.a shlib.o shcalls.o
 	rm -f mkshlib
 	$(LD) -o mkshlib crt0.o mkshlib.o libc_s.a
 
@@ -86,12 +86,15 @@ USROBJS= llist.o hash.o permsup.o permpr.o statsup.o \
 
 libusr.a: $(USROBJS)
 	rm -f libusr.a
-	ar rsv libusr.a $(USROBJS)
+	ar rs libusr.a $(USROBJS)
 
+TERMOBJS=termcap.o tgoto.o tputs.o
 libtermcap.a: mkshlib libtermcap.tmp libtermcap.db
 	./mkshlib -s libtermcap.db
-libtermcap.tmp: termcap.o tgoto.o tputs.o libc.a
-	$(LD) -r -o libtermcap.tmp termcap.o tgoto.o tputs.o libc.a
+libtermcap.tmp: $(TERMOBJS) libc.a
+	$(LD) -r -o libtermcap.tmp $(TERMOBJS) libc.a
+libtermcap_s.a: $(TERMOBJS)
+	ar -crs libtermcap_s.a $(TERMOBJS)
 
 termcap.o: term/termcap.c
 	$(CC) $(CFLAGS) -c term/termcap.c
@@ -114,7 +117,7 @@ regerror.o: regexp/regerror.c
 
 libsrv.a: $(SRVOBJS)
 	rm -f libsrv.a
-	ar rsv libsrv.a $(SRVOBJS)
+	ar rs libsrv.a $(SRVOBJS)
 
 srvstr.o: srv/srvstr.c
 	$(CC) $(CFLAGS) -c srv/srvstr.c
