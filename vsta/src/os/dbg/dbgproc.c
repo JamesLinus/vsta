@@ -32,11 +32,11 @@ statename(s)
 }
 
 /*
- * dump_thread()
+ * dump_thread2()
  *	Dump out the contents of a thread structure
  */
 static void
-dump_thread(struct thread *t, int brief)
+dump_thread2(struct thread *t, int brief)
 {
 	uint f;
 
@@ -52,7 +52,7 @@ dump_thread(struct thread *t, int brief)
 		t->t_kregs, t->t_proc, t->t_ustack, t->t_runq, t->t_runticks);
 	printf("  flags:"); f = t->t_flags;
 	FLAG(T_RT, "RT"); FLAG(T_BG, "BG"); FLAG(T_KERN, "KERN");
-	printf("\n  hd %x tl %d next %x msgwait %x qsav %x\n",
+	printf("\n  hd %x tl %x next %x msgwait %x qsav %x\n",
 		t->t_hd, t->t_tl, t->t_next, &t->t_msgwait, t->t_qsav);
 	printf("  probe %x err %s usr/sys %d/%d evq %x eng %x\n",
 		t->t_probe,
@@ -186,7 +186,7 @@ dump_procs(arg)
 		for (p = allprocs; p; p = p->p_allnext) {
 			dump_proc(p, 1);
 			for (t = p->p_threads; t; t = t->t_next) {
-				dump_thread(t, 1);
+				dump_thread2(t, 1);
 			}
 		}
 		return;
@@ -203,9 +203,27 @@ dump_procs(arg)
 	}
 	dump_proc(p, 0);
 	for (t = p->p_threads; t; t = t->t_next) {
-		dump_thread(t, 0);
+		dump_thread2(t, 0);
 	}
 	v_sema(&p->p_sema);
+}
+
+/*
+ * dump_thread()
+ *	Dump thread from address
+ */
+void
+dump_thread(char *p)
+{
+	struct thread *t;
+
+	if (!p || !p[0]) {
+		printf("Usage: thread <addr>\n");
+		return;
+	}
+	t = (struct thread *)get_num(p);
+	printf("Thread @ 0x%x: ", t);
+	dump_thread2(t, 0);
 }
 
 #endif /* DEBUG */
