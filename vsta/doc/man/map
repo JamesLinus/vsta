@@ -1,3 +1,10 @@
+/1
+fstab: fstab.1
+kill: kill.1
+mv: mv.1
+ps: ps.1
+pwd: pwd.1
+
 /2
 exit: exit.2
 fork: fork.2
