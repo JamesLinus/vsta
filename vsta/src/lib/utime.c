@@ -50,7 +50,7 @@ utimes(const char *path, struct timeval *tvp)
 		 * If successful, ask for mtime to be set
 		 */
 		tvp += 1;
-		sprintf(buf, "atime=%d\n", tvp->tv_sec);
+		sprintf(buf, "mtime=%d\n", tvp->tv_sec);
 		x = wstat(port, buf);
 	}
 
