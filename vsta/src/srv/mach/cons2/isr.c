@@ -5,6 +5,7 @@
 #include "cons.h"
 #include <sys/assert.h>
 #include <mach/io.h>
+#include <time.h>
 
 static int shift = 0,	/* Count # shift keys down */
 	alt = 0,	/*  ...alt keys */
@@ -282,6 +283,8 @@ kbd_isr(struct msg *m)
 	/*
 	 * Pull data, toggle controller so it can accept more
 	 */
+	while ((inportb(KEYBD_STATUS) & 1) == 0)
+		__msleep(10);
 	data = inportb(KEYBD_DATA);
 	strobe = inportb(KEYBD_CTL);
 	outportb(KEYBD_CTL, strobe|KEYBD_ENABLE);
