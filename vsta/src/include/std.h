@@ -49,6 +49,7 @@ extern void yield(void);
 extern int atexit(voidfun);
 extern int usleep(uint), nice(int);
 extern char *mktemp(char *);
+extern char *realpath(const char *, char *);
 
 /*
  * GNU C has managed to change this one the last three times I moved
