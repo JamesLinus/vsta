@@ -51,7 +51,8 @@ kbd_read(struct msg *m, struct file *f)
 			 */
 			m->m_buflen = KEYBD_MAXBUF - s->s_tl;
 			m->m_nseg = 2;
-			m->m_seg[1] = seg_create(s->s_buf, s->s_hd);
+			m->m_seg[1].s_buf = s->s_buf;
+			m->m_seg[1].s_buflen = s->s_hd;
 			m->m_arg = m->m_buflen + s->s_hd;
 		}
 		s->s_tl = s->s_hd;

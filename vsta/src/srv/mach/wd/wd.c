@@ -106,7 +106,6 @@ wd_init(int argc, char **argv)
 	int x;
 	int found_first = 0;
 	int cfg_params[NWD] = {0, 0};
-	char *check;
 
 	/*
 	 * Start checking the usage
@@ -174,22 +173,12 @@ wd_init(int argc, char **argv)
 			/*
 			 * Select a new IRQ line
 			 */
-			wd_irq = (int)strtol(&argv[i][4], &check, 0);
-			if (check == &argv[i][4] || *check != '\0') {
-				fprintf(stderr, "wd: invalid IRQ setting " \
-					"'%s' - aborting\n", argv[i]);
-				exit(1);
-			}
+			wd_irq = atoi(&argv[i][4]);
 		} else if (!strncmp(argv[i], "baseio=", 7)) {
 			/*
 			 * Select a new base I/O port address
 			 */
-			wd_baseio = (int)strtol(&argv[i][7], &check, 0);
-			if (check == &argv[i][7] || *check != '\0') {
-				fprintf(stderr, "wd: invalid I/O adress " \
-					"'%s' - aborting\n", argv[i]);
-				exit(1);
-			}
+			wd_baseio = atoi(&argv[i][7]);
 		} else if (!strncmp(argv[i], "namer=", 6)) {
 			/*
 			 * Select a new namer entry
@@ -652,9 +641,18 @@ static void
 wd_parseparms(int unit, char *parms)
 {
 	struct wdparms *w = &disks[unit].d_parm;
+	char *p;
 
-	if (sscanf(parms, "%d:%d:%d", &w->w_cyls, &w->w_tracks,
-			&w->w_secpertrk) != 3) {
+	w->w_cyls = atoi(parms);
+	p = strchr(parms, ':');
+	if (p) {
+		w->w_tracks = atoi(++p);
+		p = strchr(p, ':');
+	}
+	if (p) {
+		w->w_secpertrk = atoi(++p);
+	}
+	if (!p) {
 		syslog(LOG_ERR, "unit %d: bad parameters: %s",
 		       unit, parms);
 		return;

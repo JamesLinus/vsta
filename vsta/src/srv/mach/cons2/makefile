@@ -4,7 +4,7 @@ INCS= -I../../../../include
 CFLAGS= -Wall -DKDB -DDEBUG $(INCS) -O
 LDFLAGS= -L../../../lib
 OBJS= main.o cons.o stat.o isr.o rw.o
-LIBS= -lusr -lc_s
+LIBS= -lsrv
 CRT0=../../../lib/crt0srv.o
 
 .c.o:
