@@ -739,6 +739,7 @@ msg_reply(long arg_who, struct msg *arg_msg)
 			p_lock_void(&port->p_lock, SPLHI);
 			ref_port(port, newpr);
 			v_lock(&port->p_lock, SPL0);
+			pr->p_state = PS_IODONE;
 			v_lock(&pr->p_lock, SPL0_SAME);
 			v_sema(&pr->p_iowait);
 			new_client(newpr);

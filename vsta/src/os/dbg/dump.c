@@ -496,8 +496,9 @@ dump_ref(char *p)
 		printf("Bad addr\n");
 		return;
 	}
-	printf("port 0x%x lock 0x%x iowait 0x%x svwait 0x%x\n",
-		pr->p_port, &pr->p_lock, &pr->p_iowait, &pr->p_svwait);
+	printf("port 0x%x lock 0x%x iowait 0x%x svwait 0x%x refs %d\n",
+		pr->p_port, &pr->p_lock, &pr->p_iowait, &pr->p_svwait,
+		pr->p_refs);
 	printf(" state %s sysmsg 0x%x next/prev 0x%x/0x%x segs 0x%x\n",
 		prstate(pr->p_state),
 		pr->p_msg, pr->p_next, pr->p_prev, &pr->p_segs);

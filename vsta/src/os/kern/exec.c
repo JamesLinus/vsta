@@ -19,7 +19,6 @@
 #include "../mach/locore.h"
 
 extern void set_execarg(), reset_uregs();
-extern struct portref *delete_portref();
 
 /*
  * discard_vas()
@@ -165,11 +164,10 @@ exec(uint arg_port, struct mapfile *arg_map, void *arg)
 	/*
 	 * See if we can find this portref
 	 */
-	pr = delete_portref(p, arg_port);
+	pr = delete_portref(p, arg_port, 1);
 	if (pr == 0) {
 		return(err(EINVAL));
 	}
-	v_sema(&pr->p_sema);
 
 	/*
 	 * Tear down most of our vas
@@ -190,7 +188,7 @@ exec(uint arg_port, struct mapfile *arg_map, void *arg)
 	 * Flush our own handle to the port; the views we added
 	 * will have their own references.
 	 */
-	shut_client(pr);
+	shut_client(pr, 1);
 
 	/*
 	 * We don't really have a name for this any more, and our

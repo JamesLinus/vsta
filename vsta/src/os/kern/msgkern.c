@@ -21,6 +21,9 @@ kernmsg_send(struct portref *pr, int op, long *args)
 {
 	struct sysmsg sm;
 
+	ASSERT_DEBUG(sema_count(&pr->p_sema) < 1,
+		"kernmsg_send: p_sema not held");
+
 	/*
 	 * Construct a system message
 	 */

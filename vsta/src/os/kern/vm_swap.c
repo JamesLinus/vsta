@@ -187,7 +187,6 @@ out:
 set_swapdev(port_t arg_port)
 {
 	struct portref *pr;
-	extern struct portref *delete_portref();
 
 	/*
 	 * Make sure he's "root"
@@ -206,7 +205,7 @@ set_swapdev(port_t arg_port)
 	/*
 	 * Steal away his port
 	 */
-	pr = delete_portref(curthread->t_proc, arg_port);
+	pr = delete_portref(curthread->t_proc, arg_port, 0);
 	if (!pr) {
 		return(-1);
 	}
@@ -216,7 +215,6 @@ set_swapdev(port_t arg_port)
 	 */
 	ASSERT(pr, "set_swapdev: swap daemon died");
 	swapdev = pr;
-	v_sema(&swapdev->p_sema);
 	return(0);
 }
 

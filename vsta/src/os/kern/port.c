@@ -99,7 +99,7 @@ find_portref(struct proc *p, port_t port)
  * calls allowed!
  */
 struct portref *
-delete_portref(struct proc *p, port_t port)
+delete_portref(struct proc *p, port_t port, int take_sema)
 {
 	struct portref *ptref;
 
@@ -136,9 +136,13 @@ delete_portref(struct proc *p, port_t port)
 	/*
 	 * Transfer from lock to semaphore.  When we come out of
 	 * this we will be the last thread to ever have access
-	 * to this portref.
+	 * to this portref through this open port.
 	 */
-	p_sema_v_lock(&ptref->p_sema, PRIHI, &ptref->p_lock);
+	if (take_sema) {
+		p_sema_v_lock(&ptref->p_sema, PRIHI, &ptref->p_lock);
+	} else {
+		v_lock(&ptref->p_lock, SPL0_SAME);
+	}
 	return(ptref);
 }
 
@@ -257,7 +261,7 @@ alloc_portref(void)
 	init_sema(&pr->p_iowait); set_sema(&pr->p_iowait, 0);
 	init_sema(&pr->p_svwait); set_sema(&pr->p_svwait, 0);
 	pr->p_state = PS_OPENING;
-	pr->p_flags = 0;
+	pr->p_refs = 1;
 	return(pr);
 }
 
@@ -321,13 +325,9 @@ fork_ports(sema_t *s, struct portref **old, struct portref **new, uint nport)
 		if ((pr == PORT_RESERVED) || (pr->p_flags & PF_NODUP)) {
 			continue;
 		}
-		p_sema(&pr->p_sema, PRIHI);
-		v_sema(s);
-		if (new[x] = dup_port(pr)) {
-			nopen += 1L;
-		}
-		p_sema(s, PRIHI);
-		v_sema(&pr->p_sema);
+		new[x] = pr;
+		ATOMIC_INCL(&pr->p_refs);
+		nopen += 1;
 	}
 	return(nopen);
 }
@@ -360,7 +360,7 @@ close_portrefs(struct portref **prs, uint nport)
 
 	for (x = 0; x < nport; ++x) {
 		if (prs[x]) {
-			(void)shut_client(prs[x]);
+			(void)shut_client(prs[x], 0);
 			prs[x] = 0;
 		}
 	}

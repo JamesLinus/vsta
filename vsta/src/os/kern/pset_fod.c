@@ -36,6 +36,7 @@ fod_init(struct pset *ps)
 static void
 fod_free(struct pset *ps)
 {
+	struct portref *pr = ps->p_data;
 
 	/*
 	 * Free slots
@@ -45,7 +46,7 @@ fod_free(struct pset *ps)
 	/*
 	 * Close file connection
 	 */
-	(void)shut_client(ps->p_data);
+	(void)shut_client(pr, 0);
 }
 
 /*

@@ -242,7 +242,7 @@ get_map_pset(struct portref *pr)
 
 	/*
 	 * Try to get file ID.  This also gets us the file's
-	 * size.
+	 * size.  Fail if we get interrupted trying to do the I/O.
 	 */
 	if (!port) {
 		return(0);
@@ -281,14 +281,8 @@ get_map_pset(struct portref *pr)
 	 * the hash counts as a reference.
 	 */
 	if (ps == 0) {
-		struct portref *newpr;
-
-		newpr = dup_port(pr);
-		if (newpr == 0) {
-			v_sema(&port->p_mapsema);
-			return(0);
-		}
-		ps = alloc_pset_fod(newpr, args[1]);
+		ATOMIC_INCL(&pr->p_refs);
+		ps = alloc_pset_fod(pr, args[1]);
 		(void)hash_insert(port->p_maps, args[0], ps);
 		ref_pset(ps);
 	}

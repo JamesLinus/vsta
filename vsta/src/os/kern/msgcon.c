@@ -367,10 +367,27 @@ msg_accept(long arg_tran)
  *	Shut down a connection from a client to a server
  */
 void
-shut_client(struct portref *pr)
+shut_client(struct portref *pr, int sema_held)
 {
 	struct sysmsg *sm;
 	struct port *port;
+	ulong refs;
+
+	/*
+	 * Decrement the reference count, just return if
+	 * it's not zero yet.
+	 * TBD: consider compare-and-exchange
+	 */
+	p_lock_void(&pr->p_lock, SPL0);
+	refs = pr->p_refs;
+	pr->p_refs -= 1;
+	v_lock(&pr->p_lock, SPL0_SAME);
+	if (refs > 1) {
+		if (sema_held) {
+			v_sema(&pr->p_sema);
+		}
+		return;
+	}
 
 	/*
 	 * Get a system message
@@ -398,7 +415,11 @@ shut_client(struct portref *pr)
 	 */
 	pr->p_state = PS_CLOSING;
 	queue_msg(port, sm, SPL0);
-	v_lock(&pr->p_lock, SPL0_SAME);
+	if (!sema_held) {
+		p_sema_v_lock(&pr->p_sema, PRIHI, &pr->p_lock);
+	} else {
+		v_lock(&pr->p_lock, SPL0_SAME);
+	}
 }
 
 /*
@@ -646,11 +667,11 @@ msg_disconnect(port_t arg_port)
 		 * Get the portref, or error.  The slot is now deleted from
 		 * the "open ports" list in the proc.
 		 */
-		pr = delete_portref(p, arg_port);
+		pr = delete_portref(p, arg_port, 0);
 		if (!pr) {
 			return(-1);
 		}
-		shut_client(pr);
+		shut_client(pr, 0);
 		return(0);
 	}
 }
