@@ -11,7 +11,8 @@
  */
 extern char *strcpy(char *, const char *), *strncpy(char *, const char *, int);
 extern char *strcat(char *, const char *), *strncat(char *, const char *, int);
-extern int strlen(const char *), strcmp(const char *, const char *),
+extern size_t strlen(const char *);
+extern int strcmp(const char *, const char *),
 	strncmp(const char *, const char *, int);
 extern void *memcpy(void *, const void *, size_t);
 extern char *strchr(const char *, int), *strrchr(const char *, int);

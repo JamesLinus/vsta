@@ -41,9 +41,10 @@ strncpy(char *dest, const char *src, int len)
  * strlen()
  *	Length of string
  */
+size_t
 strlen(const char *p)
 {
-	int x = 0;
+	size_t x = 0;
 
 	while (*p++)
 		++x;
