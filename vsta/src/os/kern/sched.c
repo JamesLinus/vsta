@@ -329,10 +329,20 @@ swtch(void)
 	if (pri != PRI_CHEATED) {
 		t->t_runticks = RUN_TICKS;
 	}
+
+	/*
+	 * This thread is now bound to this CPU.  Flag it so.
+	 */
 	t->t_state = TS_ONPROC;
 	t->t_eng = &cpu;
+
+	/*
+	 * Prepare to switch to new context.  Move to idle stack and
+	 * release runq lock, but keep interrupts disabled until resume()
+	 * is ready to go on the target thread stack
+	 */
 	idle_stack();
-	v_lock(&runq_lock, SPL0);
+	v_lock(&runq_lock, SPLHI_SAME);
 	resume();
 	ASSERT(0, "swtch: back from resume");
 }
