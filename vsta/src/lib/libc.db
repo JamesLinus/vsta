@@ -276,3 +276,5 @@ _gl_in_hook hidden
 _gl_out_hook hidden
 _gl_tab_hook hidden
 _sched_op
+_getuid
+_getgid

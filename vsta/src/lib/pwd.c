@@ -184,21 +184,48 @@ getpwnam(char *name)
 }
 
 /*
+ * getuid()
+ *	Get UID from first permission record
+ */
+uid_t
+getuid(void)
+{
+	struct perm me;
+
+	if (perm_ctl(0, 0, &me) < 0) {
+		return(0);
+	}
+	return(me.perm_uid);
+}
+
+/*
  * getlogin()
  *	Get UID from first permission record, map to a name
  */
 char *
 getlogin(void)
 {
-	struct perm me;
 	struct passwd *pw;
 
-	if (perm_ctl(0, 0, &me) < 0) {
-		return(0);
-	}
-	pw = getpwuid(me.perm_uid);
+	pw = getpwuid(getuid());
 	if (pw == 0) {
 		return(0);
 	}
 	return(pw->pw_name);
+}
+
+/*
+ * getgid()
+ *	Get group ID for current user
+ */
+gid_t
+getgid(void)
+{
+	struct passwd *pw;
+
+	pw = getpwuid(getuid());
+	if (pw == 0) {
+		return(0);
+	}
+	return(pw->pw_gid);
 }
