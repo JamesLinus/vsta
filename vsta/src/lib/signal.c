@@ -19,7 +19,7 @@ static voidfun sigs[_NSIG];
  */
 __strtosig(char *e)
 {
-#define MAP(s, e) if (!strcmp(#s, e)) {return(s);};
+#define MAP(s, evname) if (!strcmp(evname, e)) {return(s);};
 	MAP(SIGINT, EINTR);
 	MAP(SIGFPE, EMATH);
 	MAP(SIGKILL, EKILL);
