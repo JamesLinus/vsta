@@ -1035,12 +1035,25 @@ setvbuf(FILE *fp, char *buf, int mode, size_t size)
 	fp->f_flags |= (mode == _IONBF ? _F_UNBUF : 0)
 			| (mode == _IOLBF ? _F_LINE : 0);
 
-	if (buf == 0) {
-		return;
+	/*
+	 * No size, just setting the flags
+	 */
+	if (size == 0) {
+		return(0);
 	}
 
 	/*
-	 * If there's a buffer specified, set the details
+	 * Allocate a buffer if needed
+	 */
+	if (buf == 0) {
+		buf = malloc(size);
+		if (buf == 0) {
+			return(-1);
+		}
+	}
+
+	/*
+	 * Set the details
 	 */
 	fp->f_pos = fp->f_buf = (void *)buf;
 	fp->f_bufsz = size;
