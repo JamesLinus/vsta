@@ -88,6 +88,8 @@ bootproc(struct boot_task *b)
 	p->p_prot.prot_bits[1] = P_PRIO|P_SIG|P_KILL|P_STAT|P_DEBUG;
 	p->p_runq = sched_node(&sched_root);
 	p->p_pgrp = alloc_pgrp();
+	p->p_children = alloc_exitgrp(p);
+	p->p_parent = alloc_exitgrp(0); ref_exitgrp(p->p_parent);
 
 	/*
 	 * Set up the single thread for the proc
@@ -356,6 +358,7 @@ fork(void)
 {
 	struct thread *tnew, *told = curthread;
 	struct proc *pold = told->t_proc, *pnew;
+	uint npid;
 	extern struct vas *fork_vas();
 
 	/*
@@ -408,8 +411,10 @@ fork(void)
 	fork_ports(pold->p_open, pnew->p_open, PROCOPENS);
 	pnew->p_prefs = 0;
 	pnew->p_nopen = pold->p_nopen;
-	join_pgrp(pold->p_pgrp, pnew->p_pid);
+	pnew->p_pgrp = pold->p_pgrp; join_pgrp(pold->p_pgrp, pnew->p_pid);
+	pnew->p_parent = pold->p_children; ref_exitgrp(pnew->p_parent);
 	v_sema(&pold->p_sema);
+	pnew->p_children = alloc_exitgrp(pnew);
 
 	/*
 	 * Duplicate stack now that we have a viable thread/proc
@@ -430,12 +435,14 @@ fork(void)
 	p_lock(&runq_lock, SPLHI);
 	pnew->p_allnext = allprocs;
 	allprocs = pnew;
+	npid = pnew->p_pid;
 
 	/*
 	 * Leave him runnable
 	 */
 	lsetrun(tnew);
 	v_lock(&runq_lock, SPL0);
+	return(npid);
 }
 
 /*
@@ -545,12 +552,18 @@ exit(int code)
 	if (!last) {
 		remove_pview(p->p_vas, t->t_ustack);
 	} else {
-		printf("exit pid %d\n", p->p_pid); dbg_enter();
 		/*
 		 * If last thread gone, tear down process.
 		 */
 		free_proc(t->t_proc);
 	}
+
+	/*
+	 * Detach from our exit groups
+	 */
+	noparent_exitgrp(p->p_children);
+	post_exitgrp(p->p_parent, p, code);
+	deref_exitgrp(p->p_parent);
 
 	/*
 	 * Free kernel stack once we've switched to our idle stack.
@@ -590,4 +603,44 @@ pfind(ulong pid)
 	}
 	v_sema(&pid_sema);
 	return(p);
+}
+
+/*
+ * waits()
+ *	Get next exit() event from our exit group
+ */
+waits(struct exitst *w)
+{
+	struct proc *p = curthread->t_proc;
+	struct exitst *e;
+	ulong pid;
+
+	/*
+	 * Get next event.  We will vector out on interrupted system
+	 * call, so a NULL return here simply means there are no
+	 * children on which to wait.
+	 */
+	e = wait_exitgrp(p->p_children);
+	if (e == 0) {
+		return(err(ESRCH));
+	}
+
+	/*
+	 * Copy out the status.  Hide a field which they don't
+	 * need to see.  No big security risk, but helps provide
+	 * determinism.
+	 */
+	if (w) {
+		e->e_next = 0;
+		if (copyout(w, &e, sizeof(struct exitst))) {
+			return(err(EFAULT));
+		}
+	}
+
+	/*
+	 * Record PID, free memory, return PID as value of syscall
+	 */
+	pid = e->e_pid;
+	free(e);
+	return(pid);
 }
