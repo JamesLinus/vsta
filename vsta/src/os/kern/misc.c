@@ -356,3 +356,29 @@ set_cmd(char *arg_cmd)
 	}
 	return(0);
 }
+
+/*
+ * getid()
+ *	Get PID, TID, or PPID
+ */
+pid_t
+getid(int which)
+{
+	pid_t pid;
+
+	/*
+	 * Easy cases
+	 */
+	switch (which) {
+	case 0:
+		return(curthread->t_proc->p_pid);
+	case 1:
+		return(curthread->t_pid);
+	case 2:
+		pid = parent_exitgrp(curthread->t_proc->p_parent);
+		return((pid > 0) ? pid : 1);
+		break;
+	default:
+		return(err(EINVAL));
+	}
+}
