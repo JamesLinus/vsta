@@ -14,6 +14,8 @@
 #define _PATH_TERMCAP "/vsta/lib/termcap"
 #define _PATH_LOGIN "/vsta/bin/login"
 #define _PATH_NET "/vsta/etc/autoexec.net"
-#define _PATH_BANNER "/vsta/etc/banner"
+#define _PATH_BANNER "/vsta/etc/banner"		/* Login banner path */
+#define _PATH_SYSMOUNT "/vsta/etc/fstab"	/* Global mounts */
+#define _PATH_MOUNTRC "mount.rc"		/* Per-user mounts */
 
 #endif /* _PATHS_H */

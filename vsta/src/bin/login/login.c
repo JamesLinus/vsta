@@ -10,10 +10,7 @@
 #include <fcntl.h>
 #include <mnttab.h>
 #include <string.h>
-
-#define BANNER "/vsta/etc/banner"	/* Login banner path */
-#define SYSMOUNT "/vsta/etc/fstab"	/* Global mounts */
-#define MOUNTRC "mount.rc"		/* Per-user mounts */
+#include <paths.h>
 
 static struct termios torig;	/* Initial TTY mode */
 static char *tty_dev;		/* Named TTY, if any */
@@ -223,7 +220,7 @@ login(struct uinfo *u)
 	 * entry from the mount table.
 	 */
 	port = mount_port("/");
-	mount_init(SYSMOUNT);
+	mount_init(_PATH_SYSMOUNT);
 	umount("/", port);
 
 	/*
@@ -241,7 +238,7 @@ login(struct uinfo *u)
 	 * environment as requested.
 	 */
 	if (chdir(u->u_home) >= 0) {
-		mount_init(MOUNTRC);
+		mount_init(_PATH_MOUNTRC);
 	} else {
 		printf("Note: can not chdir to home: %s\n", u->u_home);
 	}
@@ -349,7 +346,7 @@ main(int argc, char **argv)
 	/*
 	 * Display welcoming banner
 	 */
-	cat(BANNER);
+	cat(_PATH_BANNER);
 
 	/*
 	 * Set up the TTY mode for cbreak noecho type of interaction
