@@ -2,18 +2,19 @@
  * fsck.c
  *	A simple/dumb file system checker
  */
+#include <sys/fs.h>
 #include <stat.h>
 #include <std.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <mach/param.h>
 #include "../vstafs.h"
-
-#define NBBY (8)		/* # bits in a byte */
 
 static int fd;			/* Open block device */
 static daddr_t max_blk;		/* Highest block # in filesystem */
 static char *freemap;		/* Bitmap of allocated blocks */
 static char *allocmap;		/*  ...of blocks in files */
+static char *prog;		/* Name fsck is running under */
 
 static int check_tree(daddr_t, char *);
 
@@ -388,6 +389,20 @@ check_dirent(struct fs_dirent *d)
 }
 
 /*
+ * concat()
+ *	Create a new string, adding suffix to "name"
+ */
+static char *
+concat(char *name, char *suffix)
+{
+	char *p;
+
+	p = malloc(strlen(name)+ strlen(suffix)+2);
+	sprintf(p, "%s%s%s", name, name[1] ? "/" : "", suffix);
+	return(p);
+}
+
+/*
  * check_fsdir()
  *	Check each directory entry in the given file
  *
@@ -462,12 +477,7 @@ printf("Corrupt directory entry file %s position %ld\n",
 					/*
 					 * Recurse to check the file
 					 */
-					p = malloc(strlen(name)+
-						strlen(d->fs_name)+2);
-					sprintf(p, "%s%s%s",
-						name,
-						name[1] ? "/" : "",
-						d->fs_name);
+					p = concat(name, d->fs_name);
 					/* XXX offer to delete? */
 					(void)check_tree(d->fs_clstart, p);
 					free(p);
@@ -548,9 +558,25 @@ printf("Dir entry for %s at block %ld mismatches alloc information\n",
 
 	/*
 	 * If this is a file, we're now happy with its contents.
+	 * If there are previous revisions, recurse to check them
+	 * as well.
 	 */
 	if (fs->fs_type == FT_FILE) {
-		return(0);
+		char buf[16];
+		daddr_t prev;
+		int res;
+		char *p;
+
+		prev = fs->fs_prev;
+		if (!prev) {
+			return(0);
+		}
+		fs = get_sec(prev);
+		sprintf(buf, ",,%U", fs->fs_rev);
+		p = concat(name, buf);
+		res = check_tree(prev, name);
+		free(p);
+		return(res);
 	}
 
 	/*
@@ -578,15 +604,36 @@ check_lostblocks(void)
 	}
 }
 
+static void
+usage(void)
+{
+	printf("Usage is: %s [-p] <disk>\n", prog);
+	exit(1);
+}
+
 main(int argc, char **argv)
 {
-	if (argc != 2) {
-		printf("Usage is: %s <disk>\n", argv[0]);
-		exit(1);
+	prog = argv[0];
+	if ((argc < 2) || (argc > 3)) {
+		usage();
 	}
-	if ((fd = open(argv[1], O_READ)) < 0) {
-		perror(argv[1]);
-		exit(1);
+	if (argc == 2) {
+		if ((fd = open(argv[1], O_READ)) < 0) {
+			perror(argv[1]);
+			exit(1);
+		}
+	} else {
+		port_t p;
+
+		if (strcmp(argv[1], "-p")) {
+			usage();
+		}
+		p = path_open(argv[2], ACC_READ | ACC_WRITE);
+		if (p < 0) {
+			perror(argv[2]);
+			exit(1);
+		}
+		fd = __fd_alloc(p);
 	}
 	check_root();
 	check_freelist();

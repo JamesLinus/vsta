@@ -6,9 +6,9 @@
 #include <std.h>
 #include <stdio.h>
 
-int fsfd;	/* Open file descriptor to filesystem */
-static char	/* Utility sector buffer */
-	*secbuf;
+static int fsfd;	/* Open file descriptor to filesystem */
+static char *secbuf;	/* Utility sector buffer */
+static char *prog;	/* Name fsdb runs under */
 
 /*
  * rdsec()
@@ -238,7 +238,9 @@ dump_file(int argc, char **argv)
 	printf("prev @ 0x%lx, version %ld, len %ld, type %s\n",
 		fs->fs_prev, fs->fs_rev, fs->fs_len,
 		(fs->fs_type == FT_DIR) ? "dir" : "file");
-	printf("nlink %d prot %s\n", fs->fs_nlink, perm_print(&fs->fs_prot));
+	printf("nlink %d rev %U prev %U prot %s\n",
+		fs->fs_nlink, fs->fs_rev, fs->fs_prev,
+		perm_print(&fs->fs_prot));
 	len = 0;
 	for (x = 0; x < MAXEXT; ++x) {
 		struct alloc *a;
@@ -458,11 +460,18 @@ cmd(void)
 	}
 }
 
+static void
+usage(void)
+{
+	printf("Usage is: %s [-p] <device>\n", prog);
+	exit(1);
+}
+
 main(int argc, char **argv)
 {
-	if (argc != 2) {
-		printf("Usage is: %s <device>\n", argv[0]);
-		exit(1);
+	prog = argv[0];
+	if ((argc < 2) || (argc > 3)) {
+		usage();
 	}
 	secbuf = malloc(2*SECSZ);
 	if (secbuf == 0) {
@@ -470,9 +479,23 @@ main(int argc, char **argv)
 		exit(1);
 	}
 	secbuf = (char *)(((ulong)secbuf + (SECSZ-1)) & ~(SECSZ-1));
-	if ((fsfd = open(argv[1], 0)) < 0) {
-		perror(argv[1]);
-		exit(1);
+	if (argc == 2) {
+		if ((fsfd = open(argv[1], 0)) < 0) {
+			perror(argv[1]);
+			exit(1);
+		}
+	} else {
+		port_t p;
+
+		if (strcmp(argv[1], "-p")) {
+			usage();
+		}
+		p = path_open(argv[2], ACC_READ);
+		if (p < 0) {
+			perror(argv[2]);
+			exit(1);
+		}
+		fsfd = __fd_alloc(p);
 	}
 	cmd();
 }
