@@ -231,8 +231,13 @@ do_login(void)
 	char *p;
 	struct uinfo uinfo;
 
-	printf("login: "); fflush(stdout);
-	get_str(acct, sizeof(acct), 1);
+	for (;;) {
+		printf("login: "); fflush(stdout);
+		get_str(acct, sizeof(acct), 1);
+		if (acct[0] != '\0') {
+			break;
+		}
+	}
 	if (getuinfo_name(acct, &uinfo)) {
 		printf("Error; unknown account '%s'\n", acct);
 		return;
