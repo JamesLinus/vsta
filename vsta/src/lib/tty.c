@@ -395,10 +395,10 @@ tcsetattr(int fd, int flag, struct termios *t)
 		sprintf(buf, "isig=%d\n", (t->c_lflag & ISIG) != 0);
 		(void)wstat(port->p_port, buf);
 	}
-	if ((t->c_lflag & (ONLCR | ICANON)) !=
-			(t2->c_lflag & (ONLCR | ICANON))) {
-		sprintf(buf, "ocrnl=%d\n",
-			(t->c_lflag & (ONLCR | ICANON)) == (ONLCR | ICANON));
+	if ((t->c_oflag & (ONLCR | OPOST)) !=
+			(t2->c_oflag & (ONLCR | OPOST))) {
+		sprintf(buf, "onlcr=%d\n",
+			(t->c_lflag & (ONLCR | OPOST)) == (ONLCR | OPOST));
 		(void)wstat(port->p_port, buf);
 	}
 	if (t->c_ospeed != t2->c_ospeed) {
