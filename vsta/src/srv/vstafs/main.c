@@ -14,6 +14,8 @@
 #include <sys/assert.h>
 #include <syslog.h>
 #include <fdl.h>
+#include <getopt.h>
+#include "alloc.h"
 
 extern int valid_fname(char *, int);
 
@@ -21,6 +23,10 @@ int blkdev;		/* Device this FS is mounted upon */
 port_t rootport;	/* Port we receive contacts through */
 static struct hash	/* Handle->filehandle mapping */
 	*filehash;
+static struct fs
+	*fsroot;	/* Snapshot of root sector */
+static int fflag,	/* Pull in fsck-pending changes */
+	pflag;		/* Use path_open syntax */
 
 /*
  * This "open" file just sits around as an easy way to talk about
@@ -269,12 +275,13 @@ loop:
 /*
  * usage()
  *	Tell how to use the thing
+ *
+ * Doesn't cover compatibility usage
  */
 static void
 usage(void)
 {
-	printf("Usage is: vfs -p <portpath> <fsname>\n");
-	printf(" or: vfs <filepath> <fsname>\n");
+	printf("Usage is: vstafs [-d <disk>] [-n <name>] [-p] [-f]\n");
 	exit(1);
 }
 
@@ -287,26 +294,63 @@ usage(void)
 static void
 verify_root(void)
 {
-	struct fs *fsroot;
-	char *secbuf;
-
 	/*
 	 * Block device is open; read in the first block and verify
 	 * that it looks like a superblock.
 	 */
-	secbuf = malloc(SECSZ);
-	if (secbuf == 0) {
+	fsroot = malloc(SECSZ);
+	if (fsroot == 0) {
 		syslog(LOG_ERR, "secbuf not allocated");
 		exit(1);
 	}
-	read_sec(BASE_SEC, secbuf);
-	fsroot = (struct fs *)secbuf;
+	read_sec(BASE_SEC, fsroot);
 	if (fsroot->fs_magic != FS_MAGIC) {
 		syslog(LOG_ERR, "bad magic number on filesystem");
 		exit(1);
 	}
-	free(secbuf);
 	syslog(LOG_INFO, "%ld sectors", fsroot->fs_size);
+}
+
+/*
+ * free_pending_secs()
+ *	Take sectors marked as "to be freed" and do the deed
+ *
+ * When fsck finds "lost" space, it would like to make it available
+ * to the filesystem.  Because the free block list is so tedious
+ * to maintain, it's simpler to let fsck merely queue the blocks to
+ * vstafs, and let it be freed within the filesystem code here.
+ */
+static void
+free_pending_secs(void)
+{
+	uint x;
+	daddr_t *dp;
+
+	x = 0;
+	dp = fsroot->fs_freesecs;
+	while ((x < BASE_FREESECS) && fsroot->fs_freesecs[x]) {
+		if ((dp[0] > fsroot->fs_size) ||
+				((dp[0] + dp[1]) > fsroot->fs_size)) {
+			syslog(LOG_ERR, "Bad pending sectors: %U..%U\n",
+				dp[0], dp[0] + dp[1] - 1);
+			break;
+		}
+		free_block(dp[0], dp[1]);
+		x += 1;
+		dp += 2;
+	}
+
+	/*
+	 * Clear pending blocks
+	 */
+	bzero(fsroot->fs_freesecs, sizeof(daddr_t) * 2 * BASE_FREESECS);
+	write_sec(BASE_SEC, fsroot);
+
+	/*
+	 * Free memory for this buffer, just to be a good citizen
+	 */
+	free(fsroot);
+	fsroot = 0;
 }
 
 /*
@@ -318,7 +362,8 @@ main(int argc, char *argv[])
 {
 	int x;
 	port_name fsname;
-	char *namer_name;
+	char *namer_name = 0;
+	char *disk = 0;
 
 	/*
 	 * Initialize syslog
@@ -328,46 +373,69 @@ main(int argc, char *argv[])
 	/*
 	 * Check arguments
 	 */
-	if (argc == 3) {
-		namer_name = argv[2];
-		blkdev = open(argv[1], O_RDWR);
-		if (blkdev < 0) {
-			syslog(LOG_ERR, "%s %s", argv[1], strerror());
-			exit(1);
-		}
-	} else if (argc == 4) {
-		port_t port;
-		int retries;
-		extern int __fd_alloc(port_t);
-		extern port_t path_open(char *, int);
-
-		/*
-		 * Version of invocation where service is specified
-		 */
-		namer_name = argv[3];
-		if (strcmp(argv[1], "-p")) {
+	while ((x = getopt(argc, argv, "d:n:fp")) > 0) {
+		switch (x) {
+		case 'd':
+			disk = optarg;
+			break;
+		case 'n':
+			namer_name = optarg;
+			break;
+		case 'f':
+			fflag = 1;
+			break;
+		case 'p':
+			pflag = 1;
+			break;
+		default:
 			usage();
 		}
-		for (retries = 10; retries > 0; retries -= 1) {
-			port = path_open(argv[2], ACC_READ|ACC_WRITE);
-			if (port < 0) {
-				sleep(1);
-			} else {
-				break;
-			}
-		}
-		if (port < 0) {
-			syslog(LOG_ERR, "couldn't connect to block device");
-			exit(1);
-		}
-		blkdev = __fd_alloc(port);
-		if (blkdev < 0) {
-			perror(argv[2]);
-			exit(1);
-		}
-	} else {
-		namer_name = 0;	/* For -Wall */
+	}
+
+	/*
+	 * Trailing arguments are disk/namer entry (compat)
+	 */
+	if (!disk && (optind < argc)) {
+		disk = argv[optind++];
+	}
+	if (!namer_name && (optind < argc)) {
+		namer_name = argv[optind++];
+	}
+
+	/*
+	 * Verify usage
+	 */
+	if ((optind < argc) || !disk || !namer_name) {
 		usage();
+	}
+
+	/*
+	 * Convert path_open() semantics
+	 */
+	if (pflag) {
+		char *buf;
+
+		buf = malloc(strlen(disk) + 4);
+		sprintf(buf, "//%s", disk);
+		disk = buf;
+	}
+
+	/*
+	 * Try to open the device.  Sleep and retry, to be tolerant
+	 * during bootup.
+	 */
+	for (x = 0; x < 10; ++x) {
+		blkdev = open(disk, O_RDWR);
+		if (blkdev < 0) {
+			sleep(1);
+		} else {
+			break;
+		}
+	}
+	if (blkdev < 0) {
+		syslog(LOG_ERR, "couldn't connect to block device %s: %s",
+			disk, strerror());
+		exit(1);
 	}
 
 	/*
@@ -406,6 +474,13 @@ main(int argc, char *argv[])
 	 */
 	rootdir = get_node(ROOT_SEC);
 	ASSERT(rootdir, "VFS: can't open root");
+
+	/*
+	 * Free any pending fsck-identified space
+	 */
+	if (fflag) {
+		free_pending_secs();
+	}
 
 	/*
 	 * Start serving requests for the filesystem

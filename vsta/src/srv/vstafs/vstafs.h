@@ -43,7 +43,9 @@ struct fs {
 	ulong fs_size;		/* # sectors in filesystem */
 	ulong fs_extsize;	/* Contiguous space allocated on extension */
 	daddr_t fs_free;	/* Start of free list */
+	daddr_t fs_freesecs[0];	/* fsck freed sectors */
 };
+#define BASE_FREESECS ((SECSZ - sizeof(struct fs)) / 2*sizeof(daddr_t))
 #define FS_MAGIC (0xDEADFACE)	/* Value for fs_magic */
 
 /*
