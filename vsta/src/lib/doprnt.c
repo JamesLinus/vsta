@@ -60,7 +60,9 @@ static
 baseof(char c)
 {
 	switch (c) {
+	case 'u':
 	case 'd':
+	case 'U':
 	case 'D':
 		return(10);
 	case 'x':
@@ -143,7 +145,6 @@ __doprnt(char *buf, char *fmt, int *args)
 		 */
 		if (c == 'u') {
 			is_unsigned = 1;
-			c = *p++;
 		} else {
 			is_unsigned = 0;
 		}
@@ -155,12 +156,14 @@ __doprnt(char *buf, char *fmt, int *args)
 		case 'X':
 		case 'O':
 		case 'D':
+		case 'U':
 			longfmt = 1;
 			/* VVV fall into VVV */
 
 		case 'x':
 		case 'o':
 		case 'd':
+		case 'u':
 			x = num(numbuf, *args++, baseof(c), is_unsigned);
 			if (!adj) {
 				for ( ; x < width; ++x) {
