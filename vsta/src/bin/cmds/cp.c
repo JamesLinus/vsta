@@ -1,20 +1,28 @@
 /*
  * cp.c
  *	Copy files
- *
- * Does not do -r, because -r hoses links and symlinks.  Use tar
- * or cpio.
  */
 #include <fcntl.h>
 #include <stdio.h>
 #include <std.h>
 #include <stat.h>
+#include <dirent.h>
 
 static char *buf;		/* I/O buffer--malloc()'ed */
 #define BUFSIZE (16*1024)	/* I/O buffer size */
 
+/*
+ * Part of source filename not copied.  When you copy, the destination
+ * gets only the basename of the path (or basename on down, for -r).
+ * So "cp /x/y /z" does not create file "/z/x/y", only "/z/y".
+ */
+static int path_off;
+
 static int errs = 0;		/* Count of errors */
-static int rflag = 0;		/* -r flag specified */
+static int rflag = 0,		/* Recursive copy */
+	vflag = 0;		/* Verbose */
+
+static void cp_file(char *, char *);
 
 /*
  * fisdir()
@@ -50,6 +58,41 @@ isdir(char *n)
 }
 
 /*
+ * cp_recurse()
+ *	Recursively copy contents of one dir into another
+ */
+static void
+cp_recurse(char *src, char *dest)
+{
+	DIR *dir;
+	struct dirent *de;
+	char *srcname, *destname;
+
+	if ((dir = opendir(src)) == 0) {
+		perror(src);
+		return;
+	}
+	(void)mkdir(dest);
+	while (de = readdir(dir)) {
+		srcname = malloc(strlen(src)+strlen(de->d_name)+2);
+		if (srcname == 0) {
+			perror(src);
+			exit(1);
+		}
+		sprintf(srcname, "%s/%s", src, de->d_name);
+		destname = malloc(strlen(dest)+strlen(de->d_name)+2);
+		if (destname == 0) {
+			perror(dest);
+			exit(1);
+		}
+		sprintf(destname, "%s/%s", dest, de->d_name);
+		cp_file(srcname, destname);
+		free(destname); free(srcname);
+	}
+	closedir(dir);
+}
+
+/*
  * cp_file()
  *	Copy one file to another
  */
@@ -71,14 +114,19 @@ cp_file(char *src, char *dest)
 	 * If source is a directory, bomb or start recursive copy
 	 */
 	if (fisdir(in)) {
+		close(in);
 		if (!rflag) {
 			fprintf(stderr, "%s: is a directory\n", src);
 			errs += 1;
 			return;
 		}
 		cp_recurse(src, dest);
+		return;
 	}
 
+	if (vflag) {
+		printf("%s -> %s\n", src, dest);
+	}
 	if ((out = open(dest, O_WRITE|O_CREAT, 0666)) < 0) {
 		perror(dest);
 		errs += 1;
@@ -101,13 +149,13 @@ cp_dir(char *src, char *destdir)
 {
 	char *dest;
 
-	dest = malloc(strlen(src) + strlen(destdir) + 2);
+	dest = malloc((strlen(src) - path_off) + strlen(destdir) + 2);
 	if (dest == 0) {
 		perror(destdir);
 		errs += 1;
 		return;
 	}
-	sprintf(dest, "%s/%s", destdir, src);
+	sprintf(dest, "%s/%s", destdir, src+path_off);
 	cp_file(src, dest);
 	free(dest);
 }
@@ -138,11 +186,28 @@ main(int argc, char **argv)
 		exit(1);
 	}
 
-	/*
-	 * Parse "-r"; allow recursive copy
-	 */
-	if ((argc > 1) && !strcmp(argv[1], "-r")) {
-		rflag = 1;
+	while ((argc > 1) && (argv[1][0] == '-')) {
+		char *p;
+
+		/*
+		 * Process switches
+		 */
+		for (p = argv[1]+1; *p; ++p) {
+			switch (*p) {
+			case 'r':
+				rflag = 1; break;
+			case 'v':
+				vflag = 1; break;
+			default:
+				fprintf(stderr, "Unknown flag: %c\n",
+					*p);
+				exit(1);
+			}
+		}
+
+		/*
+		 * Make the option(s) disappear
+		 */
 		argc -= 1;
 		argv[1] = argv[0];
 		argv += 1;
@@ -169,6 +234,13 @@ main(int argc, char **argv)
 			usage();
 		}
 		for (x = 1; x < argc-1; ++x)  {
+			char *p;
+
+			if (p = strrchr(argv[x], '/')) {
+				path_off = (p - argv[x])+1;
+			} else {
+				path_off = 0;
+			}
 			cp_dir(argv[x], dest);
 		}
 		return;
