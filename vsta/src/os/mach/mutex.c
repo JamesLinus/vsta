@@ -121,6 +121,7 @@ p_sema(sema_t *s, pri_t p)
 {
 	struct thread *t;
 
+	ASSERT_DEBUG(cpu.pc_locks == 0, "p_sema: locks held");
 	ASSERT_DEBUG(s->s_lock.l_lock == 0, "p_sema: deadlock");
 
 	/*
@@ -146,6 +147,7 @@ p_sema(sema_t *s, pri_t p)
 	 */
 	t = curthread;
 	t->t_wchan = s;
+	t->t_intr = 0;
 	q_sema(s, t);
 	p_lock(&runq_lock, SPLHI);
 	v_lock(&s->s_lock, SPLHI);
@@ -155,12 +157,13 @@ p_sema(sema_t *s, pri_t p)
 	 * We're back.  If we have an event pending, give up on the
 	 * semaphore and return the right result.
 	 */
-	if (EVENT(t) && (p < PRIHI)) {
+	if (t->t_intr) {
 		ASSERT_DEBUG(t->t_wchan == 0, "p_sema: intr w. wchan");
-		if (p == PRICATCH) {
-			return(1);
+		ASSERT_DEBUG(p != PRIHI, "p_sema: intr w. PRIHI");
+		if (p != PRICATCH) {
+			longjmp(t->t_qsav, 1);
 		}
-		longjmp(t->t_qsav, 1);
+		return(1);
 	}
 
 	/*
@@ -270,7 +273,8 @@ p_sema_v_lock(sema_t *s, pri_t p, lock_t *l)
 	struct thread *t;
 	spl_t spl;
 
-	ASSERT_DEBUG(s->s_lock.l_lock == 0, "p_sema: deadlock");
+	ASSERT_DEBUG(cpu.pc_locks == 1, "p_sema_v: bad lock count");
+	ASSERT_DEBUG(s->s_lock.l_lock == 0, "p_sema_v: deadlock");
 
 	/*
 	 * Take semaphore lock.  If count is high enough, release
@@ -290,6 +294,7 @@ p_sema_v_lock(sema_t *s, pri_t p, lock_t *l)
 	 */
 	t = curthread;
 	t->t_wchan = s;
+	t->t_intr = 0;
 	q_sema(s, t);
 	p_lock(&runq_lock, SPLHI);
 	v_lock(&s->s_lock, SPLHI);
@@ -300,11 +305,13 @@ p_sema_v_lock(sema_t *s, pri_t p, lock_t *l)
 	 * We're back.  If we have an event pending, give up on the
 	 * semaphore and return the right result.
 	 */
-	if (EVENT(t) && (p < PRIHI)) {
+	if (t->t_intr) {
 		ASSERT_DEBUG(t->t_wchan == 0, "p_sema: intr w. wchan");
-		if (p == PRICATCH)
-			return(1);
-		longjmp(t->t_qsav, 1);
+		ASSERT_DEBUG(p != PRIHI, "p_sema: intr w. PRIHI");
+		if (p != PRICATCH) {
+			longjmp(t->t_qsav, 1);
+		}
+		return(1);
 	}
 
 	/*
@@ -343,12 +350,14 @@ cunsleep(struct thread *t)
 
 	/*
 	 * Null out wchan to be safe.  Sema count was updated
-	 * by dq_sema().
+	 * by dq_sema().  Flag that he didn't get the semaphore.
 	 */
 	t->t_wchan = 0;
+	t->t_intr = 1;
 
 	/*
 	 * Success
 	 */
+	v_lock(&sp->s_lock, s);
 	return(0);
 }
