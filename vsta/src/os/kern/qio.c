@@ -82,9 +82,10 @@ qio_msg_send(struct qio *q)
 	sm->m_nseg = 1;
 	sm->m_seg[0] = s;
 	sm->m_sender = pr;
-	queue_msg(pr->p_port, sm);
 	pr->p_msg = sm;
 	pr->p_state = PS_IOWAIT;
+	set_sema(&pr->p_iowait, 0);
+	queue_msg(pr->p_port, sm);
 	p_sema_v_lock(&pr->p_iowait, PRIHI, &pr->p_lock);
 	p_lock(&pr->p_lock, SPL0);
 	if ((pr->p_port == 0) || (sm->m_arg < 0)) {
