@@ -58,7 +58,7 @@ sleep(uint secs)
  * usleep()
  *	Like sleep, but in microseconds
  */
-__usleep(int usecs)
+__usleep(uint usecs)
 {
 	struct time t;
 
@@ -76,7 +76,7 @@ __usleep(int usecs)
  * msleep()
  *	Like sleep, but milliseconds
  */
-__msleep(int msecs)
+__msleep(uint msecs)
 {
 	return(__usleep(msecs * 1000));
 }
