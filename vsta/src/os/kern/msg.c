@@ -24,11 +24,9 @@
 #include <hash.h>
 #include "msg.h"
 
-extern void free_seg(), ref_port(), deref_port();
+extern void ref_port(), deref_port();
 extern struct portref *find_portref();
 extern struct port *find_port();
-extern struct seg *make_seg();
-extern int attach_seg();
 
 /*
  * freesegs()
