@@ -49,7 +49,7 @@ struct node {
 	struct llist n_elems;	/* Linked list of elements under node */
 	uint n_refs;		/* # references to this node */
 	struct llist *n_list;	/* Our place in our parent's list */
-	struct node *n_up;	/*  ...out parent */
+	struct node *n_up;	/*  ...our parent */
 	uint n_owner;		/* Owner UID # */
 };
 
@@ -76,7 +76,7 @@ extern void env_open(struct msg *, struct file *),
 	env_remove(struct msg *, struct file *),
 	env_stat(struct msg *, struct file *),
 	env_wstat(struct msg *, struct file *);
-extern struct node *alloc_node(struct file *),
+extern struct node *alloc_node(struct file *, int),
 	*clone_node(struct node *);
 extern void ref_node(struct node *), deref_node(struct node *),
 	remove_node(struct node *);

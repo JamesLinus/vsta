@@ -127,12 +127,7 @@ env_open(struct msg *m, struct file *f)
 	/*
 	 * Get the new node
 	 */
-	n = alloc_node(f);
-	if (m->m_arg & ACC_DIR) {
-		n->n_flags |= N_INTERNAL;
-	} else {
-		n->n_val = alloc_val("");
-	}
+	n = alloc_node(f, m->m_arg & ACC_DIR);
 
 	/*
 	 * Try inserting it under the current node

@@ -7,6 +7,8 @@
 #include <sys/assert.h>
 #include <sys/fs.h>
 
+extern struct node rootnode;
+
 /*
  * alloc_node()
  *	Allocate a new node, attach under current directory
@@ -16,7 +18,7 @@
  * a name.
  */
 struct node *
-alloc_node(struct file *f)
+alloc_node(struct file *f, int isdir)
 {
 	struct node *n;
 	struct prot *p;
@@ -24,28 +26,33 @@ alloc_node(struct file *f)
 	if ((n = malloc(sizeof(struct node))) == 0) {
 		return(0);
 	}
+	bzero(n, sizeof(struct node));
 
 	/*
-	 * Default protection is first user ID with all access
-	 * limited to that ID.
+	 * Default protection:
+	 *	Global read if in root dir
+	 *	First user ID with all access limited to that ID otherwise
 	 */
 	p = &n->n_prot;
-	bzero(p, sizeof(*p));
 	p->prot_len = PERM_LEN(&f->f_perms[0]);
 	bcopy(f->f_perms[0].perm_id, p->prot_id, PERMLEN);
-	p->prot_bits[p->prot_len-1] =
-		ACC_READ|ACC_WRITE|ACC_CHMOD;
+	if (!isdir && (f->f_node == &rootnode)) {
+		p->prot_default = ACC_READ;
+		p->prot_bits[p->prot_len-1] = ACC_WRITE|ACC_CHMOD;
+	} else {
+		p->prot_bits[p->prot_len-1] = ACC_READ|ACC_WRITE|ACC_CHMOD;
+	}
 	n->n_owner = f->f_perms[0].perm_uid;
 
 	/*
 	 * Initialize rest of fields
 	 */
-	n->n_name[0] = '\0';
-	n->n_flags = 0;
-	n->n_list = 0;
-	n->n_val = 0;
+	if (isdir) {
+		n->n_flags = N_INTERNAL;
+	} else {
+		n->n_val = alloc_val("");
+	}
 	n->n_up = f->f_node; ref_node(f->f_node);
-	n->n_refs = 0;
 	ll_init(&n->n_elems);
 	return(n);
 }
@@ -127,8 +134,6 @@ ref_node(struct node *n)
 void
 deref_node(struct node *n)
 {
-	extern struct node rootnode;
-
 	/*
 	 * Null--no node, ignore
 	 */
