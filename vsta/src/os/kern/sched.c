@@ -305,6 +305,7 @@ swtch(void)
 			t->t_runticks = RUN_TICKS;
 		}
 		cpu.pc_pri = pri;
+		curthread->t_state = TS_ONPROC;
 		v_lock(&runq_lock, SPL0);
 		return;
 	}
