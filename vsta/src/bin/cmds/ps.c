@@ -46,10 +46,8 @@ timestr(uint tm)
 {
 	char *buf = malloc(16);
 
-	if (tm < 60) {
-		sprintf(buf, "%ds", tm);
-	} else if (tm < 60*60) {
-		sprintf(buf, "%dm", tm / 60);
+	if (tm < 60*60) {
+		sprintf(buf, "%d:%02d", tm / 60, tm % 60);
 	} else if (tm < 24*60*60) {
 		sprintf(buf, "%dh%dm", tm/(60*60), (tm % (60*60)) / 60);
 	} else {
