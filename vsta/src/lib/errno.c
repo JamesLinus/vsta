@@ -8,6 +8,7 @@
  */
 #include <sys/types.h>
 #include <errno.h>
+#include <std.h>
 
 static struct {
 	int errnum;
@@ -61,11 +62,13 @@ map_errstr(char *err)
  * __ptr_errno()
  *	Report back the address of errno
  */
-void __ptr_errno(void)
+int *
+__ptr_errno(void)
 {
 	static uint old_errcnt;
 	static int my_errno;
 	extern uint _errcnt;
+	char *p;
 
 	/*
 	 * If no new errors, stick with what we have.  Otherwise record

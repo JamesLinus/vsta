@@ -11,8 +11,8 @@
  * with this, errno's treatment is painful, since we can't tell if
  * its value will be an rval or lval in the call.
  */
-extern void __ptr_errno(void);
-#define errno (*(int *)__ptr_errno());
+extern int *__ptr_errno(void);
+#define errno (*__ptr_errno());
 
 /*
  * A subset of UNIX errno names are presented here.  Omitted ones do
@@ -34,5 +34,7 @@ extern void __ptr_errno(void);
 #define ENOTDIR	(12)
 #define EINVAL	(13)
 #define EROFS	(14)
+#define EINTR	(15)
+#define ENOSPC	(16)
 
 #endif /* _ERRNO_H */
