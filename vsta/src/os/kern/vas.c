@@ -220,6 +220,7 @@ fork_vas(struct thread *t, struct vas *ovas)
 	struct vas *vas;
 	char *vaddr = 0;
 	struct pview *closest;
+	struct pview pv2;
 
 	/*
 	 * Set initial fields.
@@ -234,7 +235,7 @@ fork_vas(struct thread *t, struct vas *ovas)
 	 * we can release the lock on the old vas, but still make
 	 * forward progress.
 	 */
-	do {
+	for (;;) {
 		struct pview *pv;
 		struct pset *ps;
 
@@ -245,7 +246,7 @@ fork_vas(struct thread *t, struct vas *ovas)
 		closest = 0;
 		p_lock(&ovas->v_lock, SPL0);
 		for (pv = ovas->v_views; pv; pv = pv->p_next) {
-			if ((char *)pv->p_vaddr < vaddr) {
+			if ((char *)pv->p_vaddr <= vaddr) {
 				continue;
 			}
 			if (!closest || (pv->p_vaddr < closest->p_vaddr)) {
@@ -254,36 +255,51 @@ fork_vas(struct thread *t, struct vas *ovas)
 		}
 
 		/*
+		 * If no more, leave loop
+		 */
+		if (!closest) {
+			v_lock(&ovas->v_lock, SPL0);
+			break;
+		}
+
+		/*
 		 * If found one, lock it.  Release vas.  Add a reference so
 		 * it won't go away while we're fiddling with it.  We must
 		 * duplicate the pview, since it might go away once we
 		 * release the vas lock.
 		 */
-		if (closest) {
-			struct pview pv2;
+		printf("Dup pview 0x%x vaddr 0x%x\n", closest,
+			closest->p_vaddr);
+		ps = closest->p_set;
+		pv2 = *closest;
+		vaddr = pv2.p_vaddr;
+		ref_pset(ps);
+		v_lock(&ovas->v_lock, SPL0);
 
-			ps = closest->p_set;
-			pv2 = *closest;
-			ref_pset(ps);
-			v_lock(&ovas->v_lock, SPL0);
-
-			/*
-			 * If read-only or shared, dup the view
-			 */
-			if ((pv2.p_prot & PROT_RO) ||
-					(ps->p_flags & PF_SHARED)) {
-				pv = dup_pview(&pv2);
-			} else {
-				pv = copy_pview(&pv2);
-			}
-
-			/*
-			 * Add to our new vas
-			 */
-			(void)attach_pview(vas, pv);
-			deref_pset(ps);
+		/*
+		 * If read-only or shared, dup the view
+		 */
+		if ((pv2.p_prot & PROT_RO) ||
+				(ps->p_flags & PF_SHARED)) {
+			pv = dup_pview(&pv2);
+		} else {
+			pv = copy_pview(&pv2);
 		}
-	} while (closest);
+
+		/*
+		 * Add to our new vas
+		 */
+		pv->p_prot |= PROT_FORK;
+		(void)attach_pview(vas, pv);
+		pv->p_prot &= ~PROT_FORK;
+		deref_pset(ps);
+	}
+
+	/*
+	 * Let hat handle any final details of duplication
+	 */
+	hat_fork(ovas, vas);
+
 	return(vas);
 }
 
