@@ -42,8 +42,9 @@ struct file {
 		f_events;
 	ulong f_key;		/* Our key */
 	uint f_mode;		/* Root/client/server flag */
-	long f_sender;		/* Non-0 if client is blocked */
+	long f_sender;		/* Client's handle */
 	uint f_size;		/*  ...# bytes permitted */
+				/*   (non-zero if client blocked) */
 };
 
 /*
