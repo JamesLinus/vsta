@@ -15,7 +15,7 @@ LIB=lib/bison.hairy lib/bison.simple lib/crt0.o lib/crt0srv.o \
 	lib/libcurses.a lib/libdpart.a lib/libg.a lib/libgcc.a \
 	lib/libm.a lib/libregexp.a lib/libsrv.a lib/libtermcap.a \
 	lib/libusr.a lib/termcap lib/units.lib lib/libtermcap.shl \
-	lib/libm.shl lib/libregexp.shl lib/libregex.a
+	lib/libm.shl lib/libregexp.shl lib/libregex.a lib/magic
 
 BIN=$(LAW) bin boot doc etc include $(LIB)
 
