@@ -1,13 +1,15 @@
 CC= gcc
 LD= ld
 CFLAGS= -O -I../../include -I../..
-LDFLAGS= -L../../libc -L../../lib
+LDFLAGS= -L../../libc
 LIBS= -lc
 
 .c.o:
 	$(CC) $(CFLAGS) -c $*.c
 
-all: test args cat id ls swapd rm cp sleep mkdir pwd kill mv stat dumpsect
+PROGS=test args cat id ls swapd rm cp sleep mkdir pwd kill mv stat dumpsect
+
+all: $(PROGS)
 
 stat: stat.o
 	$(LD) $(LDFLAGS) -o stat ../../libc/crt0.o stat.o -lc
@@ -56,16 +58,10 @@ args: args.o
 
 clean:
 	del *.o
-	del test
-	del ls
-	del cat
-	del args
-	del swapd
-	del id
-	del rm
-	del cp
-	del mkdir
-	del sleep
-	del pwd
-	del kill
-	del mv
+
+clobber: clean
+	rm -f $(PROGS)
+
+install: all
+	strip $(PROGS)
+	cp $(PROGS) ../../bin

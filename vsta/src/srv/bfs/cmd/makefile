@@ -14,5 +14,11 @@ mkbfs: $(OBJS)
 	$(LD) $(LDFLAGS) -o mkbfs $(OBJS) $(CRT0) $(LIBS)
 
 clean:
-	del *.o
-	del mkbfs
+	rm -f *.o
+
+clobber: clean
+	rm -f mkbfs
+
+install: mkbfs
+	strip mkbfs
+	cp mkbfs ../../../bin/mkfs_bfs

@@ -1,7 +1,7 @@
 CC= gcc
 LD= ld
 CFLAGS= -O -I../../include -I../..
-LDFLAGS= -L../../libc -L../../lib
+LDFLAGS= -L../../libc
 LIBS= -lusr -lc
 OBJS= login.o
 
@@ -13,4 +13,10 @@ login: $(OBJS)
 
 clean:
 	del *.o
+
+clobber: clean
 	del login
+
+install: login
+	strip login
+	cp login ../../bin

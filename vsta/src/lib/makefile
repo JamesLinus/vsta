@@ -15,10 +15,11 @@ OBJS= start.o startsrv.o syscalls.o syscall.o \
 .c.o:
 	$(CC) $(CFLAGS) -c $*.c
 
-all: libc.a crt0.o crt0srv.o
+LIBS=libc.a libusr.a libtermc.a libregex.a libpio.a libdpart.a
+all: $(LIBS) crt0.o crt0srv.o
 
 libc.a: $(OBJS)
-	del libc.a
+	rm -f libc.a
 	ar rsv libc.a @objs
 
 # Special version for boot servers
@@ -36,11 +37,11 @@ setjmp.o: mach/setjmp.s
 crt0.o: mach/crt0.s
 	$(CPP) mach/crt0.s tmp.s
 	$(AS) -o crt0.o tmp.s
-	del tmp.s
+	rm -f tmp.s
 crt0srv.o: mach/crt0.s
 	$(CPP) -DSRV mach/crt0.s tmp.s
 	$(AS) -o crt0srv.o tmp.s
-	del tmp.s
+	rm -f tmp.s
 gnufuncs.o: mach/gnufuncs.s
 	$(AS) -o gnufuncs.o mach/gnufuncs.s
 exec.o: mach/exec.c
@@ -50,12 +51,52 @@ exec.o: mach/exec.c
 syscalls.o: mach/syscalls.s
 	$(CPP) -D__ASM__ $(INCS) mach/syscalls.s tmp.s
 	as -o syscalls.o tmp.s
-	del tmp.s
+	rm -f tmp.s
 
-# Share this with the kernel
-hash.o: ../lib/hash.c
-	$(CC) $(CFLAGS) -c ../lib/hash.c
+USROBJS= llist.o hash.o permsup.o permpr.o statsup.o \
+	files.o rmap.o passwd.o ids.o assert.o
+
+libusr.a: $(USROBJS)
+	rm -f libusr.a
+	ar rsv libusr.a $(USROBJS)
+
+libtermc.a: termcap.o tgoto.o tputs.o
+	rm -f libtermc.a
+	ar rsv libtermc.a termcap.o tgoto.o tputs.o
+termcap.o: term/termcap.c
+	$(CC) $(CFLAGS) -c term/termcap.c
+tgoto.o: term/tgoto.c
+	$(CC) $(CFLAGS) -c term/tgoto.c
+tputs.o: term/tputs.c
+	$(CC) $(CFLAGS) -c term/tputs.c
+
+libregex.a: regexp.o regsub.o regerror.o
+	rm -f libregex.a
+	ar rsv libregex.a regexp.o regsub.o regerror.o
+
+regexp.o: regexp/regexp.c
+	$(CC) $(CFLAGS) -c regexp/regexp.c
+regsub.o: regexp/regsub.c
+	$(CC) $(CFLAGS) -c regexp/regsub.c
+regerror.o: regexp/regerror.c
+	$(CC) $(CFLAGS) -c regexp/regerror.c
+
+libpio.a: pio.o
+	rm -f libpio.a
+	ar rsv libpio.a pio.o
+
+libdpart.a: dpart.o
+	rm -f libdpart.a
+	ar rsv libdpart.a dpart.o
+dpart.o: mach/dpart.c
+	$(CC) $(CFLAGS) -c mach/dpart.c
 
 clean:
-	del *.o
-	del *.a
+	rm -f *.o
+
+clobber: clean
+	rm -f *.a
+
+install: all
+	cp $(LIBS) crt0.o crt0srv.o ../lib
+

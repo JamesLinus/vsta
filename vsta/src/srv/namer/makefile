@@ -2,7 +2,7 @@ CC= gcc
 LD= ld
 INCS= -I../../include
 CFLAGS= -DDEBUG $(INCS) -O
-LDFLAGS= -L../../libc -L../../lib
+LDFLAGS= -L../../libc
 OBJS= main.o open.o rw.o stat.o
 LIBS= -lusr -lc
 
@@ -14,5 +14,11 @@ namer: $(OBJS)
 	$(LD) $(LDFLAGS) -o namer ../../libc/crt0srv.o $(OBJS) $(LIBS)
 
 clean:
-	del *.o
-	del namer
+	rm -f *.o
+
+clobber: clean
+	rm -f namer
+
+install: all
+	strip namer
+	cp namer ../../boot

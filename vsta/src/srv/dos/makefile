@@ -2,7 +2,7 @@ CC= gcc
 LD= ld
 INCS= -I../../include -I../..
 CFLAGS= -Wall -DDEBUG $(INCS) -O
-LDFLAGS= -L../../libc -L../../lib
+LDFLAGS= -L../../libc
 OBJS= main.o fat.o block.o node.o dir.o open.o rw.o stat.o
 LIBS= -lusr -lc
 
@@ -14,5 +14,11 @@ dos: $(OBJS)
 	$(LD) $(LDFLAGS) -o dos ../../libc/crt0srv.o $(OBJS) $(LIBS)
 
 clean:
-	del *.o
-	del dos
+	rm -f *.o
+
+clobber:
+	rm -f dos
+
+install: all
+	strip dos
+	cp dos ../../boot

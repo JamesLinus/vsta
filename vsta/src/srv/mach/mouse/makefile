@@ -3,7 +3,7 @@ LD        = ld
 INCLUDES  = -I../../../include
 CFLAGS    = -DDEBUG $(INCLUDES) -O
 
-LDFLAGS   = -L../../../libc -L../../../lib
+LDFLAGS   = -L../../../libc
 LIBS      = -lpio -lusr -lc
 CRT0	  = ../../../libc/crt0.o
 
@@ -22,6 +22,11 @@ mouse: $(OBJS)
 	$(LD) $(LDFLAGS) -e start -o mouse $(CRT0) @objs $(LIBS)
 
 clean:
-	del mouse
-	del test
-	del *.o
+	rm -f mouse test
+
+clobber: clean
+	rm -f *.o
+
+install: all
+	strip mouse
+	cp mouse ../../../boot

@@ -14,5 +14,11 @@ init: $(OBJS)
 	$(LD) $(LDFLAGS) -e start -o init ../../libc/crt0srv.o $(OBJS) -lc
 
 clean:
-	del *.o
-	del init
+	rm -f *.o
+
+clobber: clean
+	rm -f init
+
+install: all
+	strip init
+	cp init ../../boot

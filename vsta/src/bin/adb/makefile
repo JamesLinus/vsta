@@ -12,5 +12,11 @@ adb: $(OBJS)
 	$(LD) -o adb $(CRT0) $(OBJS) $(LIBS)
 
 clean:
-	del *.o
-	del adb
+	rm -f *.o
+
+clobber: clean
+	rm -f adb
+
+install:
+	strip adb
+	cp adb ../../bin

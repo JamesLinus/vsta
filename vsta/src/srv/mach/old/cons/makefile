@@ -3,7 +3,7 @@ LD        = ld
 INCLUDES  = -I../../../include
 CFLAGS    = -O -DDEBUG $(INCLUDES) $(MACHDEF)
 
-LDFLAGS   = -L../../../libc -L../../../lib
+LDFLAGS   = -L../../../libc
 LIBS      = -lusr -lc
 
 MACHDEF   = -DIBM_CONSOLE
@@ -19,5 +19,11 @@ cons: $(IBM_OBJS)
 	$(LD) $(LDFLAGS) -e start -o cons ../../../libc/crt0srv.o $(IBM_OBJS) $(LIBS)
 
 clean:
-	del *.o
-	del cons
+	rm -f *.o
+
+clobber: clean
+	rm -f cons
+
+install: all
+	strip cons
+	cp cons ../../../boot

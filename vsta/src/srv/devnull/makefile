@@ -14,5 +14,11 @@ devnull: $(OBJS)
 	$(LD) $(LDFLAGS) -o devnull ../../libc/crt0.o $(OBJS) $(LIBS)
 
 clean:
-	del *.o
-	del devnull
+	rm -f *.o
+
+clobber: clean
+	rm -f devnull
+
+install: all
+	strip devnull
+	cp devnull ../../boot

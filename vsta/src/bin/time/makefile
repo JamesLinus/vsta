@@ -4,7 +4,8 @@ LD=ld
 CRT0=../../libc/crt0.o
 LIB=-L../../libc -lc
 
-all: setime date
+PROGS=setime date
+all: $(PROGS)
 
 .c.o:
 	$(CC) $(CFLAGS) -c $*.c
@@ -16,6 +17,11 @@ date: date.o time.o
 	$(LD) $(CRT0) -o date date.o time.o $(LIB)
 
 clean:
-	del *.o
-	del setime
-	del date
+	rm -f *.o
+
+clobber: clean
+	rm -f $(PROGS)
+
+install: all
+	strip $(PROGS)
+	cp $(PROGS) ../../bin

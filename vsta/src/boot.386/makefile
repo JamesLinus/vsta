@@ -13,4 +13,10 @@ boot: $(OBJS)
 	$(CC) $(CFLAGS) -eboot.exe $(OBJS)
 
 clean:
-	rm -f *.obj boot
+	rm -f *.obj
+
+clobber: clean
+	rm -f boot
+
+install:
+

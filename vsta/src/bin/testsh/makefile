@@ -15,5 +15,12 @@ testsh: $(OBJS)
 	$(LD) $(LDFLAGS) -e start -o testsh ../../libc/crt0srv.o $(OBJS) -lc
 
 clean:
-	del testsh
-	del *.o
+	rm -f *.o
+
+clobber: clean
+	rm -f testsh
+
+# Copy to ../../bin if not STAND, but we don't seem to use that much
+install: all
+	strip testsh
+	cp testsh ../../boot
