@@ -39,6 +39,11 @@ typedef struct __file {
  */
 
 /*
+ * These need to be seen before getc()/putc() are defined
+ */
+extern int fgetc(FILE *), fputc(int, FILE *);
+
+/*
  * getc()
  *	Get a char from a stream
  */
@@ -98,7 +103,6 @@ extern int fclose(FILE *),
 	fread(void *, int, int, FILE *),
 	fwrite(void *, int, int, FILE *),
 	feof(FILE *), ferror(FILE *),
-	fgetc(FILE *), fputc(int, FILE *),
 	fileno(FILE *), ungetc(int, FILE *);
 extern off_t fseek(FILE *, off_t, int), ftell(FILE *);
 extern char *gets(char *), *fgets(char *, int, FILE *);
