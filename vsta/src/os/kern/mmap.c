@@ -51,7 +51,7 @@ mmap(caddr_t addr, ulong len, int prot, int flags,
 		/*
 		 * Keep it simple, eh?  Read-only ZFOD???
 		 */
-		if ((flags & (MAP_FILE|MAP_FIXED|MAP_PHYS)) ||
+		if ((flags & (MAP_FILE|MAP_PHYS)) ||
 				!(prot & PROT_WRITE)) {
 			err(EINVAL);
 			return(0);
