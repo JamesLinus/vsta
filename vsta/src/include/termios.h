@@ -131,8 +131,8 @@ extern speed_t cfgetispeed (struct termios *),
 	cfgetospeed (struct termios *);
 extern int tcdrain(int), tcflow(int, int), tcflush(int, int),
 	tcsendbreak(int, int),
-	tcgetattr(int, struct termios *),
-	tcsetattr(int, int, struct termios *);
+	tcgetattr(int fd, struct termios *),
+	tcsetattr(int fd, int flag, struct termios *);
 extern int tcgetsize(int fd, int *rows, int *cols);
 
 #endif /* _TERMIOS_H */
