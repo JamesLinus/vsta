@@ -14,6 +14,9 @@
  *
  * Only useful for messages without segments.  Assumes caller has
  * already interlocked on the use of the portref.
+ *
+ * args[] receives m_arg, m_arg1, and m_op.  It must have room
+ * for these 3 longs.
  */
 kernmsg_send(struct portref *pr, int op, long *args)
 {
@@ -76,6 +79,7 @@ kernmsg_send(struct portref *pr, int op, long *args)
 	ASSERT(sm->m_nseg == 0, "kernmsg_send: got segs back");
 	args[0] = sm->m_arg;
 	args[1] = sm->m_arg1;
+	args[2] = sm->m_op;
 
 out:
 	/*

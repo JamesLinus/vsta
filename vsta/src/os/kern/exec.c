@@ -84,7 +84,7 @@ get_exec_pset(struct portref *pr, uint hi)
 {
 	struct pset *ps;
 	struct portref *prmap;
-	long args[2];
+	long args[3];
 	struct port *port;
 
 	/*

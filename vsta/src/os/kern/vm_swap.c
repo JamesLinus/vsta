@@ -235,7 +235,7 @@ set_swapdev(port_t arg_port)
 ulong
 alloc_swap(uint pages)
 {
-	long args[2];
+	long args[3];
 
 	/*
 	 * If there appears to be swap usage pending and the
@@ -301,7 +301,7 @@ alloc_swap(uint pages)
 void
 free_swap(ulong block, uint pages)
 {
-	long args[2];
+	long args[3];
 
 	/*
 	 * This is usually the case of an exec() (discarding
