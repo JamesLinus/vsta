@@ -13,6 +13,7 @@
  * We map this into access to all I/O ports
  */
 #define iopl(x) enable_io(0, 0xFFFF)
+#define ioperm(low, high, enab) (enab ? enable_io(low, high) : -1)
 
 /*
  * Stub values for TTY modes not supported
