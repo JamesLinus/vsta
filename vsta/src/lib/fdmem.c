@@ -137,7 +137,7 @@ fdmem(void *buf, uint len)
 	 */
 	p->p_read = mem_read;
 	p->p_write = mem_write;
-	p->p_seek = mem_seek;
+	p->p_seek = (void *)mem_seek;
 	p->p_close = mem_close;
 
 	/*
