@@ -358,7 +358,7 @@ close(int fd)
 	/*
 	 * Let the layer do stuff if it wishes
 	 */
-	(void)((*(port->p_close))(port));
+	error = (*(port->p_close))(port);
 
 	/*
 	 * Free the port memory
