@@ -36,14 +36,14 @@ field(char *buf, int idx, char *deflt)
 	/*
 	 * Find terminator
 	 */
-	for (q = p+1; q && (*q != ':'); ++q)
+	for (q = p+1; *q && (*q != ':'); ++q)
 		;
 
 	/*
 	 * Calculate length, get static string to hold value
 	 */
-	len = (q-p)+1;
-	fldval = realloc(fldval, len);
+	len = q-p;
+	fldval = realloc(fldval, len+1);
 	if (fldval == 0) {
 		return(deflt);
 	}
@@ -51,8 +51,8 @@ field(char *buf, int idx, char *deflt)
 	/*
 	 * Put null-terminated value in place, return it
 	 */
-	bcopy(p, fldval, len-1);
-	p[len] = '\0';
+	bcopy(p, fldval, len);
+	fldval[len] = '\0';
 	return(fldval);
 }
 
@@ -72,6 +72,14 @@ fill_hash(void)
 	 */
 	if ((fp = fopen("/vsta/etc/passwd", "r")) == 0) {
 		return;
+	}
+
+	/*
+	 * Allocate hash
+	 */
+	uidhash = hash_alloc(16);
+	if (uidhash == 0) {
+		abort();
 	}
 
 	/*
