@@ -153,7 +153,7 @@ dos_write(struct msg *m, struct file *f)
  * pack_name()
  *	Pack a DOS name into a UNIX-ish format
  */
-void
+static void
 pack_name(char *name, char *ext, char *file)
 {
 	char *p;
@@ -162,7 +162,7 @@ pack_name(char *name, char *ext, char *file)
 		*file++ = tolower(*p);
 	}
 	p = ext;
-	ASSERT_DEBUG(*p, "pack_name: null in filename");
+	ASSERT_DEBUG(*p, "pack_name: null in extension");
 	if (*p != ' ') {
 		*file++ = '.';
 		for ( ; (p < ext+3) && (*p != ' '); ++p) {
