@@ -9,6 +9,7 @@
 #include <fcntl.h>
 
 extern char *rstat();
+extern int wstat();
 
 /*
  * getenv()
@@ -104,4 +105,69 @@ setenv(char *name, char *val)
 	close(fd);
 
 	return(0);
+}
+
+/*
+ * setenv_init()
+ *	Initialize environment
+ *
+ * Usually called after a fork to establish a new base and
+ * copy-on-write node.  Returns 0 on success, -1 on failure.
+ */
+setenv_init(char *base)
+{
+	char buf[80];
+	int fd;
+
+	/*
+	 * If we have a new base, move down to it creating
+	 * path elements as needed.
+	 */
+	if (base) {
+		char *p, *q;
+
+		/*
+		 * Trim leading '/'s, add prefix /env and suffix
+		 * "#".
+		 */
+		while (base[0] == '/') {
+			++base;
+		}
+		sprintf(buf, "/env/%s/#", base);
+
+		/*
+		 * Skip first two slashes (from above; they should
+		 * definitely exist)
+		 */
+		p = strchr(buf, '/');
+		p = strchr(p, '/');
+		++p;
+
+		/*
+		 * mkdir successive elements
+		 */
+		do {
+			p = strchr(p, '/');
+			if (p) {
+				*p = '\0';
+			}
+			if ((fd = open(buf, O_READ)) < 0) {
+				if (mkdir(buf) < 0) {
+					return(-1);
+				}
+			} else {
+				close(fd);
+			}
+			if (p) {
+				*p++ = '/';
+			}
+		} while(p);
+		return(0);
+	}
+
+	/*
+	 * Otherwise use wstat() to move to our own environment node
+	 */
+	fd = open("/env", O_READ);
+	return(wstat(__fd_port(fd), "fork"));
 }
