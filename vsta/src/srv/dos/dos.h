@@ -191,6 +191,7 @@ extern void dos_open(struct msg *, struct file *),
 extern void timestamp(struct directory *, time_t),
 	dir_timestamp(struct file *, time_t);
 extern int dir_set_type(struct file *, char *);
+extern void dir_readonly(struct file *f, int);
 
 /*
  * Global data

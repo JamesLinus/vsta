@@ -23,18 +23,30 @@ static struct hash
 	*rename_pending;	/* Tabulate pending renames */
 
 /*
- * dirty()
- *	Mark a handle dirty
+ * ddirty()
+ *	Mark a directory handle dirty
  *
  * Handles case of null handle, which means root
  */
 static void
-dirty(void *handle)
+ddirty(void *handle)
 {
 	if (handle) {
 		bdirty(handle);
 	} else {
 		root_dirty = 1;
+	}
+}
+
+/*
+ * dfree()
+ *	Free up a directory handle
+ */
+static void
+dfree(void *handle)
+{
+	if (handle) {
+		bfree(handle);
 	}
 }
 
@@ -481,10 +493,8 @@ dir_remove(struct node *n)
 	 * dirty.  Special case (of course) for root.
 	 */
 	d->name[0] = 0xe5;
-	dirty(handle);
-	if (handle) {
-		bfree(handle);
-	}
+	ddirty(handle);
+	dfree(handle);
 
 	/*
 	 * Unhash node
@@ -571,7 +581,7 @@ dir_findslot(struct node *n, void **handlep)
 	*handlep = handle = bget(c->c_clust[c->c_nclust-1]);
 	d = bdata(handle);
 	bzero(d, clsize);
-	dirty(handle);
+	ddirty(handle);
 	return(d);
 }
 
@@ -657,14 +667,14 @@ dir_newfile(struct file *f, char *file, int isdir)
 		} else {
 			d->start = n->n_clust->c_clust[0];
 		}
-		dirty(handle);
-		bfree(handle);
+		ddirty(handle);
+		dfree(handle);
 	}
 out:
 	if (error) {
 		dir->name[0] = ochar0;
 	} else {
-		dirty(dirhandle);
+		ddirty(dirhandle);
 	}
 	if (dirhandle) {
 		bfree(dirhandle);
@@ -779,10 +789,8 @@ dir_timestamp(struct file *f, time_t t)
 	/*
 	 * Mark it modified
 	 */
-	dirty(handle);
-	if (handle) {
-		bfree(handle);
-	}
+	ddirty(handle);
+	dfree(handle);
 }
 
 /*
@@ -824,10 +832,8 @@ dir_setlen(struct node *n)
 		ASSERT_DEBUG(d->size == 0, "dir_setlen: len !clust");
 		d->start = 0;
 	}
-	dirty(handle);
-	if (handle) {
-		bfree(handle);
-	}
+	ddirty(handle);
+	dfree(handle);
 }
 
 /*
@@ -918,7 +924,7 @@ fix_dotdot(struct node *n, struct node *ndir)
 	 * Point to new parent dir
 	 */
 	de->start = get_clust0(ndir->n_clust);
-	dirty(b);
+	ddirty(b);
 }
 
 /*
@@ -1001,14 +1007,10 @@ do_rename(struct file *fsrc, char *src, struct file *fdest, char *dest)
 	 * Mark dir blocks containing entries as dirty.  Root dir
 	 * has a NULL handle; root_dirty gets flagged instead.
 	 */
-	dirty(handsrc);
-	if (handsrc) {
-		bfree(handsrc);
-	}
-	dirty(handdest);
-	if (handdest) {
-		bfree(handdest);
-	}
+	ddirty(handsrc);
+	dfree(handsrc);
+	ddirty(handdest);
+	dfree(handdest);
 
 	/*
 	 * File nodes are keyed under their parent dir.  Since this
@@ -1240,9 +1242,37 @@ dir_set_type(struct file *f, char *newtype)
 	/*
 	 * Flag dir entry as needing a flush, and return success
 	 */
-	dirty(handle);
-	if (handle) {
-		bfree(handle);
-	}
+	ddirty(handle);
+	dfree(handle);
+	n->n_flags |= N_DIRTY;
 	return(0);
+}
+
+/*
+ * dir_readonly()
+ *	Set/clear dir readonly bit
+ */
+void
+dir_readonly(struct file *f, int readonly)
+{
+	struct directory *d;
+	void *handle;
+	struct node *n = f->f_node;
+
+	/*
+	 * Flag bit in dir entry header and cache of
+	 * it in n_mode.  Don't dirty anything if the
+	 * protection isn't changing.
+	 */
+	d = get_dirent(n->n_dir, n->n_slot, &handle);
+	if (readonly) {
+		d->attr |= DA_READONLY;
+		n->n_mode &= ~ACC_WRITE;
+	} else {
+		d->attr &= ~DA_READONLY;
+		n->n_mode |= ACC_WRITE;
+	}
+	ddirty(handle);
+	dfree(handle);
+	n->n_flags |= N_DIRTY;
 }

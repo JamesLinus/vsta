@@ -32,14 +32,6 @@ dos_open(struct msg *m, struct file *f)
 	int newfile = 0;
 
 	/*
-	 * Need a buffer
-	 */
-	if (m->m_nseg != 1) {
-		msg_err(m->m_sender, EINVAL);
-		return;
-	}
-
-	/*
 	 * Have to be in dir to open down into a file
 	 */
 	if (f->f_node->n_type != T_DIR) {
@@ -48,22 +40,28 @@ dos_open(struct msg *m, struct file *f)
 	}
 
 	/*
-	 * Check for permission
+	 * Check for permission.  Write/create needs ACC_WRITE,
+	 * changing permissions requires ACC_CHMOD.
 	 */
-	if (m->m_arg & (ACC_WRITE|ACC_CREATE|ACC_DIR)) {
-		/*
-		 * Insufficient priveleges
-		 */
-		if ((f->f_perm & ACC_WRITE) == 0) {
-			msg_err(m->m_sender, EPERM);
-			return;
-		}
+	if (((m->m_arg & (ACC_WRITE|ACC_CREATE|ACC_DIR)) &&
+		!(f->f_perm & ACC_WRITE))  ||
+	    ((m->m_arg & ACC_CHMOD) && !(f->f_perm & ACC_CHMOD))) {
+		msg_err(m->m_sender, EPERM);
+		return;
 	}
 
 	/*
 	 * Look up name
 	 */
 	n = dir_look(f->f_node, m->m_buf);
+
+	/*
+	 * Enforce DOS read-only bit
+	 */
+	if (n && !(n->n_mode & ACC_WRITE) && (m->m_arg & ACC_WRITE)) {
+		msg_err(m->m_sender, EPERM);
+		return;
+	}
 
 	/*
 	 * No such file--do they want to create?

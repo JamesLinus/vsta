@@ -7,6 +7,7 @@
  * were originally written by Bill Jolitz.
  */
 #include <sys/fs.h>
+#include <sys/perm.h>
 #include "dos.h"
 #include <sys/param.h>
 #include <syslog.h>
@@ -145,6 +146,19 @@ isize(struct node *n)
 }
 
 /*
+ * dos_acc()
+ *	Give access string based on dir entry protection attribute
+ */
+static char *
+dos_acc(struct directory *d)
+{
+	if (d->attr & DA_READONLY) {
+		return("5/0/0");
+	}
+	return("5/0/2");
+}
+
+/*
  * dos_stat()
  *	Build stat string for file, send back
  */
@@ -165,16 +179,16 @@ dos_stat(struct msg *m, struct file *f)
 	}
 	if (n->n_type == T_DIR) {
 		sprintf(result,
- "perm=1/1\nacc=5/0/2\nsize=%d\ntype=d\nowner=0\ninode=%d\nmtime=%ld\n",
-			isize(n), inum(n),
+ "perm=1/1\nacc=%s\nsize=%d\ntype=d\nowner=0\ninode=%d\nmtime=%ld\n",
+			dos_acc(&d), isize(n), inum(n),
 			cvt_time(d.date, d.time));
 	} else {
 		/*
 		 * Otherwise look up file and get dope
 		 */
 		sprintf(result,
- "perm=1/1\nacc=5/0/2\nsize=%d\ntype=f\nowner=0\ninode=%d\nmtime=%ld\n",
-			n->n_len, inum(n),
+ "perm=1/1\nacc=%s\nsize=%d\ntype=f\nowner=0\ninode=%d\nmtime=%ld\n",
+			dos_acc(&d), n->n_len, inum(n),
 			cvt_time(d.date, d.time));
 	}
 	m->m_buf = result;
@@ -211,6 +225,38 @@ dos_fid(struct msg *m, struct file *f)
 }
 
 /*
+ * accum_ro()
+ *	Walk a protection label and see if it's writable
+ */
+static int
+accum_ro(struct prot *p)
+{
+	uint flags, x;
+
+	flags = p->prot_default;
+	for (x = 0; x < p->prot_len; ++x) {
+		flags |= p->prot_bits[x];
+	}
+	return((flags & ACC_WRITE) == 0);
+}
+
+/*
+ * change_mode()
+ *	Given before->after chmod, apply to DOS dir entry of node
+ */
+static void
+change_mode(struct prot *old, struct prot *new, struct file *f)
+{
+	int old_ro, new_ro;
+
+	old_ro = accum_ro(old);
+	new_ro = accum_ro(new);
+	if (old_ro != new_ro) {
+		dir_readonly(f, new_ro);
+	}
+}
+
+/*
  * dos_wstat()
  *	Write status of DOS file
  *
@@ -221,11 +267,31 @@ void
 dos_wstat(struct msg *m, struct file *f)
 {
 	char *field, *val;
+	struct prot *prot, tmp_prot;
+
+	/*
+	 * Use the root protection node for root dir, a private
+	 * copy otherwise.
+	 */
+	if (f->f_node == rootdir) {
+		prot = &dos_prot;
+	} else {
+		prot = &tmp_prot;
+		tmp_prot = dos_prot;
+	}
 
 	/*
 	 * Common wstat handling code
 	 */
-	if (do_wstat(m, &dos_prot, f->f_perm, &field, &val) == 0) {
+	if (do_wstat(m, prot, f->f_perm, &field, &val) == 0) {
+		/*
+		 * If he changed the protection, map it back onto
+		 * the DOS dir entry.
+		 */
+		if ((prot == &tmp_prot)  &&
+				bcmp(prot, &dos_prot, sizeof(*prot))) {
+			change_mode(&dos_prot, prot, f);
+		}
 		return;
 	}
 	if (!strcmp(field, "atime") || !strcmp(field, "mtime")) {
