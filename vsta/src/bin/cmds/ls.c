@@ -5,6 +5,11 @@
 #include <stdio.h>
 #include <dirent.h>
 #include <std.h>
+#include <pwd.h>
+#include <sys/param.h>
+#include <sys/fs.h>
+#include <sys/perm.h>
+#include <fcntl.h>
 
 static int ndir;	/* # dirs being displayed */
 static int cols = 80;	/* Columns on display */
@@ -89,6 +94,7 @@ setopt(char c)
 	switch (c) {
 	case 'l':
 		lflag = 1;
+		break;
 	default:
 		fprintf(stderr, "Unknown option: %c\n", c);
 		exit(1);
@@ -96,13 +102,160 @@ setopt(char c)
 }
 
 /*
+ * fld()
+ *	Pick a field from the entire stat string
+ */
+static char *
+fld(char **args, char *field, char *deflt)
+{
+	uint x, len;
+	char *p;
+
+	len = strlen(field);
+	for (x = 0; p = args[x]; ++x) {
+		/*
+		 * See if we match
+		 */
+		if (!strncmp(p, field, len)) {
+			if (p[len] == '=') {
+				return(p+len+1);
+			}
+		}
+	}
+	return(deflt);
+}
+
+/*
+ * explode()
+ *	Return vector out to fields in stat buffer
+ */
+char **
+explode(char *statbuf)
+{
+	uint nfield = 0;
+	char *p, **args = 0;
+
+	p = statbuf;
+	while (p && *p) {
+		nfield += 1;
+		args = realloc(args, (nfield+1) * sizeof(char *));
+		if (args == 0) {
+			return(0);
+		}
+		args[nfield-1] = p;
+		p = strchr(p, '\n');
+		if (p) {
+			*p++ = '\0';
+		}
+		if ((args[nfield-1] = strdup(args[nfield-1])) == 0) {
+			return(0);
+		}
+	}
+	args[nfield] = 0;
+	return(args);
+}
+
+/*
+ * prprot()
+ *	Grind the protection info into a presentable format
+ */
+static void
+prprot(char *perm, char *acc)
+{
+	char *p;
+	uchar ids[PERMLEN];
+	uint x;
+	extern char *cvt_id();
+
+	/*
+	 * Heading, need both fields
+	 */
+	printf("\tprot: ");
+	if (!perm || !acc) {
+		printf("not available\n");
+		return;
+	}
+
+	/*
+	 * Convert dotted notation to binary, look up in our
+	 * ID table and print.
+	 */
+	p = perm;
+	x = 0;
+	while (p) {
+		ids[x] = atoi(p);
+		p = strchr(p, '/'); if (p) ++p;
+		x += 1;
+	}
+	p = cvt_id(ids, x);
+	printf("%s, access: ", p); free(p);
+
+	/*
+	 * Now display access bits symbolically
+	 */
+	p = acc;
+	x = 0;
+	while (p) {
+		if (x) printf(".");
+		x = atoi(p);
+		if (x & ACC_READ) {printf("R"); x &= ~ACC_READ;}
+		if (x & ACC_WRITE) {printf("W"); x &= ~ACC_WRITE;}
+		if (x & ACC_CHMOD) {printf("C"); x &= ~ACC_CHMOD;}
+		if (x & ACC_EXEC) {printf("X"); x &= ~ACC_EXEC;}
+		if (x) printf("|0x%x", x);
+		p = strchr(p, '/'); if (p) ++p;
+		x = 1;
+	}
+	printf("\n");
+}
+
+/*
  * ls_l()
  *	List stuff with full stats
  */
 static void
-ls_l(DIR *d)
+ls_l(struct dirent *de)
 {
-	/* TBD */
+	char *s, **sv;
+	int fd;
+	struct passwd *pwd;
+	extern char *rstat();
+
+	/*
+	 * Read in the stat string for the entry
+	 */
+	fd = open(de->d_name, O_RDONLY);
+	if (fd < 0) {
+		perror(de->d_name);
+		return;
+	}
+	s = rstat(__fd_port(fd), (char *)0);
+	close(fd);
+	if (s == 0) {
+		perror(de->d_name);
+		return;
+	}
+	sv = explode(s);
+	if (sv == 0) {
+		perror(de->d_name);
+		return;
+	}
+
+	/*
+	 * Convert UID to a printing string
+	 */
+	pwd = getpwuid(atoi(fld(sv, "owner", "0")));
+
+	/*
+	 * Print out various fields, use prprot() for the protection
+	 * labels.
+	 */
+	printf("%s: %s, %d bytes, owner %s\n",
+		de->d_name,
+		fld(sv, "type", "file"),
+		atoi(fld(sv, "size", "0")),
+		pwd ? (pwd->pw_name) : ("not set"));
+	prprot(fld(sv, "perm", 0), fld(sv, "acc", 0));
 }
 
 /*
@@ -134,19 +287,14 @@ ls(char *path)
 	}
 
 	/*
-	 * Long format?
-	 */
-	if (lflag) {
-		ls_l(d);
-		closedir(d);
-		return;
-	}
-
-	/*
 	 * Read elements
 	 */
 	nelem = 0;
 	while (de = readdir(d)) {
+		if (lflag) {
+			ls_l(de);
+			continue;
+		}
 		nelem += 1;
 		v = realloc(v, sizeof(char *)*(nelem+1));
 		if (v == 0) {
