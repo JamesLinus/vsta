@@ -77,6 +77,7 @@ tn_read(struct msg *m)
 	struct msg *mp;
 	seg_t *s, *sp;
 
+	printf("tn_read from 0x%x\n", m->m_sender);
 	/*
 	 * If no data yet, get in line
 	 */
@@ -91,6 +92,7 @@ tn_read(struct msg *m)
 			msg_err(m->m_sender, strerror());
 			return;
 		}
+		printf(" readq\n");
 		p->p_msg = *m;
 		return;
 	}
@@ -107,6 +109,7 @@ tn_read(struct msg *m)
 	 * amount, dump it right back
 	 */
 	if (mp->m_arg <= m->m_arg) {
+		printf(" data %d\n", mp->m_arg);
 		msg_reply(m->m_sender, mp);
 		ll_delete(p->p_entry);
 		free(p);
@@ -146,6 +149,7 @@ tn_read(struct msg *m)
 	 * If we consumed any segments, reap either the whole
 	 * transaction (if we used them all) or the slot.
 	 */
+	printf(" partial %d\n", size);
 	if (nseg > 0) {
 		if (nseg == mp->m_nseg) {
 			ll_delete(p->p_entry);
@@ -252,6 +256,8 @@ io_server(struct tnserv *tn)
 
 	for (;;) {
 		x = msg_receive(tn->tn_server, &m);
+		printf("io_server sender 0x%x m_op %d\n",
+			m.m_sender, m.m_op);
 		if (x < 0) {
 			notify(0, tn->tn_tcp_tid, "kill");
 			syslog(LOG_ERR, "IO server: %s", strerror());
@@ -348,6 +354,7 @@ inet_reader(struct tnserv *tn)
 		/*
 		 * Queue data, with interlock
 		 */
+		printf("inet_reader gives %d\n", x);
 		p_lock(&readq_lock);
 		queue_data(buf, x);
 		v_lock(&readq_lock);
@@ -388,12 +395,6 @@ launch_client(port_t tn_read)
 		syslog(LOG_WARNING, "Can't create PTY: %s", strerror());
 		_exit(1);
 	}
-
-	/*
-	 * Initialize some data structures
-	 */
-	ll_init(&readq);
-	ll_init(&dataq);
 
 	/*
 	 * Launch the login process
@@ -444,6 +445,7 @@ launch_client(port_t tn_read)
 		syslog(LOG_WARNING, "Can't fork for IO: %s", strerror());
 		_exit(1);
 	}
+	printf("launched pid %d\n", pid);
 
 	/*
 	 * This thread then pulls data from /inet and queues it
@@ -472,17 +474,12 @@ serve(port_t p)
 		/*
 		 * Listen for next connection
 		 */
-		sprintf(buf, "conn=clone\n", buf);
-		m.m_op = FS_WSTAT;
-		m.m_buflen = m.m_arg = strlen(buf)+1;
-		m.m_arg1 = 0;
-		m.m_buf = buf;
-		m.m_nseg = 1;
-		x = msg_send(p, &m);
+		x = wstat(p, "conn=server\n");
 		if (x < 0) {
 			syslog(LOG_ERR, "Can't listen: %s", strerror());
 			exit(1);
 		}
+		printf("conn from %s", rstat(p, 0));
 
 		/*
 		 * Launch a client for this connection
@@ -550,9 +547,11 @@ main(int argc, char **argv)
 	(void)openlog("telnetd", LOG_PID, LOG_DAEMON);
 
 	/*
-	 * Initialize lock
+	 * Initialize locks and lists
 	 */
 	init_lock(&readq_lock);
+	ll_init(&readq);
+	ll_init(&dataq);
 
 	/*
 	 * Start serving telnet
