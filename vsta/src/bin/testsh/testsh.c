@@ -13,7 +13,7 @@
 
 extern char *__cwd;	/* Current working dir */
 static void cd(), md(), quit(), ls(), pwd(), mount(), cat(), sleep(),
-	sec(), null(), run();
+	sec(), null(), run(), do_wstat();
 
 static char *buf;	/* Utility page buffer */
 
@@ -38,8 +38,41 @@ struct {
 	"run", run,
 	"sector", sec,
 	"sleep", sleep,
+	"wstat", do_wstat,
 	0, 0
 };
+
+/*
+ * do_wstat()
+ *	Write a stat message
+ */
+static void
+do_wstat(char *p)
+{
+	int fd;
+	char *q;
+
+	if (!p || !p[0]) {
+		printf("Usage: wstat <file> <msg>\n");
+		return;
+	}
+	q = strchr(p, ' ');
+	if (!q) {
+		printf("Missing message\n");
+		return;
+	}
+	*q++ = '\0';
+	fd = open(p, O_RDWR);
+	if (fd < 0) {
+		perror(p);
+		return;
+	}
+	strcat(q, "\n");
+	if (wstat(__fd_port(fd), q) < 0) {
+		perror(q);
+	}
+	close(fd);
+}
 
 /*
  * run()
@@ -48,17 +81,28 @@ struct {
 static void
 run(char *p)
 {
-	char *q;
-	int x;
+	char *q, **argv;
+	int x = 1;
 
 	if (!p || !p[0]) {
 		printf("Usage: run <file>\n");
 		return;
 	}
-	if ((q = strchr(p, ' '))) {
+	if (q = strchr(p, ' ')) {
 		*q++ = '\0';
 	}
-	x = execl(p, q, (char *)0);
+	argv = malloc((x+1) * sizeof(char **));
+	argv[0] = p;
+	while (q) {
+		x += 1;
+		argv = realloc(argv, (x+1) * sizeof(char **));
+		argv[x-1] = q;
+		if (q = strchr(q, ' ')) {
+			*q++ = '\0';
+		}
+	}
+	argv[x] = 0;
+	x = execv(p, argv);
 	perror(p);
 	printf("Error code: %d\n", x);
 }
