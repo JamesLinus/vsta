@@ -7,13 +7,14 @@ are.
 This software was written from scratch entirely by:
 
 	Andrew Valencia
-	P.O. Box 2928
+	P.O. Box 2221
 	Vashon, WA  98070
-	vandys@vsta.org
+
+	http://www.vsta.org/contact/andy.html
 
 and is copyright 1993-1998 and 2000-2002 by Andrew Valencia.  Use of
 this software is permitted under the terms listed in the file
-"license", which should accompany this file at the top level of
+"LICENSE", which should accompany this file at the top level of
 the software distribution.  If it is missing for any reason, you
 may contact Andrew Valencia directly to receive a copy.
 
@@ -23,9 +24,9 @@ expressed by the original author.
 
 In addition to the requirements spelled out in the license, I also
 specifically require that any distribution of this software include
-this file, and the "license" file.  I have not placed those noisy
+this file, and the "LICENSE" file.  I have not placed those noisy
 copyright headers into each and every file, so I am counting on
-the Berne Convention and the presence of the "readme" and "license"
+the Berne Convention and the presence of the "README" and "LICENSE"
 files.
 
-To get started, see the file /vsta/doc/roadmap.txt.
+To get started, see the file doc/roadmap.txt.
